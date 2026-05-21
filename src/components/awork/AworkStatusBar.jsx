@@ -74,7 +74,19 @@ export default function AworkStatusBar({ order, data, taskStats, snapshot, onSel
           <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center flex-shrink-0">
             <span className="text-white text-xs font-bold">a</span>
           </div>
-          <span className="text-sm font-semibold text-blue-900 truncate">{src.awork_project_name || '—'}</span>
+          {src.awork_project_id ? (
+            <a
+              href={`https://app.awork.com/projects/${src.awork_project_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-semibold text-blue-900 truncate hover:underline"
+              title="In awork öffnen"
+            >
+              {src.awork_project_name || '—'}
+            </a>
+          ) : (
+            <span className="text-sm font-semibold text-blue-900 truncate">{src.awork_project_name || '—'}</span>
+          )}
           {src.awork_project_status && (
             <span className={`text-xs px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColor(src.awork_project_status)}`}>
               {src.awork_project_status}

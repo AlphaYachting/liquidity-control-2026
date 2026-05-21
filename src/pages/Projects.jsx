@@ -129,9 +129,16 @@ export default function Projects() {
     { key: 'total_net_amount', label: 'Gesamt netto', render: (v) => formatCurrency(v), cellClass: 'text-right font-medium' },
     { key: '_invoiced', label: 'Verrechnet', render: (v) => <span className={Number(v) > 0 ? 'text-green-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
     { key: '_open', label: 'Offen', render: (v) => <span className={Number(v) > 0 ? 'text-amber-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
+    { key: '_awork', label: 'awork', width: '110px', render: (_, row) => {
+        const done = row.awork_tasks_done ?? 0;
+        const total = row.awork_tasks_total ?? 0;
+        if (!row.awork_project_id) return <span className="text-xs text-muted-foreground">—</span>;
+        if (total === 0) return <span className="text-xs text-muted-foreground">–/–</span>;
+        return <span className="text-xs font-medium text-blue-700">{done} / {total}</span>;
+      }
+    },
     { key: 'expected_invoice_month', label: 'Erw. Monat', width: '100px' },
     { key: 'risk_status', label: 'Risiko', width: '90px', render: (v) => <StatusBadge status={v} /> },
-    { key: 'notes', label: 'Notizen', render: (v) => v ? <span className="text-xs text-muted-foreground truncate max-w-[150px] block">{v}</span> : '—' },
   ];
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-[400px]" /></div>;
