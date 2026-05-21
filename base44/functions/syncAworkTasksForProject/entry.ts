@@ -36,14 +36,19 @@ Deno.serve(async (req) => {
     const headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
 
     // Fetch task lists for name lookup
-    let taskListMap = {};
+    // Note: timeBudget/plannedDuration on tasklist endpoint is usually 0; actual budget per list
+    // comes from tasks[].lists[].totalPlannedDuration which we derive during task processing.
+    let taskListMap = {}; // id -> { name }
     try {
       const tlResp = await fetch(`${apiBase}/api/v1/projects/${awork_project_id}/tasklists`, { headers });
       if (tlResp.ok) {
         const tlData = await tlResp.json();
         const lists = Array.isArray(tlData) ? tlData : (tlData.data || []);
-        for (const tl of lists) taskListMap[tl.id] = tl.name || '';
+        for (const tl of lists) {
+          taskListMap[tl.id] = { name: tl.name || '' };
+        }
       }
+      console.log('Task lists fetched:', Object.keys(taskListMap).length);
     } catch (e) {
       console.error('Failed to fetch task lists:', e.message);
     }
@@ -83,7 +88,10 @@ Deno.serve(async (req) => {
       const statusType = resolveStatusType(task.taskStatus);
       const assignees = task.assignees || task.users || [];
       const primaryAssignee = assignees[0];
-      const taskListId = task.taskListId || task.baseTaskListId || '';
+      // awork API uses 'primaryTaskListId' and 'lists' array (not taskListId/baseTaskListId)
+      const taskListId = task.primaryTaskListId || '';
+      const taskListEntry = (task.lists || []).find(l => l.id === taskListId) || (task.lists || [])[0] || null;
+      const taskListName = taskListEntry?.name || taskListMap[taskListId]?.name || '';
 
       const snapshot = {
         awork_task_id: task.id,
@@ -93,8 +101,10 @@ Deno.serve(async (req) => {
         task_status_name: task.taskStatus?.name || '',
         task_status_type: statusType,
         task_list_id: taskListId,
-        task_list_name: taskListMap[taskListId] || task.taskListName || '',
-        assignee_name: primaryAssignee?.name || '',
+        task_list_name: taskListName,
+        assignee_name: primaryAssignee
+          ? `${primaryAssignee.firstName || ''} ${primaryAssignee.lastName || ''}`.trim()
+          : '',
         assignee_email: primaryAssignee?.email || '',
         due_date: task.dueDate ? task.dueDate.split('T')[0] : null,
         planned_duration_minutes: task.plannedDuration || 0,
