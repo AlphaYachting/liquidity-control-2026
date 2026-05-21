@@ -16,6 +16,7 @@ import { formatCurrency } from '@/lib/liquidityUtils';
 import { calculateOrderReconciliation } from '@/lib/reconciliationUtils';
 import InvoiceScanUploader from '@/components/orders/InvoiceScanUploader';
 import InvoiceRecordForm from '@/components/orders/InvoiceRecordForm';
+import OrderItemsTable from '@/components/orders/OrderItemsTable';
 
 const READINESS_LABELS = {
   not_ready: 'Nicht bereit',
@@ -47,6 +48,11 @@ export default function ConfirmedOrderDetail() {
     queryKey: ['invoiceRecords'], queryFn: () => base44.entities.InvoiceRecord.list()
   });
   const orderInvoices = invoices.filter(i => i.confirmed_order_id === orderId);
+
+  const { data: orderItems = [] } = useQuery({
+    queryKey: ['confirmedOrderItems', orderId],
+    queryFn: () => base44.entities.ConfirmedOrderItem.filter({ confirmed_order_id: orderId })
+  });
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'], queryFn: () => base44.entities.LiquidityProject.list()
@@ -170,6 +176,9 @@ export default function ConfirmedOrderDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
+
+          {/* Leistungsübersicht */}
+          <OrderItemsTable items={orderItems} />
 
           {/* Commercial Billing Blocks */}
           <Card>

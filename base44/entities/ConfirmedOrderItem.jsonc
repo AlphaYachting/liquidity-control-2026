@@ -1,0 +1,59 @@
+{
+  "name": "ConfirmedOrderItem",
+  "type": "object",
+  "properties": {
+    "confirmed_order_id": {
+      "type": "string",
+      "description": "Linked ConfirmedOrder ID"
+    },
+    "position": {
+      "type": "number",
+      "description": "Position number (1, 2, 3...)"
+    },
+    "title": {
+      "type": "string",
+      "description": "Leistungsbezeichnung"
+    },
+    "description": {
+      "type": "string"
+    },
+    "unit": {
+      "type": "string",
+      "default": "pauschal"
+    },
+    "unit_price": {
+      "type": "number",
+      "default": 0
+    },
+    "quantity": {
+      "type": "number",
+      "default": 1
+    },
+    "total_price": {
+      "type": "number",
+      "default": 0
+    },
+    "is_discount": {
+      "type": "boolean",
+      "default": false,
+      "description": "True for discount/Rabatt rows"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "completed",
+        "blocked"
+      ],
+      "default": "not_started"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "confirmed_order_id",
+    "title"
+  ]
+}
