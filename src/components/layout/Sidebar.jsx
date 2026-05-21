@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban },
-  { path: '/confirmed-orders', label: 'Auftragsbestätigungen', icon: ClipboardList },
+  { path: '/confirmed-orders', label: 'Auftragsabwicklung', icon: ClipboardList },
   { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
   { path: '/next-month-forecast', label: 'Nächster Monat', icon: CalendarCheck },
   { path: '/online-marketing', label: 'Online-Marketing', icon: Megaphone },
