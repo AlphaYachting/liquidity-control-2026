@@ -66,8 +66,8 @@ Deno.serve(async (req) => {
         project_type: proj.projectType?.name || '',
         start_date: proj.startDate ? proj.startDate.split('T')[0] : null,
         due_date: proj.dueDate ? proj.dueDate.split('T')[0] : null,
-        time_budget_minutes: proj.timeBudget || 0,
-        tracked_duration_minutes: proj.trackedDuration || 0,
+        time_budget_minutes: proj.timeBudget ? Math.round(proj.timeBudget / 60) : 0,
+        tracked_duration_minutes: proj.trackedDuration ? Math.round(proj.trackedDuration / 60) : 0,
         tasks_count: proj.tasksCount || 0,
         tasks_done_count: proj.tasksDoneCount || 0,
         progress_percent: proj.tasksCount > 0
