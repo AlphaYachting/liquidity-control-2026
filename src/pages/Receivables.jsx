@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ShieldCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
+import PaymentFreshnessWarning from '@/components/shared/PaymentFreshnessWarning';
 import KpiCard from '@/components/shared/KpiCard';
 import FilterBar from '@/components/shared/FilterBar';
 import DataTable from '@/components/shared/DataTable';
@@ -67,11 +69,30 @@ export default function Receivables() {
     { key: 'collection_risk', label: 'Risiko', render: (v) => <StatusBadge status={v} /> },
   ];
 
+  const { data: invoiceRecords = [] } = useQuery({
+    queryKey: ['invoiceRecords'], queryFn: () => base44.entities.InvoiceRecord.list()
+  });
+
+  const navigate = useNavigate();
+
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-64" /><Skeleton className="h-[400px]" /></div>;
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Offene Forderungen / Mahnwesen" subtitle={`${filtered.length} Forderungen`} icon={AlertTriangle} />
+      <PageHeader
+        title="Offene Forderungen / Mahnwesen"
+        subtitle={`${filtered.length} Forderungen`}
+        icon={AlertTriangle}
+        actions={
+          <button
+            onClick={() => navigate('/payment-consistency')}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" /> Konsistenzprüfung
+          </button>
+        }
+      />
+      <PaymentFreshnessWarning invoiceRecords={invoiceRecords} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard title="Offene Forderungen" value={formatCurrency(totalOpen)} variant="warning" />

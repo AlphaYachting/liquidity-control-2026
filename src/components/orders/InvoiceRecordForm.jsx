@@ -115,8 +115,15 @@ export default function InvoiceRecordForm({ invoice, confirmedOrderId, billingBl
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Bereits bezahlt (€)</Label>
+          <Label className="text-xs flex items-center gap-1">
+            Bezahlt brutto (€)
+            <span
+              title="Bitte den bezahlten Bruttobetrag eingeben. Forderungen werden gegen den Bruttobetrag der Rechnung berechnet."
+              className="cursor-help text-muted-foreground text-xs ml-1"
+            >ⓘ</span>
+          </Label>
           <Input type="number" value={form.paid_amount} onChange={e => set('paid_amount', e.target.value)} />
+          <p className="text-xs text-muted-foreground mt-0.5">Brutto — nicht Netto</p>
         </div>
         <div className="col-span-2">
           <Label className="text-xs">Notizen</Label>

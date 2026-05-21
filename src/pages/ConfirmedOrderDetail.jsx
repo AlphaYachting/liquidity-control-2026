@@ -20,6 +20,10 @@ import AworkSignalBadge from '@/components/awork/AworkSignalBadge';
 import { calculateAworkStatusForBillingBlock, getTasksForBillingBlock } from '@/lib/aworkReadinessUtils';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
+import PaymentFreshnessWarning from '@/components/shared/PaymentFreshnessWarning';
+import PaymentSourceBadge from '@/components/shared/PaymentSourceBadge';
+import InvoiceOpenAmountDisplay from '@/components/shared/InvoiceOpenAmountDisplay';
+import { checkBillingBlockProjectMismatch } from '@/lib/paymentDataUtils';
 
 const MATCH_COLORS = {
   auto_matched: 'bg-emerald-100 text-emerald-700',
@@ -196,7 +200,7 @@ export default function ConfirmedOrderDetail() {
         />
       </div>
 
-      {/* awork Status Bar */}
+      {/* awork Status Bar — Operative Umsetzung */}
       <AworkStatusBar
         order={order}
         onSelectProject={() => setShowAworkPicker(true)}
@@ -205,16 +209,15 @@ export default function ConfirmedOrderDetail() {
       />
 
       {/* Warnings */}
-      {recon.warnings.length > 0 && (
-        <div className="space-y-2">
-          {recon.warnings.map((w, i) => (
-            <div key={i} className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              {w}
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="space-y-2">
+        {recon.warnings.map((w, i) => (
+          <div key={i} className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            {w}
+          </div>
+        ))}
+        <PaymentFreshnessWarning invoiceRecords={orderInvoices} />
+      </div>
 
       {/* Reconciliation KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -285,7 +288,7 @@ export default function ConfirmedOrderDetail() {
           {/* Billing Blocks */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Abrechnungspakete ({orderBlocks.length})</CardTitle>
+              <CardTitle className="text-base">Auftragspakete / Abrechnung ({orderBlocks.length})</CardTitle>
             </CardHeader>
             <CardContent>
               {orderBlocks.length === 0 ? (
@@ -296,8 +299,15 @@ export default function ConfirmedOrderDetail() {
                     const blockInvoices = orderInvoices.filter(i => i.billing_block_id === block.id);
                     const bs = calculateBillingBlockStatus(block, blockInvoices);
                     const hasAwork = block.awork_mapping_type && block.awork_mapping_type !== 'none';
+                    const projectMismatch = checkBillingBlockProjectMismatch(block, order);
                     return (
                       <div key={block.id} className="border rounded-xl p-4 hover:bg-muted/20 transition-colors">
+                        {projectMismatch && (
+                          <div className="flex items-start gap-2 mb-2 p-2 rounded bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                            {projectMismatch}
+                          </div>
+                        )}
                         {/* Row 1: title + amounts + status */}
                         <div className="flex items-start justify-between gap-3 mb-3">
                           <div className="flex-1 min-w-0">
@@ -449,9 +459,10 @@ export default function ConfirmedOrderDetail() {
                         <th className="text-left pb-2 font-medium">Rechnungsnr.</th>
                         <th className="text-left pb-2 font-medium pl-2">Typ</th>
                         <th className="text-right pb-2 font-medium">Netto</th>
-                        <th className="text-right pb-2 font-medium">Bezahlt</th>
+                        <th className="text-right pb-2 font-medium">Bezahlt brutto</th>
+                        <th className="text-right pb-2 font-medium">Offen (ber.)</th>
                         <th className="text-left pb-2 font-medium pl-2">Status</th>
-                        <th className="text-left pb-2 font-medium pl-2">Matching</th>
+                        <th className="text-left pb-2 font-medium pl-2">Quelle</th>
                         <th className="pb-2"></th>
                       </tr>
                     </thead>
@@ -466,13 +477,17 @@ export default function ConfirmedOrderDetail() {
                           <td className="py-2 pl-2 text-xs text-muted-foreground">{inv.invoice_type?.replace(/_/g, ' ') || '—'}</td>
                           <td className="py-2 text-right font-semibold">{formatCurrency(inv.net_amount)}</td>
                           <td className="py-2 text-right text-emerald-600">{formatCurrency(inv.paid_amount)}</td>
+                          <td className="py-2 text-right">
+                            <InvoiceOpenAmountDisplay invoice={inv} compact />
+                          </td>
                           <td className="py-2 pl-2"><StatusBadge status={inv.payment_status} /></td>
                           <td className="py-2 pl-2">
-                            <div className="flex items-center gap-1">
-                              <Badge className={`text-xs ${MATCH_COLORS[inv.match_status] || ''}`}>
-                                {inv.match_confidence ? `${inv.match_confidence}%` : '?'}
-                              </Badge>
-                            </div>
+                            <PaymentSourceBadge
+                              sourceType={inv.source_type}
+                              sourceFile={inv.source_file}
+                              updatedDate={inv.updated_date}
+                              showDate
+                            />
                           </td>
                           <td className="py-2">
                             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditingInvoice(inv); setShowInvoiceUploader(false); }}>
@@ -487,7 +502,7 @@ export default function ConfirmedOrderDetail() {
                         <td colSpan={2} className="py-2 text-sm font-semibold">Summe</td>
                         <td className="py-2 text-right font-bold">{formatCurrency(recon.adjusted_invoiced_net)}</td>
                         <td className="py-2 text-right font-bold text-emerald-600">{formatCurrency(recon.total_paid)}</td>
-                        <td colSpan={3}></td>
+                        <td colSpan={4}></td>
                       </tr>
                     </tfoot>
                   </table>
@@ -500,7 +515,9 @@ export default function ConfirmedOrderDetail() {
         {/* Sidebar: Order info + document */}
         <div className="space-y-4">
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Auftragsinfos</CardTitle></CardHeader>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Auftragsbestätigung — Kommerziell</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Auftragsnr.</span><span className="font-medium">{order.order_number || '—'}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Bestätigt am</span><span>{order.confirmation_date || '—'}</span></div>
