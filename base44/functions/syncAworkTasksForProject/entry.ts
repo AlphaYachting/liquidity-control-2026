@@ -48,32 +48,22 @@ Deno.serve(async (req) => {
       console.error('Failed to fetch task lists:', e.message);
     }
 
-    // Fetch tasks — try primary endpoint, then fallback
+    // Fetch tasks — use project tasks endpoint directly
     let allTasks = [];
 
-    const primaryResp = await fetch(
-      `${apiBase}/api/v1/projecttasks?filterby=projectId+eq+%27${awork_project_id}%27&pageSize=100`,
+    const tasksResp = await fetch(
+      `${apiBase}/api/v1/projects/${awork_project_id}/projecttasks?page=1&pageSize=200`,
       { headers }
     );
 
-    if (primaryResp.ok && primaryResp.headers.get('content-type')?.includes('application/json')) {
-      const data = await primaryResp.json();
-      allTasks = Array.isArray(data) ? data : (data.data || []);
-    } else {
-      const primaryText = await primaryResp.text();
-      console.log('Primary tasks endpoint failed:', primaryResp.status, primaryText.slice(0, 100), '— trying fallback');
-      const fallbackResp = await fetch(
-        `${apiBase}/api/v1/projects/${awork_project_id}/tasks?pageSize=100`,
-        { headers }
-      );
-      if (fallbackResp.ok && fallbackResp.headers.get('content-type')?.includes('application/json')) {
-        const data = await fallbackResp.json();
-        allTasks = Array.isArray(data) ? data : (data.data || []);
-      } else {
-        const errText = await fallbackResp.text();
-        return Response.json({ error: `awork tasks API error: ${fallbackResp.status}`, detail: errText.slice(0, 200) }, { status: 502 });
-      }
+    if (!tasksResp.ok || !tasksResp.headers.get('content-type')?.includes('application/json')) {
+      const errText = await tasksResp.text();
+      console.error('Tasks endpoint failed:', tasksResp.status, errText.slice(0, 200));
+      return Response.json({ error: `awork tasks API error: ${tasksResp.status}`, detail: errText.slice(0, 200) }, { status: 502 });
     }
+
+    const data = await tasksResp.json();
+    allTasks = Array.isArray(data) ? data : (data.data || []);
 
     const now = new Date().toISOString();
     let created = 0, updated = 0, failed = 0;
