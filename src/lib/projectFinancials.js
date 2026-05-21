@@ -58,22 +58,17 @@ export function calculateProjectFinancials({ project, allOrders, allBlocks, allI
     linkedOrders.map(o => (o.order_number || '').toLowerCase()).filter(Boolean)
   );
 
-  // ── All order IDs for this customer (linked + unlinked) ───────────────
-  const allOrderIdsForCustomer = new Set(
-    allOrders
-      .filter(o => (o.customer || '').toLowerCase() === customerKey)
-      .map(o => o.id)
-  );
-
-  // ── Linked invoices (hard-linked via relation fields or order_number) ──
+  // ── Linked invoices (hard-linked via relation fields or order_number only) ──
+  // IMPORTANT: Customer-wide order matching (allOrderIdsForCustomer) was removed.
+  // It caused invoices from one project's orders to appear in sibling projects of the same customer.
+  // Invoices must be linked via project_id, confirmed_order_id (on a project-linked order),
+  // billing_block_id, or order_number. Unlinked invoices go to likelyUnmatchedInvoices instead.
   const linkedInvoices = allInvoices.filter(i => {
     if (i.payment_status === 'cancelled') return false;
     if (i.project_id === projectId) return true;
     if (i.confirmed_order_id && linkedOrderIds.has(i.confirmed_order_id)) return true;
     if (i.billing_block_id && linkedBlockIds.has(i.billing_block_id)) return true;
     if (i.order_number && linkedOrderNumbers.has((i.order_number || '').toLowerCase())) return true;
-    // Also include invoices linked to any order of this customer (even if order has no project_id set yet)
-    if (i.confirmed_order_id && allOrderIdsForCustomer.has(i.confirmed_order_id)) return true;
     return false;
   });
   const linkedInvoiceIds = new Set(linkedInvoices.map(i => i.id));
@@ -86,9 +81,9 @@ export function calculateProjectFinancials({ project, allOrders, allBlocks, allI
   const orphanOrderInvoices = [];
 
   // ── Likely unmatched (customer name only, no hard relation) ───────────
+  // Only shown as warning, never counted in project totals.
   const likelyUnmatchedInvoices = allInvoices.filter(i =>
     !linkedInvoiceIds.has(i.id) &&
-    !orphanOrderInvoices.find(o => o.id === i.id) &&
     (i.customer_name || '').toLowerCase() === customerKey &&
     !i.project_id &&
     !i.confirmed_order_id &&
