@@ -218,9 +218,22 @@ export default function ProjectDetail() {
   const adjustedInvoicedNet = realInvoices.reduce((s, i) => s + (Number(i.net_amount) || 0), 0)
     - creditNotes.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
   // Task 4: totalPaid excludes credit notes
-  const totalPaid = realInvoices.reduce((s, i) => s + (Number(i.paid_amount) || 0), 0);
-  const totalPaidGross = totalPaid; // paid_amount is stored as gross
-  const openReceivableGross = realInvoices.reduce((s, i) => s + (Number(i.gross_amount) || 0), 0) - totalPaidGross;
+  // If payment_status='paid' but paid_amount=0, treat gross_amount as paid (data from PDF import)
+  const totalPaid = realInvoices.reduce((s, i) => {
+    const paid = Number(i.paid_amount) || 0;
+    const gross = Number(i.gross_amount) || 0;
+    if (paid > 0) return s + paid;
+    if (i.payment_status === 'paid') return s + gross; // fallback for imported data
+    return s;
+  }, 0);
+  const totalPaidGross = totalPaid;
+  const openReceivableGross = realInvoices.reduce((s, i) => {
+    const gross = Number(i.gross_amount) || 0;
+    const paid = Number(i.paid_amount) || 0;
+    if (paid > 0) return s + (gross - paid);
+    if (i.payment_status === 'paid') return s; // fully paid
+    return s + gross; // open/overdue/partially_paid
+  }, 0);
   // Task 1: use commercialBaseNet instead of project.total_net_amount
   const openToInvoice = commercialBaseNet - adjustedInvoicedNet;
   const readyBlocks = projectBlocks.filter(b => b.invoice_readiness_status === 'ready');
@@ -555,7 +568,13 @@ export default function ProjectDetail() {
                           </td>
                           <td className="py-2 pl-2 text-xs text-muted-foreground">{inv.invoice_type?.replace(/_/g, ' ') || '—'}</td>
                           <td className="py-2 text-right font-semibold">{formatCurrency(inv.net_amount)}</td>
-                          <td className="py-2 text-right text-emerald-600">{formatCurrency(inv.paid_amount)}</td>
+                          <td className="py-2 text-right text-emerald-600">
+                            {formatCurrency(
+                              Number(inv.paid_amount) > 0
+                                ? inv.paid_amount
+                                : inv.payment_status === 'paid' ? inv.gross_amount : 0
+                            )}
+                          </td>
                           <td className="py-2 text-right">
                             <InvoiceOpenAmountDisplay invoice={inv} compact />
                           </td>
@@ -575,7 +594,7 @@ export default function ProjectDetail() {
                       <tr className="border-t bg-muted/20">
                         <td colSpan={2} className="py-2 text-sm font-semibold">Summe</td>
                         <td className="py-2 text-right font-bold">{formatCurrency(adjustedInvoicedNet)}</td>
-                        <td className="py-2 text-right font-bold text-emerald-600">{formatCurrency(totalPaid)}</td>
+                        <td className="py-2 text-right font-bold text-emerald-600">{formatCurrency(totalPaidGross)}</td>
                         <td className="py-2 text-right font-bold text-amber-600">{formatCurrency(Math.max(0, openReceivableGross))}</td>
                         <td colSpan={2}></td>
                       </tr>

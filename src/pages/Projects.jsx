@@ -79,10 +79,10 @@ export default function Projects() {
       }
 
       if (!pid) return;
-      if (!stats[pid]) stats[pid] = { invoiced: 0, open: 0 };
+      if (!stats[pid]) stats[pid] = { invoiced: 0, paid: 0 };
       if (!inv.is_credit_note && inv.payment_status !== 'cancelled') {
         stats[pid].invoiced += Number(inv.net_amount) || 0;
-        stats[pid].open += Number(inv.open_amount) || 0;
+        stats[pid].paid += Number(inv.paid_amount) || 0;
       } else if (inv.is_credit_note) {
         stats[pid].invoiced -= Number(inv.net_amount) || 0;
       }
@@ -113,6 +113,7 @@ export default function Projects() {
     ...p,
     _invoiced: invoiceStatsByProject[p.id]?.invoiced || 0,
     _open: Math.max(0, (p.total_net_amount || 0) - (invoiceStatsByProject[p.id]?.invoiced || 0)),
+    _paid: invoiceStatsByProject[p.id]?.paid || 0,
   }));
 
   const totalNet = filteredWithLive.reduce((s, p) => s + (Number(p.total_net_amount) || 0), 0);
