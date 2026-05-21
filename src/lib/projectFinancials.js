@@ -58,6 +58,13 @@ export function calculateProjectFinancials({ project, allOrders, allBlocks, allI
     linkedOrders.map(o => (o.order_number || '').toLowerCase()).filter(Boolean)
   );
 
+  // ── All order IDs for this customer (linked + unlinked) ───────────────
+  const allOrderIdsForCustomer = new Set(
+    allOrders
+      .filter(o => (o.customer || '').toLowerCase() === customerKey)
+      .map(o => o.id)
+  );
+
   // ── Linked invoices (hard-linked via relation fields or order_number) ──
   const linkedInvoices = allInvoices.filter(i => {
     if (i.payment_status === 'cancelled') return false;
@@ -65,19 +72,18 @@ export function calculateProjectFinancials({ project, allOrders, allBlocks, allI
     if (i.confirmed_order_id && linkedOrderIds.has(i.confirmed_order_id)) return true;
     if (i.billing_block_id && linkedBlockIds.has(i.billing_block_id)) return true;
     if (i.order_number && linkedOrderNumbers.has((i.order_number || '').toLowerCase())) return true;
+    // Also include invoices linked to any order of this customer (even if order has no project_id set yet)
+    if (i.confirmed_order_id && allOrderIdsForCustomer.has(i.confirmed_order_id)) return true;
     return false;
   });
   const linkedInvoiceIds = new Set(linkedInvoices.map(i => i.id));
 
-  // ── Invoices linked to orphan orders (no project_id on ConfirmedOrder) ─
+  // ── Orders without project_id that belong to this customer's invoices ──
+  // Used only for warnings — invoices are already in linkedInvoices above.
   const orphanOrderIds = new Set(ordersWithoutProjectId.map(o => o.id));
-  const orphanOrderInvoices = allInvoices.filter(i =>
-    !linkedInvoiceIds.has(i.id) &&
-    i.confirmed_order_id &&
-    orphanOrderIds.has(i.confirmed_order_id) &&
-    (i.customer_name || '').toLowerCase() === customerKey &&
-    i.payment_status !== 'cancelled'
-  );
+  // orphanOrderInvoices is empty now since those invoices are captured in linkedInvoices
+  // Keep the array for backwards compat but it will always be empty
+  const orphanOrderInvoices = [];
 
   // ── Likely unmatched (customer name only, no hard relation) ───────────
   const likelyUnmatchedInvoices = allInvoices.filter(i =>
