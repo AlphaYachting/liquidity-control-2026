@@ -11,6 +11,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { calculateOrderReconciliation, calculateBillingBlockStatus } from '@/lib/reconciliationUtils';
+import InvoiceScanUploader from '@/components/orders/InvoiceScanUploader';
 import InvoiceRecordForm from '@/components/orders/InvoiceRecordForm';
 
 const MATCH_COLORS = {
@@ -39,7 +40,7 @@ export default function ConfirmedOrderDetail() {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const [showInvoiceUploader, setShowInvoiceUploader] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
@@ -64,14 +65,8 @@ export default function ConfirmedOrderDetail() {
       : base44.entities.InvoiceRecord.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoiceRecords'] });
-      setShowInvoiceForm(false);
       setEditingInvoice(null);
     }
-  });
-
-  const deleteInvoiceMutation = useMutation({
-    mutationFn: (id) => base44.entities.InvoiceRecord.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invoiceRecords'] })
   });
 
   const isLoading = ordersLoading || blocksLoading || invoicesLoading;
@@ -257,19 +252,35 @@ export default function ConfirmedOrderDetail() {
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-base">Rechnungen ({orderInvoices.length})</CardTitle>
-              <Button size="sm" onClick={() => { setEditingInvoice(null); setShowInvoiceForm(true); }}>
-                <Plus className="w-4 h-4 mr-1" /> Rechnung hinzufügen
-              </Button>
+              {!showInvoiceUploader && !editingInvoice && (
+                <Button size="sm" onClick={() => setShowInvoiceUploader(true)}>
+                  <Plus className="w-4 h-4 mr-1" /> Rechnungen scannen & hochladen
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
-              {showInvoiceForm && (
+              {showInvoiceUploader && (
+                <div className="mb-4 p-4 border rounded-xl bg-muted/30">
+                  <InvoiceScanUploader
+                    confirmedOrderId={orderId}
+                    customerName={order.customer}
+                    billingBlocks={orderBlocks}
+                    onSaved={() => {
+                      queryClient.invalidateQueries({ queryKey: ['invoiceRecords'] });
+                      setShowInvoiceUploader(false);
+                    }}
+                    onCancel={() => setShowInvoiceUploader(false)}
+                  />
+                </div>
+              )}
+              {editingInvoice && (
                 <div className="mb-4 p-4 border rounded-xl bg-muted/30">
                   <InvoiceRecordForm
                     invoice={editingInvoice}
                     confirmedOrderId={orderId}
                     billingBlocks={orderBlocks}
-                    onSave={(data) => saveInvoiceMutation.mutate({ id: editingInvoice?.id, data })}
-                    onCancel={() => { setShowInvoiceForm(false); setEditingInvoice(null); }}
+                    onSave={(data) => saveInvoiceMutation.mutate({ id: editingInvoice.id, data })}
+                    onCancel={() => setEditingInvoice(null)}
                     isSaving={saveInvoiceMutation.isPending}
                   />
                 </div>
@@ -310,7 +321,7 @@ export default function ConfirmedOrderDetail() {
                             </div>
                           </td>
                           <td className="py-2">
-                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditingInvoice(inv); setShowInvoiceForm(true); }}>
+                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditingInvoice(inv); setShowInvoiceUploader(false); }}>
                               Bearbeiten
                             </Button>
                           </td>
