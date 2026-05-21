@@ -92,6 +92,12 @@ export default function ProjectDetail() {
   });
   const aworkSnapshot = aworkSnapshots[0] || null;
 
+  // ── Customer name set (used for invoice matching + unmatched warning) ──────
+  const customerNames = new Set([
+    project?.customer?.toLowerCase(),
+    ...linkedOrders.map(o => o.customer?.toLowerCase())
+  ].filter(Boolean));
+
   // ── Billing block aggregation (Task 4) ────────────────────────────────────
   const linkedOrderIds = new Set(linkedOrders.map(o => o.id));
 
@@ -104,11 +110,17 @@ export default function ProjectDetail() {
 
   // ── Invoice aggregation ───────────────────────────────────────────────────
   const projectBlockIds = new Set(projectBlocks.map(b => b.id));
-  const projectInvoices = allInvoices.filter(i =>
-    i.project_id === projectId ||
-    (i.confirmed_order_id && linkedOrderIds.has(i.confirmed_order_id)) ||
-    (i.billing_block_id && projectBlockIds.has(i.billing_block_id))
-  );
+  const projectInvoices = allInvoices.filter(i => {
+    // Explicitly linked
+    if (i.project_id === projectId) return true;
+    if (i.confirmed_order_id && linkedOrderIds.has(i.confirmed_order_id)) return true;
+    if (i.billing_block_id && projectBlockIds.has(i.billing_block_id)) return true;
+    // Customer-name match: include if not assigned to another project/order
+    if (customerNames.has((i.customer_name || '').toLowerCase()) &&
+        !i.project_id && !i.confirmed_order_id && !i.billing_block_id &&
+        i.payment_status !== 'cancelled') return true;
+    return false;
+  });
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const updateProjectMutation = useMutation({
@@ -233,10 +245,6 @@ export default function ProjectDetail() {
   }, [aworkTasks]);
 
   // ── Unmatched invoice warning (Task 9) ────────────────────────────────────
-  const customerNames = new Set([
-    project?.customer?.toLowerCase(),
-    ...linkedOrders.map(o => o.customer?.toLowerCase())
-  ].filter(Boolean));
   const unmatchedCustomerInvoices = allInvoices.filter(i =>
     customerNames.has((i.customer_name || '').toLowerCase()) &&
     !i.project_id &&
@@ -385,7 +393,7 @@ export default function ProjectDetail() {
             <CardContent>
               {projectBlocks.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">
-                  Keine Auftragspakete verknüpft. Pakete werden über Auftragsbestätigungen erstellt.
+                  Keine Auftragspakete verknüpft. Pakete werden über die Auftragsabwicklung erstellt.
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -617,7 +625,7 @@ export default function ProjectDetail() {
           {/* Linked commercial orders */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Auftragsbestätigungen ({linkedOrders.length})</CardTitle>
+              <CardTitle className="text-sm">Auftragsabwicklung ({linkedOrders.length})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {linkedOrders.length === 0 ? (
