@@ -1,0 +1,101 @@
+{
+  "name": "ToolCost",
+  "type": "object",
+  "properties": {
+    "tool_name": {
+      "type": "string"
+    },
+    "department": {
+      "type": "string",
+      "enum": [
+        "design",
+        "marketing",
+        "programming",
+        "project_management",
+        "general",
+        "other"
+      ]
+    },
+    "annual_cost": {
+      "type": "number",
+      "default": 0
+    },
+    "monthly_cost": {
+      "type": "number",
+      "default": 0
+    },
+    "payment_status": {
+      "type": "string",
+      "enum": [
+        "paid",
+        "pending",
+        "overdue",
+        "unclear",
+        "not_invoiced"
+      ],
+      "default": "pending"
+    },
+    "subscription_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "payment_interval": {
+      "type": "string",
+      "enum": [
+        "monthly",
+        "quarterly",
+        "yearly",
+        "one_time",
+        "unclear"
+      ],
+      "default": "monthly"
+    },
+    "needed": {
+      "type": "boolean",
+      "default": true
+    },
+    "customer_recharge": {
+      "type": "string"
+    },
+    "info": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "risk_flag": {
+      "type": "boolean",
+      "default": false
+    },
+    "cancellation_possible": {
+      "type": "boolean",
+      "default": false
+    },
+    "decision_status": {
+      "type": "string",
+      "enum": [
+        "keep",
+        "cancel",
+        "review",
+        "undecided"
+      ],
+      "default": "undecided"
+    },
+    "source_sheet": {
+      "type": "string"
+    },
+    "import_batch_id": {
+      "type": "string"
+    },
+    "source_row": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "tool_name"
+  ]
+}

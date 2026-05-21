@@ -1,0 +1,95 @@
+{
+  "name": "CashScenario",
+  "type": "object",
+  "properties": {
+    "scenario_name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "scenario_type": {
+      "type": "string",
+      "enum": [
+        "conservative",
+        "realistic",
+        "best_case",
+        "custom"
+      ],
+      "default": "realistic"
+    },
+    "opening_cash_balance": {
+      "type": "number",
+      "default": 0
+    },
+    "include_uncertain_projects": {
+      "type": "boolean",
+      "default": false
+    },
+    "include_overdue_receivables": {
+      "type": "boolean",
+      "default": false
+    },
+    "include_tool_costs": {
+      "type": "boolean",
+      "default": true
+    },
+    "include_payables": {
+      "type": "boolean",
+      "default": true
+    },
+    "safety_buffer_percent": {
+      "type": "number",
+      "default": 10
+    },
+    "probability_threshold": {
+      "type": "number",
+      "default": 50
+    },
+    "payment_delay_days": {
+      "type": "number",
+      "default": 0
+    },
+    "receivable_collection_rate": {
+      "type": "number",
+      "default": 100
+    },
+    "fixed_monthly_costs": {
+      "type": "number",
+      "default": 0
+    },
+    "tax_obligations": {
+      "type": "number",
+      "default": 0
+    },
+    "monthly_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "inflows": {
+            "type": "number"
+          },
+          "outflows": {
+            "type": "number"
+          },
+          "net_cashflow": {
+            "type": "number"
+          },
+          "closing_balance": {
+            "type": "number"
+          },
+          "liquidity_gap": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "scenario_name"
+  ]
+}

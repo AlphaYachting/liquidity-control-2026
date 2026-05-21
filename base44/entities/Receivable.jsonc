@@ -1,0 +1,94 @@
+{
+  "name": "Receivable",
+  "type": "object",
+  "properties": {
+    "customer": {
+      "type": "string"
+    },
+    "invoice_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "invoice_number": {
+      "type": "string"
+    },
+    "gross_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "net_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "overdue_days": {
+      "type": "number",
+      "default": 0
+    },
+    "dunning_level": {
+      "type": "number",
+      "default": 0,
+      "description": "0=not due, 1=1st reminder, 2=2nd reminder, 3=final notice"
+    },
+    "remarks": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "partially_paid",
+        "paid",
+        "overdue",
+        "disputed",
+        "write_off"
+      ],
+      "default": "open"
+    },
+    "responsible_person": {
+      "type": "string"
+    },
+    "next_action_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "next_action": {
+      "type": "string",
+      "enum": [
+        "call_customer",
+        "send_reminder",
+        "send_final_notice",
+        "clarify_internally",
+        "legal_review",
+        "write_off_candidate",
+        "none"
+      ],
+      "default": "none"
+    },
+    "collection_risk": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "low"
+    },
+    "source_sheet": {
+      "type": "string"
+    },
+    "import_batch_id": {
+      "type": "string"
+    },
+    "source_row": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "customer"
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "name": "Payable",
+  "type": "object",
+  "properties": {
+    "supplier": {
+      "type": "string"
+    },
+    "invoice_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "invoice_number": {
+      "type": "string"
+    },
+    "service_period": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "net_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "gross_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "unclear_notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "paid",
+        "scheduled",
+        "overdue",
+        "disputed",
+        "deferred"
+      ],
+      "default": "open"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "critical",
+        "normal",
+        "defer_possible",
+        "unclear",
+        "disputed"
+      ],
+      "default": "normal"
+    },
+    "payment_planned_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "source_sheet": {
+      "type": "string"
+    },
+    "import_batch_id": {
+      "type": "string"
+    },
+    "source_row": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "supplier"
+  ]
+}

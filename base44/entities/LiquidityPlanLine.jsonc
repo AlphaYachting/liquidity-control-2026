@@ -1,0 +1,111 @@
+{
+  "name": "LiquidityPlanLine",
+  "type": "object",
+  "properties": {
+    "parent_type": {
+      "type": "string",
+      "enum": [
+        "project",
+        "online_marketing",
+        "maintenance",
+        "production_support",
+        "tool_cost",
+        "receivable",
+        "payable",
+        "manual"
+      ]
+    },
+    "parent_id": {
+      "type": "string"
+    },
+    "customer_or_supplier": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "month": {
+      "type": "string",
+      "description": "YYYY-MM format"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "amount_net": {
+      "type": "number",
+      "default": 0
+    },
+    "amount_gross": {
+      "type": "number",
+      "default": 0
+    },
+    "vat_rate": {
+      "type": "number",
+      "default": 20
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "inflow",
+        "outflow"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "invoiced",
+        "paid",
+        "overdue",
+        "uncertain",
+        "cancelled"
+      ],
+      "default": "planned"
+    },
+    "probability_percent": {
+      "type": "number",
+      "default": 100
+    },
+    "weighted_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "payment_due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "invoice_number": {
+      "type": "string"
+    },
+    "order_number": {
+      "type": "string"
+    },
+    "responsible_person": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "source_sheet": {
+      "type": "string"
+    },
+    "source_row": {
+      "type": "number"
+    },
+    "imported": {
+      "type": "boolean",
+      "default": false
+    },
+    "import_batch_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "direction"
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "name": "SefIntegrationSetting",
+  "type": "object",
+  "properties": {
+    "provider_name": {
+      "type": "string"
+    },
+    "api_available": {
+      "type": "boolean",
+      "default": false
+    },
+    "api_documentation_url": {
+      "type": "string"
+    },
+    "authentication_type": {
+      "type": "string",
+      "enum": [
+        "oauth",
+        "api_key",
+        "ebics",
+        "csv_export",
+        "manual",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "connection_status": {
+      "type": "string",
+      "enum": [
+        "not_checked",
+        "documentation_needed",
+        "sandbox_possible",
+        "active",
+        "blocked"
+      ],
+      "default": "not_checked"
+    },
+    "steuerberater_connected": {
+      "type": "boolean",
+      "default": false
+    },
+    "last_check_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "security_risk_level": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "checklist_results": {
+      "type": "object",
+      "description": "Results from feasibility checklist"
+    },
+    "data_types_needed": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "provider_name"
+  ]
+}

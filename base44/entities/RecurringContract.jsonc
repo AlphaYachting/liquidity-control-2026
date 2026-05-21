@@ -1,0 +1,84 @@
+{
+  "name": "RecurringContract",
+  "type": "object",
+  "properties": {
+    "contract_type": {
+      "type": "string",
+      "enum": [
+        "online_marketing",
+        "maintenance",
+        "support",
+        "other"
+      ]
+    },
+    "customer": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "project_manager": {
+      "type": "string"
+    },
+    "monthly_fixed_price": {
+      "type": "number",
+      "default": 0
+    },
+    "annual_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "one_time_payment": {
+      "type": "number",
+      "default": 0
+    },
+    "billing_interval": {
+      "type": "string",
+      "enum": [
+        "monthly",
+        "quarterly",
+        "yearly",
+        "once",
+        "by_effort"
+      ],
+      "default": "monthly"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "paused",
+        "cancelled",
+        "pending",
+        "unclear"
+      ],
+      "default": "active"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "order_number": {
+      "type": "string"
+    },
+    "source_sheet": {
+      "type": "string"
+    },
+    "import_batch_id": {
+      "type": "string"
+    },
+    "source_row": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "customer"
+  ]
+}

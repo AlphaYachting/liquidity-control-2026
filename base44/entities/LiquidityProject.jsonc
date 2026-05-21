@@ -1,0 +1,110 @@
+{
+  "name": "LiquidityProject",
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "completed",
+        "on_hold",
+        "cancelled",
+        "unclear"
+      ],
+      "default": "active"
+    },
+    "customer": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "project_manager": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "web_project",
+        "design",
+        "programming",
+        "consulting",
+        "marketing",
+        "other"
+      ]
+    },
+    "source_sheet": {
+      "type": "string"
+    },
+    "order_number": {
+      "type": "string"
+    },
+    "total_net_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "already_invoiced_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "open_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "external_costs": {
+      "type": "number",
+      "default": 0
+    },
+    "notes": {
+      "type": "string"
+    },
+    "fixed_billing_expected": {
+      "type": "boolean",
+      "default": false
+    },
+    "uncertain_billing": {
+      "type": "boolean",
+      "default": false
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "default": "medium"
+    },
+    "risk_status": {
+      "type": "string",
+      "enum": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "none"
+    },
+    "expected_invoice_month": {
+      "type": "string"
+    },
+    "expected_invoice_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "monthly_values": {
+      "type": "object",
+      "description": "Monthly planned/actual values Jan-Dec"
+    },
+    "import_batch_id": {
+      "type": "string"
+    },
+    "source_row": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "project_name"
+  ]
+}
