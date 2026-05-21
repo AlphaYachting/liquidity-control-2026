@@ -276,23 +276,7 @@ export default function ProjectDetail() {
         </div>
       )}
 
-      {/* ABs without project_id warning */}
-      {fin?.ordersWithoutProjectId?.length > 0 && (
-        <div className="px-4 py-3 bg-amber-50 border border-amber-300 rounded-xl text-sm space-y-2">
-          <div className="flex items-center gap-2 text-amber-800 font-medium">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-            {fin.ordersWithoutProjectId.length} Auftragsbestätigung(en) dieses Kunden haben keine Cockpit-Verknüpfung — bitte verknüpfen.
-          </div>
-          {fin.ordersWithoutProjectId.map(ord => (
-            <div key={ord.id} className="flex items-center justify-between text-xs text-amber-700 pl-6">
-              <span>{ord.project_name || '—'} · {ord.order_number || '—'} · {formatCurrency(ord.total_net_amount)}</span>
-              <Link to={`/confirmed-orders/${ord.id}`} className="underline hover:text-amber-900">
-                AB öffnen & verknüpfen →
-              </Link>
-            </div>
-          ))}
-        </div>
-      )}
+
 
       {/* Unmatched customer invoices */}
       {likelyUnmatchedInvoices.length > 0 && (
