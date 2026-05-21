@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, ClipboardList, AlertTriangle, CheckCircle2, ExternalLink,
-  Plus, FolderKanban
+  Plus, FolderKanban, Link2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -17,6 +17,50 @@ import { calculateOrderReconciliation } from '@/lib/reconciliationUtils';
 import InvoiceScanUploader from '@/components/orders/InvoiceScanUploader';
 import InvoiceRecordForm from '@/components/orders/InvoiceRecordForm';
 import OrderItemsTable from '@/components/orders/OrderItemsTable';
+
+function ProjectPickerInline({ projects, order, orderBlocks, onLink, isSaving, onCancel }) {
+  const [selectedId, setSelectedId] = React.useState('');
+  const [alsoLinkBlocks, setAlsoLinkBlocks] = React.useState(false);
+
+  const blocksWithoutProject = orderBlocks.filter(b => !b.project_id);
+  const blocksWithDifferentProject = orderBlocks.filter(b => b.project_id && b.project_id !== selectedId);
+
+  const activeProjects = projects.filter(p => p.status === 'active' || p.status === 'on_hold' || p.status === 'unclear');
+  const selectedProject = projects.find(p => p.id === selectedId);
+
+  return (
+    <div className="border rounded-xl p-4 bg-white space-y-3">
+      <p className="text-sm font-medium">Projekt-Cockpit auswählen:</p>
+      <div className="max-h-48 overflow-y-auto space-y-1.5">
+        {activeProjects.map(p => (
+          <button key={p.id} onClick={() => setSelectedId(p.id)}
+            className={`w-full text-left p-2 rounded-lg border text-sm transition-colors ${selectedId === p.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/30'}`}>
+            <p className="font-medium">{p.project_name}</p>
+            <p className="text-xs text-muted-foreground">{p.customer}{p.project_manager ? ` · PM: ${p.project_manager}` : ''}</p>
+          </button>
+        ))}
+      </div>
+      {selectedId && blocksWithoutProject.length > 0 && (
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={alsoLinkBlocks} onChange={e => setAlsoLinkBlocks(e.target.checked)} className="rounded" />
+          <span>Leistungspakete ({blocksWithoutProject.length}) ebenfalls diesem Projekt-Cockpit zuordnen</span>
+        </label>
+      )}
+      {selectedId && blocksWithDifferentProject.length > 0 && (
+        <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+          {blocksWithDifferentProject.length} Leistungspaket(e) sind bereits einem anderen internen Projekt zugeordnet. Diese werden nicht verändert.
+        </div>
+      )}
+      <div className="flex gap-2 pt-1">
+        <Button size="sm" disabled={!selectedId || isSaving} onClick={() => onLink({ projectId: selectedId, alsoLinkBlocks })}>
+          <CheckCircle2 className="w-4 h-4 mr-1" /> {isSaving ? 'Speichert…' : 'Verknüpfen'}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onCancel}>Abbrechen</Button>
+      </div>
+    </div>
+  );
+}
 
 const READINESS_LABELS = {
   not_ready: 'Nicht bereit',
@@ -32,6 +76,8 @@ export default function ConfirmedOrderDetail() {
   const queryClient = useQueryClient();
   const [showInvoiceUploader, setShowInvoiceUploader] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [linkingBlocks, setLinkingBlocks] = useState(false);
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['confirmedOrders'], queryFn: () => base44.entities.ConfirmedOrder.list()
@@ -47,7 +93,17 @@ export default function ConfirmedOrderDetail() {
   const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
     queryKey: ['invoiceRecords'], queryFn: () => base44.entities.InvoiceRecord.list()
   });
-  const orderInvoices = invoices.filter(i => i.confirmed_order_id === orderId);
+
+  // Extended invoice filter: confirmed_order_id OR billing_block_id belonging to this order
+  // De-duplicated via Set to prevent double-counting
+  const orderBlockIds = new Set(orderBlocks.map(b => b.id));
+  const orderInvoiceIds = new Set();
+  const orderInvoices = invoices.filter(i => {
+    if (i.payment_status === 'cancelled') return false;
+    const match = i.confirmed_order_id === orderId || (i.billing_block_id && orderBlockIds.has(i.billing_block_id));
+    if (match) { orderInvoiceIds.add(i.id); return true; }
+    return false;
+  });
 
   const { data: orderItems = [] } = useQuery({
     queryKey: ['confirmedOrderItems', orderId],
@@ -58,6 +114,24 @@ export default function ConfirmedOrderDetail() {
     queryKey: ['projects'], queryFn: () => base44.entities.LiquidityProject.list()
   });
   const linkedProject = projects.find(p => p.id === order?.project_id);
+
+  const linkProjectMutation = useMutation({
+    mutationFn: async ({ projectId, alsoLinkBlocks }) => {
+      await base44.entities.ConfirmedOrder.update(orderId, { project_id: projectId });
+      if (alsoLinkBlocks) {
+        const blocksToUpdate = orderBlocks.filter(b => !b.project_id);
+        await Promise.all(blocksToUpdate.map(b =>
+          base44.entities.ProjectBillingBlock.update(b.id, { project_id: projectId })
+        ));
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['confirmedOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['billingBlocks'] });
+      setShowProjectPicker(false);
+      setLinkingBlocks(false);
+    }
+  });
 
   const saveInvoiceMutation = useMutation({
     mutationFn: ({ id, data }) => id
@@ -125,6 +199,36 @@ export default function ConfirmedOrderDetail() {
           }
         />
       </div>
+
+      {/* Missing project_id warning + active link flow */}
+      {!order.project_id && (
+        <div className="p-4 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 space-y-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Kein Projekt-Cockpit verknüpft</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Diese Auftragsbestätigung ist noch keinem Projekt-Cockpit zugeordnet. Dadurch können Rechnungen, Leistungspakete und Forecast-Werte im Projekt-Cockpit fehlen oder falsch erscheinen.
+              </p>
+            </div>
+          </div>
+          {!showProjectPicker ? (
+            <Button size="sm" variant="outline" className="border-amber-400 text-amber-800 hover:bg-amber-100"
+              onClick={() => setShowProjectPicker(true)}>
+              <Link2 className="w-4 h-4 mr-1.5" /> Mit Projekt-Cockpit verknüpfen
+            </Button>
+          ) : (
+            <ProjectPickerInline
+              projects={projects}
+              order={order}
+              orderBlocks={orderBlocks}
+              onLink={({ projectId, alsoLinkBlocks }) => linkProjectMutation.mutate({ projectId, alsoLinkBlocks })}
+              isSaving={linkProjectMutation.isPending}
+              onCancel={() => setShowProjectPicker(false)}
+            />
+          )}
+        </div>
+      )}
 
       {/* Reconciliation warnings */}
       {recon.warnings.length > 0 && (

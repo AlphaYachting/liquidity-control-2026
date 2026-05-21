@@ -54,14 +54,21 @@ export default function AworkStatusBar({ order, data, taskStats, snapshot, onSel
 
   if (!src.awork_project_id) {
     return (
-      <div className="flex items-center gap-3 px-4 py-3 bg-muted/30 border border-border rounded-xl">
-        <div className="w-6 h-6 rounded bg-slate-400 flex items-center justify-center flex-shrink-0">
-          <span className="text-white text-xs font-bold">a</span>
+      <div className="px-4 py-3 bg-muted/30 border border-dashed border-border rounded-xl space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 rounded bg-slate-400 flex items-center justify-center flex-shrink-0">
+            <span className="text-white text-xs font-bold">a</span>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-foreground">Kein awork/eWork-Projekt verknüpft</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Um den Fortschritt je Leistungspaket zu sehen: <strong>1. awork-Projekt verknüpfen</strong> → <strong>2. Leistungspakete mit awork-Tasklisten oder Tasks verbinden</strong>
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={onSelectProject} className="h-7 text-xs flex-shrink-0">
+            <Link2 className="w-3 h-3 mr-1" /> awork-Projekt verknüpfen
+          </Button>
         </div>
-        <span className="text-sm text-muted-foreground flex-1">Kein awork Projekt verknüpft</span>
-        <Button size="sm" variant="outline" onClick={onSelectProject} className="h-7 text-xs">
-          <Link2 className="w-3 h-3 mr-1" /> awork Projekt wählen
-        </Button>
       </div>
     );
   }

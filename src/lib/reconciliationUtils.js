@@ -1,4 +1,5 @@
 // Reconciliation utilities for ConfirmedOrder ↔ BillingBlock ↔ InvoiceRecord
+import { getEffectivePaid } from '@/lib/projectFinancials';
 
 const today = () => new Date();
 
@@ -24,14 +25,8 @@ export function calculateOrderReconciliation(confirmedOrder, billingBlocks, invo
   const credit_note_total_net = creditNotes.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
 
   const adjusted_invoiced_net = sum_invoiced_net - credit_note_total_net;
-  // PAID FALLBACK: PDF-imported invoices may have payment_status='paid' but paid_amount=0.
-  // Use gross_amount as fallback. Never writes to database.
-  const total_paid = realInvoices.reduce((s, i) => {
-    const paid = Number(i.paid_amount) || 0;
-    if (paid > 0) return s + paid;
-    if (i.payment_status === 'paid') return s + (Number(i.gross_amount) || 0);
-    return s;
-  }, 0);
+  // PAID FALLBACK: uses shared getEffectivePaid() from projectFinancials.js
+  const total_paid = realInvoices.reduce((s, i) => s + getEffectivePaid(i).amount, 0);
 
   const total_open_to_invoice = total_order_net - adjusted_invoiced_net;
   const total_open_receivable = Math.max(0, sum_invoiced_gross - total_paid);
@@ -105,12 +100,7 @@ export function calculateBillingBlockStatus(block, invoiceRecords) {
   );
   const invoiced_against_block = relevantInvoices.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
   const remaining_to_invoice = block_amount_net - invoiced_against_block;
-  const paid_for_block = relevantInvoices.reduce((s, i) => {
-    const paid = Number(i.paid_amount) || 0;
-    if (paid > 0) return s + paid;
-    if (i.payment_status === 'paid') return s + (Number(i.gross_amount) || 0);
-    return s;
-  }, 0);
+  const paid_for_block = relevantInvoices.reduce((s, i) => s + getEffectivePaid(i).amount, 0);
 
   let payment_status = 'open';
   if (paid_for_block >= invoiced_against_block && invoiced_against_block > 0) payment_status = 'paid';

@@ -460,12 +460,18 @@ export default function ProjectDetail() {
                           )}
 
                           <div className={`flex items-center gap-1 ${hasAwork ? '' : 'ml-auto'}`}>
-                            {effectiveAworkProjectId && (
+                            {effectiveAworkProjectId ? (
                               <Button size="sm" variant="ghost" className="h-6 text-xs"
                                 onClick={() => setLinkingBlock(block)}>
                                 <Link2 className="w-3 h-3 mr-1" />
                                 {hasAwork ? 'Ändern' : 'Verknüpfen'}
                               </Button>
+                            ) : (
+                              !hasAwork && (
+                                <span className="text-xs text-muted-foreground italic ml-auto">
+                                  Zuerst awork-Projekt verknüpfen ↑
+                                </span>
+                              )
                             )}
                             {hasAwork && (
                               <Button size="sm" variant="ghost" className="h-6 text-xs text-destructive"

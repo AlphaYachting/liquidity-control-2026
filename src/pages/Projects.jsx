@@ -32,21 +32,25 @@ export default function Projects() {
     queryKey: ['confirmedOrders'], queryFn: () => base44.entities.ConfirmedOrder.list()
   });
 
-  // Per-project financials using shared helper
+  const { data: allBlocks = [], isLoading: blocksLoading } = useQuery({
+    queryKey: ['billingBlocks'], queryFn: () => base44.entities.ProjectBillingBlock.list()
+  });
+
+  // Per-project financials using shared helper — allBlocks now passed correctly
   const projectFinancialsMap = useMemo(() => {
     const map = {};
     projects.forEach(p => {
       map[p.id] = calculateProjectFinancials({
         project: p,
         allOrders: orders,
-        allBlocks: [],   // blocks not loaded in overview for performance
+        allBlocks,
         allInvoices: invoices,
       });
     });
     return map;
-  }, [projects, orders, invoices]);
+  }, [projects, orders, allBlocks, invoices]);
 
-  const isLoading = projectsLoading || invoicesLoading || ordersLoading;
+  const isLoading = projectsLoading || invoicesLoading || ordersLoading || blocksLoading;
 
   const STATUS_SORT_ORDER = { active: 0, on_hold: 1, unclear: 2, completed: 3, cancelled: 4 };
 
@@ -90,11 +94,16 @@ export default function Projects() {
     { key: '_invoiced', label: 'Verrechnet netto', render: (v) => <span className={Number(v) > 0 ? 'text-green-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
     { key: '_open', label: 'Noch zu verr.', render: (v) => <span className={Number(v) > 0 ? 'text-amber-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
     { key: '_awork', label: 'awork', width: '110px', render: (_, row) => {
-        const done = row.awork_tasks_done ?? 0;
-        const total = row.awork_tasks_total ?? 0;
         if (!row.awork_project_id) return <span className="text-xs text-muted-foreground">—</span>;
-        if (total === 0) return <span className="text-xs text-muted-foreground">–/–</span>;
-        return <span className="text-xs font-medium text-blue-700">{done} / {total}</span>;
+        const pct = row.awork_progress_percent ?? 0;
+        return (
+          <div className="flex items-center gap-1.5">
+            <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="text-xs font-medium text-blue-700">{pct}%</span>
+          </div>
+        );
       }
     },
     { key: 'expected_invoice_month', label: 'Erw. Monat', width: '100px' },
