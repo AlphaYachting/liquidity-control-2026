@@ -10,6 +10,7 @@ import DataTable from '@/components/shared/DataTable';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { calculateProjectFinancials } from '@/lib/projectFinancials';
 
 const PM_OPTIONS = ['Lara', 'Sebastian', 'Pascal', 'Anna'].map(v => ({ value: v, label: v }));
 const STATUS_OPTIONS = ['active', 'completed', 'on_hold', 'cancelled', 'unclear'].map(v => ({ value: v, label: v }));
@@ -31,67 +32,19 @@ export default function Projects() {
     queryKey: ['confirmedOrders'], queryFn: () => base44.entities.ConfirmedOrder.list()
   });
 
-  // Für jeden ConfirmedOrder: project_id per order.id nachschlagen
-  const orderProjectMap = useMemo(() => {
+  // Per-project financials using shared helper
+  const projectFinancialsMap = useMemo(() => {
     const map = {};
-    orders.forEach(o => { if (o.project_id) map[o.id] = o.project_id; });
-    return map;
-  }, [orders]);
-
-  // Kundennamen pro Projekt (inkl. verknüpfte Orders)
-  const projectCustomerNames = useMemo(() => {
-    const map = {}; // projectId -> Set<lowerCaseName>
     projects.forEach(p => {
-      map[p.id] = new Set();
-      if (p.customer) map[p.id].add(p.customer.toLowerCase());
-    });
-    orders.forEach(o => {
-      if (o.project_id && map[o.project_id] && o.customer) {
-        map[o.project_id].add(o.customer.toLowerCase());
-      }
-    });
-    return map;
-  }, [projects, orders]);
-
-  // Rechnungssummen pro Projekt berechnen (live aus InvoiceRecord)
-  // Fallback: Kundennamen-Match für unverknüpfte Rechnungen
-  const invoiceStatsByProject = useMemo(() => {
-    const stats = {};
-
-    // Build reverse map: customerName -> [projectId] for unmatched invoices
-    const customerToProjects = {};
-    projects.forEach(p => {
-      const names = projectCustomerNames[p.id] || new Set();
-      names.forEach(name => {
-        if (!customerToProjects[name]) customerToProjects[name] = [];
-        customerToProjects[name].push(p.id);
+      map[p.id] = calculateProjectFinancials({
+        project: p,
+        allOrders: orders,
+        allBlocks: [],   // blocks not loaded in overview for performance
+        allInvoices: invoices,
       });
     });
-
-    invoices.forEach(inv => {
-      let pid = inv.project_id || orderProjectMap[inv.confirmed_order_id];
-
-      // Fallback: match by customer name if not explicitly linked
-      if (!pid && !inv.billing_block_id && inv.payment_status !== 'cancelled') {
-        const custKey = (inv.customer_name || '').toLowerCase();
-        const matches = customerToProjects[custKey] || [];
-        if (matches.length === 1) pid = matches[0]; // only assign if unambiguous
-      }
-
-      if (!pid) return;
-      if (!stats[pid]) stats[pid] = { invoiced: 0, paid: 0 };
-      if (!inv.is_credit_note && inv.payment_status !== 'cancelled') {
-        stats[pid].invoiced += Number(inv.net_amount) || 0;
-        // Fallback: if paid_amount=0 but status='paid', use gross_amount (PDF import data)
-        const paidAmt = Number(inv.paid_amount) || 0;
-        const grossAmt = Number(inv.gross_amount) || 0;
-        stats[pid].paid += paidAmt > 0 ? paidAmt : (inv.payment_status === 'paid' ? grossAmt : 0);
-      } else if (inv.is_credit_note) {
-        stats[pid].invoiced -= Number(inv.net_amount) || 0;
-      }
-    });
-    return stats;
-  }, [invoices, orderProjectMap, projects, projectCustomerNames]);
+    return map;
+  }, [projects, orders, invoices]);
 
   const isLoading = projectsLoading || invoicesLoading || ordersLoading;
 
@@ -111,13 +64,16 @@ export default function Projects() {
       return (a.customer || '').localeCompare(b.customer || '', 'de');
     });
 
-  // Erweiterte Projekte mit live-berechneten Werten
-  const filteredWithLive = filtered.map(p => ({
-    ...p,
-    _invoiced: invoiceStatsByProject[p.id]?.invoiced || 0,
-    _open: Math.max(0, (p.total_net_amount || 0) - (invoiceStatsByProject[p.id]?.invoiced || 0)),
-    _paid: invoiceStatsByProject[p.id]?.paid || 0,
-  }));
+  // Erweiterte Projekte mit live-berechneten Werten (shared helper)
+  const filteredWithLive = filtered.map(p => {
+    const fin = projectFinancialsMap[p.id] || {};
+    return {
+      ...p,
+      _invoiced: fin.adjustedInvoicedNet || 0,
+      _open: Math.max(0, fin.openToInvoiceNet ?? (p.total_net_amount || 0)),
+      _paid: fin.paidGross || 0,
+    };
+  });
 
   const totalNet = filteredWithLive.reduce((s, p) => s + (Number(p.total_net_amount) || 0), 0);
   const totalInvoiced = filteredWithLive.reduce((s, p) => s + p._invoiced, 0);

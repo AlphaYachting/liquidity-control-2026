@@ -21,8 +21,8 @@ import AworkTaskLinker from '@/components/awork/AworkTaskLinker';
 import AworkSignalBadge from '@/components/awork/AworkSignalBadge';
 import PaymentSourceBadge from '@/components/shared/PaymentSourceBadge';
 import PaymentFreshnessWarning from '@/components/shared/PaymentFreshnessWarning';
-import InvoiceOpenAmountDisplay from '@/components/shared/InvoiceOpenAmountDisplay';
 import { calculateBillingBlockStatus } from '@/lib/reconciliationUtils';
+import { calculateProjectFinancials, getEffectivePaid } from '@/lib/projectFinancials';
 import { calculateAworkStatusForBillingBlock, getTasksForBillingBlock } from '@/lib/aworkReadinessUtils';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -62,10 +62,6 @@ export default function ProjectDetail() {
   const { data: allOrders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['confirmedOrders'], queryFn: () => base44.entities.ConfirmedOrder.list()
   });
-  // All orders linked to this project
-  const linkedOrders = allOrders.filter(o => o.project_id === projectId);
-  // Primary order for awork fallback
-  const primaryOrder = linkedOrders[0] || null;
 
   const { data: allBlocks = [], isLoading: blocksLoading } = useQuery({
     queryKey: ['billingBlocks'], queryFn: () => base44.entities.ProjectBillingBlock.list()
@@ -92,35 +88,25 @@ export default function ProjectDetail() {
   });
   const aworkSnapshot = aworkSnapshots[0] || null;
 
-  // ── Customer name set (used for invoice matching + unmatched warning) ──────
-  const customerNames = new Set([
-    project?.customer?.toLowerCase(),
-    ...linkedOrders.map(o => o.customer?.toLowerCase())
-  ].filter(Boolean));
+  // ── Use shared financial helper ───────────────────────────────────────────
+  const fin = useMemo(() => {
+    if (!project) return null;
+    return calculateProjectFinancials({
+      project,
+      allOrders,
+      allBlocks,
+      allInvoices,
+    });
+  }, [project, allOrders, allBlocks, allInvoices]);
 
-  // ── Billing block aggregation (Task 4) ────────────────────────────────────
-  const linkedOrderIds = new Set(linkedOrders.map(o => o.id));
-
-  const projectBlocks = allBlocks
-    .filter(b =>
-      b.project_id === projectId ||
-      (b.confirmed_order_id && linkedOrderIds.has(b.confirmed_order_id))
-    )
-    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-
-  // ── Invoice aggregation ───────────────────────────────────────────────────
-  const projectBlockIds = new Set(projectBlocks.map(b => b.id));
-  const projectInvoices = allInvoices.filter(i => {
-    // Explicitly linked
-    if (i.project_id === projectId) return true;
-    if (i.confirmed_order_id && linkedOrderIds.has(i.confirmed_order_id)) return true;
-    if (i.billing_block_id && projectBlockIds.has(i.billing_block_id)) return true;
-    // Customer-name match: include if not assigned to another project/order
-    if (customerNames.has((i.customer_name || '').toLowerCase()) &&
-        !i.project_id && !i.confirmed_order_id && !i.billing_block_id &&
-        i.payment_status !== 'cancelled') return true;
-    return false;
-  });
+  // Convenience aliases
+  const linkedOrders = fin?.linkedOrders || [];
+  const linkedOrderIds = fin?.linkedOrderIds || new Set();
+  const projectBlocks = fin?.linkedBlocks || [];
+  const projectInvoices = fin?.linkedInvoices || [];
+  const orphanOrderInvoices = fin?.orphanOrderInvoices || [];
+  const likelyUnmatchedInvoices = fin?.likelyUnmatchedInvoices || [];
+  const finWarnings = fin?.warnings || [];
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const updateProjectMutation = useMutation({
@@ -190,54 +176,22 @@ export default function ProjectDetail() {
     });
   };
 
-  // ── Commercial base (Task 1 + 2) ─────────────────────────────────────────
-  const linkedOrdersTotalNet = linkedOrders.reduce((s, o) => s + (Number(o.total_net_amount) || 0), 0);
-  const billingBlocksTotalNet = projectBlocks.reduce((s, b) => s + (Number(b.amount_net) || 0), 0);
-  const importedProjectNet = project?.total_net_amount || 0;
-
-  let commercialBaseNet;
-  let commercialBaseLabel;
-  if (linkedOrdersTotalNet > 0) {
-    commercialBaseNet = linkedOrdersTotalNet;
-    commercialBaseLabel = 'Basis: Summe Auftragsabwicklung';
-  } else if (billingBlocksTotalNet > 0) {
-    commercialBaseNet = billingBlocksTotalNet;
-    commercialBaseLabel = 'Basis: Summe Auftragspakete';
-  } else {
-    commercialBaseNet = importedProjectNet;
-    commercialBaseLabel = 'Basis: importierter Projektwert';
-  }
-
+  // ── KPIs from shared helper ───────────────────────────────────────────────
+  const commercialBaseNet = fin?.commercialBaseNet || 0;
+  const commercialBaseSource = fin?.commercialBaseSource || 'project';
+  const commercialBaseLabel = commercialBaseSource === 'orders' ? 'Basis: Summe Auftragsabwicklung'
+    : commercialBaseSource === 'blocks' ? 'Basis: Summe Auftragspakete'
+    : 'Basis: importierter Projektwert';
+  const importedProjectNet = fin?.importedProjectTotalNet || 0;
   const commercialDeviation = Math.abs(commercialBaseNet - importedProjectNet) > 1
-    && importedProjectNet > 0
-    && commercialBaseNet !== importedProjectNet;
+    && importedProjectNet > 0 && commercialBaseSource !== 'project';
 
-  // ── KPIs ──────────────────────────────────────────────────────────────────
-  const realInvoices = projectInvoices.filter(i => !i.is_credit_note && i.payment_status !== 'cancelled');
+  const adjustedInvoicedNet = fin?.adjustedInvoicedNet || 0;
   const creditNotes = projectInvoices.filter(i => i.is_credit_note);
-  const adjustedInvoicedNet = realInvoices.reduce((s, i) => s + (Number(i.net_amount) || 0), 0)
-    - creditNotes.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
-  // Task 4: totalPaid excludes credit notes
-  // If payment_status='paid' but paid_amount=0, treat gross_amount as paid (data from PDF import)
-  const totalPaid = realInvoices.reduce((s, i) => {
-    const paid = Number(i.paid_amount) || 0;
-    const gross = Number(i.gross_amount) || 0;
-    if (paid > 0) return s + paid;
-    if (i.payment_status === 'paid') return s + gross; // fallback for imported data
-    return s;
-  }, 0);
-  const totalPaidGross = totalPaid;
-  const openReceivableGross = realInvoices.reduce((s, i) => {
-    const gross = Number(i.gross_amount) || 0;
-    const paid = Number(i.paid_amount) || 0;
-    if (paid > 0) return s + (gross - paid);
-    if (i.payment_status === 'paid') return s; // fully paid
-    return s + gross; // open/overdue/partially_paid
-  }, 0);
-  // Task 1: use commercialBaseNet instead of project.total_net_amount
-  const openToInvoice = commercialBaseNet - adjustedInvoicedNet;
-  const readyBlocks = projectBlocks.filter(b => b.invoice_readiness_status === 'ready');
-  const readyAmount = readyBlocks.reduce((s, b) => s + (Number(b.amount_net) || 0), 0);
+  const totalPaidGross = fin?.paidGross || 0;
+  const openReceivableGross = fin?.openReceivableGross || 0;
+  const openToInvoice = fin?.openToInvoiceNet || 0;
+  const readyAmount = fin?.invoiceReadyNet || 0;
 
   // ── awork task aggregation (Task 6) ───────────────────────────────────────
   const aworkTaskStats = useMemo(() => {
@@ -257,14 +211,8 @@ export default function ProjectDetail() {
     return { total_tasks: total, done_tasks: done, open_tasks: open, blocked_tasks: blocked, progress_percent: progress, last_activity_at: lastActivityAt, last_synced_at: lastSyncedAt, has_stale_data: hasStaleData };
   }, [aworkTasks]);
 
-  // ── Unmatched invoice warning (Task 9) ────────────────────────────────────
-  const unmatchedCustomerInvoices = allInvoices.filter(i =>
-    customerNames.has((i.customer_name || '').toLowerCase()) &&
-    !i.project_id &&
-    !i.confirmed_order_id &&
-    !i.billing_block_id &&
-    i.payment_status !== 'cancelled'
-  );
+  // ── primaryOrder for awork (first linked order) ───────────────────────────
+  const primaryOrder = linkedOrders[0] || null;
 
   const isLoading = lpLoading || ordersLoading || blocksLoading || invoicesLoading;
 
@@ -328,16 +276,39 @@ export default function ProjectDetail() {
         </div>
       )}
 
-      {/* Unmatched invoice warning — Task 9 */}
-      {unmatchedCustomerInvoices.length > 0 && (
+      {/* Orphan order invoices warning — ConfirmedOrder without project_id */}
+      {orphanOrderInvoices.length > 0 && (
+        <div className="px-4 py-3 bg-red-50 border border-red-300 rounded-xl text-sm space-y-2">
+          <div className="flex items-center gap-2 text-red-800 font-medium">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            {orphanOrderInvoices.length} Rechnung(en) sind mit Auftragsbestätigungen verknüpft, die kein Projekt-Cockpit haben.
+          </div>
+          {orphanOrderInvoices.map(inv => {
+            const ord = allOrders.find(o => o.id === inv.confirmed_order_id);
+            return (
+              <div key={inv.id} className="flex items-center justify-between text-xs text-red-700 pl-6">
+                <span>{inv.invoice_number || '—'} · {inv.customer_name} · {ord?.order_number || inv.confirmed_order_id?.slice(0,8)}</span>
+                {ord && (
+                  <Link to={`/confirmed-orders/${ord.id}`} className="underline hover:text-red-900">
+                    AB öffnen & verknüpfen →
+                  </Link>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Unmatched customer invoices */}
+      {likelyUnmatchedInvoices.length > 0 && (
         <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 border border-amber-300 rounded-xl text-sm">
           <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
           <span className="flex-1 text-amber-800">
-            Es gibt <strong>{unmatchedCustomerInvoices.length}</strong> nicht zugeordnete Rechnung(en) dieses Kunden.
-            Diese können die Projektzahlen verfälschen.
+            <strong>{likelyUnmatchedInvoices.length}</strong> nicht zugeordnete Rechnung(en) desselben Kunden (nur Namens-Match).
+            Werden getrennt angezeigt, zählen nicht zur Projektsumme.
           </span>
           <Link to="/invoice-matching" className="text-xs text-amber-700 underline hover:text-amber-900 flex-shrink-0">
-            Invoice Matching Review öffnen
+            Invoice Matching →
           </Link>
         </div>
       )}
@@ -358,8 +329,8 @@ export default function ProjectDetail() {
               Importwert: {formatCurrency(importedProjectNet)}
             </span>
           )}
-          {linkedOrdersTotalNet > 0 && billingBlocksTotalNet > 0 && (
-            <p className="text-xs text-muted-foreground">Pakete: {formatCurrency(billingBlocksTotalNet)}</p>
+          {fin?.linkedOrdersTotalNet > 0 && fin?.billingBlocksTotalNet > 0 && (
+            <p className="text-xs text-muted-foreground">Pakete: {formatCurrency(fin.billingBlocksTotalNet)}</p>
           )}
         </div>
 
@@ -367,7 +338,7 @@ export default function ProjectDetail() {
         <div className="bg-card border rounded-xl p-3 space-y-1">
           <p className="text-xs text-muted-foreground">Verrechnet netto</p>
           <p className="text-lg font-bold text-emerald-600">{formatCurrency(adjustedInvoicedNet)}</p>
-          <p className="text-xs text-muted-foreground">{realInvoices.length} Rechnung(en)</p>
+          <p className="text-xs text-muted-foreground">{projectInvoices.filter(i => !i.is_credit_note).length} Rechnung(en)</p>
           {creditNotes.length > 0 && (
             <p className="text-xs text-purple-600">– {formatCurrency(creditNotes.reduce((s,i) => s + (Number(i.net_amount)||0), 0))} Gutschriften</p>
           )}
@@ -552,50 +523,51 @@ export default function ProjectDetail() {
                         <th className="text-left pb-2 font-medium">Rechnung</th>
                         <th className="text-left pb-2 font-medium pl-2">Typ</th>
                         <th className="text-right pb-2 font-medium">Netto</th>
-                        <th className="text-right pb-2 font-medium">Bezahlt</th>
+                        <th className="text-right pb-2 font-medium">Bezahlt brutto</th>
                         <th className="text-right pb-2 font-medium">Offen</th>
                         <th className="text-left pb-2 font-medium pl-2">Status</th>
                         <th className="text-left pb-2 font-medium pl-2">Quelle</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {projectInvoices.map(inv => (
-                        <tr key={inv.id} className="border-b last:border-0 hover:bg-muted/30">
-                          <td className="py-2">
-                            <p className="font-medium">{inv.invoice_number || '—'}</p>
-                            <p className="text-xs text-muted-foreground">{inv.invoice_date || ''}</p>
-                            {inv.is_credit_note && <Badge className="text-xs bg-purple-100 text-purple-700">Gutschrift</Badge>}
-                          </td>
-                          <td className="py-2 pl-2 text-xs text-muted-foreground">{inv.invoice_type?.replace(/_/g, ' ') || '—'}</td>
-                          <td className="py-2 text-right font-semibold">{formatCurrency(inv.net_amount)}</td>
-                          <td className="py-2 text-right text-emerald-600">
-                            {formatCurrency(
-                              Number(inv.paid_amount) > 0
-                                ? inv.paid_amount
-                                : inv.payment_status === 'paid' ? inv.gross_amount : 0
-                            )}
-                          </td>
-                          <td className="py-2 text-right">
-                            <InvoiceOpenAmountDisplay invoice={inv} compact />
-                          </td>
-                          <td className="py-2 pl-2"><StatusBadge status={inv.payment_status} /></td>
-                          <td className="py-2 pl-2">
-                            <PaymentSourceBadge
-                              sourceType={inv.source_type}
-                              sourceFile={inv.source_file}
-                              updatedDate={inv.updated_date}
-                              showDate
-                            />
-                          </td>
-                        </tr>
-                      ))}
+                      {projectInvoices.map(inv => {
+                        const ep = getEffectivePaid(inv);
+                        const openAmt = Math.max(0, (Number(inv.gross_amount) || 0) - ep.amount);
+                        return (
+                          <tr key={inv.id} className="border-b last:border-0 hover:bg-muted/30">
+                            <td className="py-2">
+                              <p className="font-medium">{inv.invoice_number || '—'}</p>
+                              <p className="text-xs text-muted-foreground">{inv.invoice_date || ''}</p>
+                              {inv.is_credit_note && <Badge className="text-xs bg-purple-100 text-purple-700">Gutschrift</Badge>}
+                              {ep.usedFallback && (
+                                <Badge className="text-xs bg-blue-50 text-blue-700 border border-blue-200 mt-0.5 block w-fit">
+                                  Bezahlt laut Status
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="py-2 pl-2 text-xs text-muted-foreground">{inv.invoice_type?.replace(/_/g, ' ') || '—'}</td>
+                            <td className="py-2 text-right font-semibold">{formatCurrency(inv.net_amount)}</td>
+                            <td className="py-2 text-right text-emerald-600">{formatCurrency(ep.amount)}</td>
+                            <td className="py-2 text-right text-amber-600">{formatCurrency(openAmt)}</td>
+                            <td className="py-2 pl-2"><StatusBadge status={inv.payment_status} /></td>
+                            <td className="py-2 pl-2">
+                              <PaymentSourceBadge
+                                sourceType={inv.source_type}
+                                sourceFile={inv.source_file}
+                                updatedDate={inv.updated_date}
+                                showDate
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                     <tfoot>
                       <tr className="border-t bg-muted/20">
                         <td colSpan={2} className="py-2 text-sm font-semibold">Summe</td>
                         <td className="py-2 text-right font-bold">{formatCurrency(adjustedInvoicedNet)}</td>
                         <td className="py-2 text-right font-bold text-emerald-600">{formatCurrency(totalPaidGross)}</td>
-                        <td className="py-2 text-right font-bold text-amber-600">{formatCurrency(Math.max(0, openReceivableGross))}</td>
+                        <td className="py-2 text-right font-bold text-amber-600">{formatCurrency(openReceivableGross)}</td>
                         <td colSpan={2}></td>
                       </tr>
                     </tfoot>
@@ -604,6 +576,53 @@ export default function ProjectDetail() {
               )}
             </CardContent>
           </Card>
+
+          {/* ── Possibly related invoices (customer-name only, not counted) ── */}
+          {likelyUnmatchedInvoices.length > 0 && (
+            <Card className="border-amber-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base text-amber-700 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  Möglicherweise zugehörig — bitte prüfen ({likelyUnmatchedInvoices.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Diese Rechnungen haben denselben Kundennamen, sind aber keiner AB oder keinem Projekt zugeordnet.
+                  Sie fließen <strong>nicht</strong> in die Projektsummen ein.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-xs text-muted-foreground">
+                        <th className="text-left pb-2 font-medium">Rechnung</th>
+                        <th className="text-right pb-2 font-medium">Netto</th>
+                        <th className="text-right pb-2 font-medium">Brutto</th>
+                        <th className="text-left pb-2 font-medium pl-2">Status</th>
+                        <th className="text-left pb-2 font-medium pl-2">Aktion</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {likelyUnmatchedInvoices.map(inv => (
+                        <tr key={inv.id} className="border-b last:border-0 hover:bg-amber-50/50">
+                          <td className="py-2">
+                            <p className="font-medium">{inv.invoice_number || '—'}</p>
+                            <p className="text-xs text-muted-foreground">{inv.invoice_date || ''}</p>
+                          </td>
+                          <td className="py-2 text-right">{formatCurrency(inv.net_amount)}</td>
+                          <td className="py-2 text-right">{formatCurrency(inv.gross_amount)}</td>
+                          <td className="py-2 pl-2"><StatusBadge status={inv.payment_status} /></td>
+                          <td className="py-2 pl-2">
+                            <Link to="/invoice-matching" className="text-xs text-primary hover:underline">Zuordnen →</Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* ── Sidebar ──────────────────────────────────────────────────── */}
@@ -661,6 +680,32 @@ export default function ProjectDetail() {
                   </Link>
                 ))
               )}
+            </CardContent>
+          </Card>
+
+          {/* Documents from Projektabwicklung */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Dokumente aus Projektabwicklung</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(() => {
+                const docs = [];
+                linkedOrders.forEach(o => {
+                  if (o.document_url) docs.push({ label: `AB: ${o.project_name || o.order_number || 'Auftragsbestätigung'}`, url: o.document_url, type: 'order' });
+                });
+                projectInvoices.forEach(inv => {
+                  if (inv.source_file) docs.push({ label: `Rechnung: ${inv.invoice_number || '—'}`, url: inv.source_file, type: 'invoice' });
+                });
+                if (docs.length === 0) return <p className="text-sm text-muted-foreground text-center py-2">Keine Dokumente verknüpft</p>;
+                return docs.map((doc, i) => (
+                  <a key={i} href={doc.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-2 rounded-lg border hover:bg-muted/30 transition-colors text-xs text-primary group">
+                    <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">{doc.label}</span>
+                  </a>
+                ));
+              })()}
             </CardContent>
           </Card>
         </div>
