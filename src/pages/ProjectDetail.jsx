@@ -199,7 +199,7 @@ export default function ProjectDetail() {
   let commercialBaseLabel;
   if (linkedOrdersTotalNet > 0) {
     commercialBaseNet = linkedOrdersTotalNet;
-    commercialBaseLabel = 'Basis: Summe Auftragsbestätigungen';
+    commercialBaseLabel = 'Basis: Summe Auftragsabwicklung';
   } else if (billingBlocksTotalNet > 0) {
     commercialBaseNet = billingBlocksTotalNet;
     commercialBaseLabel = 'Basis: Summe Auftragspakete';

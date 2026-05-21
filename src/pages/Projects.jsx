@@ -38,11 +38,46 @@ export default function Projects() {
     return map;
   }, [orders]);
 
+  // Kundennamen pro Projekt (inkl. verknüpfte Orders)
+  const projectCustomerNames = useMemo(() => {
+    const map = {}; // projectId -> Set<lowerCaseName>
+    projects.forEach(p => {
+      map[p.id] = new Set();
+      if (p.customer) map[p.id].add(p.customer.toLowerCase());
+    });
+    orders.forEach(o => {
+      if (o.project_id && map[o.project_id] && o.customer) {
+        map[o.project_id].add(o.customer.toLowerCase());
+      }
+    });
+    return map;
+  }, [projects, orders]);
+
   // Rechnungssummen pro Projekt berechnen (live aus InvoiceRecord)
+  // Fallback: Kundennamen-Match für unverknüpfte Rechnungen
   const invoiceStatsByProject = useMemo(() => {
     const stats = {};
+
+    // Build reverse map: customerName -> [projectId] for unmatched invoices
+    const customerToProjects = {};
+    projects.forEach(p => {
+      const names = projectCustomerNames[p.id] || new Set();
+      names.forEach(name => {
+        if (!customerToProjects[name]) customerToProjects[name] = [];
+        customerToProjects[name].push(p.id);
+      });
+    });
+
     invoices.forEach(inv => {
-      const pid = inv.project_id || orderProjectMap[inv.confirmed_order_id];
+      let pid = inv.project_id || orderProjectMap[inv.confirmed_order_id];
+
+      // Fallback: match by customer name if not explicitly linked
+      if (!pid && !inv.billing_block_id && inv.payment_status !== 'cancelled') {
+        const custKey = (inv.customer_name || '').toLowerCase();
+        const matches = customerToProjects[custKey] || [];
+        if (matches.length === 1) pid = matches[0]; // only assign if unambiguous
+      }
+
       if (!pid) return;
       if (!stats[pid]) stats[pid] = { invoiced: 0, open: 0 };
       if (!inv.is_credit_note && inv.payment_status !== 'cancelled') {
@@ -53,7 +88,7 @@ export default function Projects() {
       }
     });
     return stats;
-  }, [invoices, orderProjectMap]);
+  }, [invoices, orderProjectMap, projects, projectCustomerNames]);
 
   const isLoading = projectsLoading || invoicesLoading || ordersLoading;
 
