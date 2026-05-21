@@ -38,6 +38,11 @@ export default function ProjectDetail() {
   const projectBlocks = blocks.filter(b => b.project_id === projectId)
     .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
+  const { data: allInvoices = [], isLoading: invoicesLoading } = useQuery({
+    queryKey: ['invoiceRecords'], queryFn: () => base44.entities.InvoiceRecord.list()
+  });
+  const projectInvoices = allInvoices.filter(i => i.project_id === projectId || (order && i.confirmed_order_id === order?.id));
+
   const saveBlockMutation = useMutation({
     mutationFn: ({ id, data }) => id
       ? base44.entities.ProjectBillingBlock.update(id, data)
@@ -54,7 +59,7 @@ export default function ProjectDetail() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['billingBlocks'] })
   });
 
-  const isLoading = lpLoading || ordersLoading || blocksLoading;
+  const isLoading = lpLoading || ordersLoading || blocksLoading || invoicesLoading;
 
   if (isLoading) return (
     <div className="space-y-4">
@@ -72,8 +77,17 @@ export default function ProjectDetail() {
   );
 
   const totalBlocks = projectBlocks.reduce((s, b) => s + (Number(b.amount_net) || 0), 0);
-  const invoicedBlocks = projectBlocks.filter(b => b.invoice_readiness_status === 'invoiced' || b.invoice_readiness_status === 'paid')
-    .reduce((s, b) => s + (Number(b.amount_net) || 0), 0);
+
+  // Live aus InvoiceRecord berechnen (Wahrheitsquelle)
+  const realInvoices = projectInvoices.filter(i => !i.is_credit_note && i.payment_status !== 'cancelled');
+  const creditNotes = projectInvoices.filter(i => i.is_credit_note);
+  const sumInvoicedNet = realInvoices.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+  const sumCreditNotes = creditNotes.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+  const adjustedInvoicedNet = sumInvoicedNet - sumCreditNotes;
+  const totalPaid = projectInvoices.reduce((s, i) => s + (Number(i.paid_amount) || 0), 0);
+  const openReceivable = realInvoices.reduce((s, i) => s + (Number(i.gross_amount) || 0), 0) - totalPaid;
+  const openToInvoice = (project?.total_net_amount || 0) - adjustedInvoicedNet;
+
   const readyBlocks = projectBlocks.filter(b => b.invoice_readiness_status === 'ready');
   const readyAmount = readyBlocks.reduce((s, b) => s + (Number(b.amount_net) || 0), 0);
 
@@ -103,10 +117,12 @@ export default function ProjectDetail() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard title="Auftragsvolumen" value={formatCurrency(project.total_net_amount)} variant="info" />
-        <KpiCard title="Bereits verrechnet" value={formatCurrency(invoicedBlocks || project.already_invoiced_amount)} variant="success" />
+        <KpiCard title="Verrechnet (netto)" value={formatCurrency(adjustedInvoicedNet)} variant="success"
+          subtitle={projectInvoices.length > 0 ? `${realInvoices.length} Rechnung(en)` : 'Keine Rechnungen'} />
         <KpiCard title="Abrechnungsbereit" value={formatCurrency(readyAmount)} variant={readyAmount > 0 ? 'warning' : 'default'}
           subtitle={readyBlocks.length > 0 ? `${readyBlocks.length} Paket(e)` : 'Kein Paket bereit'} />
-        <KpiCard title="Offen" value={formatCurrency(project.open_amount)} variant="warning" />
+        <KpiCard title="Noch zu verrechnen" value={formatCurrency(openToInvoice)} variant={openToInvoice > 0 ? 'warning' : 'default'}
+          subtitle={openReceivable > 0 ? `${formatCurrency(openReceivable)} offen (brutto)` : undefined} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
