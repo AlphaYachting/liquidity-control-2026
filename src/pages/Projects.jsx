@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { useNavigate } from 'react-router-dom';
 import { FolderKanban, Plus } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import FilterBar from '@/components/shared/FilterBar';
 import DataTable from '@/components/shared/DataTable';
 import StatusBadge from '@/components/shared/StatusBadge';
-import ProjectDrawer from '@/components/projects/ProjectDrawer';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,19 +18,10 @@ const RISK_OPTIONS = ['none', 'low', 'medium', 'high', 'critical'].map(v => ({ v
 
 export default function Projects() {
   const [filters, setFilters] = useState({});
-  const [selectedProject, setSelectedProject] = useState(null);
-  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects'], queryFn: () => base44.entities.LiquidityProject.list()
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.LiquidityProject.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      setSelectedProject(null);
-    }
   });
 
   const filtered = projects.filter(p => {
@@ -81,15 +72,8 @@ export default function Projects() {
         onReset={() => setFilters({})}
       />
 
-      <DataTable columns={columns} data={filtered} onRowClick={setSelectedProject} />
+      <DataTable columns={columns} data={filtered} onRowClick={(p) => navigate(`/projects/${p.id}`)} />
 
-      {selectedProject && (
-        <ProjectDrawer
-          project={selectedProject}
-          onClose={() => setSelectedProject(null)}
-          onSave={(data) => updateMutation.mutate({ id: selectedProject.id, data })}
-        />
-      )}
     </div>
   );
 }

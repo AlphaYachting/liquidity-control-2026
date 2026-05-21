@@ -19,6 +19,8 @@ import Forecast from '@/pages/Forecast';
 import SefTest from '@/pages/SefTest';
 import ImportCenter from '@/pages/ImportCenter';
 import Settings from '@/pages/Settings';
+import ProjectDetail from '@/pages/ProjectDetail';
+import InvoiceReady from '@/pages/InvoiceReady';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -48,6 +50,8 @@ const AuthenticatedApp = () => {
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/projects" element={<Projects />} />
+        <Route path="/projects/:projectId" element={<ProjectDetail />} />
+        <Route path="/invoice-ready" element={<InvoiceReady />} />
         <Route path="/online-marketing" element={<OnlineMarketing />} />
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/production" element={<Production />} />

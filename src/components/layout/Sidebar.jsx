@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, Megaphone, Shield, Wrench,
   CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
-  Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X
+  Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -16,6 +16,7 @@ const navItems = [
   { path: '/tools', label: 'Toolkosten', icon: CreditCard },
   { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
   { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
+  { path: '/invoice-ready', label: 'Abrechenbar Jetzt', icon: CheckSquare },
   { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
   { path: '/seftest', label: 'SEFtest', icon: BarChart3 },
   { path: '/import', label: 'Import Center', icon: Upload },

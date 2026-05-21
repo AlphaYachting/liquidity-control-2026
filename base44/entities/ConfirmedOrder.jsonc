@@ -1,0 +1,68 @@
+{
+  "name": "ConfirmedOrder",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Linked LiquidityProject ID"
+    },
+    "order_number": {
+      "type": "string"
+    },
+    "customer": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "confirmation_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "signed_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "total_net_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "total_gross_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "vat_rate": {
+      "type": "number",
+      "default": 20
+    },
+    "payment_terms": {
+      "type": "string",
+      "description": "e.g. 14 Tage netto, 50% Anzahlung"
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "sent",
+        "confirmed",
+        "cancelled",
+        "completed"
+      ],
+      "default": "confirmed"
+    },
+    "document_url": {
+      "type": "string",
+      "description": "Uploaded AB document URL"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "customer",
+    "project_name"
+  ]
+}
