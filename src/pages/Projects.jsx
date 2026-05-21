@@ -82,7 +82,10 @@ export default function Projects() {
       if (!stats[pid]) stats[pid] = { invoiced: 0, paid: 0 };
       if (!inv.is_credit_note && inv.payment_status !== 'cancelled') {
         stats[pid].invoiced += Number(inv.net_amount) || 0;
-        stats[pid].paid += Number(inv.paid_amount) || 0;
+        // Fallback: if paid_amount=0 but status='paid', use gross_amount (PDF import data)
+        const paidAmt = Number(inv.paid_amount) || 0;
+        const grossAmt = Number(inv.gross_amount) || 0;
+        stats[pid].paid += paidAmt > 0 ? paidAmt : (inv.payment_status === 'paid' ? grossAmt : 0);
       } else if (inv.is_credit_note) {
         stats[pid].invoiced -= Number(inv.net_amount) || 0;
       }
@@ -128,8 +131,8 @@ export default function Projects() {
     { key: 'project_name', label: 'Projekt' },
     { key: 'project_manager', label: 'PM', width: '80px' },
     { key: 'total_net_amount', label: 'Gesamt netto', render: (v) => formatCurrency(v), cellClass: 'text-right font-medium' },
-    { key: '_invoiced', label: 'Verrechnet', render: (v) => <span className={Number(v) > 0 ? 'text-green-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
-    { key: '_open', label: 'Offen', render: (v) => <span className={Number(v) > 0 ? 'text-amber-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
+    { key: '_invoiced', label: 'Verrechnet netto', render: (v) => <span className={Number(v) > 0 ? 'text-green-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
+    { key: '_open', label: 'Noch zu verr.', render: (v) => <span className={Number(v) > 0 ? 'text-amber-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
     { key: '_awork', label: 'awork', width: '110px', render: (_, row) => {
         const done = row.awork_tasks_done ?? 0;
         const total = row.awork_tasks_total ?? 0;
