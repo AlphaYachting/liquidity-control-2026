@@ -25,6 +25,8 @@ import ConfirmedOrders from '@/pages/ConfirmedOrders';
 import ConfirmedOrderDetail from '@/pages/ConfirmedOrderDetail';
 import InvoiceMatchingReview from '@/pages/InvoiceMatchingReview';
 import NextMonthForecast from '@/pages/NextMonthForecast';
+import AworkSettings from '@/pages/AworkSettings';
+import AworkMappingReview from '@/pages/AworkMappingReview';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -70,6 +72,8 @@ const AuthenticatedApp = () => {
         <Route path="/seftest" element={<SefTest />} />
         <Route path="/import" element={<ImportCenter />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/awork-settings" element={<AworkSettings />} />
+        <Route path="/awork-mapping" element={<AworkMappingReview />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

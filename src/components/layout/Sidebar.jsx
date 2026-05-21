@@ -4,7 +4,7 @@ import {
   LayoutDashboard, FolderKanban, Megaphone, Shield, Wrench,
   CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
-  ClipboardList, GitMerge, CalendarCheck
+  ClipboardList, GitMerge, CalendarCheck, Zap, Map
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -24,6 +24,8 @@ const navItems = [
   { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
   { path: '/import', label: 'Import Center', icon: Upload },
   { path: '/settings', label: 'Settings', icon: Settings },
+  { path: '/awork-settings', label: 'awork Integration', icon: Zap },
+  { path: '/awork-mapping', label: 'awork Mapping', icon: Map },
 ];
 
 export default function Sidebar() {

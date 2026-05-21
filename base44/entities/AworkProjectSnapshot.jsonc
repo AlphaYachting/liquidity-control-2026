@@ -1,0 +1,85 @@
+{
+  "name": "AworkProjectSnapshot",
+  "type": "object",
+  "properties": {
+    "awork_project_id": {
+      "type": "string"
+    },
+    "project_key": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "company_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "project_status": {
+      "type": "string"
+    },
+    "project_type": {
+      "type": "string"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "time_budget_minutes": {
+      "type": "number",
+      "default": 0
+    },
+    "tracked_duration_minutes": {
+      "type": "number",
+      "default": 0
+    },
+    "tasks_count": {
+      "type": "number",
+      "default": 0
+    },
+    "tasks_done_count": {
+      "type": "number",
+      "default": 0
+    },
+    "progress_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "responsible_user_name": {
+      "type": "string"
+    },
+    "responsible_user_email": {
+      "type": "string"
+    },
+    "members_json": {
+      "type": "string"
+    },
+    "custom_fields_json": {
+      "type": "string"
+    },
+    "raw_payload": {
+      "type": "string"
+    },
+    "last_synced_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "is_archived": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "awork_project_id",
+    "name"
+  ]
+}

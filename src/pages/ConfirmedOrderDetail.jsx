@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ClipboardList, AlertTriangle, CheckCircle2, AlertCircle, ExternalLink, Plus } from 'lucide-react';
+import { ArrowLeft, ClipboardList, AlertTriangle, CheckCircle2, AlertCircle, ExternalLink, Plus, Link2, Unlink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,13 @@ import { formatCurrency } from '@/lib/liquidityUtils';
 import { calculateOrderReconciliation, calculateBillingBlockStatus } from '@/lib/reconciliationUtils';
 import InvoiceScanUploader from '@/components/orders/InvoiceScanUploader';
 import InvoiceRecordForm from '@/components/orders/InvoiceRecordForm';
+import AworkProjectPicker from '@/components/awork/AworkProjectPicker';
+import AworkTaskLinker from '@/components/awork/AworkTaskLinker';
+import AworkStatusBar from '@/components/awork/AworkStatusBar';
+import AworkSignalBadge from '@/components/awork/AworkSignalBadge';
+import { calculateAworkStatusForBillingBlock, getTasksForBillingBlock } from '@/lib/aworkReadinessUtils';
+import { formatDistanceToNow } from 'date-fns';
+import { de } from 'date-fns/locale';
 
 const MATCH_COLORS = {
   auto_matched: 'bg-emerald-100 text-emerald-700',
@@ -42,6 +49,9 @@ export default function ConfirmedOrderDetail() {
   const queryClient = useQueryClient();
   const [showInvoiceUploader, setShowInvoiceUploader] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
+  const [showAworkPicker, setShowAworkPicker] = useState(false);
+  const [linkingBlock, setLinkingBlock] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['confirmedOrders'], queryFn: () => base44.entities.ConfirmedOrder.list()
@@ -68,6 +78,84 @@ export default function ConfirmedOrderDetail() {
       setEditingInvoice(null);
     }
   });
+
+  const saveBlockMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.ProjectBillingBlock.update(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['billingBlocks'] })
+  });
+
+  const saveOrderMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.ConfirmedOrder.update(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['confirmedOrders'] })
+  });
+
+  const { data: aworkTasks = [] } = useQuery({
+    queryKey: ['awork-tasks-for-order', order?.awork_project_id],
+    queryFn: () => base44.entities.AworkTaskSnapshot.filter({ awork_project_id: order.awork_project_id }),
+    enabled: !!order?.awork_project_id
+  });
+
+  const handleSelectAworkProject = async (snapshot) => {
+    setShowAworkPicker(false);
+    await saveOrderMutation.mutateAsync({
+      id: orderId,
+      data: {
+        awork_project_id: snapshot.awork_project_id,
+        awork_project_name: snapshot.name,
+        awork_project_status: snapshot.project_status,
+        awork_progress_percent: snapshot.progress_percent,
+        awork_match_status: 'manual',
+        awork_last_synced_at: new Date().toISOString()
+      }
+    });
+    // Trigger task sync
+    setIsSyncing(true);
+    await base44.functions.invoke('syncAworkTasksForProject', { awork_project_id: snapshot.awork_project_id });
+    queryClient.invalidateQueries({ queryKey: ['awork-tasks-for-order', snapshot.awork_project_id] });
+    setIsSyncing(false);
+  };
+
+  const handleAworkSync = async () => {
+    if (!order?.awork_project_id) return;
+    setIsSyncing(true);
+    await base44.functions.invoke('syncAworkTasksForProject', { awork_project_id: order.awork_project_id });
+    queryClient.invalidateQueries({ queryKey: ['awork-tasks-for-order', order.awork_project_id] });
+    // Recalculate readiness for all blocks
+    for (const block of orderBlocks) {
+      const blockTasks = getTasksForBillingBlock(block, aworkTasks);
+      if (blockTasks.length > 0) {
+        const status = calculateAworkStatusForBillingBlock(block, blockTasks);
+        await base44.entities.ProjectBillingBlock.update(block.id, { ...status, awork_last_synced_at: new Date().toISOString() });
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ['billingBlocks'] });
+    await saveOrderMutation.mutateAsync({ id: orderId, data: { awork_last_synced_at: new Date().toISOString() } });
+    setIsSyncing(false);
+  };
+
+  const handleSaveTaskLink = async (data) => {
+    const block = linkingBlock;
+    setLinkingBlock(null);
+    const updatedBlock = { ...block, ...data };
+    const blockTasks = getTasksForBillingBlock(updatedBlock, aworkTasks);
+    const signal = calculateAworkStatusForBillingBlock(updatedBlock, blockTasks);
+    await saveBlockMutation.mutateAsync({ id: block.id, data: { ...data, ...signal, awork_last_synced_at: new Date().toISOString() } });
+  };
+
+  const handleConfirmReadiness = async (block) => {
+    await saveBlockMutation.mutateAsync({ id: block.id, data: { invoice_readiness_status: 'ready' } });
+  };
+
+  const handleClearAworkLink = async (block) => {
+    await saveBlockMutation.mutateAsync({
+      id: block.id, data: {
+        awork_mapping_type: 'none', awork_task_list_id: '', awork_task_list_name: '',
+        awork_task_ids: '[]', awork_progress_percent: 0, awork_tasks_total: 0,
+        awork_tasks_done: 0, awork_tasks_open: 0, awork_tasks_blocked: 0,
+        awork_readiness_signal: 'unknown', awork_signal_reason: ''
+      }
+    });
+  };
 
   const isLoading = ordersLoading || blocksLoading || invoicesLoading;
 
@@ -107,6 +195,14 @@ export default function ConfirmedOrderDetail() {
           actions={<StatusBadge status={order.status} />}
         />
       </div>
+
+      {/* awork Status Bar */}
+      <AworkStatusBar
+        order={order}
+        onSelectProject={() => setShowAworkPicker(true)}
+        onSync={handleAworkSync}
+        isSyncing={isSyncing}
+      />
 
       {/* Warnings */}
       {recon.warnings.length > 0 && (
@@ -195,54 +291,112 @@ export default function ConfirmedOrderDetail() {
               {orderBlocks.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">Keine Pakete verknüpft</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-xs text-muted-foreground">
-                        <th className="text-left pb-2 font-medium">Paket</th>
-                        <th className="text-right pb-2 font-medium">Betrag</th>
-                        <th className="text-left pb-2 font-medium pl-3">Monat</th>
-                        <th className="text-left pb-2 font-medium pl-3">Arbeit</th>
-                        <th className="text-left pb-2 font-medium pl-3">Rechnung</th>
-                        <th className="text-right pb-2 font-medium">Noch offen</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orderBlocks.map(block => {
-                        const blockInvoices = orderInvoices.filter(i => i.billing_block_id === block.id);
-                        const bs = calculateBillingBlockStatus(block, blockInvoices);
-                        return (
-                          <tr key={block.id} className="border-b last:border-0 hover:bg-muted/30">
-                            <td className="py-2">
-                              <p className="font-medium">{block.title}</p>
-                              {block.responsible_person && <p className="text-xs text-muted-foreground">{block.responsible_person}</p>}
-                              {bs.is_overdue_to_invoice && (
-                                <Badge className="text-xs bg-red-100 text-red-700 mt-0.5">Überfällig</Badge>
-                              )}
-                            </td>
-                            <td className="py-2 text-right font-semibold">{formatCurrency(block.amount_net)}</td>
-                            <td className="py-2 pl-3 text-muted-foreground">{block.billing_month || '—'}</td>
-                            <td className="py-2 pl-3">
+                <div className="space-y-3">
+                  {orderBlocks.map(block => {
+                    const blockInvoices = orderInvoices.filter(i => i.billing_block_id === block.id);
+                    const bs = calculateBillingBlockStatus(block, blockInvoices);
+                    const hasAwork = block.awork_mapping_type && block.awork_mapping_type !== 'none';
+                    return (
+                      <div key={block.id} className="border rounded-xl p-4 hover:bg-muted/20 transition-colors">
+                        {/* Row 1: title + amounts + status */}
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm">{block.title}</p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className="text-xs text-muted-foreground">{block.billing_month || '—'}</span>
                               <Badge className={`text-xs ${block.work_status === 'completed' ? 'bg-emerald-100 text-emerald-700' : block.work_status === 'blocked' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
                                 {WORK_STATUS_LABELS[block.work_status] || 'Nicht begonnen'}
                               </Badge>
-                            </td>
-                            <td className="py-2 pl-3">
                               <Badge className={`text-xs ${block.invoice_readiness_status === 'ready' ? 'bg-emerald-100 text-emerald-700' : block.invoice_readiness_status === 'invoiced' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
                                 {READINESS_LABELS[block.invoice_readiness_status] || '—'}
                               </Badge>
-                            </td>
-                            <td className="py-2 text-right">
-                              {bs.remaining_to_invoice > 0
-                                ? <span className="text-amber-600 font-medium">{formatCurrency(bs.remaining_to_invoice)}</span>
-                                : <span className="text-emerald-600">✓</span>
-                              }
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              {bs.is_overdue_to_invoice && <Badge className="text-xs bg-red-100 text-red-700">Überfällig</Badge>}
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-bold text-sm">{formatCurrency(block.amount_net)}</p>
+                            {bs.remaining_to_invoice > 0
+                              ? <p className="text-xs text-amber-600">offen: {formatCurrency(bs.remaining_to_invoice)}</p>
+                              : <p className="text-xs text-emerald-600">✓ abgerechnet</p>
+                            }
+                          </div>
+                        </div>
+
+                        {/* Row 2: awork status */}
+                        <div className="flex items-center gap-3 p-2.5 bg-muted/30 rounded-lg flex-wrap">
+                          {hasAwork ? (
+                            <>
+                              {/* Progress */}
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-blue-500 rounded-full"
+                                    style={{ width: `${block.awork_progress_percent || 0}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs font-medium">{block.awork_progress_percent || 0}%</span>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {block.awork_tasks_done}/{block.awork_tasks_total} erledigt
+                              </span>
+                              {block.awork_tasks_blocked > 0 && (
+                                <span className="text-xs text-red-600 font-medium">
+                                  ⊘ {block.awork_tasks_blocked} blockiert
+                                </span>
+                              )}
+                              {block.awork_tasks_open > 0 && (
+                                <span className="text-xs text-muted-foreground">{block.awork_tasks_open} offen</span>
+                              )}
+                              {block.awork_responsible_person && (
+                                <span className="text-xs text-muted-foreground">👤 {block.awork_responsible_person}</span>
+                              )}
+                              {block.awork_last_activity_at && (
+                                <span className="text-xs text-muted-foreground">
+                                  {formatDistanceToNow(new Date(block.awork_last_activity_at), { addSuffix: true, locale: de })}
+                                </span>
+                              )}
+                              <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+                                <AworkSignalBadge signal={block.awork_readiness_signal} />
+                                {block.awork_readiness_signal === 'ready_candidate' && block.invoice_readiness_status !== 'ready' && (
+                                  <Button size="sm" variant="outline"
+                                    className="h-6 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                    onClick={() => handleConfirmReadiness(block)}>
+                                    ✓ Bestätigen
+                                  </Button>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">Keine awork-Aufgaben verknüpft</span>
+                          )}
+
+                          {/* Actions */}
+                          <div className={`flex items-center gap-1 ${hasAwork ? '' : 'ml-auto'}`}>
+                            {order?.awork_project_id && (
+                              <Button size="sm" variant="ghost" className="h-6 text-xs"
+                                onClick={() => setLinkingBlock(block)}>
+                                <Link2 className="w-3 h-3 mr-1" />
+                                {hasAwork ? 'Ändern' : 'Verknüpfen'}
+                              </Button>
+                            )}
+                            {hasAwork && (
+                              <Button size="sm" variant="ghost" className="h-6 text-xs text-destructive"
+                                onClick={() => handleClearAworkLink(block)}>
+                                <Unlink className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Signal reason */}
+                        {hasAwork && block.awork_signal_reason && (
+                          <p className="text-xs text-muted-foreground mt-1.5 pl-1">
+                            awork: {block.awork_signal_reason}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -373,6 +527,23 @@ export default function ConfirmedOrderDetail() {
           )}
         </div>
       </div>
+
+      {/* awork Modals */}
+      <AworkProjectPicker
+        open={showAworkPicker}
+        onClose={() => setShowAworkPicker(false)}
+        onSelect={handleSelectAworkProject}
+        selectedProjectId={order?.awork_project_id}
+      />
+      {linkingBlock && (
+        <AworkTaskLinker
+          open={!!linkingBlock}
+          onClose={() => setLinkingBlock(null)}
+          billingBlock={linkingBlock}
+          aworkProjectId={order?.awork_project_id}
+          onSave={handleSaveTaskLink}
+        />
+      )}
     </div>
   );
 }

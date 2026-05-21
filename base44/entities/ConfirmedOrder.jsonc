@@ -36,8 +36,7 @@
       "default": 20
     },
     "payment_terms": {
-      "type": "string",
-      "description": "e.g. 14 Tage netto, 50% Anzahlung"
+      "type": "string"
     },
     "description": {
       "type": "string"
@@ -54,8 +53,7 @@
       "default": "confirmed"
     },
     "document_url": {
-      "type": "string",
-      "description": "Uploaded AB document URL"
+      "type": "string"
     },
     "responsible_project_manager": {
       "type": "string"
@@ -73,6 +71,33 @@
     },
     "notes": {
       "type": "string"
+    },
+    "awork_project_id": {
+      "type": "string"
+    },
+    "awork_project_name": {
+      "type": "string"
+    },
+    "awork_match_status": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "suggested",
+        "unmatched",
+        "ignored"
+      ],
+      "default": "unmatched"
+    },
+    "awork_last_synced_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "awork_project_status": {
+      "type": "string"
+    },
+    "awork_progress_percent": {
+      "type": "number",
+      "default": 0
     }
   },
   "required": [

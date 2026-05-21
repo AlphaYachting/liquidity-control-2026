@@ -1,0 +1,66 @@
+{
+  "name": "AworkSyncLog",
+  "type": "object",
+  "properties": {
+    "sync_type": {
+      "type": "string",
+      "enum": [
+        "projects",
+        "tasks",
+        "project_tasks",
+        "full"
+      ],
+      "default": "projects"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "running",
+        "success",
+        "partial",
+        "failed"
+      ],
+      "default": "running"
+    },
+    "records_fetched": {
+      "type": "number",
+      "default": 0
+    },
+    "records_created": {
+      "type": "number",
+      "default": 0
+    },
+    "records_updated": {
+      "type": "number",
+      "default": 0
+    },
+    "records_failed": {
+      "type": "number",
+      "default": 0
+    },
+    "errors": {
+      "type": "string"
+    },
+    "triggered_by": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "scheduled",
+        "webhook"
+      ],
+      "default": "manual"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": []
+}

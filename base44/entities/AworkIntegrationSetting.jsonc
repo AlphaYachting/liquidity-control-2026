@@ -1,0 +1,52 @@
+{
+  "name": "AworkIntegrationSetting",
+  "type": "object",
+  "properties": {
+    "api_base_url": {
+      "type": "string",
+      "default": "https://api.awork.com"
+    },
+    "connection_status": {
+      "type": "string",
+      "enum": [
+        "not_configured",
+        "connected",
+        "error",
+        "rate_limited"
+      ],
+      "default": "not_configured"
+    },
+    "auth_mode": {
+      "type": "string",
+      "enum": [
+        "api_key",
+        "oauth"
+      ],
+      "default": "api_key"
+    },
+    "read_only_mode": {
+      "type": "boolean",
+      "default": true
+    },
+    "last_successful_sync": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sync_frequency_minutes": {
+      "type": "number",
+      "default": 120
+    },
+    "total_projects_synced": {
+      "type": "number",
+      "default": 0
+    },
+    "total_tasks_synced": {
+      "type": "number",
+      "default": 0
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": []
+}

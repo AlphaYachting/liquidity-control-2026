@@ -11,8 +11,7 @@
       "description": "Linked ConfirmedOrder ID"
     },
     "title": {
-      "type": "string",
-      "description": "e.g. Strategie, Design, Entwicklung Phase 1"
+      "type": "string"
     },
     "description": {
       "type": "string"
@@ -62,8 +61,7 @@
         "completed",
         "blocked"
       ],
-      "default": "not_started",
-      "description": "Separate from invoice_readiness_status \u2014 work can be done but not yet invoiced"
+      "default": "not_started"
     },
     "invoice_number": {
       "type": "string"
@@ -85,6 +83,78 @@
     "sort_order": {
       "type": "number",
       "default": 0
+    },
+    "awork_task_list_id": {
+      "type": "string"
+    },
+    "awork_task_list_name": {
+      "type": "string"
+    },
+    "awork_task_ids": {
+      "type": "string",
+      "description": "JSON array of awork task UUIDs"
+    },
+    "awork_custom_field_value": {
+      "type": "string"
+    },
+    "awork_mapping_type": {
+      "type": "string",
+      "enum": [
+        "task_list",
+        "tasks",
+        "custom_field",
+        "none"
+      ],
+      "default": "none"
+    },
+    "awork_progress_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "awork_tasks_total": {
+      "type": "number",
+      "default": 0
+    },
+    "awork_tasks_done": {
+      "type": "number",
+      "default": 0
+    },
+    "awork_tasks_open": {
+      "type": "number",
+      "default": 0
+    },
+    "awork_tasks_blocked": {
+      "type": "number",
+      "default": 0
+    },
+    "awork_responsible_person": {
+      "type": "string"
+    },
+    "awork_last_activity_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "awork_readiness_signal": {
+      "type": "string",
+      "enum": [
+        "unknown",
+        "not_ready",
+        "review_needed",
+        "likely_ready",
+        "ready_candidate",
+        "blocked"
+      ],
+      "default": "unknown"
+    },
+    "awork_signal_reason": {
+      "type": "string"
+    },
+    "awork_last_synced_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "awork_adjusted_probability": {
+      "type": "number"
     }
   },
   "required": [

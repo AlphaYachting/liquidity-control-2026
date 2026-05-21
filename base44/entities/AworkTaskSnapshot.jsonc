@@ -1,0 +1,85 @@
+{
+  "name": "AworkTaskSnapshot",
+  "type": "object",
+  "properties": {
+    "awork_task_id": {
+      "type": "string"
+    },
+    "awork_project_id": {
+      "type": "string"
+    },
+    "task_title": {
+      "type": "string"
+    },
+    "task_status_id": {
+      "type": "string"
+    },
+    "task_status_name": {
+      "type": "string"
+    },
+    "task_status_type": {
+      "type": "string",
+      "enum": [
+        "open",
+        "progress",
+        "done",
+        "blocked",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "task_list_id": {
+      "type": "string"
+    },
+    "task_list_name": {
+      "type": "string"
+    },
+    "assignee_name": {
+      "type": "string"
+    },
+    "assignee_email": {
+      "type": "string"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "planned_duration_minutes": {
+      "type": "number",
+      "default": 0
+    },
+    "tracked_duration_minutes": {
+      "type": "number",
+      "default": 0
+    },
+    "is_done": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_blocked": {
+      "type": "boolean",
+      "default": false
+    },
+    "custom_fields_json": {
+      "type": "string"
+    },
+    "last_activity_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "raw_payload": {
+      "type": "string"
+    },
+    "last_synced_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "linked_billing_block_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "awork_task_id",
+    "awork_project_id"
+  ]
+}
