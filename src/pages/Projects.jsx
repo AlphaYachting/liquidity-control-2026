@@ -24,16 +24,28 @@ export default function Projects() {
     queryKey: ['projects'], queryFn: () => base44.entities.LiquidityProject.list()
   });
 
-  const filtered = projects.filter(p => {
-    if (filters.project_manager && p.project_manager !== filters.project_manager) return false;
-    if (filters.status && p.status !== filters.status) return false;
-    if (filters.risk_status && p.risk_status !== filters.risk_status) return false;
-    return true;
-  });
+  const STATUS_SORT_ORDER = { active: 0, on_hold: 1, unclear: 2, completed: 3, cancelled: 4 };
+
+  const filtered = projects
+    .filter(p => {
+      if (filters.project_manager && p.project_manager !== filters.project_manager) return false;
+      if (filters.status && p.status !== filters.status) return false;
+      if (filters.risk_status && p.risk_status !== filters.risk_status) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      const sA = STATUS_SORT_ORDER[a.status] ?? 99;
+      const sB = STATUS_SORT_ORDER[b.status] ?? 99;
+      if (sA !== sB) return sA - sB;
+      return (a.customer || '').localeCompare(b.customer || '', 'de');
+    });
 
   const totalNet = filtered.reduce((s, p) => s + (Number(p.total_net_amount) || 0), 0);
   const invoiced = filtered.reduce((s, p) => s + (Number(p.already_invoiced_amount) || 0), 0);
-  const openAmt = filtered.reduce((s, p) => s + (Number(p.open_amount) || 0), 0);
+  // Offene Beträge: nur aktive + on_hold Projekte (nicht completed/cancelled)
+  const openAmt = filtered
+    .filter(p => p.status !== 'completed' && p.status !== 'cancelled')
+    .reduce((s, p) => s + (Number(p.open_amount) || 0), 0);
 
   const columns = [
     { key: 'status', label: 'Status', width: '100px', render: (v) => <StatusBadge status={v} /> },
