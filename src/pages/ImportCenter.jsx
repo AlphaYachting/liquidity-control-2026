@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
@@ -9,6 +9,16 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import ImportPreview from '@/components/import/ImportPreview';
+
+const DEDICATED_IMPORTERS = [
+  { 
+    label: 'Projekte 2026', 
+    entity: 'LiquidityProject', 
+    icon: '📁', 
+    fn: 'importProjekte2026',
+    description: 'Importiert alle 81 Projekte mit Gesamtbetrag, offenem Betrag und monatlichen IST/SOLL-Werten'
+  },
+];
 
 const SHEET_MAPPINGS = [
   { sheet: 'Projekte 2026', entity: 'LiquidityProject', icon: '📁' },
@@ -29,6 +39,7 @@ export default function ImportCenter() {
   const [extractedData, setExtractedData] = useState(null);
   const [selectedSheet, setSelectedSheet] = useState(null);
   const [importStatus, setImportStatus] = useState({});
+  const [dedicatedStatus, setDedicatedStatus] = useState({});
   const queryClient = useQueryClient();
 
   const handleFileSelect = async (e) => {
@@ -185,7 +196,51 @@ export default function ImportCenter() {
 
       {uploadedUrl && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Sheet-Zuordnung</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Direktimporter (empfohlen)</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Speziell angepasste Parser für eure Excel-Struktur</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {DEDICATED_IMPORTERS.map(imp => (
+                <div key={imp.fn} className="flex items-center justify-between p-4 border rounded-xl bg-primary/5 border-primary/20">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{imp.icon}</span>
+                    <div>
+                      <p className="text-sm font-medium">{imp.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{imp.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 ml-4">
+                    {dedicatedStatus[imp.fn] === 'done' ? (
+                      <Badge className="bg-emerald-100 text-emerald-700"><CheckCircle2 className="w-3 h-3 mr-1" />Importiert</Badge>
+                    ) : dedicatedStatus[imp.fn] === 'loading' ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    ) : dedicatedStatus[imp.fn]?.startsWith?.('error') ? (
+                      <Badge className="bg-red-100 text-red-700 max-w-48 truncate">{dedicatedStatus[imp.fn]}</Badge>
+                    ) : (
+                      <Button size="sm" onClick={async () => {
+                        setDedicatedStatus(s => ({ ...s, [imp.fn]: 'loading' }));
+                        try {
+                          const res = await base44.functions.invoke(imp.fn, { file_url: uploadedUrl });
+                          setDedicatedStatus(s => ({ ...s, [imp.fn]: 'done' }));
+                          queryClient.invalidateQueries();
+                        } catch (e) {
+                          setDedicatedStatus(s => ({ ...s, [imp.fn]: `error: ${e.message}` }));
+                        }
+                      }}>Jetzt importieren</Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {uploadedUrl && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Sheet-Zuordnung (KI-Extraktion)</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {SHEET_MAPPINGS.map(m => (
