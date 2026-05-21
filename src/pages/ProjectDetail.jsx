@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, FolderKanban, Plus, FileText } from 'lucide-react';
+import { ArrowLeft, FolderKanban, Plus, Pencil, Check, X } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, getMonthLabel } from '@/lib/liquidityUtils';
 import BillingBlockList from '@/components/projects/BillingBlockList';
@@ -21,6 +21,8 @@ export default function ProjectDetail() {
   const queryClient = useQueryClient();
   const [showBlockForm, setShowBlockForm] = useState(false);
   const [editingBlock, setEditingBlock] = useState(null);
+  const [editingPM, setEditingPM] = useState(false);
+  const [pmValue, setPmValue] = useState('');
 
   const { data: projects = [], isLoading: lpLoading } = useQuery({
     queryKey: ['projects'], queryFn: () => base44.entities.LiquidityProject.list()
@@ -58,6 +60,16 @@ export default function ProjectDetail() {
     mutationFn: (id) => base44.entities.ProjectBillingBlock.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['billingBlocks'] })
   });
+
+  const updateProjectMutation = useMutation({
+    mutationFn: (data) => base44.entities.LiquidityProject.update(projectId, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] })
+  });
+
+  const handleSavePM = () => {
+    updateProjectMutation.mutate({ project_manager: pmValue });
+    setEditingPM(false);
+  };
 
   const isLoading = lpLoading || ordersLoading || blocksLoading || invoicesLoading;
 
@@ -167,7 +179,29 @@ export default function ProjectDetail() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base text-sm">Projektinfos</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Projektmanager</span><span>{project.project_manager || '—'}</span></div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Projektmanager</span>
+                {editingPM ? (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      value={pmValue}
+                      onChange={e => setPmValue(e.target.value)}
+                      className="h-7 w-32 text-sm"
+                      onKeyDown={e => { if (e.key === 'Enter') handleSavePM(); if (e.key === 'Escape') setEditingPM(false); }}
+                      autoFocus
+                    />
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSavePM}><Check className="w-3 h-3" /></Button>
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditingPM(false)}><X className="w-3 h-3" /></Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <span>{project.project_manager || '—'}</span>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 opacity-50 hover:opacity-100" onClick={() => { setPmValue(project.project_manager || ''); setEditingPM(true); }}>
+                      <Pencil className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
               <div className="flex justify-between"><span className="text-muted-foreground">Auftragsnr.</span><span>{project.order_number || '—'}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Kategorie</span><span>{project.category || '—'}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Erw. Monat</span><span>{project.expected_invoice_month ? getMonthLabel(project.expected_invoice_month) : '—'}</span></div>
