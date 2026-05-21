@@ -162,6 +162,7 @@ export default function ProjectDetail() {
                 onEdit={(b) => { setEditingBlock(b); setShowBlockForm(true); }}
                 onDelete={(id) => deleteBlockMutation.mutate(id)}
                 onStatusChange={(id, status) => saveBlockMutation.mutate({ id, data: { invoice_readiness_status: status } })}
+                onMonthChange={(id, month) => saveBlockMutation.mutate({ id, data: { billing_month: month } })}
               />
               {projectBlocks.length > 0 && (
                 <div className="flex items-center justify-between pt-3 mt-3 border-t text-sm">

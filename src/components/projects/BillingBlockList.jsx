@@ -13,7 +13,20 @@ const READINESS = {
   paid:        { label: 'Bezahlt',         color: 'bg-teal-100 text-teal-700' },
 };
 
-export default function BillingBlockList({ blocks, onEdit, onDelete, onStatusChange }) {
+// Generate month options for current year ± 1
+const MONTH_OPTIONS = (() => {
+  const options = [];
+  for (let y = 2025; y <= 2027; y++) {
+    for (let m = 1; m <= 12; m++) {
+      const val = `${y}-${String(m).padStart(2, '0')}`;
+      const label = new Date(y, m - 1, 1).toLocaleString('de-AT', { month: 'short', year: '2-digit' });
+      options.push({ val, label });
+    }
+  }
+  return options;
+})();
+
+export default function BillingBlockList({ blocks, onEdit, onDelete, onStatusChange, onMonthChange }) {
   if (!blocks.length) {
     return (
       <div className="text-center py-8 text-sm text-muted-foreground border border-dashed rounded-xl">
@@ -32,9 +45,16 @@ export default function BillingBlockList({ blocks, onEdit, onDelete, onStatusCha
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm truncate">{block.title}</p>
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                {block.billing_month && (
-                  <span className="text-xs text-muted-foreground">{getMonthLabel(block.billing_month)}</span>
-                )}
+                <Select value={block.billing_month || ''} onValueChange={v => onMonthChange && onMonthChange(block.id, v)}>
+                  <SelectTrigger className="h-5 text-xs border-0 px-1 py-0 bg-transparent text-muted-foreground hover:bg-muted/50 w-auto gap-0.5 shadow-none">
+                    <SelectValue placeholder="Monat wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTH_OPTIONS.map(({ val, label }) => (
+                      <SelectItem key={val} value={val} className="text-xs">{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {block.probability_percent < 100 && (
                   <span className="text-xs text-muted-foreground">{block.probability_percent}%</span>
                 )}
