@@ -21,6 +21,10 @@ import ImportCenter from '@/pages/ImportCenter';
 import Settings from '@/pages/Settings';
 import ProjectDetail from '@/pages/ProjectDetail';
 import InvoiceReady from '@/pages/InvoiceReady';
+import ConfirmedOrders from '@/pages/ConfirmedOrders';
+import ConfirmedOrderDetail from '@/pages/ConfirmedOrderDetail';
+import InvoiceMatchingReview from '@/pages/InvoiceMatchingReview';
+import NextMonthForecast from '@/pages/NextMonthForecast';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -51,6 +55,10 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Dashboard />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:projectId" element={<ProjectDetail />} />
+        <Route path="/confirmed-orders" element={<ConfirmedOrders />} />
+        <Route path="/confirmed-orders/:orderId" element={<ConfirmedOrderDetail />} />
+        <Route path="/invoice-matching" element={<InvoiceMatchingReview />} />
+        <Route path="/next-month-forecast" element={<NextMonthForecast />} />
         <Route path="/invoice-ready" element={<InvoiceReady />} />
         <Route path="/online-marketing" element={<OnlineMarketing />} />
         <Route path="/maintenance" element={<Maintenance />} />

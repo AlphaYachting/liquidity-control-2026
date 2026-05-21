@@ -54,6 +54,17 @@
       ],
       "default": "not_ready"
     },
+    "work_status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "completed",
+        "blocked"
+      ],
+      "default": "not_started",
+      "description": "Separate from invoice_readiness_status \u2014 work can be done but not yet invoiced"
+    },
     "invoice_number": {
       "type": "string"
     },

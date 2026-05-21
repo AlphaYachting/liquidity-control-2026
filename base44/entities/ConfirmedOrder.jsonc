@@ -46,9 +46,9 @@
       "type": "string",
       "enum": [
         "draft",
-        "sent",
         "confirmed",
         "cancelled",
+        "unclear",
         "completed"
       ],
       "default": "confirmed"
@@ -56,6 +56,20 @@
     "document_url": {
       "type": "string",
       "description": "Uploaded AB document URL"
+    },
+    "responsible_project_manager": {
+      "type": "string"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "excel",
+        "pdf",
+        "sevdesk",
+        "other"
+      ],
+      "default": "manual"
     },
     "notes": {
       "type": "string"

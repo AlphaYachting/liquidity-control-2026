@@ -1,0 +1,134 @@
+{
+  "name": "InvoiceRecord",
+  "type": "object",
+  "properties": {
+    "invoice_number": {
+      "type": "string"
+    },
+    "invoice_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "confirmed_order_id": {
+      "type": "string",
+      "description": "Linked ConfirmedOrder ID"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Linked LiquidityProject ID"
+    },
+    "billing_block_id": {
+      "type": "string",
+      "description": "Linked ProjectBillingBlock ID"
+    },
+    "invoice_type": {
+      "type": "string",
+      "enum": [
+        "final_invoice",
+        "partial_invoice",
+        "advance_invoice",
+        "correction",
+        "credit_note"
+      ],
+      "default": "partial_invoice"
+    },
+    "is_credit_note": {
+      "type": "boolean",
+      "default": false
+    },
+    "original_invoice_id": {
+      "type": "string",
+      "description": "For corrections/credit notes: points to original InvoiceRecord ID"
+    },
+    "net_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "gross_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "vat_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "vat_rate": {
+      "type": "number",
+      "default": 20
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "payment_status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "partially_paid",
+        "paid",
+        "overdue",
+        "cancelled",
+        "unclear"
+      ],
+      "default": "open"
+    },
+    "paid_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "open_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "payment_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "excel",
+        "sevdesk",
+        "csv",
+        "pdf",
+        "other"
+      ],
+      "default": "manual"
+    },
+    "source_file": {
+      "type": "string"
+    },
+    "sevdesk_id": {
+      "type": "string",
+      "description": "Future sevDesk sync ID"
+    },
+    "match_status": {
+      "type": "string",
+      "enum": [
+        "auto_matched",
+        "manually_matched",
+        "unmatched",
+        "disputed"
+      ],
+      "default": "unmatched"
+    },
+    "match_confidence": {
+      "type": "number",
+      "default": 0,
+      "description": "0-100 confidence score"
+    },
+    "match_notes": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "customer_name"
+  ]
+}

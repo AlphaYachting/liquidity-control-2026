@@ -16,6 +16,7 @@ export default function BillingBlockForm({ block, onSave, onCancel, isSaving }) 
     amount_net: '',
     billing_month: '',
     invoice_readiness_status: 'not_ready',
+    work_status: 'not_started',
     probability_percent: 90,
     responsible_person: '',
     notes: '',
@@ -52,7 +53,18 @@ export default function BillingBlockForm({ block, onSave, onCancel, isSaving }) 
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Status</Label>
+          <Label className="text-xs">Arbeitsstatus</Label>
+          <Select value={form.work_status || 'not_started'} onValueChange={v => update('work_status', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[['not_started','Nicht begonnen'],['in_progress','In Arbeit'],['completed','Fertig'],['blocked','Blockiert']].map(([v,l]) => (
+                <SelectItem key={v} value={v}>{l}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Abrechnungsstatus</Label>
           <Select value={form.invoice_readiness_status} onValueChange={v => update('invoice_readiness_status', v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>

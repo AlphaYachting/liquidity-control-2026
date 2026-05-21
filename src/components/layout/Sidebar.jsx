@@ -3,13 +3,17 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, Megaphone, Shield, Wrench,
   CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
-  Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare
+  Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
+  ClipboardList, GitMerge, CalendarCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/projects', label: 'Projekte 2026', icon: FolderKanban },
+  { path: '/confirmed-orders', label: 'Auftragsbestätigungen', icon: ClipboardList },
+  { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
+  { path: '/next-month-forecast', label: 'Nächster Monat', icon: CalendarCheck },
   { path: '/online-marketing', label: 'Online-Marketing', icon: Megaphone },
   { path: '/maintenance', label: 'Wartungsverträge', icon: Shield },
   { path: '/production', label: 'Produktion & Support', icon: Wrench },
@@ -18,7 +22,6 @@ const navItems = [
   { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
   { path: '/invoice-ready', label: 'Abrechenbar Jetzt', icon: CheckSquare },
   { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
-  { path: '/seftest', label: 'SEFtest', icon: BarChart3 },
   { path: '/import', label: 'Import Center', icon: Upload },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
@@ -82,7 +85,7 @@ export default function Sidebar() {
                 ${collapsed ? 'justify-center' : ''}`}
               title={collapsed ? item.label : undefined}
             >
-              <Icon className="w-4.5 h-4.5 flex-shrink-0" />
+              <Icon className="w-4 h-4 flex-shrink-0" />
               {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           );
@@ -99,7 +102,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile toggle */}
       <Button
         variant="ghost"
         size="icon"
@@ -109,12 +111,10 @@ export default function Sidebar() {
         <Menu className="w-5 h-5" />
       </Button>
 
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside className={`
         fixed md:sticky top-0 left-0 h-screen bg-sidebar z-50 transition-all duration-300 flex-shrink-0
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
