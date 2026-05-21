@@ -3,10 +3,10 @@ import { TrendingUp, Receipt, AlertTriangle, CreditCard, FileText, Clock, Dollar
 import KpiCard from '@/components/shared/KpiCard';
 import { formatCurrency, calcOverdueDays } from '@/lib/liquidityUtils';
 
-export default function DashboardKpis({ projects, planLines, contracts, tools, receivables, payables }) {
+export default function DashboardKpis({ projects, planLines, contracts, tools, receivables, payables, liveInvoiced, liveOpen }) {
   const totalPlanned = planLines.filter(l => l.direction === 'inflow').reduce((s, l) => s + (Number(l.amount_net) || 0), 0);
-  const alreadyInvoiced = projects.reduce((s, p) => s + (Number(p.already_invoiced_amount) || 0), 0);
-  const openProject = projects.reduce((s, p) => s + (Number(p.open_amount) || 0), 0);
+  const alreadyInvoiced = liveInvoiced ?? projects.reduce((s, p) => s + (Number(p.already_invoiced_amount) || 0), 0);
+  const openProject = liveOpen ?? projects.reduce((s, p) => s + (Number(p.open_amount) || 0), 0);
 
   const today = new Date();
   const in30 = new Date(today); in30.setDate(in30.getDate() + 30);
