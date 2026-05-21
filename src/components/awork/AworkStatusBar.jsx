@@ -22,10 +22,11 @@ export default function AworkStatusBar({ order, data, taskStats, snapshot, onSel
   const isStale = lastSyncDate ? differenceInHours(new Date(), lastSyncDate) > 24 : false;
   const neverSynced = !lastSyncDate;
 
-  // Prefer taskStats for task counts (live aggregation), fallback to snapshot
-  const totalTasks = taskStats?.total_tasks ?? snapshot?.tasks_count ?? 0;
-  const doneTasks = taskStats?.done_tasks ?? snapshot?.tasks_done_count ?? 0;
-  const openTasks = taskStats?.open_tasks ?? null;
+  // Budget/tracked hours from taskStats, fallback to snapshot time budget
+  const budgetMinutes = taskStats?.budget_minutes ?? snapshot?.time_budget_minutes ?? 0;
+  const trackedMinutes = taskStats?.tracked_minutes ?? snapshot?.tracked_duration_minutes ?? 0;
+  const budgetHours = budgetMinutes > 0 ? (budgetMinutes / 60).toFixed(1) : null;
+  const trackedHours = trackedMinutes > 0 ? (trackedMinutes / 60).toFixed(1) : null;
   const blockedTasks = taskStats?.blocked_tasks ?? 0;
   const progressPct = taskStats?.progress_percent ?? src.awork_progress_percent ?? snapshot?.progress_percent ?? 0;
   const lastActivityDate = taskStats?.last_activity_at ? new Date(taskStats.last_activity_at) : null;
@@ -127,21 +128,23 @@ export default function AworkStatusBar({ order, data, taskStats, snapshot, onSel
 
       {/* Stats row */}
       <div className="flex items-center gap-4 text-xs flex-wrap">
-        {totalTasks > 0 ? (
+        {budgetHours || trackedHours ? (
           <>
-            <span className="flex items-center gap-1 text-emerald-700">
-              <CheckCircle2 className="w-3 h-3" />
-              {doneTasks} / {totalTasks} erledigt
-            </span>
-            {openTasks !== null && openTasks > 0 && (
-              <span className="text-muted-foreground">{openTasks} offen</span>
+            {trackedHours && (
+              <span className="flex items-center gap-1 text-emerald-700">
+                <CheckCircle2 className="w-3 h-3" />
+                {trackedHours} h verbraucht
+              </span>
+            )}
+            {budgetHours && (
+              <span className="text-blue-800 font-medium">/ {budgetHours} h Budget</span>
             )}
             {blockedTasks > 0 && (
               <span className="text-red-600 font-medium">⊘ {blockedTasks} blockiert</span>
             )}
           </>
         ) : (
-          <span className="text-muted-foreground italic">Keine Aufgaben synchronisiert</span>
+          <span className="text-muted-foreground italic">Keine Stundendaten synchronisiert</span>
         )}
 
         {lastActivityLabel && (

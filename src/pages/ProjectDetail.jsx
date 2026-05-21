@@ -194,14 +194,18 @@ export default function ProjectDetail() {
   const openToInvoice = fin?.openToInvoiceNet || 0;
   const readyAmount = fin?.invoiceReadyNet || 0;
 
-  // ── awork task aggregation (Task 6) ───────────────────────────────────────
+  // ── awork task aggregation ────────────────────────────────────────────────
   const aworkTaskStats = useMemo(() => {
     if (!aworkTasks.length) return null;
+    const budgetMinutes = aworkTasks.reduce((s, t) => s + (Number(t.planned_duration_minutes) || 0), 0);
+    const trackedMinutes = aworkTasks.reduce((s, t) => s + (Number(t.tracked_duration_minutes) || 0), 0);
+    const blocked = aworkTasks.filter(t => t.task_status_type === 'blocked' || t.is_blocked).length;
+    // Progress: if budget defined use hours ratio, else task-done ratio
     const total = aworkTasks.length;
     const done = aworkTasks.filter(t => t.task_status_type === 'done' || t.is_done).length;
-    const blocked = aworkTasks.filter(t => t.task_status_type === 'blocked' || t.is_blocked).length;
-    const open = aworkTasks.filter(t => t.task_status_type === 'open' || t.task_status_type === 'progress').length;
-    const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+    const progress = budgetMinutes > 0
+      ? Math.min(100, Math.round((trackedMinutes / budgetMinutes) * 100))
+      : (total > 0 ? Math.round((done / total) * 100) : 0);
     const syncDates = aworkTasks.map(t => t.last_synced_at).filter(Boolean).sort().reverse();
     const activityDates = aworkTasks.map(t => t.last_activity_at).filter(Boolean).sort().reverse();
     const lastSyncedAt = syncDates[0] || null;
@@ -209,7 +213,15 @@ export default function ProjectDetail() {
     const hasStaleData = lastSyncedAt
       ? (new Date() - new Date(lastSyncedAt)) > 24 * 60 * 60 * 1000
       : true;
-    return { total_tasks: total, done_tasks: done, open_tasks: open, blocked_tasks: blocked, progress_percent: progress, last_activity_at: lastActivityAt, last_synced_at: lastSyncedAt, has_stale_data: hasStaleData };
+    return {
+      budget_minutes: budgetMinutes,
+      tracked_minutes: trackedMinutes,
+      blocked_tasks: blocked,
+      progress_percent: progress,
+      last_activity_at: lastActivityAt,
+      last_synced_at: lastSyncedAt,
+      has_stale_data: hasStaleData
+    };
   }, [aworkTasks]);
 
   // ── primaryOrder for awork (first linked order) ───────────────────────────
@@ -422,12 +434,28 @@ export default function ProjectDetail() {
                                 </div>
                                 <span className="text-xs font-medium">{block.awork_progress_percent || 0}%</span>
                               </div>
-                              {block.awork_tasks_total > 0
-                                ? <span className="text-xs text-muted-foreground">{block.awork_tasks_done}/{block.awork_tasks_total} erledigt</span>
-                                : <span className="text-xs text-muted-foreground italic">keine Daten</span>
-                              }
+                              {(() => {
+                                // Per-block: sum hours from aworkTasks linked to this block
+                                const blockTasks = aworkTasks.filter(t => {
+                                  if (t.linked_billing_block_id === block.id) return true;
+                                  if (block.awork_mapping_type === 'task_list' && block.awork_task_list_id && t.task_list_id === block.awork_task_list_id) return true;
+                                  if (block.awork_mapping_type === 'tasks' && block.awork_task_ids) {
+                                    try { return JSON.parse(block.awork_task_ids).includes(t.awork_task_id); } catch { return false; }
+                                  }
+                                  return false;
+                                });
+                                const budgetMin = blockTasks.reduce((s, t) => s + (Number(t.planned_duration_minutes) || 0), 0);
+                                const trackedMin = blockTasks.reduce((s, t) => s + (Number(t.tracked_duration_minutes) || 0), 0);
+                                const bh = budgetMin > 0 ? (budgetMin / 60).toFixed(1) : null;
+                                const th = trackedMin > 0 ? (trackedMin / 60).toFixed(1) : null;
+                                if (th || bh) return (
+                                  <span className="text-xs text-muted-foreground">
+                                    {th ? `${th} h` : '—'} {bh ? `/ ${bh} h Budget` : ''}
+                                  </span>
+                                );
+                                return <span className="text-xs text-muted-foreground italic">keine Stundendaten</span>;
+                              })()}
                               {block.awork_tasks_blocked > 0 && <span className="text-xs text-red-600 font-medium">⊘ {block.awork_tasks_blocked} blockiert</span>}
-                              {block.awork_tasks_open > 0 && <span className="text-xs text-muted-foreground">{block.awork_tasks_open} offen</span>}
                               {block.awork_responsible_person && <span className="text-xs text-muted-foreground">👤 {block.awork_responsible_person}</span>}
                               {block.awork_last_activity_at && (
                                 <span className="text-xs text-muted-foreground">
