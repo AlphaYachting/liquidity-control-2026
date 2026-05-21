@@ -112,16 +112,29 @@ export default function ImportCenter() {
       },
     };
 
-    const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-      file_url: uploadedUrl,
-      json_schema: schemaMap[entityName] || schemaMap.LiquidityProject
-    });
+    let result;
+    try {
+      result = await base44.integrations.Core.ExtractDataFromUploadedFile({
+        file_url: uploadedUrl,
+        sheet_name: sheetName,
+        json_schema: schemaMap[entityName] || schemaMap.LiquidityProject
+      });
+    } catch (err) {
+      setImportStatus(s => ({ ...s, [sheetName]: 'error' }));
+      setExtractedData({ sheet: sheetName, entity: entityName, rows: [], error: err?.message || 'Unbekannter Fehler' });
+      return;
+    }
 
-    if (result.status === 'success' && result.output?.items) {
+    if (result.status === 'success' && result.output?.items?.length > 0) {
       setExtractedData({ sheet: sheetName, entity: entityName, rows: result.output.items });
+      setImportStatus(s => ({ ...s, [sheetName]: 'preview' }));
+    } else if (result.status === 'success' && Array.isArray(result.output) && result.output.length > 0) {
+      // Some schemas return array directly
+      setExtractedData({ sheet: sheetName, entity: entityName, rows: result.output });
       setImportStatus(s => ({ ...s, [sheetName]: 'preview' }));
     } else {
       setImportStatus(s => ({ ...s, [sheetName]: 'error' }));
+      setExtractedData({ sheet: sheetName, entity: entityName, rows: [], error: result.details || 'Keine Daten gefunden oder Sheet-Name stimmt nicht überein.' });
     }
   };
 
@@ -200,7 +213,16 @@ export default function ImportCenter() {
         </Card>
       )}
 
-      {extractedData && (
+      {extractedData && extractedData.error && (
+        <Alert variant="destructive">
+          <AlertCircle className="w-4 h-4" />
+          <AlertDescription>
+            <strong>Fehler beim Extrahieren von „{extractedData.sheet}":</strong> {extractedData.error}
+            <br /><span className="text-xs mt-1 block">Tipp: Stelle sicher, dass der Sheet-Name exakt übereinstimmt (Groß-/Kleinschreibung beachten).</span>
+          </AlertDescription>
+        </Alert>
+      )}
+      {extractedData && !extractedData.error && (
         <ImportPreview
           data={extractedData}
           onCommit={(rows) => commitImport(rows, extractedData.entity, extractedData.sheet)}
