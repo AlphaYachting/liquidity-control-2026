@@ -24,6 +24,7 @@ import PaymentFreshnessWarning from '@/components/shared/PaymentFreshnessWarning
 import { calculateBillingBlockStatus } from '@/lib/reconciliationUtils';
 import { calculateProjectFinancials, getEffectivePaid } from '@/lib/projectFinancials';
 import { calculateAworkStatusForBillingBlock, getTasksForBillingBlock } from '@/lib/aworkReadinessUtils';
+import OrderItemsView from '@/components/projects/OrderItemsView';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -485,6 +486,9 @@ export default function ProjectDetail() {
               )}
             </CardContent>
           </Card>
+
+          {/* ── Leistungspositionen aus AB ──────────────────────────────── */}
+          <OrderItemsView linkedOrders={linkedOrders} />
 
           {/* ── Invoice / Payment Table ─────────────────────────────────── */}
           <Card>
