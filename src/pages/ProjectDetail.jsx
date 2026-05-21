@@ -640,27 +640,53 @@ export default function ProjectDetail() {
           </Card>
 
           {/* Linked commercial orders */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Auftragsabwicklung ({linkedOrders.length})</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {linkedOrders.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-2">Keine AB verknüpft</p>
-              ) : (
-                linkedOrders.map(o => (
-                  <Link key={o.id} to={`/confirmed-orders/${o.id}`}
-                    className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/30 transition-colors group">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{o.project_name}</p>
-                      <p className="text-xs text-muted-foreground">{o.order_number || ''} · {formatCurrency(o.total_net_amount)}</p>
-                    </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary flex-shrink-0 ml-2" />
-                  </Link>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          {(() => {
+            // All orders relevant to this project: directly linked + indirectly (via customer invoices)
+            const customerKey = (project.customer || '').toLowerCase();
+            const allRelevantOrders = allOrders.filter(o =>
+              o.project_id === projectId ||
+              (fin?.linkedInvoices || []).some(inv => inv.confirmed_order_id === o.id)
+            );
+            // Deduplicate
+            const seenIds = new Set();
+            const displayOrders = allRelevantOrders.filter(o => {
+              if (seenIds.has(o.id)) return false;
+              seenIds.add(o.id);
+              return true;
+            });
+            return (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Auftragsabwicklung ({displayOrders.length})</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {displayOrders.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-2">Keine AB verknüpft</p>
+                  ) : (
+                    displayOrders.map(o => (
+                      <div key={o.id} className="border rounded-lg p-2 space-y-1.5 hover:bg-muted/20 transition-colors">
+                        <Link to={`/confirmed-orders/${o.id}`}
+                          className="flex items-center justify-between group">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{o.project_name}</p>
+                            <p className="text-xs text-muted-foreground">{o.order_number || ''} · {formatCurrency(o.total_net_amount)}</p>
+                          </div>
+                          <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary flex-shrink-0 ml-2" />
+                        </Link>
+                        {o.document_url && (
+                          <a href={o.document_url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-xs text-primary hover:underline pl-0.5">
+                            <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                            AB-Dokument öffnen
+                          </a>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Documents from Projektabwicklung */}
           <Card>
