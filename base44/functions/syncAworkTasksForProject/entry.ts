@@ -56,16 +56,17 @@ Deno.serve(async (req) => {
       { headers }
     );
 
-    if (primaryResp.ok) {
+    if (primaryResp.ok && primaryResp.headers.get('content-type')?.includes('application/json')) {
       const data = await primaryResp.json();
       allTasks = Array.isArray(data) ? data : (data.data || []);
     } else {
-      console.log('Primary tasks endpoint failed:', primaryResp.status, '— trying fallback');
+      const primaryText = await primaryResp.text();
+      console.log('Primary tasks endpoint failed:', primaryResp.status, primaryText.slice(0, 100), '— trying fallback');
       const fallbackResp = await fetch(
         `${apiBase}/api/v1/projects/${awork_project_id}/tasks?pageSize=100`,
         { headers }
       );
-      if (fallbackResp.ok) {
+      if (fallbackResp.ok && fallbackResp.headers.get('content-type')?.includes('application/json')) {
         const data = await fallbackResp.json();
         allTasks = Array.isArray(data) ? data : (data.data || []);
       } else {
