@@ -84,10 +84,10 @@ export default function ConfirmedOrderDetail() {
     </div>
   );
 
-  if (!order) return (
+  if (!order || orderId === 'new') return (
     <div className="text-center py-20 text-muted-foreground">
-      Auftragsbestätigung nicht gefunden.
-      <Button variant="link" onClick={() => navigate('/confirmed-orders')}>Zurück</Button>
+      <p>Auftragsbestätigung nicht gefunden.</p>
+      <Button variant="link" onClick={() => navigate('/confirmed-orders')}>Zurück zur Liste</Button>
     </div>
   );
 

@@ -7,13 +7,14 @@ import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { calculateOrderReconciliation } from '@/lib/reconciliationUtils';
+import NewOrderUploadModal from '@/components/orders/NewOrderUploadModal';
 
 export default function ConfirmedOrders() {
   const navigate = useNavigate();
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['confirmedOrders'], queryFn: () => base44.entities.ConfirmedOrder.list()
@@ -50,13 +51,14 @@ export default function ConfirmedOrders() {
 
   return (
     <div className="space-y-6">
+      {showUploadModal && <NewOrderUploadModal onClose={() => setShowUploadModal(false)} />}
       <PageHeader
         title="Auftragsbestätigungen"
         subtitle={`${orders.length} Aufträge`}
         icon={ClipboardList}
         actions={
-          <Button onClick={() => navigate('/confirmed-orders/new')}>
-            <Plus className="w-4 h-4 mr-1" /> Neue AB
+          <Button onClick={() => setShowUploadModal(true)}>
+            <Plus className="w-4 h-4 mr-1" /> AB hochladen & scannen
           </Button>
         }
       />
