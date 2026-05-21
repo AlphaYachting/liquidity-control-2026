@@ -103,7 +103,7 @@ export default function Projects() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Projekte 2026" subtitle={`${filtered.length} Projekte`} icon={FolderKanban} />
+      <PageHeader title="Projekt-Cockpit" subtitle={`${filtered.length} aktive Projekte · Operativer Status, awork, Abrechnung, Zahlungen`} icon={FolderKanban} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard title="Gesamtvolumen" value={formatCurrency(totalNet)} variant="info" />

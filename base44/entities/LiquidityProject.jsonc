@@ -102,6 +102,24 @@
     },
     "source_row": {
       "type": "number"
+    },
+    "awork_project_id": {
+      "type": "string",
+      "description": "Linked awork project ID"
+    },
+    "awork_project_name": {
+      "type": "string"
+    },
+    "awork_project_status": {
+      "type": "string"
+    },
+    "awork_progress_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "awork_last_synced_at": {
+      "type": "string",
+      "format": "date-time"
     }
   },
   "required": [

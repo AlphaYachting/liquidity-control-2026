@@ -1,13 +1,18 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Link2, Unlink, Loader2, ExternalLink } from 'lucide-react';
+import { RefreshCw, Link2, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 
-export default function AworkStatusBar({ order, onSelectProject, onSync, isSyncing }) {
-  const lastSync = order?.awork_last_synced_at
-    ? formatDistanceToNow(new Date(order.awork_last_synced_at), { addSuffix: true, locale: de })
+/**
+ * Generic awork status bar.
+ * Accepts either an `order` prop (legacy) or a `data` prop with the same shape.
+ */
+export default function AworkStatusBar({ order, data, onSelectProject, onSync, isSyncing }) {
+  const src = data || order || {};
+
+  const lastSync = src.awork_last_synced_at
+    ? formatDistanceToNow(new Date(src.awork_last_synced_at), { addSuffix: true, locale: de })
     : null;
 
   const statusColor = (status) => {
@@ -26,17 +31,17 @@ export default function AworkStatusBar({ order, onSelectProject, onSync, isSynci
         <span className="text-sm font-medium text-blue-800">awork</span>
       </div>
 
-      {order?.awork_project_id ? (
+      {src.awork_project_id ? (
         <>
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className="text-sm font-medium text-blue-900 truncate">{order.awork_project_name}</span>
-            {order.awork_project_status && (
-              <span className={`text-xs px-2 py-0.5 rounded-full border ${statusColor(order.awork_project_status)}`}>
-                {order.awork_project_status}
+            <span className="text-sm font-medium text-blue-900 truncate">{src.awork_project_name}</span>
+            {src.awork_project_status && (
+              <span className={`text-xs px-2 py-0.5 rounded-full border ${statusColor(src.awork_project_status)}`}>
+                {src.awork_project_status}
               </span>
             )}
-            {order.awork_progress_percent > 0 && (
-              <span className="text-xs text-blue-700">{order.awork_progress_percent}%</span>
+            {src.awork_progress_percent > 0 && (
+              <span className="text-xs text-blue-700">{src.awork_progress_percent}%</span>
             )}
           </div>
           {lastSync && (

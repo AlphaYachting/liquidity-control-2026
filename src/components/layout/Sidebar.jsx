@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/projects', label: 'Projekte 2026', icon: FolderKanban },
+  { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban },
   { path: '/confirmed-orders', label: 'Auftragsbestätigungen', icon: ClipboardList },
   { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
   { path: '/next-month-forecast', label: 'Nächster Monat', icon: CalendarCheck },
