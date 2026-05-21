@@ -74,7 +74,7 @@ export default function ProjectDetail() {
 
   // ── awork data ─────────────────────────────────────────────────────────────
   const effectiveAworkProjectId =
-    project?.awork_project_id || primaryOrder?.awork_project_id || null;
+    project?.awork_project_id || null;
 
   const { data: aworkTasks = [] } = useQuery({
     queryKey: ['awork-tasks-project', effectiveAworkProjectId],
