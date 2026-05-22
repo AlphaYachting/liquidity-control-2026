@@ -163,8 +163,8 @@ export default function ProjectDetail() {
     await saveBlockMutation.mutateAsync({ id: block.id, data: { ...data, ...signal, awork_last_synced_at: new Date().toISOString() } });
   };
 
-  const handleConfirmReadiness = async (block) => {
-    await saveBlockMutation.mutateAsync({ id: block.id, data: { invoice_readiness_status: 'ready' } });
+  const handleConfirmReadiness = (block) => {
+    saveBlockMutation.mutate({ id: block.id, data: { invoice_readiness_status: 'ready' } });
   };
 
   const handleClearAworkLink = async (block) => {
@@ -469,8 +469,9 @@ export default function ProjectDetail() {
                                 {block.awork_readiness_signal === 'ready_candidate' && block.invoice_readiness_status !== 'ready' && (
                                   <Button size="sm" variant="outline"
                                     className="h-6 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                                    onClick={() => handleConfirmReadiness(block)}>
-                                    ✓ Bestätigen
+                                    disabled={saveBlockMutation.isPending}
+                                    onClick={(e) => { e.stopPropagation(); handleConfirmReadiness(block); }}>
+                                    ✓ Bereit bestätigen
                                   </Button>
                                 )}
                               </div>
