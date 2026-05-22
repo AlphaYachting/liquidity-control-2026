@@ -26,7 +26,7 @@ import BillingLiquiditySection from '@/components/billing/BillingLiquiditySectio
 import { calculateAworkStatusForBillingBlock, getTasksForBillingBlock } from '@/lib/aworkReadinessUtils';
 import OrderItemsView from '@/components/projects/OrderItemsView';
 import ProjectInvoiceSection from '@/components/projects/ProjectInvoiceSection';
-import InlineDateField from '@/components/projects/InlineDateField';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -438,8 +438,20 @@ export default function ProjectDetail() {
                               </Link>
                             )}
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <span className="text-xs text-muted-foreground">{block.billing_month || '—'}</span>
-                              <InlineDateField block={block} onSave={(date) => saveBlockMutation.mutate({ id: block.id, data: { planned_invoice_date: date } })} />
+                              <Select value={block.billing_month || ''} onValueChange={v => saveBlockMutation.mutate({ id: block.id, data: { billing_month: v } })}>
+                                <SelectTrigger className="h-5 text-xs border-0 px-1 py-0 bg-transparent text-muted-foreground hover:bg-muted/50 w-auto gap-0.5 shadow-none">
+                                  <SelectValue placeholder="Monat wählen" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: 3 }, (_, yi) => 2025 + yi).flatMap(y =>
+                                    Array.from({ length: 12 }, (_, mi) => {
+                                      const val = `${y}-${String(mi + 1).padStart(2, '0')}`;
+                                      const label = new Date(y, mi, 1).toLocaleString('de-AT', { month: 'short', year: '2-digit' });
+                                      return <SelectItem key={val} value={val} className="text-xs">{label}</SelectItem>;
+                                    })
+                                  )}
+                                </SelectContent>
+                              </Select>
                               <Badge className={`text-xs ${
                                 effectiveWorkStatus === 'completed' ? 'bg-emerald-100 text-emerald-700' :
                                 effectiveWorkStatus === 'in_progress' ? 'bg-blue-100 text-blue-700' :
