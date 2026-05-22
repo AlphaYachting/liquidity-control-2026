@@ -136,12 +136,20 @@ Deno.serve(async (req) => {
     let updated = 0;
     let failed = 0;
     let matched = 0;
+    let skipped = 0;
 
     for (let i = 0; i < invoices.length; i++) {
       const inv = invoices[i];
       try {
         const sevdeskId = String(inv.id);
         const existing = existingMap[sevdeskId] || null;
+
+        // Nur Rechnungen importieren, die einer ConfirmedOrder zugeordnet werden können
+        const matchResult = findMatchingOrder(inv, allOrders, ordersBySevdeskId);
+        if (!matchResult && !existing?.confirmed_order_id) {
+          skipped++;
+          continue;
+        }
 
         const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
         const dueDate = inv.payDate ? inv.payDate.substring(0, 10) : null;
@@ -157,12 +165,11 @@ Deno.serve(async (req) => {
 
         const paymentStatus = mapInvoiceStatus(inv);
 
-        const matchResult = findMatchingOrder(inv, allOrders, ordersBySevdeskId);
         const confirmedOrderId = matchResult?.order?.id || existing?.confirmed_order_id || null;
         const matchStatus = matchResult ? 'auto_matched' : (existing?.match_status || 'unmatched');
         const matchConfidence = matchResult?.confidence || existing?.match_confidence || 0;
 
-        if (matchResult) matched++;
+        matched++;
 
         const record = {
           invoice_number: inv.invoiceNumber || '',
@@ -204,7 +211,7 @@ Deno.serve(async (req) => {
       updated,
       failed,
       matched,
-      message: `sevDesk Rechnungen synchronisiert: ${created} neu, ${updated} aktualisiert, ${matched} Aufträgen zugeordnet, ${failed} Fehler`
+      message: `sevDesk Rechnungen synchronisiert: ${created} neu, ${updated} aktualisiert, ${matched} Aufträgen zugeordnet, ${skipped} übersprungen (kein AB), ${failed} Fehler`
     });
 
   } catch (error) {
