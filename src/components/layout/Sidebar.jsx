@@ -26,6 +26,7 @@ const navItems = [
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/awork-settings', label: 'awork Integration', icon: Zap },
   { path: '/awork-mapping', label: 'awork Mapping', icon: Map },
+  { path: '/sevdesk-settings', label: 'sevDesk Integration', icon: BarChart3 },
 ];
 
 export default function Sidebar() {

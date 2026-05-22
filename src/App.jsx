@@ -28,6 +28,7 @@ import NextMonthForecast from '@/pages/NextMonthForecast';
 import AworkSettings from '@/pages/AworkSettings';
 import AworkMappingReview from '@/pages/AworkMappingReview';
 import PaymentConsistencyCheck from '@/pages/PaymentConsistencyCheck';
+import SevdeskSettings from '@/pages/SevdeskSettings';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -76,6 +77,7 @@ const AuthenticatedApp = () => {
         <Route path="/awork-settings" element={<AworkSettings />} />
         <Route path="/awork-mapping" element={<AworkMappingReview />} />
         <Route path="/payment-consistency" element={<PaymentConsistencyCheck />} />
+        <Route path="/sevdesk-settings" element={<SevdeskSettings />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
