@@ -16,6 +16,8 @@ function parseAmount(val) {
 
 function mapOrderStatus(order) {
   const status = order.status;
+  if (status === '750') return 'confirmed';  // Angenommen
+  if (status === '500') return 'confirmed';  // Offen/In Bearbeitung
   if (status === '200') return 'confirmed';
   if (status === '1000') return 'completed';
   if (status === '100') return 'draft';
@@ -110,7 +112,7 @@ Deno.serve(async (req) => {
         // Fetch and import order positions (Auftragspositionen)
         if (includeOrderItems && confirmedOrderId) {
           try {
-            const posData = await sevdeskGet(`/OrderPos?order=${sevdeskId}&embed=part&limit=100`, apiKey);
+            const posData = await sevdeskGet(`/OrderPos?order[id]=${sevdeskId}&order[objectName]=Order&embed=part&limit=100`, apiKey);
             const positions = posData.objects || [];
 
             // Delete existing items for this order first
