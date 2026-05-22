@@ -108,13 +108,20 @@ export default function Projects() {
         if (!row.awork_project_id) return <span className="text-xs text-muted-foreground">—</span>;
         const pct = row.awork_progress_percent ?? 0;
         const snap = aworkSnapshotMap[row.awork_project_id];
-        const budgetH = snap?.time_budget_minutes > 0 ? (snap.time_budget_minutes / 60).toFixed(1) : null;
-        const trackedH = snap?.tracked_duration_minutes > 0 ? (snap.tracked_duration_minutes / 60).toFixed(1) : null;
+        const budgetMin = snap?.time_budget_minutes ?? 0;
+        const trackedMin = snap?.tracked_duration_minutes ?? 0;
+        const budgetH = budgetMin > 0 ? (budgetMin / 60).toFixed(1) : null;
+        const trackedH = trackedMin > 0 ? (trackedMin / 60).toFixed(1) : null;
+        const budgetPct = budgetMin > 0 ? Math.min(100, Math.round((trackedMin / budgetMin) * 100)) : null;
+        const barPct = budgetPct ?? pct;
+        const barColor = budgetPct !== null
+          ? budgetPct >= 90 ? 'bg-red-500' : budgetPct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'
+          : 'bg-blue-500';
         return (
           <div className="space-y-1">
             <div className="flex items-center gap-1.5">
               <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+                <div className={`h-full ${barColor} rounded-full`} style={{ width: `${barPct}%` }} />
               </div>
               <span className="text-xs font-medium text-blue-700">{pct}%</span>
             </div>
