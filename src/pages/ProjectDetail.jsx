@@ -122,6 +122,36 @@ export default function ProjectDetail() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['billingBlocks'] })
   });
 
+  const { data: allOrderItems = [] } = useQuery({
+    queryKey: ['orderItems'],
+    queryFn: () => base44.entities.ConfirmedOrderItem.list(),
+    enabled: !!project
+  });
+
+  const promoteItemsToBlocksMutation = useMutation({
+    mutationFn: async () => {
+      const items = allOrderItems.filter(i =>
+        linkedOrderIds.has(i.confirmed_order_id) && !i.is_discount && (i.total_price || 0) > 0
+      );
+      for (const item of items) {
+        await base44.entities.ProjectBillingBlock.create({
+          project_id: projectId,
+          confirmed_order_id: item.confirmed_order_id,
+          title: item.title,
+          description: item.description || '',
+          amount_net: item.total_price || 0,
+          amount_gross: (item.total_price || 0) * 1.2,
+          customer: project.customer,
+          project_name: project.project_name,
+          sort_order: item.position || 0,
+          invoice_readiness_status: 'not_ready',
+          work_status: item.status || 'not_started',
+        });
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['billingBlocks'] })
+  });
+
   // ── awork handlers ────────────────────────────────────────────────────────
   const handleSelectAworkProject = async (snapshot) => {
     setShowAworkPicker(false);
@@ -396,9 +426,35 @@ export default function ProjectDetail() {
             </CardHeader>
             <CardContent>
               {projectBlocks.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  Keine Auftragspakete verknüpft. Pakete werden über die Auftragsabwicklung erstellt.
-                </p>
+                (() => {
+                  const promotableItems = allOrderItems.filter(i =>
+                    linkedOrderIds.has(i.confirmed_order_id) && !i.is_discount && (i.total_price || 0) > 0
+                  );
+                  return (
+                    <div className="text-center py-6 space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Keine Auftragspakete verknüpft.
+                      </p>
+                      {promotableItems.length > 0 && (
+                        <div className="border border-dashed border-primary/40 rounded-xl p-4 bg-primary/5 space-y-2">
+                          <p className="text-sm font-medium text-primary">
+                            {promotableItems.length} Leistungsposition(en) aus der AB gefunden
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Auftragspakete aus den Leistungspositionen erstellen, um awork-Verknüpfung und Abrechnungssteuerung zu aktivieren.
+                          </p>
+                          <Button
+                            size="sm"
+                            disabled={promoteItemsToBlocksMutation.isPending}
+                            onClick={() => promoteItemsToBlocksMutation.mutate()}
+                          >
+                            {promoteItemsToBlocksMutation.isPending ? 'Erstelle Pakete…' : `${promotableItems.length} Pakete aus AB-Positionen erstellen`}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
               ) : (
                 <div className="space-y-3">
                   {projectBlocks.map(block => {
