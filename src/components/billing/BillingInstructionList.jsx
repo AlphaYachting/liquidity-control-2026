@@ -94,6 +94,18 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
                   </SelectContent>
                 </Select>
 
+                {confirmDelete === instr.id ? (
+                  <>
+                    <span className="text-xs text-destructive font-medium">Löschen?</span>
+                    <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => { onDelete(instr.id); setConfirmDelete(null); }}>Ja</Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setConfirmDelete(null)}>Nein</Button>
+                  </>
+                ) : (
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(instr.id); }}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                )}
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setExpandedId(isExpanded ? null : instr.id)}>
                   {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 </Button>
