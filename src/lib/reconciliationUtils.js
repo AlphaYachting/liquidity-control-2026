@@ -39,7 +39,7 @@ export function calculateOrderReconciliation(confirmedOrder, billingBlocks, invo
     : 0;
 
   const warnings = [];
-  if (Math.abs(difference_order_vs_blocks) > 1) {
+  if (billingBlocks.length > 0 && Math.abs(difference_order_vs_blocks) > 1) {
     warnings.push(`Auftragssumme (${total_order_net.toFixed(2)}) ≠ Summe Pakete (${sum_billing_blocks_net.toFixed(2)}), Differenz: ${difference_order_vs_blocks.toFixed(2)}`);
   }
   if (adjusted_invoiced_net > total_order_net + 1) {
@@ -63,7 +63,7 @@ export function calculateOrderReconciliation(confirmedOrder, billingBlocks, invo
 
   let reconciliation_status = 'balanced';
   if (warnings.length > 0) reconciliation_status = 'warning';
-  if (Math.abs(difference_order_vs_blocks) > total_order_net * 0.05 || adjusted_invoiced_net > total_order_net + 1) {
+  if ((billingBlocks.length > 0 && Math.abs(difference_order_vs_blocks) > total_order_net * 0.05) || adjusted_invoiced_net > total_order_net + 1) {
     reconciliation_status = 'critical';
   }
 
