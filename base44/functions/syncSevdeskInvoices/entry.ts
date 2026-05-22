@@ -21,13 +21,6 @@ function parseAmount(val) {
   return parseFloat(val || '0') || 0;
 }
 
-/**
- * Try to find the best matching ConfirmedOrder for an invoice.
- * Strategy:
- * 1. sevDesk invoices often reference the order header in `header` or `address` field
- * 2. Match by customer name (exact) + similar amount (±10%)
- * 3. Match by customer name only (lowest confidence)
- */
 function findMatchingOrder(invoice, confirmedOrders) {
   const invCustomer = (invoice.contact?.name || invoice.contactName || '').toLowerCase().trim();
   const invNet = parseAmount(invoice.sumNet);
@@ -43,19 +36,13 @@ function findMatchingOrder(invoice, confirmedOrders) {
     const orderName = (order.project_name || '').toLowerCase();
 
     let score = 0;
-
     if (!invCustomer || !orderCustomer) continue;
-    if (invCustomer !== orderCustomer) continue; // must match customer
+    if (invCustomer !== orderCustomer) continue;
 
-    score += 10; // customer matches
-
-    // order number in header
+    score += 10;
     if (orderNum && invHeader.includes(orderNum)) score += 50;
-    // project name in header
     if (orderName && orderName.length > 5 && invHeader.includes(orderName.substring(0, 8))) score += 20;
-    // amount match ±10%
     if (orderNet > 0 && Math.abs(invNet - orderNet) / orderNet < 0.10) score += 30;
-    // amount match ±5%
     if (orderNet > 0 && Math.abs(invNet - orderNet) / orderNet < 0.05) score += 10;
 
     if (score > bestScore) {
@@ -64,8 +51,28 @@ function findMatchingOrder(invoice, confirmedOrders) {
     }
   }
 
-  // Only auto-match if score is high enough (customer + at least one other signal)
   return bestScore >= 20 ? { order: best, confidence: bestScore } : null;
+}
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function saveWithRetry(base44, existing, record, retries = 3) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      if (existing) {
+        await base44.asServiceRole.entities.InvoiceRecord.update(existing.id, record);
+      } else {
+        await base44.asServiceRole.entities.InvoiceRecord.create(record);
+      }
+      return true;
+    } catch (e) {
+      if (attempt < retries - 1) {
+        await sleep(1000 * (attempt + 1)); // 1s, 2s backoff
+      } else {
+        throw e;
+      }
+    }
+  }
 }
 
 Deno.serve(async (req) => {
@@ -78,7 +85,7 @@ Deno.serve(async (req) => {
     if (!apiKey) return Response.json({ error: 'SEVDESK_API_KEY not set' }, { status: 500 });
 
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
-    const limit = body.limit || 500;
+    const limit = body.limit || 200;
     const year = body.year || null;
 
     // Fetch invoices from sevDesk
@@ -97,18 +104,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Load all ConfirmedOrders for matching
-    const allOrders = await base44.asServiceRole.entities.ConfirmedOrder.list();
+    // Load everything needed in bulk upfront (avoids per-record DB calls)
+    const [allOrders, existingInvoices] = await Promise.all([
+      base44.asServiceRole.entities.ConfirmedOrder.list(),
+      base44.asServiceRole.entities.InvoiceRecord.filter({ source_type: 'sevdesk' })
+    ]);
+
+    // Build lookup map: sevdesk_id → existing record
+    const existingMap = {};
+    for (const r of existingInvoices) {
+      if (r.sevdesk_id) existingMap[r.sevdesk_id] = r;
+    }
 
     let created = 0;
     let updated = 0;
     let failed = 0;
     let matched = 0;
 
-    for (const inv of invoices) {
+    for (let i = 0; i < invoices.length; i++) {
+      const inv = invoices[i];
       try {
         const sevdeskId = String(inv.id);
-        const existing = await base44.asServiceRole.entities.InvoiceRecord.filter({ sevdesk_id: sevdeskId });
+        const existing = existingMap[sevdeskId] || null;
 
         const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
         const dueDate = inv.payDate ? inv.payDate.substring(0, 10) : null;
@@ -124,11 +141,10 @@ Deno.serve(async (req) => {
 
         const paymentStatus = mapInvoiceStatus(inv);
 
-        // Try to match to a ConfirmedOrder
         const matchResult = findMatchingOrder(inv, allOrders);
-        const confirmedOrderId = matchResult?.order?.id || (existing[0]?.confirmed_order_id) || null;
-        const matchStatus = matchResult ? 'auto_matched' : (existing[0]?.match_status || 'unmatched');
-        const matchConfidence = matchResult?.confidence || (existing[0]?.match_confidence) || 0;
+        const confirmedOrderId = matchResult?.order?.id || existing?.confirmed_order_id || null;
+        const matchStatus = matchResult ? 'auto_matched' : (existing?.match_status || 'unmatched');
+        const matchConfidence = matchResult?.confidence || existing?.match_confidence || 0;
 
         if (matchResult) matched++;
 
@@ -154,13 +170,12 @@ Deno.serve(async (req) => {
           notes: inv.header || '',
         };
 
-        if (existing && existing.length > 0) {
-          await base44.asServiceRole.entities.InvoiceRecord.update(existing[0].id, record);
-          updated++;
-        } else {
-          await base44.asServiceRole.entities.InvoiceRecord.create(record);
-          created++;
-        }
+        await saveWithRetry(base44, existing, record);
+        if (existing) updated++; else created++;
+
+        // Delay every 5 records to avoid rate limiting
+        if (i > 0 && i % 5 === 0) await sleep(500);
+
       } catch {
         failed++;
       }
