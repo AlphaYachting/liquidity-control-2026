@@ -43,6 +43,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Only "Offen" (500) and "Angenommen" (750)
+    orders = orders.filter(o => o.status === '500' || o.status === '750');
+
     const result = orders.map(ord => ({
       id: String(ord.id),
       order_type: ord.orderType || 'AB',
