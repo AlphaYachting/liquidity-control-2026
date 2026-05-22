@@ -374,6 +374,13 @@ export default function ProjectDetail() {
                     const hasMismatch = block.confirmed_order_id && parentOrder?.project_id &&
                       block.project_id && block.project_id !== parentOrder.project_id;
 
+                    // Derive effective work_status from awork progress if not manually set
+                    const effectiveWorkStatus = (() => {
+                      if (hasAwork && block.awork_progress_percent >= 100) return 'completed';
+                      if (hasAwork && block.awork_progress_percent > 0) return 'in_progress';
+                      return block.work_status || 'not_started';
+                    })();
+
                     return (
                       <div key={block.id} className="border rounded-xl p-4 hover:bg-muted/20 transition-colors">
                         {hasMismatch && (
@@ -397,12 +404,12 @@ export default function ProjectDetail() {
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <span className="text-xs text-muted-foreground">{block.billing_month || '—'}</span>
                               <Badge className={`text-xs ${
-                                block.work_status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
-                                block.work_status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                                block.work_status === 'blocked' ? 'bg-red-100 text-red-700' :
+                                effectiveWorkStatus === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                                effectiveWorkStatus === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                                effectiveWorkStatus === 'blocked' ? 'bg-red-100 text-red-700' :
                                 'bg-gray-100 text-gray-600'
                               }`}>
-                                {WORK_STATUS_LABELS[block.work_status] || 'Nicht begonnen'}
+                                {WORK_STATUS_LABELS[effectiveWorkStatus] || 'Nicht begonnen'}
                               </Badge>
                               <Badge className={`text-xs ${block.invoice_readiness_status === 'ready' ? 'bg-emerald-100 text-emerald-700' : block.invoice_readiness_status === 'invoiced' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
                                 {READINESS_LABELS[block.invoice_readiness_status] || '—'}
