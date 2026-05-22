@@ -344,11 +344,13 @@ export function validateLLMResponse(raw) {
     output.confidence_level = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
   }
 
-  // Minimal validity check — at least invoice reason must be non-empty after coercion
-  const errors = [];
+  // If invoice_reason is still empty, generate a fallback so we don't hard-block
   if (!output.suggested_invoice_reason) {
-    errors.push('KI hat keinen Abrechnungsgrund zurückgegeben.');
+    output.suggested_invoice_reason = 'Kein Abrechnungsgrund von KI angegeben – bitte manuell ergänzen.';
+  }
+  if (!output.suggested_invoice_instruction_text) {
+    output.suggested_invoice_instruction_text = 'Kein Rechnungstext von KI angegeben – bitte manuell ergänzen.';
   }
 
-  return { valid: errors.length === 0, errors, output };
+  return { valid: true, errors: [], output };
 }

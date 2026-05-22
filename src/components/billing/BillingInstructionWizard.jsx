@@ -689,7 +689,9 @@ export default function BillingInstructionWizard({
         model: 'claude_sonnet_4_6',
       });
 
-      const raw = typeof response === 'string' ? JSON.parse(response) : response;
+      // InvokeLLM with response_json_schema returns the parsed object directly
+      const raw = typeof response === 'string' ? JSON.parse(response) : (response?.data ?? response);
+      console.log('[BillingWizard] LLM raw response:', JSON.stringify(raw));
       const { valid, errors, output } = validateLLMResponse(raw);
       if (!valid) {
         setLlmError(`KI-Antwort konnte nicht verarbeitet werden: ${errors.join(' ')}`);
