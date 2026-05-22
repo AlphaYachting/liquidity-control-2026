@@ -98,8 +98,12 @@ export default function Projects() {
 
   const columns = [
     { key: 'status', label: 'Status', width: '100px', render: (v) => <StatusBadge status={v} /> },
-    { key: 'customer', label: 'Kunde' },
-    { key: 'project_name', label: 'Projekt' },
+    { key: 'customer', label: 'Kunde / Projekt', render: (v, row) => (
+      <div className="min-w-0">
+        <p className="font-medium text-sm leading-tight truncate">{v}</p>
+        <p className="text-xs text-muted-foreground leading-tight truncate mt-0.5">{row.project_name}</p>
+      </div>
+    )},
     { key: 'project_manager', label: 'PM', width: '80px' },
     { key: 'total_net_amount', label: 'Gesamt netto', render: (v) => formatCurrency(v), cellClass: 'text-right font-medium' },
     { key: '_invoiced', label: 'Verrechnet netto', render: (v) => <span className={Number(v) > 0 ? 'text-green-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
