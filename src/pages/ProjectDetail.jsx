@@ -22,6 +22,7 @@ import AworkSignalBadge from '@/components/awork/AworkSignalBadge';
 
 import { calculateBillingBlockStatus } from '@/lib/reconciliationUtils';
 import { calculateProjectFinancials } from '@/lib/projectFinancials';
+import BillingLiquiditySection from '@/components/billing/BillingLiquiditySection';
 import { calculateAworkStatusForBillingBlock, getTasksForBillingBlock } from '@/lib/aworkReadinessUtils';
 import OrderItemsView from '@/components/projects/OrderItemsView';
 import ProjectInvoiceSection from '@/components/projects/ProjectInvoiceSection';
@@ -514,6 +515,15 @@ export default function ProjectDetail() {
 
           {/* ── Leistungspositionen aus AB ──────────────────────────────── */}
           <OrderItemsView linkedOrders={linkedOrders} />
+
+          {/* ── Abrechnung & Liquidität ──────────────────────────────────── */}
+          <BillingLiquiditySection
+            project={project}
+            fin={fin}
+            aworkTaskStats={aworkTaskStats}
+            projectBlocks={projectBlocks}
+            linkedOrders={linkedOrders}
+          />
 
           {/* ── Invoice / Payment Table ─────────────────────────────────── */}
           <ProjectInvoiceSection

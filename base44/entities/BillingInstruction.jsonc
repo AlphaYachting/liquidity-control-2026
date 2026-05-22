@@ -1,0 +1,163 @@
+{
+  "name": "BillingInstruction",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "confirmed_order_id": {
+      "type": "string"
+    },
+    "billing_block_id": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "instruction_type": {
+      "type": "string",
+      "enum": [
+        "package_based",
+        "percentage_based",
+        "manual_amount"
+      ],
+      "default": "manual_amount"
+    },
+    "invoice_type": {
+      "type": "string",
+      "enum": [
+        "advance_invoice",
+        "partial_invoice",
+        "final_invoice",
+        "correction",
+        "credit_note"
+      ],
+      "default": "partial_invoice"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "ready_for_backoffice",
+        "sent_to_backoffice",
+        "invoice_created",
+        "paid",
+        "blocked",
+        "cancelled"
+      ],
+      "default": "draft"
+    },
+    "total_order_net": {
+      "type": "number",
+      "default": 0
+    },
+    "total_order_gross": {
+      "type": "number",
+      "default": 0
+    },
+    "already_invoiced_net": {
+      "type": "number",
+      "default": 0
+    },
+    "already_paid_gross": {
+      "type": "number",
+      "default": 0
+    },
+    "open_to_invoice_net": {
+      "type": "number",
+      "default": 0
+    },
+    "previous_billing_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "new_billing_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "additional_billing_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "instruction_amount_net": {
+      "type": "number",
+      "default": 0
+    },
+    "instruction_amount_gross": {
+      "type": "number",
+      "default": 0
+    },
+    "vat_rate": {
+      "type": "number",
+      "default": 20
+    },
+    "manual_progress_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "awork_progress_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "performance_progress_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "progress_basis": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "awork",
+        "billing_block",
+        "mixed",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "invoice_reason": {
+      "type": "string"
+    },
+    "invoice_instruction_text": {
+      "type": "string"
+    },
+    "internal_note": {
+      "type": "string"
+    },
+    "backoffice_note": {
+      "type": "string"
+    },
+    "planned_invoice_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "requested_by_pm": {
+      "type": "string"
+    },
+    "assigned_backoffice_user": {
+      "type": "string"
+    },
+    "sent_to_backoffice_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "invoice_created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "linked_invoice_id": {
+      "type": "string"
+    },
+    "source_snapshot_json": {
+      "type": "string",
+      "description": "JSON snapshot of financial state at instruction creation time"
+    }
+  },
+  "required": [
+    "project_id",
+    "instruction_amount_net",
+    "invoice_type"
+  ]
+}
