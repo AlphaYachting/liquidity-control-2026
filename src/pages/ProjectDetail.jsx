@@ -300,6 +300,45 @@ export default function ProjectDetail() {
 
 
 
+      {/* ── Fortschrittsvergleich ─────────────────────────────────────────── */}
+      {(() => {
+        const totalOrderNet = fin?.commercialBaseNet || 0;
+        const totalOrderGross = totalOrderNet * 1.2;
+        const alreadyInvoicedNet = fin?.adjustedInvoicedNet || 0;
+        const alreadyPaidGross = fin?.paidGross || 0;
+        const billingPct = totalOrderNet > 0 ? (alreadyInvoicedNet / totalOrderNet) * 100 : 0;
+        const paymentPct = totalOrderGross > 0 ? (alreadyPaidGross / totalOrderGross) * 100 : 0;
+        const aworkProgress = aworkTaskStats?.progress_percent ?? project?.awork_progress_percent ?? null;
+        const blockAvgProgress = projectBlocks.length > 0
+          ? projectBlocks.filter(b => b.awork_progress_percent > 0).reduce((s, b) => s + (b.awork_progress_percent || 0), 0) /
+            Math.max(1, projectBlocks.filter(b => b.awork_progress_percent > 0).length)
+          : null;
+        const performancePct = aworkProgress ?? blockAvgProgress ?? 0;
+
+        const bars = [
+          { label: 'Leistungsfortschritt', value: performancePct, color: 'bg-emerald-500', textColor: 'text-emerald-700' },
+          { label: 'Abrechnungsfortschritt', value: billingPct, color: 'bg-blue-500', textColor: 'text-blue-700' },
+          { label: 'Zahlungsfortschritt', value: paymentPct, color: 'bg-purple-500', textColor: 'text-purple-700' },
+        ];
+
+        return (
+          <div className="grid grid-cols-3 gap-3">
+            {bars.map(bar => (
+              <div key={bar.label} className="bg-card border rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">{bar.label}</p>
+                  <span className={`text-sm font-bold ${bar.textColor}`}>{Math.round(bar.value)}%</span>
+                </div>
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${bar.color}`}
+                    style={{ width: `${Math.min(100, Math.max(0, bar.value))}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* KPI row — Tasks 1, 2, 3 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Auftragsvolumen netto */}

@@ -116,15 +116,6 @@ export default function BillingLiquiditySection({
           ))}
         </div>
 
-        {/* Progress comparison */}
-        <div className="border rounded-xl p-3">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs font-medium text-muted-foreground">Fortschrittsvergleich</p>
-            <span className="text-xs text-muted-foreground">Basis Leistung: {performanceBasis}</span>
-          </div>
-          <ProgressCompare performancePct={performancePct} billingPct={billingPct} paymentPct={paymentPct} />
-        </div>
-
         {/* Smart hints */}
         {billingAheadOfPerformance && (
           <Alert className="border-red-200 bg-red-50 py-2">
