@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Pencil, Trash2, CalendarDays, Check } from 'lucide-react';
 import { formatCurrency, getMonthLabel } from '@/lib/liquidityUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -26,7 +27,36 @@ const MONTH_OPTIONS = (() => {
   return options;
 })();
 
-export default function BillingBlockList({ blocks, onEdit, onDelete, onStatusChange, onMonthChange }) {
+function InlineDateEditor({ block, onDateChange }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(block.planned_invoice_date || '');
+
+  const save = () => {
+    onDateChange && onDateChange(block.id, val);
+    setEditing(false);
+  };
+
+  if (editing) return (
+    <div className="flex items-center gap-1">
+      <Input type="date" value={val} onChange={e => setVal(e.target.value)}
+        className="h-5 text-xs px-1 py-0 border-primary w-32" autoFocus
+        onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }} />
+      <button onClick={save} className="text-emerald-600 hover:text-emerald-700"><Check className="w-3 h-3" /></button>
+    </div>
+  );
+
+  return (
+    <button onClick={() => setEditing(true)}
+      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 px-1 rounded transition-colors">
+      <CalendarDays className="w-3 h-3" />
+      <span className={block.planned_invoice_date ? '' : 'italic opacity-60'}>
+        {block.planned_invoice_date || 'Datum setzen'}
+      </span>
+    </button>
+  );
+}
+
+export default function BillingBlockList({ blocks, onEdit, onDelete, onStatusChange, onMonthChange, onDateChange }) {
   if (!blocks.length) {
     return (
       <div className="text-center py-8 text-sm text-muted-foreground border border-dashed rounded-xl">
@@ -55,6 +85,8 @@ export default function BillingBlockList({ blocks, onEdit, onDelete, onStatusCha
                     ))}
                   </SelectContent>
                 </Select>
+                <span className="text-muted-foreground/40 text-xs">·</span>
+                <InlineDateEditor block={block} onDateChange={onDateChange} />
                 {block.probability_percent < 100 && (
                   <span className="text-xs text-muted-foreground">{block.probability_percent}%</span>
                 )}

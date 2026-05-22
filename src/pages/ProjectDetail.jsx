@@ -26,6 +26,7 @@ import BillingLiquiditySection from '@/components/billing/BillingLiquiditySectio
 import { calculateAworkStatusForBillingBlock, getTasksForBillingBlock } from '@/lib/aworkReadinessUtils';
 import OrderItemsView from '@/components/projects/OrderItemsView';
 import ProjectInvoiceSection from '@/components/projects/ProjectInvoiceSection';
+import InlineDateField from '@/components/projects/InlineDateField';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -438,6 +439,7 @@ export default function ProjectDetail() {
                             )}
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <span className="text-xs text-muted-foreground">{block.billing_month || '—'}</span>
+                              <InlineDateField block={block} onSave={(date) => saveBlockMutation.mutate({ id: block.id, data: { planned_invoice_date: date } })} />
                               <Badge className={`text-xs ${
                                 effectiveWorkStatus === 'completed' ? 'bg-emerald-100 text-emerald-700' :
                                 effectiveWorkStatus === 'in_progress' ? 'bg-blue-100 text-blue-700' :
