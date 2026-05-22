@@ -27,13 +27,10 @@ Deno.serve(async (req) => {
     const year = body.year || null; // e.g. 2026
     const limit = body.limit || 500;
 
-    // Fetch AB (Auftragsbestätigungen) and AN (Angebote)
-    const [abData, anData] = await Promise.all([
-      sevdeskGet(`/Order?orderType=AB&limit=${limit}&offset=0&embed=contact&orderBy=orderDate&orderDirection=desc`, apiKey),
-      sevdeskGet(`/Order?orderType=AN&limit=${limit}&offset=0&embed=contact&orderBy=orderDate&orderDirection=desc`, apiKey),
-    ]);
+    // Fetch only AB (Auftragsbestätigungen) — keine Angebote (AN)
+    const abData = await sevdeskGet(`/Order?orderType=AB&limit=${limit}&offset=0&embed=contact&orderBy=orderDate&orderDirection=desc`, apiKey);
 
-    let orders = [...(abData.objects || []), ...(anData.objects || [])];
+    let orders = abData.objects || [];
 
     // Filter by year if provided
     if (year) {
