@@ -64,10 +64,22 @@ export default function CashflowAdvisor() {
   };
 
   const SUGGESTIONS = [
-    'Welche Projekte haben noch offene Abrechnungsbeträge?',
-    'Wie sieht der Cashflow für die nächsten Monate aus?',
-    'Welche Projekte sollten dringend abgerechnet werden?',
-    'Gibt es überfällige Rechnungen oder Risikoprojekte?',
+    {
+      label: '📋 Diesen Monat verrechenbar',
+      text: 'Welche Projekte und Abrechnungsposten können laut aktuellem Projektstatus und Abrechnungsbereitschaft noch in diesem Monat verrechnet werden? Bitte strukturiert nach Kunde, Projekt, Teilprojekt und Betrag (Netto), sortiert nach Kunde alphabetisch.',
+    },
+    {
+      label: '📅 Nächsten Monat planen',
+      text: 'Welche Projekte und Abrechnungsposten sollte ich bereits jetzt für den nächsten Monat zur Verrechnung einplanen? Bitte strukturiert nach Kunde, Projekt, Teilprojekt und Betrag (Netto), sortiert nach Kunde alphabetisch.',
+    },
+    {
+      label: '⚠️ Überfällige & Risikoprojekte',
+      text: 'Gibt es überfällige Rechnungen oder Projekte mit Abrechnungsrisiko? Bitte nach Kunde und Projekt gegliedert mit Beträgen.',
+    },
+    {
+      label: '📊 Cashflow-Übersicht',
+      text: 'Wie sieht der Cashflow für die nächsten Monate aus? Zeige mir eine Übersicht der erwarteten Einnahmen nach Kunde und Projekt gegliedert.',
+    },
   ];
 
   return (
@@ -120,23 +132,25 @@ export default function CashflowAdvisor() {
                   Stellen Sie Fragen zu Ihren Projekten, offenen Rechnungen und Cashflow-Prognosen.
                 </p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl w-full">
                 {SUGGESTIONS.map((s, i) => (
                   <button
                     key={i}
                     onClick={async () => {
                       const conv = await base44.agents.createConversation({
                         agent_name: 'cashflow_advisor',
-                        metadata: { name: s.substring(0, 40) }
+                        metadata: { name: s.label }
                       });
                       setConversation(conv);
                       setMessages(conv.messages || []);
                       setConversations(prev => [conv, ...prev]);
-                      setInput(s);
+                      setSending(true);
+                      await base44.agents.addMessage(conv, { role: 'user', content: s.text });
+                      setSending(false);
                     }}
-                    className="text-left p-3 rounded-xl border bg-card hover:bg-muted transition-colors text-sm"
+                    className="text-left p-4 rounded-xl border bg-card hover:bg-primary/5 hover:border-primary/30 transition-colors text-sm font-medium"
                   >
-                    {s}
+                    {s.label}
                   </button>
                 ))}
               </div>
@@ -147,11 +161,11 @@ export default function CashflowAdvisor() {
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center gap-4">
               <p className="text-muted-foreground text-sm">Stellen Sie Ihre erste Frage …</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl w-full">
                 {SUGGESTIONS.map((s, i) => (
-                  <button key={i} onClick={() => setInput(s)}
-                    className="text-left p-3 rounded-xl border bg-card hover:bg-muted transition-colors text-sm"
-                  >{s}</button>
+                  <button key={i} onClick={() => setInput(s.text)}
+                    className="text-left p-4 rounded-xl border bg-card hover:bg-primary/5 hover:border-primary/30 transition-colors text-sm font-medium"
+                  >{s.label}</button>
                 ))}
               </div>
             </div>
