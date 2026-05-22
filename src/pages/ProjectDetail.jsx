@@ -396,7 +396,12 @@ export default function ProjectDetail() {
                             )}
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <span className="text-xs text-muted-foreground">{block.billing_month || '—'}</span>
-                              <Badge className={`text-xs ${block.work_status === 'completed' ? 'bg-emerald-100 text-emerald-700' : block.work_status === 'blocked' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                              <Badge className={`text-xs ${
+                                block.work_status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                                block.work_status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                                block.work_status === 'blocked' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
                                 {WORK_STATUS_LABELS[block.work_status] || 'Nicht begonnen'}
                               </Badge>
                               <Badge className={`text-xs ${block.invoice_readiness_status === 'ready' ? 'bg-emerald-100 text-emerald-700' : block.invoice_readiness_status === 'invoiced' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
