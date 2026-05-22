@@ -689,8 +689,8 @@ export default function BillingInstructionWizard({
         model: 'claude_sonnet_4_6',
       });
 
-      const output = typeof response === 'string' ? JSON.parse(response) : response;
-      const { valid, errors } = validateLLMResponse(output);
+      const raw = typeof response === 'string' ? JSON.parse(response) : response;
+      const { valid, errors, output } = validateLLMResponse(raw);
       if (!valid) {
         setLlmError(`KI-Antwort konnte nicht verarbeitet werden: ${errors.join(' ')}`);
         setLlmLoading(false);

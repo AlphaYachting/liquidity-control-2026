@@ -290,17 +290,65 @@ Antworte ausschließlich mit dem JSON-Objekt gemäß Schema.`;
 /**
  * validateLLMResponse
  *
- * Basic validation of LLM output fields.
- * Returns { valid: boolean, errors: string[] }
+ * Validates and normalises LLM output. Coerces numeric strings and nulls.
+ * Returns { valid: boolean, errors: string[], output: object }
  */
-export function validateLLMResponse(output) {
-  if (!output || typeof output !== 'object') {
-    return { valid: false, errors: ['Keine gültige JSON-Antwort erhalten.'] };
+export function validateLLMResponse(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return { valid: false, errors: ['Keine gültige JSON-Antwort erhalten.'], output: null };
   }
+
+  // Unwrap if nested (e.g. { data: { ... } } or { result: { ... } })
+  const output = (raw.suggested_amount_net !== undefined || raw.suggested_invoice_reason !== undefined)
+    ? raw
+    : (raw.data || raw.result || raw);
+
+  if (!output || typeof output !== 'object') {
+    return { valid: false, errors: ['Keine gültige JSON-Antwort erhalten.'], output: null };
+  }
+
+  // Coerce numeric fields — LLM sometimes returns strings or null
+  const numFields = [
+    'suggested_amount_net', 'suggested_amount_gross',
+    'suggested_additional_billing_percent', 'suggested_new_billing_percent',
+    'confidence_score',
+  ];
+  for (const f of numFields) {
+    if (output[f] === null || output[f] === undefined) {
+      output[f] = 0;
+    } else {
+      output[f] = parseFloat(output[f]) || 0;
+    }
+  }
+
+  // Coerce string fields
+  const strFields = ['suggested_invoice_reason', 'suggested_invoice_instruction_text', 'suggested_internal_note', 'confidence_level', 'calculation_basis'];
+  for (const f of strFields) {
+    if (!output[f] || output[f] === null) output[f] = '';
+  }
+
+  // Coerce arrays
+  if (!Array.isArray(output.supporting_facts)) output.supporting_facts = [];
+  if (!Array.isArray(output.risk_flags)) output.risk_flags = [];
+
+  // Null-safe optional fields
+  output.payment_warning = output.payment_warning || null;
+  output.progress_warning = output.progress_warning || null;
+  output.open_invoice_warning = output.open_invoice_warning || null;
+  output.text_only_recommendation = !!output.text_only_recommendation;
+
+  // Default confidence_level if missing or invalid
+  const validLevels = ['low', 'medium', 'high'];
+  if (!validLevels.includes(output.confidence_level)) {
+    const score = output.confidence_score || 0;
+    output.confidence_level = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
+  }
+
+  // Minimal validity check — at least invoice reason must be non-empty after coercion
   const errors = [];
-  if (typeof output.suggested_amount_net !== 'number') errors.push('suggested_amount_net fehlt oder ist kein Zahlenwert.');
-  if (typeof output.suggested_additional_billing_percent !== 'number') errors.push('suggested_additional_billing_percent fehlt oder ist kein Zahlenwert.');
-  if (!output.suggested_invoice_reason) errors.push('suggested_invoice_reason fehlt.');
-  if (!output.confidence_level) errors.push('confidence_level fehlt.');
-  return { valid: errors.length === 0, errors };
+  if (!output.suggested_invoice_reason) {
+    errors.push('KI hat keinen Abrechnungsgrund zurückgegeben.');
+  }
+
+  return { valid: errors.length === 0, errors, output };
 }
