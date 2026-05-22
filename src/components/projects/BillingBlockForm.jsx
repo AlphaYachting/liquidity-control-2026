@@ -8,6 +8,24 @@ import { Save, X } from 'lucide-react';
 import { MONTHS_2026, getMonthLabel } from '@/lib/liquidityUtils';
 
 const PM_OPTIONS = ['Lara', 'Sebastian', 'Pascal', 'Anna'];
+const BACKOFFICE_OPTIONS = ['Lara', 'Sebastian', 'Pascal', 'Anna', 'Backoffice'];
+
+const INVOICE_TYPES = [
+  ['advance_invoice', 'Anzahlung'],
+  ['partial_invoice', 'Teilrechnung'],
+  ['final_invoice', 'Schlussrechnung'],
+  ['correction', 'Korrektur'],
+  ['credit_note', 'Gutschrift'],
+];
+
+const BACKOFFICE_STATUSES = [
+  ['not_ready', 'Nicht bereit'],
+  ['ready_for_backoffice', 'Bereit für Backoffice'],
+  ['sent_to_backoffice', 'An Backoffice gesendet'],
+  ['invoice_created', 'Rechnung erstellt'],
+  ['paid', 'Bezahlt'],
+  ['blocked', 'Blockiert'],
+];
 
 export default function BillingBlockForm({ block, onSave, onCancel, isSaving }) {
   const [form, setForm] = useState({
@@ -21,6 +39,14 @@ export default function BillingBlockForm({ block, onSave, onCancel, isSaving }) 
     responsible_person: '',
     notes: '',
     sort_order: 0,
+    // Backoffice instruction fields
+    planned_invoice_date: '',
+    planned_invoice_amount: '',
+    invoice_type: 'partial_invoice',
+    invoice_instruction_text: '',
+    invoice_reason: '',
+    backoffice_status: 'not_ready',
+    assigned_backoffice_user: '',
     ...block,
   });
 
@@ -28,12 +54,19 @@ export default function BillingBlockForm({ block, onSave, onCancel, isSaving }) 
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({ ...form, amount_net: Number(form.amount_net) || 0, probability_percent: Number(form.probability_percent) || 90 });
+    onSave({
+      ...form,
+      amount_net: Number(form.amount_net) || 0,
+      probability_percent: Number(form.probability_percent) || 90,
+      planned_invoice_amount: Number(form.planned_invoice_amount) || 0,
+    });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <p className="text-sm font-semibold">{block ? 'Paket bearbeiten' : 'Neues Abrechnungspaket'}</p>
+
+      {/* BASIS */}
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <Label className="text-xs">Titel *</Label>
@@ -96,6 +129,57 @@ export default function BillingBlockForm({ block, onSave, onCancel, isSaving }) 
           <Textarea value={form.notes || ''} onChange={e => update('notes', e.target.value)} rows={2} />
         </div>
       </div>
+
+      {/* BACKOFFICE ABRECHNUNGSANWEISUNG */}
+      <div className="border-t pt-4 space-y-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Abrechnungsanweisung für Backoffice</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs">Rechnungstyp</Label>
+            <Select value={form.invoice_type || 'partial_invoice'} onValueChange={v => update('invoice_type', v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {INVOICE_TYPES.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Geplanter Rechnungsbetrag (€)</Label>
+            <Input type="number" value={form.planned_invoice_amount || ''} onChange={e => update('planned_invoice_amount', e.target.value)} placeholder="wie Paketbetrag" />
+          </div>
+          <div>
+            <Label className="text-xs">Geplantes Rechnungsdatum</Label>
+            <Input type="date" value={form.planned_invoice_date || ''} onChange={e => update('planned_invoice_date', e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Backoffice-Status</Label>
+            <Select value={form.backoffice_status || 'not_ready'} onValueChange={v => update('backoffice_status', v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {BACKOFFICE_STATUSES.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Zuständig Backoffice</Label>
+            <Select value={form.assigned_backoffice_user || ''} onValueChange={v => update('assigned_backoffice_user', v)}>
+              <SelectTrigger><SelectValue placeholder="Person wählen" /></SelectTrigger>
+              <SelectContent>
+                {BACKOFFICE_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Abrechnungsgrund</Label>
+            <Input value={form.invoice_reason || ''} onChange={e => update('invoice_reason', e.target.value)} placeholder="z.B. Abnahme Konzeptphase" />
+          </div>
+          <div className="col-span-2">
+            <Label className="text-xs">Rechnungstext / Anweisung</Label>
+            <Textarea value={form.invoice_instruction_text || ''} onChange={e => update('invoice_instruction_text', e.target.value)} rows={2} placeholder="Text für Rechnung oder Hinweis an Backoffice…" />
+          </div>
+        </div>
+      </div>
+
       <div className="flex gap-2 pt-1">
         <Button type="submit" size="sm" disabled={isSaving}>
           <Save className="w-3.5 h-3.5 mr-1" /> {isSaving ? 'Speichern…' : 'Speichern'}

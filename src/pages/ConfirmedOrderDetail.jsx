@@ -4,8 +4,9 @@ import { base44 } from '@/api/base44Client';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, ClipboardList, AlertTriangle, CheckCircle2, ExternalLink,
-  Plus, FolderKanban, Link2
+  FolderKanban, Link2, Info
 } from 'lucide-react';
+// Note: InvoiceRecordForm and InvoiceScanUploader removed — invoice management moved to Project Cockpit
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,8 +15,6 @@ import PageHeader from '@/components/shared/PageHeader';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { calculateOrderReconciliation } from '@/lib/reconciliationUtils';
-import InvoiceScanUploader from '@/components/orders/InvoiceScanUploader';
-import InvoiceRecordForm from '@/components/orders/InvoiceRecordForm';
 import OrderItemsTable from '@/components/orders/OrderItemsTable';
 
 function ProjectPickerInline({ projects, order, orderBlocks, onLink, isSaving, onCancel }) {
@@ -74,10 +73,10 @@ export default function ConfirmedOrderDetail() {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [showInvoiceUploader, setShowInvoiceUploader] = useState(false);
-  const [editingInvoice, setEditingInvoice] = useState(null);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [linkingBlocks, setLinkingBlocks] = useState(false);
+  // Ownership note: this page is the commercial source/document view.
+  // Operative management (BillingBlocks, Invoices, awork) lives in Project Cockpit.
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['confirmedOrders'], queryFn: () => base44.entities.ConfirmedOrder.list()
@@ -133,15 +132,7 @@ export default function ConfirmedOrderDetail() {
     }
   });
 
-  const saveInvoiceMutation = useMutation({
-    mutationFn: ({ id, data }) => id
-      ? base44.entities.InvoiceRecord.update(id, data)
-      : base44.entities.InvoiceRecord.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoiceRecords'] });
-      setEditingInvoice(null);
-    }
-  });
+
 
   const isLoading = ordersLoading || blocksLoading || invoicesLoading;
 
@@ -230,6 +221,12 @@ export default function ConfirmedOrderDetail() {
         </div>
       )}
 
+      {/* Ownership notice */}
+      <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg">
+        <Info className="w-3.5 h-3.5 flex-shrink-0" />
+        Diese Ansicht ist die kaufmännische Auftragsbasis. Operative Bearbeitung (Pakete, Rechnungen, awork/eWork) erfolgt im Projekt-Cockpit.
+      </div>
+
       {/* Reconciliation warnings */}
       {recon.warnings.length > 0 && (
         <div className="space-y-2">
@@ -284,38 +281,28 @@ export default function ConfirmedOrderDetail() {
           {/* Leistungsübersicht */}
           <OrderItemsTable items={orderItems} />
 
-          {/* Commercial Billing Blocks */}
+          {/* Billing Blocks — simplified reference */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Auftragspakete — Kaufmännische Definition ({orderBlocks.length})</CardTitle>
+              <CardTitle className="text-base">Leistungspakete ({orderBlocks.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              {orderBlocks.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  Keine Pakete definiert. Pakete werden im Projekt-Cockpit operativ verwaltet.
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200 mb-3">
+                <FolderKanban className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-blue-800">
+                  Leistungspakete werden im <strong>Projekt-Cockpit</strong> verwaltet. Diese Ansicht ist die kaufmännische Auftragsbasis.
                 </p>
+              </div>
+              {orderBlocks.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Keine Pakete definiert.</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {orderBlocks.map(block => (
-                    <div key={block.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/20 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{block.title}</p>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-xs text-muted-foreground">{block.billing_month || '—'}</span>
-                          {block.planned_invoice_date && (
-                            <span className="text-xs text-muted-foreground">{block.planned_invoice_date}</span>
-                          )}
-                          <Badge className={`text-xs ${block.invoice_readiness_status === 'ready' ? 'bg-emerald-100 text-emerald-700' : block.invoice_readiness_status === 'invoiced' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
-                            {READINESS_LABELS[block.invoice_readiness_status] || '—'}
-                          </Badge>
-                        </div>
-                        {block.notes && <p className="text-xs text-muted-foreground mt-1 truncate">{block.notes}</p>}
-                      </div>
-                      <div className="text-right flex-shrink-0 ml-4">
-                        <p className="font-bold text-sm">{formatCurrency(block.amount_net)}</p>
-                        {block.amount_gross > 0 && (
-                          <p className="text-xs text-muted-foreground">{formatCurrency(block.amount_gross)} brutto</p>
-                        )}
+                    <div key={block.id} className="flex items-center justify-between p-2.5 rounded-lg border text-sm">
+                      <span className="font-medium">{block.title}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-muted-foreground text-xs">{block.billing_month || '—'}</span>
+                        <span className="font-semibold">{formatCurrency(block.amount_net)}</span>
                       </div>
                     </div>
                   ))}
@@ -325,58 +312,35 @@ export default function ConfirmedOrderDetail() {
                   </div>
                 </div>
               )}
+              {linkedProject && (
+                <Link to={`/projects/${linkedProject.id}`} className="block mt-3">
+                  <Button size="sm" variant="outline" className="w-full h-8 text-xs gap-1.5">
+                    <FolderKanban className="w-3.5 h-3.5" />
+                    Leistungspakete im Projekt-Cockpit öffnen →
+                  </Button>
+                </Link>
+              )}
             </CardContent>
           </Card>
 
-          {/* Invoice log — compact reference only */}
+          {/* Invoices — reference only, managed in Cockpit */}
           <Card>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardHeader className="pb-2">
               <CardTitle className="text-base">Rechnungsübersicht ({orderInvoices.length})</CardTitle>
-              <div className="flex items-center gap-2">
-                {linkedProject && (
-                  <Link to={`/projects/${linkedProject.id}`}>
-                    <Button size="sm" variant="ghost" className="h-7 text-xs text-primary">
-                      Alle Details im Cockpit →
-                    </Button>
-                  </Link>
-                )}
-                {!showInvoiceUploader && !editingInvoice && (
-                  <Button size="sm" variant="outline" onClick={() => setShowInvoiceUploader(true)}>
-                    <Plus className="w-4 h-4 mr-1" /> Rechnung erfassen
-                  </Button>
-                )}
-              </div>
             </CardHeader>
             <CardContent>
-              {showInvoiceUploader && (
-                <div className="mb-4 p-4 border rounded-xl bg-muted/30">
-                  <InvoiceScanUploader
-                    confirmedOrderId={orderId}
-                    customerName={order.customer}
-                    billingBlocks={orderBlocks}
-                    onSaved={() => { queryClient.invalidateQueries({ queryKey: ['invoiceRecords'] }); setShowInvoiceUploader(false); }}
-                    onCancel={() => setShowInvoiceUploader(false)}
-                  />
-                </div>
-              )}
-              {editingInvoice && (
-                <div className="mb-4 p-4 border rounded-xl bg-muted/30">
-                  <InvoiceRecordForm
-                    invoice={editingInvoice}
-                    confirmedOrderId={orderId}
-                    billingBlocks={orderBlocks}
-                    onSave={(data) => saveInvoiceMutation.mutate({ id: editingInvoice.id, data })}
-                    onCancel={() => setEditingInvoice(null)}
-                    isSaving={saveInvoiceMutation.isPending}
-                  />
-                </div>
-              )}
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200 mb-3">
+                <FolderKanban className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-blue-800">
+                  Rechnungen und Teilrechnungen werden im <strong>Projekt-Cockpit</strong> erfasst und verwaltet.
+                </p>
+              </div>
               {orderInvoices.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Keine Rechnungen verknüpft</p>
               ) : (
                 <div className="space-y-1.5">
                   {orderInvoices.map(inv => (
-                    <div key={inv.id} className="flex items-center justify-between p-2.5 rounded-lg border hover:bg-muted/20 text-sm">
+                    <div key={inv.id} className="flex items-center justify-between p-2.5 rounded-lg border text-sm">
                       <div>
                         <span className="font-medium">{inv.invoice_number || '—'}</span>
                         <span className="text-muted-foreground ml-2 text-xs">{inv.invoice_date || ''}</span>
@@ -385,10 +349,6 @@ export default function ConfirmedOrderDetail() {
                       <div className="flex items-center gap-3">
                         <span className="font-semibold">{formatCurrency(inv.net_amount)}</span>
                         <StatusBadge status={inv.payment_status} />
-                        <Button variant="ghost" size="sm" className="h-6 text-xs"
-                          onClick={() => { setEditingInvoice(inv); setShowInvoiceUploader(false); }}>
-                          Bearb.
-                        </Button>
                       </div>
                     </div>
                   ))}
@@ -396,11 +356,15 @@ export default function ConfirmedOrderDetail() {
                     <span className="text-muted-foreground">Bezahlt</span>
                     <span className="text-emerald-600">{formatCurrency(recon.total_paid)}</span>
                   </div>
-                  <div className="flex justify-between text-sm font-medium">
-                    <span className="text-muted-foreground">Offene Forderung (brutto)</span>
-                    <span>{formatCurrency(recon.total_open_receivable)}</span>
-                  </div>
                 </div>
+              )}
+              {linkedProject && (
+                <Link to={`/projects/${linkedProject.id}`} className="block mt-3">
+                  <Button size="sm" variant="outline" className="w-full h-8 text-xs gap-1.5">
+                    <FolderKanban className="w-3.5 h-3.5" />
+                    Rechnungen im Projekt-Cockpit öffnen →
+                  </Button>
+                </Link>
               )}
             </CardContent>
           </Card>
@@ -459,38 +423,29 @@ export default function ConfirmedOrderDetail() {
             </CardContent>
           </Card>
 
-          {/* awork reference (read-only) */}
-          {order.awork_project_id && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-blue-600 flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">a</span>
-                  </div>
-                  awork Projekt
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1.5 text-sm">
-                <p className="font-medium">{order.awork_project_name}</p>
-                {order.awork_project_status && (
-                  <p className="text-xs text-muted-foreground">{order.awork_project_status}</p>
-                )}
-                {order.awork_progress_percent > 0 && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${order.awork_progress_percent}%` }} />
-                    </div>
-                    <span className="text-xs">{order.awork_progress_percent}%</span>
-                  </div>
-                )}
-                {linkedProject && (
-                  <Link to={`/projects/${linkedProject.id}`} className="text-xs text-primary hover:underline flex items-center gap-1 mt-2">
-                    <FolderKanban className="w-3 h-3" /> awork-Details im Cockpit verwalten
-                  </Link>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          {/* awork — reference only */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-blue-600 flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">a</span>
+                </div>
+                awork/eWork
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                awork/eWork wird im <strong>Projekt-Cockpit</strong> je Leistungspaket verwaltet.
+              </p>
+              {linkedProject && (
+                <Link to={`/projects/${linkedProject.id}`} className="block mt-2">
+                  <Button size="sm" variant="outline" className="w-full h-7 text-xs gap-1">
+                    <FolderKanban className="w-3 h-3" /> awork/eWork im Projekt-Cockpit öffnen →
+                  </Button>
+                </Link>
+              )}
+            </CardContent>
+          </Card>
 
           {order.document_url && (
             <Card>

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban },
-  { path: '/confirmed-orders', label: 'Auftragsabwicklung', icon: ClipboardList },
+  { path: '/confirmed-orders', label: 'Auftragsabwicklung', icon: ClipboardList, description: 'Aufträge erfassen, Dokumente prüfen' },
   { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
   { path: '/next-month-forecast', label: 'Nächster Monat', icon: CalendarCheck },
   { path: '/online-marketing', label: 'Online-Marketing', icon: Megaphone },
@@ -20,7 +20,7 @@ const navItems = [
   { path: '/tools', label: 'Toolkosten', icon: CreditCard },
   { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
   { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
-  { path: '/invoice-ready', label: 'Abrechenbar Jetzt', icon: CheckSquare },
+  { path: '/invoice-ready', label: 'Abrechnungsanweisungen', icon: CheckSquare },
   { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
   { path: '/import', label: 'Import Center', icon: Upload },
   { path: '/settings', label: 'Settings', icon: Settings },

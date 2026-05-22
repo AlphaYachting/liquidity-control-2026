@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, FolderKanban, Plus, Pencil, Check, X, AlertTriangle,
-  Link2, Unlink, RefreshCw, ClipboardList, ExternalLink
+  Link2, Unlink, RefreshCw, ClipboardList, ExternalLink, Info
 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
@@ -19,12 +19,12 @@ import AworkStatusBar from '@/components/awork/AworkStatusBar';
 import AworkProjectPicker from '@/components/awork/AworkProjectPicker';
 import AworkTaskLinker from '@/components/awork/AworkTaskLinker';
 import AworkSignalBadge from '@/components/awork/AworkSignalBadge';
-import PaymentSourceBadge from '@/components/shared/PaymentSourceBadge';
-import PaymentFreshnessWarning from '@/components/shared/PaymentFreshnessWarning';
+
 import { calculateBillingBlockStatus } from '@/lib/reconciliationUtils';
-import { calculateProjectFinancials, getEffectivePaid } from '@/lib/projectFinancials';
+import { calculateProjectFinancials } from '@/lib/projectFinancials';
 import { calculateAworkStatusForBillingBlock, getTasksForBillingBlock } from '@/lib/aworkReadinessUtils';
 import OrderItemsView from '@/components/projects/OrderItemsView';
+import ProjectInvoiceSection from '@/components/projects/ProjectInvoiceSection';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -273,6 +273,12 @@ export default function ProjectDetail() {
         />
       </div>
 
+      {/* Ownership notice */}
+      <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg">
+        <Info className="w-3.5 h-3.5 flex-shrink-0" />
+        Diese Ansicht ist das operative Projekt-Cockpit. Leistungspakete, Rechnungen, Zahlungen und awork/eWork werden hier verwaltet.
+      </div>
+
       {/* awork Status Card — Task 5, 6, 7 */}
       <AworkStatusBar
         data={aworkData}
@@ -291,22 +297,7 @@ export default function ProjectDetail() {
 
 
 
-      {/* Unmatched customer invoices */}
-      {likelyUnmatchedInvoices.length > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 border border-amber-300 rounded-xl text-sm">
-          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-          <span className="flex-1 text-amber-800">
-            <strong>{likelyUnmatchedInvoices.length}</strong> nicht zugeordnete Rechnung(en) desselben Kunden (nur Namens-Match).
-            Werden getrennt angezeigt, zählen nicht zur Projektsumme.
-          </span>
-          <Link to="/invoice-matching" className="text-xs text-amber-700 underline hover:text-amber-900 flex-shrink-0">
-            Invoice Matching →
-          </Link>
-        </div>
-      )}
 
-      {/* Payment freshness warning */}
-      <PaymentFreshnessWarning invoiceRecords={projectInvoices} />
 
       {/* KPI row — Tasks 1, 2, 3 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -525,121 +516,17 @@ export default function ProjectDetail() {
           <OrderItemsView linkedOrders={linkedOrders} />
 
           {/* ── Invoice / Payment Table ─────────────────────────────────── */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Rechnungen & Zahlungsstatus ({projectInvoices.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {projectInvoices.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">Keine Rechnungen verknüpft</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-xs text-muted-foreground">
-                        <th className="text-left pb-2 font-medium">Rechnung</th>
-                        <th className="text-left pb-2 font-medium pl-2">Typ</th>
-                        <th className="text-right pb-2 font-medium">Netto</th>
-                        <th className="text-right pb-2 font-medium">Bezahlt brutto</th>
-                        <th className="text-right pb-2 font-medium">Offen</th>
-                        <th className="text-left pb-2 font-medium pl-2">Status</th>
-                        <th className="text-left pb-2 font-medium pl-2">Quelle</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {projectInvoices.map(inv => {
-                        const ep = getEffectivePaid(inv);
-                        const openAmt = Math.max(0, (Number(inv.gross_amount) || 0) - ep.amount);
-                        return (
-                          <tr key={inv.id} className="border-b last:border-0 hover:bg-muted/30">
-                            <td className="py-2">
-                              <p className="font-medium">{inv.invoice_number || '—'}</p>
-                              <p className="text-xs text-muted-foreground">{inv.invoice_date || ''}</p>
-                              {inv.is_credit_note && <Badge className="text-xs bg-purple-100 text-purple-700">Gutschrift</Badge>}
-                              {ep.usedFallback && (
-                                <Badge className="text-xs bg-blue-50 text-blue-700 border border-blue-200 mt-0.5 block w-fit">
-                                  Bezahlt laut Status
-                                </Badge>
-                              )}
-                            </td>
-                            <td className="py-2 pl-2 text-xs text-muted-foreground">{inv.invoice_type?.replace(/_/g, ' ') || '—'}</td>
-                            <td className="py-2 text-right font-semibold">{formatCurrency(inv.net_amount)}</td>
-                            <td className="py-2 text-right text-emerald-600">{formatCurrency(ep.amount)}</td>
-                            <td className="py-2 text-right text-amber-600">{formatCurrency(openAmt)}</td>
-                            <td className="py-2 pl-2"><StatusBadge status={inv.payment_status} /></td>
-                            <td className="py-2 pl-2">
-                              <PaymentSourceBadge
-                                sourceType={inv.source_type}
-                                sourceFile={inv.source_file}
-                                updatedDate={inv.updated_date}
-                                showDate
-                              />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t bg-muted/20">
-                        <td colSpan={2} className="py-2 text-sm font-semibold">Summe</td>
-                        <td className="py-2 text-right font-bold">{formatCurrency(adjustedInvoicedNet)}</td>
-                        <td className="py-2 text-right font-bold text-emerald-600">{formatCurrency(totalPaidGross)}</td>
-                        <td className="py-2 text-right font-bold text-amber-600">{formatCurrency(openReceivableGross)}</td>
-                        <td colSpan={2}></td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ── Possibly related invoices (customer-name only, not counted) ── */}
-          {likelyUnmatchedInvoices.length > 0 && (
-            <Card className="border-amber-200">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base text-amber-700 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" />
-                  Möglicherweise zugehörig — bitte prüfen ({likelyUnmatchedInvoices.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Diese Rechnungen haben denselben Kundennamen, sind aber keiner AB oder keinem Projekt zugeordnet.
-                  Sie fließen <strong>nicht</strong> in die Projektsummen ein.
-                </p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-xs text-muted-foreground">
-                        <th className="text-left pb-2 font-medium">Rechnung</th>
-                        <th className="text-right pb-2 font-medium">Netto</th>
-                        <th className="text-right pb-2 font-medium">Brutto</th>
-                        <th className="text-left pb-2 font-medium pl-2">Status</th>
-                        <th className="text-left pb-2 font-medium pl-2">Aktion</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {likelyUnmatchedInvoices.map(inv => (
-                        <tr key={inv.id} className="border-b last:border-0 hover:bg-amber-50/50">
-                          <td className="py-2">
-                            <p className="font-medium">{inv.invoice_number || '—'}</p>
-                            <p className="text-xs text-muted-foreground">{inv.invoice_date || ''}</p>
-                          </td>
-                          <td className="py-2 text-right">{formatCurrency(inv.net_amount)}</td>
-                          <td className="py-2 text-right">{formatCurrency(inv.gross_amount)}</td>
-                          <td className="py-2 pl-2"><StatusBadge status={inv.payment_status} /></td>
-                          <td className="py-2 pl-2">
-                            <Link to="/invoice-matching" className="text-xs text-primary hover:underline">Zuordnen →</Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <ProjectInvoiceSection
+            projectId={projectId}
+            projectBlocks={projectBlocks}
+            linkedOrders={linkedOrders}
+            projectInvoices={projectInvoices}
+            likelyUnmatchedInvoices={likelyUnmatchedInvoices}
+            adjustedInvoicedNet={adjustedInvoicedNet}
+            totalPaidGross={totalPaidGross}
+            openReceivableGross={openReceivableGross}
+            customerName={project.customer}
+          />
         </div>
 
         {/* ── Sidebar ──────────────────────────────────────────────────── */}
