@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, Plus, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ClipboardList, Plus, AlertTriangle, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import StatusBadge from '@/components/shared/StatusBadge';
@@ -15,6 +15,17 @@ import NewOrderUploadModal from '@/components/orders/NewOrderUploadModal';
 export default function ConfirmedOrders() {
   const navigate = useNavigate();
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [sortField, setSortField] = useState(null); // 'customer' | 'open'
+  const [sortDir, setSortDir] = useState('asc');
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['confirmedOrders'], queryFn: () => base44.entities.ConfirmedOrder.list()
@@ -34,6 +45,24 @@ export default function ConfirmedOrders() {
     const recon = calculateOrderReconciliation(order, orderBlocks, orderInvoices);
     return { ...order, recon, blockCount: orderBlocks.length, invoiceCount: orderInvoices.length };
   });
+
+  const sorted = useMemo(() => {
+    if (!sortField) return enriched;
+    return [...enriched].sort((a, b) => {
+      let av, bv;
+      if (sortField === 'customer') {
+        av = (a.customer || '').toLowerCase();
+        bv = (b.customer || '').toLowerCase();
+        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      }
+      if (sortField === 'open') {
+        av = a.recon.total_open_to_invoice;
+        bv = b.recon.total_open_to_invoice;
+        return sortDir === 'asc' ? av - bv : bv - av;
+      }
+      return 0;
+    });
+  }, [enriched, sortField, sortDir]);
 
   const totalOrderValue = enriched.reduce((s, o) => s + o.recon.total_order_net, 0);
   const totalInvoiced = enriched.reduce((s, o) => s + o.recon.adjusted_invoiced_net, 0);
@@ -75,12 +104,22 @@ export default function ConfirmedOrders() {
         <table className="w-full text-sm">
           <thead className="bg-muted/40">
             <tr>
-              <th className="text-left p-3 font-medium text-muted-foreground">Kunde</th>
+              <th className="text-left p-3 font-medium text-muted-foreground">
+                <button onClick={() => handleSort('customer')} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  Kunde
+                  {sortField === 'customer' ? (sortDir === 'asc' ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />) : <ArrowUpDown className="w-3.5 h-3.5 opacity-40" />}
+                </button>
+              </th>
               <th className="text-left p-3 font-medium text-muted-foreground">Projekt / AB-Nr.</th>
               <th className="text-right p-3 font-medium text-muted-foreground">Auftragssumme</th>
               <th className="text-right p-3 font-medium text-muted-foreground">Pakete</th>
               <th className="text-right p-3 font-medium text-muted-foreground">Verrechnet</th>
-              <th className="text-right p-3 font-medium text-muted-foreground">Offen</th>
+              <th className="text-right p-3 font-medium text-muted-foreground">
+                <button onClick={() => handleSort('open')} className="flex items-center gap-1 ml-auto hover:text-foreground transition-colors">
+                  Offen
+                  {sortField === 'open' ? (sortDir === 'asc' ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />) : <ArrowUpDown className="w-3.5 h-3.5 opacity-40" />}
+                </button>
+              </th>
               <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
               <th className="text-left p-3 font-medium text-muted-foreground">Abstimmung</th>
             </tr>
@@ -89,7 +128,7 @@ export default function ConfirmedOrders() {
             {enriched.length === 0 ? (
               <tr><td colSpan={8} className="text-center py-12 text-muted-foreground">Noch keine Auftragsbestätigungen</td></tr>
             ) : (
-              enriched.map(order => (
+              sorted.map(order => (
                 <tr
                   key={order.id}
                   className="border-t hover:bg-muted/30 cursor-pointer transition-colors"
