@@ -21,10 +21,26 @@ function parseAmount(val) {
   return parseFloat(val || '0') || 0;
 }
 
-function findMatchingOrder(invoice, confirmedOrders) {
+function extractSevdeskIdFromNotes(notes) {
+  // Notes field contains e.g. "sevDesk ID: 25809765 | Typ: AB"
+  const match = (notes || '').match(/sevDesk ID:\s*(\d+)/i);
+  return match ? match[1] : null;
+}
+
+function findMatchingOrder(invoice, confirmedOrders, ordersBySevdeskId) {
+  // 1. Exact match via origin field (invoice created from an Order in sevDesk)
+  const originId = invoice.origin?.id;
+  if (originId && invoice.origin?.objectName === 'Order') {
+    const exactMatch = ordersBySevdeskId[originId];
+    if (exactMatch) {
+      return { order: exactMatch, confidence: 100, method: 'sevdesk_origin' };
+    }
+  }
+
+  // 2. Fuzzy fallback: customer name + amount
   const invCustomer = (invoice.contact?.name || invoice.contactName || '').toLowerCase().trim();
   const invNet = parseAmount(invoice.sumNet);
-  const invHeader = (invoice.header || invoice.address || '').toLowerCase();
+  const invHeader = (invoice.header || '').toLowerCase();
 
   let best = null;
   let bestScore = 0;
@@ -32,26 +48,19 @@ function findMatchingOrder(invoice, confirmedOrders) {
   for (const order of confirmedOrders) {
     const orderCustomer = (order.customer || '').toLowerCase().trim();
     const orderNet = Number(order.total_net_amount) || 0;
-    const orderNum = (order.order_number || '').toLowerCase();
     const orderName = (order.project_name || '').toLowerCase();
 
-    let score = 0;
-    if (!invCustomer || !orderCustomer) continue;
-    if (invCustomer !== orderCustomer) continue;
+    if (!invCustomer || !orderCustomer || invCustomer !== orderCustomer) continue;
 
-    score += 10;
-    if (orderNum && invHeader.includes(orderNum)) score += 50;
+    let score = 10;
     if (orderName && orderName.length > 5 && invHeader.includes(orderName.substring(0, 8))) score += 20;
     if (orderNet > 0 && Math.abs(invNet - orderNet) / orderNet < 0.10) score += 30;
-    if (orderNet > 0 && Math.abs(invNet - orderNet) / orderNet < 0.05) score += 10;
+    if (orderNet > 0 && Math.abs(invNet - orderNet) / orderNet < 0.03) score += 20;
 
-    if (score > bestScore) {
-      bestScore = score;
-      best = order;
-    }
+    if (score > bestScore) { bestScore = score; best = order; }
   }
 
-  return bestScore >= 20 ? { order: best, confidence: bestScore } : null;
+  return bestScore >= 40 ? { order: best, confidence: bestScore, method: 'fuzzy' } : null;
 }
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -110,10 +119,17 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.InvoiceRecord.filter({ source_type: 'sevdesk' })
     ]);
 
-    // Build lookup map: sevdesk_id → existing record
+    // Build lookup map: sevdesk_id → existing InvoiceRecord
     const existingMap = {};
     for (const r of existingInvoices) {
       if (r.sevdesk_id) existingMap[r.sevdesk_id] = r;
+    }
+
+    // Build lookup map: sevdesk order id → ConfirmedOrder (from notes field)
+    const ordersBySevdeskId = {};
+    for (const o of allOrders) {
+      const sid = extractSevdeskIdFromNotes(o.notes);
+      if (sid) ordersBySevdeskId[sid] = o;
     }
 
     let created = 0;
@@ -141,7 +157,7 @@ Deno.serve(async (req) => {
 
         const paymentStatus = mapInvoiceStatus(inv);
 
-        const matchResult = findMatchingOrder(inv, allOrders);
+        const matchResult = findMatchingOrder(inv, allOrders, ordersBySevdeskId);
         const confirmedOrderId = matchResult?.order?.id || existing?.confirmed_order_id || null;
         const matchStatus = matchResult ? 'auto_matched' : (existing?.match_status || 'unmatched');
         const matchConfidence = matchResult?.confidence || existing?.match_confidence || 0;
