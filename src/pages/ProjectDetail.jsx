@@ -274,11 +274,7 @@ export default function ProjectDetail() {
         />
       </div>
 
-      {/* Ownership notice */}
-      <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg">
-        <Info className="w-3.5 h-3.5 flex-shrink-0" />
-        Diese Ansicht ist das operative Projekt-Cockpit. Leistungspakete, Rechnungen, Zahlungen und awork/eWork werden hier verwaltet.
-      </div>
+
 
       {/* awork Status Card — Task 5, 6, 7 */}
       <AworkStatusBar
