@@ -266,6 +266,7 @@ function InvoiceSync({ onImportDone }) {
               <div className="space-y-0.5 text-xs">
                 <p>Abgerufen: <strong>{result.data?.fetched ?? '—'}</strong></p>
                 <p>Neu: <strong>{result.data?.created ?? '—'}</strong> · Aktualisiert: <strong>{result.data?.updated ?? '—'}</strong></p>
+                <p>Aufträgen zugeordnet: <strong>{result.data?.matched ?? '—'}</strong></p>
                 {result.data?.failed > 0 && <p className="text-amber-700">Fehler: <strong>{result.data.failed}</strong></p>}
               </div>
             ) : (

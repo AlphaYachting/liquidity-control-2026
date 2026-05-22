@@ -12,15 +12,60 @@ async function sevdeskGet(path, apiKey) {
 
 function mapInvoiceStatus(invoice) {
   const status = invoice.status;
-  if (status === '200') return 'open';
   if (status === '1000') return 'paid';
-  if (status === '100') return 'open';
   if (status === '50') return 'cancelled';
   return 'open';
 }
 
 function parseAmount(val) {
   return parseFloat(val || '0') || 0;
+}
+
+/**
+ * Try to find the best matching ConfirmedOrder for an invoice.
+ * Strategy:
+ * 1. sevDesk invoices often reference the order header in `header` or `address` field
+ * 2. Match by customer name (exact) + similar amount (±10%)
+ * 3. Match by customer name only (lowest confidence)
+ */
+function findMatchingOrder(invoice, confirmedOrders) {
+  const invCustomer = (invoice.contact?.name || invoice.contactName || '').toLowerCase().trim();
+  const invNet = parseAmount(invoice.sumNet);
+  const invHeader = (invoice.header || invoice.address || '').toLowerCase();
+
+  let best = null;
+  let bestScore = 0;
+
+  for (const order of confirmedOrders) {
+    const orderCustomer = (order.customer || '').toLowerCase().trim();
+    const orderNet = Number(order.total_net_amount) || 0;
+    const orderNum = (order.order_number || '').toLowerCase();
+    const orderName = (order.project_name || '').toLowerCase();
+
+    let score = 0;
+
+    if (!invCustomer || !orderCustomer) continue;
+    if (invCustomer !== orderCustomer) continue; // must match customer
+
+    score += 10; // customer matches
+
+    // order number in header
+    if (orderNum && invHeader.includes(orderNum)) score += 50;
+    // project name in header
+    if (orderName && orderName.length > 5 && invHeader.includes(orderName.substring(0, 8))) score += 20;
+    // amount match ±10%
+    if (orderNet > 0 && Math.abs(invNet - orderNet) / orderNet < 0.10) score += 30;
+    // amount match ±5%
+    if (orderNet > 0 && Math.abs(invNet - orderNet) / orderNet < 0.05) score += 10;
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = order;
+    }
+  }
+
+  // Only auto-match if score is high enough (customer + at least one other signal)
+  return bestScore >= 20 ? { order: best, confidence: bestScore } : null;
 }
 
 Deno.serve(async (req) => {
@@ -34,7 +79,7 @@ Deno.serve(async (req) => {
 
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
     const limit = body.limit || 500;
-    const year = body.year || null; // e.g. 2026
+    const year = body.year || null;
 
     // Fetch invoices from sevDesk
     const data = await sevdeskGet(
@@ -52,14 +97,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Load all ConfirmedOrders for matching
+    const allOrders = await base44.asServiceRole.entities.ConfirmedOrder.list();
+
     let created = 0;
     let updated = 0;
     let failed = 0;
+    let matched = 0;
 
     for (const inv of invoices) {
       try {
         const sevdeskId = String(inv.id);
-
         const existing = await base44.asServiceRole.entities.InvoiceRecord.filter({ sevdesk_id: sevdeskId });
 
         const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
@@ -75,6 +123,14 @@ Deno.serve(async (req) => {
                             inv.invoiceType === 'RE' ? 'partial_invoice' : 'final_invoice';
 
         const paymentStatus = mapInvoiceStatus(inv);
+
+        // Try to match to a ConfirmedOrder
+        const matchResult = findMatchingOrder(inv, allOrders);
+        const confirmedOrderId = matchResult?.order?.id || (existing[0]?.confirmed_order_id) || null;
+        const matchStatus = matchResult ? 'auto_matched' : (existing[0]?.match_status || 'unmatched');
+        const matchConfidence = matchResult?.confidence || (existing[0]?.match_confidence) || 0;
+
+        if (matchResult) matched++;
 
         const record = {
           invoice_number: inv.invoiceNumber || '',
@@ -92,7 +148,9 @@ Deno.serve(async (req) => {
           payment_date: paymentStatus === 'paid' ? paymentDate : null,
           source_type: 'sevdesk',
           sevdesk_id: sevdeskId,
-          match_status: 'unmatched',
+          confirmed_order_id: confirmedOrderId,
+          match_status: matchStatus,
+          match_confidence: matchConfidence,
           notes: inv.header || '',
         };
 
@@ -114,7 +172,8 @@ Deno.serve(async (req) => {
       created,
       updated,
       failed,
-      message: `sevDesk Rechnungen synchronisiert: ${created} neu, ${updated} aktualisiert, ${failed} Fehler`
+      matched,
+      message: `sevDesk Rechnungen synchronisiert: ${created} neu, ${updated} aktualisiert, ${matched} Aufträgen zugeordnet, ${failed} Fehler`
     });
 
   } catch (error) {
