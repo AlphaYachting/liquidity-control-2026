@@ -57,7 +57,11 @@ export default function BillingLiquiditySection({
   });
 
   const totalOrderNet = fin?.commercialBaseNet || 0;
-  const totalOrderGross = totalOrderNet * 1.2;
+  // Use actual VAT from linked orders (weighted avg), fall back to 20%
+  const effectiveVatRate = linkedOrders?.length > 0
+    ? linkedOrders.reduce((s, o) => s + (Number(o.vat_rate) || 20), 0) / linkedOrders.length
+    : 20;
+  const totalOrderGross = totalOrderNet * (1 + effectiveVatRate / 100);
   const alreadyInvoicedNet = fin?.adjustedInvoicedNet || 0;
   const alreadyPaidGross = fin?.paidGross || 0;
   const openToInvoiceNet = fin?.openToInvoiceNet || 0;
@@ -67,9 +71,9 @@ export default function BillingLiquiditySection({
   const paymentPct = totalOrderGross > 0 ? (alreadyPaidGross / totalOrderGross) * 100 : 0;
 
   const aworkProgress = aworkTaskStats?.progress_percent ?? project?.awork_progress_percent ?? null;
+  // Weighted average: blocks WITHOUT awork data count as 0%, not ignored
   const blockAvgProgress = projectBlocks.length > 0
-    ? projectBlocks.filter(b => b.awork_progress_percent > 0).reduce((s, b) => s + (b.awork_progress_percent || 0), 0) /
-      Math.max(1, projectBlocks.filter(b => b.awork_progress_percent > 0).length)
+    ? projectBlocks.reduce((s, b) => s + (b.awork_progress_percent || 0), 0) / projectBlocks.length
     : null;
   const performancePct = aworkProgress ?? blockAvgProgress ?? 0;
   const performanceBasis = aworkProgress != null ? 'awork' : blockAvgProgress != null ? 'Pakete Ø' : 'unbekannt';

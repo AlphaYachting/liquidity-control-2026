@@ -34,25 +34,61 @@ export default function Dashboard() {
     queryKey: ['payables'], queryFn: () => base44.entities.Payable.list()
   });
 
-  // Live-Berechnung: Verrechnet = Summe aller Rechnungen (abzgl. Gutschriften), Offen = Projektvolumen - Verrechnet
+  // Live-Berechnung: konsistent mit calculateProjectFinancials() —
+  // Rechnungen werden über project_id, confirmed_order_id (via AB), billing_block_id und order_number zugeordnet.
+  const { data: allOrders = [] } = useQuery({
+    queryKey: ['confirmedOrders'], queryFn: () => base44.entities.ConfirmedOrder.list()
+  });
+  const { data: allBlocks = [] } = useQuery({
+    queryKey: ['billingBlocks'], queryFn: () => base44.entities.ProjectBillingBlock.list()
+  });
+
   const { liveInvoiced, liveOpen } = useMemo(() => {
-    const invoicedByProject = {};
-    invoices.forEach(inv => {
-      if (!inv.project_id) return;
-      const net = Number(inv.net_amount) || 0;
-      const sign = inv.is_credit_note ? -1 : 1;
-      invoicedByProject[inv.project_id] = (invoicedByProject[inv.project_id] || 0) + sign * net;
-    });
     let liveInvoiced = 0;
     let liveOpen = 0;
+
     projects.forEach(p => {
-      const inv = invoicedByProject[p.id] || 0;
-      const total = Number(p.total_net_amount) || 0;
-      liveInvoiced += inv;
-      liveOpen += Math.max(0, total - inv);
+      const projectId = p.id;
+      const customerKey = (p.customer || '').toLowerCase();
+
+      const linkedOrders = allOrders.filter(o => o.project_id === projectId);
+      const linkedOrderIds = new Set(linkedOrders.map(o => o.id));
+      const linkedOrderNumbers = new Set(
+        linkedOrders.map(o => (o.order_number || '').toLowerCase()).filter(Boolean)
+      );
+      const linkedBlocks = allBlocks.filter(b =>
+        b.project_id === projectId ||
+        (b.confirmed_order_id && linkedOrderIds.has(b.confirmed_order_id))
+      );
+      const linkedBlockIds = new Set(linkedBlocks.map(b => b.id));
+
+      const linkedInvoices = invoices.filter(i => {
+        if (i.payment_status === 'cancelled') return false;
+        if (i.project_id === projectId) return true;
+        if (i.confirmed_order_id && linkedOrderIds.has(i.confirmed_order_id)) return true;
+        if (i.billing_block_id && linkedBlockIds.has(i.billing_block_id)) return true;
+        if (i.order_number && linkedOrderNumbers.has((i.order_number || '').toLowerCase())) return true;
+        return false;
+      });
+
+      const realInvoices = linkedInvoices.filter(i => !i.is_credit_note);
+      const creditNotes = linkedInvoices.filter(i => i.is_credit_note);
+      const invoicedNet = realInvoices.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+      const creditNoteNet = creditNotes.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+      const adjustedInvoicedNet = invoicedNet - creditNoteNet;
+
+      // Commercial base: orders > blocks > project field (same priority as calculateProjectFinancials)
+      const ordersTotalNet = linkedOrders.reduce((s, o) => s + (Number(o.total_net_amount) || 0), 0);
+      const blocksTotalNet = linkedBlocks.reduce((s, b) => s + (Number(b.amount_net) || 0), 0);
+      const projectTotalNet = Number(p.total_net_amount) || 0;
+      const commercialBaseNet = ordersTotalNet > 0 ? ordersTotalNet : blocksTotalNet > 0 ? blocksTotalNet : projectTotalNet;
+
+      liveInvoiced += adjustedInvoicedNet;
+      liveOpen += Math.max(0, commercialBaseNet - adjustedInvoicedNet);
     });
+
     return { liveInvoiced, liveOpen };
-  }, [projects, invoices]);
+  }, [projects, invoices, allOrders, allBlocks]);
 
   const isLoading = pLoading || lLoading || iLoading;
 
