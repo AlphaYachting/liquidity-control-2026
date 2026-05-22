@@ -686,7 +686,6 @@ export default function BillingInstructionWizard({
       const response = await base44.integrations.Core.InvokeLLM({
         prompt: buildLLMPrompt(llmCtx),
         response_json_schema: LLM_BILLING_RESPONSE_SCHEMA,
-        model: 'claude_sonnet_4_6',
       });
 
       // InvokeLLM with response_json_schema returns the parsed object directly

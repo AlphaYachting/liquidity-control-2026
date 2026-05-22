@@ -208,17 +208,6 @@ export const LLM_BILLING_RESPONSE_SCHEMA = {
     payment_warning: { type: 'string' },
     progress_warning: { type: 'string' },
     open_invoice_warning: { type: 'string' },
-    overlap_assessment: {
-      type: 'object',
-      properties: {
-        has_overlap: { type: 'boolean' },
-        severity: { type: 'string' },
-        reason: { type: 'string' },
-        affected_previous_instruction_ids: { type: 'array', items: { type: 'string' } },
-        safe_remaining_amount: { type: 'number' },
-        recommendation: { type: 'string' },
-      },
-    },
     text_only_recommendation: { type: 'boolean' },
   },
 };
@@ -268,23 +257,83 @@ OUTPUT FORMAT: Return only the JSON object. No markdown, no code blocks, no expl
 /**
  * buildLLMPrompt
  *
- * Builds the user-facing prompt string combining context.
+ * Builds a focused, concise prompt — avoids overloading the LLM with raw JSON.
  */
 export function buildLLMPrompt(llmContext) {
-  return `Erstelle eine Abrechnungsanweisung für folgendes Projekt. Analysiere alle Daten konservativ und gib einen sicheren Vorschlag zurück.
+  const p = llmContext.project;
+  const fin = llmContext.financial;
+  const com = llmContext.commercial;
+  const prog = llmContext.progress;
+  const det = llmContext.deterministic_baseline;
+  const prev = llmContext.previous_instructions;
+  const req = llmContext.current_request;
+  const overlap = llmContext.overlap_assessment;
 
-KONTEXT:
-${JSON.stringify(llmContext, null, 2)}
+  const fmtEur = (n) => n != null ? `€ ${Number(n).toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+  const fmtPct = (n) => n != null ? `${Math.round(Number(n))}%` : '—';
 
-ANWEISUNG:
-Analysiere den Kontext vollständig. Prüfe insbesondere:
-1. Bestehende Abrechnungsanweisungen (previous_instructions) — keine Überschneidungen
-2. Overlap-Assessment — bei "block" keinen Betrag vorschlagen
-3. Fortschritt vs. Abrechnung — konservativ bleiben
-4. Zahlungsstatus — bei offenen Rechnungen Sicherheit reduzieren
-5. Deterministische Baseline als Referenz verwenden
+  const lines = [
+    `Du bist ein Abrechnungsassistent für eine Digitalagentur. Erstelle eine konservative Abrechnungsempfehlung auf Deutsch.`,
+    ``,
+    `PROJEKT: ${p.project_name} | Kunde: ${p.customer_name} | PM: ${p.project_manager} | Status: ${p.project_status} | Risiko: ${p.risk_status}`,
+    ``,
+    `FINANZEN:`,
+    `  Auftragswert netto: ${fmtEur(com.total_order_net)}`,
+    `  Bereits abgerechnet netto: ${fmtEur(fin.already_invoiced_net)} (${fmtPct(fin.previous_billing_percent)})`,
+    `  Bereits bezahlt brutto: ${fmtEur(fin.already_paid_gross)} (${fmtPct(fin.payment_percent)})`,
+    `  Noch offen netto: ${fmtEur(com.total_order_net - fin.already_invoiced_net)}`,
+    `  Offene/überfällige Rechnungen: ${fin.unpaid_invoices_count} offen, ${fin.overdue_invoices_count} überfällig`,
+    ``,
+    `PROJEKTFORTSCHRITT:`,
+    `  awork Fortschritt: ${fmtPct(prog.awork_progress_percent)}`,
+    `  awork Aufgaben: ${prog.awork_tasks_done ?? '?'} / ${prog.awork_tasks_total ?? '?'} erledigt, ${prog.awork_tasks_blocked ?? 0} blockiert`,
+    ``,
+    `AKTUELLE ANFRAGE: Typ = ${req.instruction_type}, Betrag = ${fmtEur(req.manual_amount_input)}, Prozent = ${fmtPct(req.manual_percent_input)}`,
+    req.selected_billing_block_title ? `  Ausgewähltes Paket: ${req.selected_billing_block_title}` : '',
+    ``,
+    `DETERMINISTISCHER VORSCHLAG (Referenz):`,
+    det ? [
+      `  Betrag netto: ${fmtEur(det.suggested_amount_net)}`,
+      `  Zusätzliche %: ${fmtPct(det.suggested_additional_billing_percent)}`,
+      `  Sicherheit: ${det.confidence_level} (${det.confidence_score}%)`,
+      `  Basis: ${det.calculation_basis}`,
+      det.warnings?.length ? `  Warnungen: ${det.warnings.join('; ')}` : '',
+    ].filter(Boolean).join('\n') : '  Kein deterministischer Vorschlag.',
+    ``,
+    `ÜBERLAPPUNGSPRÜFUNG:`,
+    overlap ? [
+      `  Empfehlung: ${overlap.recommendation} | Schwere: ${overlap.overlap_severity}`,
+      `  Sicher verfügbar netto: ${fmtEur(overlap.safe_remaining_to_invoice_net)}`,
+      `  Höchster bisheriger Stand: ${fmtPct(overlap.highest_previous_billing_percent)}`,
+      overlap.blocking_reasons?.length ? `  Gründe: ${overlap.blocking_reasons.join('; ')}` : '',
+    ].filter(Boolean).join('\n') : '  Keine Überlappungsprüfung.',
+    ``,
+    `BISHERIGE ABRECHNUNGSANWEISUNGEN (${prev.items?.length ?? 0} gesamt):`,
+    prev.items?.length > 0 ? prev.items.map(i =>
+      `  - ${i.status}: ${fmtEur(i.amount_net)} (${fmtPct(i.additional_billing_percent)} zusätzlich, neuer Stand ${fmtPct(i.new_billing_percent)}) | Grund: ${i.reason_short || '—'}`
+    ).join('\n') : '  Keine bisherigen Anweisungen.',
+    ``,
+    `LEISTUNGSPAKETE (${prog.block_items?.length ?? 0} Stück):`,
+    prog.block_items?.length > 0 ? prog.block_items.map(b =>
+      `  - ${b.title}: ${fmtEur(b.amount_net)}, Status: ${b.work_status}, awork: ${fmtPct(b.awork_progress_percent)}, Bereitschaft: ${b.awork_readiness_signal}`
+    ).join('\n') : '  Keine Pakete.',
+    ``,
+    `AUFGABE:`,
+    `Analysiere die Situation und erstelle eine Abrechnungsempfehlung. Achte besonders auf:`,
+    `1. Überlappungsprüfung — bei "block": keinen Betrag vorschlagen (text_only_recommendation=true, suggested_amount_net=0)`,
+    `2. Bisherige Anweisungen — prüfe genau welche Bereiche bereits abgedeckt sind`,
+    `3. Fortschritt vs. Abrechnung — konservativ bleiben, nicht mehr abrechnen als geleistet`,
+    `4. Offene Rechnungen — Sicherheit reduzieren wenn offene/überfällige Rechnungen existieren`,
+    `5. Schreibe suggested_invoice_reason und suggested_invoice_instruction_text IMMER auf Deutsch, professionell und konkret`,
+    ``,
+    `WICHTIG: suggested_invoice_reason und suggested_invoice_instruction_text MÜSSEN immer ausgefüllt sein!`,
+    `Bei "block": erkläre im reason warum nicht abgerechnet werden kann.`,
+    `Bei normalem Vorschlag: erkläre konkret was abgerechnet wird und warum (Fortschritt, Meilenstein, Paket).`,
+    ``,
+    `Antworte NUR mit dem JSON-Objekt, ohne Markdown oder Kommentare.`,
+  ];
 
-Antworte ausschließlich mit dem JSON-Objekt gemäß Schema.`;
+  return lines.filter(l => l !== undefined).join('\n');
 }
 
 /**
