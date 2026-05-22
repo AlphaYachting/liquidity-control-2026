@@ -42,6 +42,9 @@ export default function Dashboard() {
   const { data: allBlocks = [] } = useQuery({
     queryKey: ['billingBlocks'], queryFn: () => base44.entities.ProjectBillingBlock.list()
   });
+  const { data: billingInstructions = [] } = useQuery({
+    queryKey: ['billingInstructions'], queryFn: () => base44.entities.BillingInstruction.list()
+  });
 
 
   const { liveInvoiced, liveOpen } = useMemo(() => {
@@ -110,7 +113,7 @@ export default function Dashboard() {
       <PageHeader title="Dashboard" subtitle="Liquiditätsübersicht 2026" icon={LayoutDashboard} />
       <DashboardKpis projects={projects} planLines={planLines} contracts={contracts} tools={tools} receivables={receivables} payables={payables} liveInvoiced={liveInvoiced} liveOpen={liveOpen} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CashflowChart planLines={planLines} blocks={allBlocks} contracts={contracts} payables={payables} />
+        <CashflowChart planLines={planLines} blocks={allBlocks} contracts={contracts} payables={payables} instructions={billingInstructions} />
         <PipelineChart projects={projects} contracts={contracts} planLines={planLines} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

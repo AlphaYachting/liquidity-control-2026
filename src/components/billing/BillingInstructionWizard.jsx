@@ -821,11 +821,14 @@ export default function BillingInstructionWizard({
     setSelectedBlock(block);
     const remaining = getBlockRemaining(block);
     const isFullyOpen = remaining >= (Number(block.amount_net) || 0) * 0.99;
+    // Pre-fill planned_invoice_date from billing_month if not already set
+    const billingMonthDate = block.billing_month ? `${block.billing_month}-01` : '';
     setForm(f => ({
       ...f,
       invoice_type: isFullyOpen ? 'partial_invoice' : 'final_invoice',
       invoice_reason: `Leistungspaket "${block.title}" ist abrechnungsbereit.`,
       invoice_instruction_text: block.description ? `${block.title}: ${block.description}` : block.title,
+      planned_invoice_date: f.planned_invoice_date || billingMonthDate,
     }));
   }
 
@@ -1114,14 +1117,20 @@ export default function BillingInstructionWizard({
                     <Input type="number" value={form.vat_rate} onChange={e => setForm(f => ({ ...f, vat_rate: e.target.value }))} className="h-8 text-xs mt-1" />
                   </div>
                 </div>
+                <div>
+                  <Label className="text-xs">
+                    Geplantes Rechnungsdatum *
+                    <span className="text-muted-foreground font-normal ml-1">(für Liquiditätsplanung)</span>
+                  </Label>
+                  <Input type="date" value={form.planned_invoice_date}
+                    onChange={e => setForm(f => ({ ...f, planned_invoice_date: e.target.value }))}
+                    className={`h-8 text-xs mt-1 ${!form.planned_invoice_date ? 'border-amber-400' : ''}`} />
+                  {!form.planned_invoice_date && (
+                    <p className="text-xs text-amber-600 mt-0.5">Datum erforderlich für Cashflow-Planung.</p>
+                  )}
+                </div>
               </div>
             )}
-            <div className="p-3 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/10">
-              <p className="text-xs text-muted-foreground">
-                <Lightbulb className="w-3.5 h-3.5 inline mr-1" />
-                KI-Textvorschlag für Leistungspakete folgt später.
-              </p>
-            </div>
           </div>
         )}
 
@@ -1158,7 +1167,7 @@ export default function BillingInstructionWizard({
                 <div className="flex justify-between border-t pt-1"><span className="text-muted-foreground">Brutto ({form.vat_rate}% MwSt.):</span><span className="font-bold">{formatCurrency(finalAmountGross)}</span></div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs">Rechnungstyp</Label>
                 <Select value={form.invoice_type} onValueChange={v => setForm(f => ({ ...f, invoice_type: v }))}>
@@ -1169,6 +1178,15 @@ export default function BillingInstructionWizard({
               <div>
                 <Label className="text-xs">MwSt. %</Label>
                 <Input type="number" value={form.vat_rate} onChange={e => setForm(f => ({ ...f, vat_rate: e.target.value }))} className="h-8 text-xs mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">
+                  Rechnungsdatum *
+                  <span className="text-muted-foreground font-normal ml-1">(Liquidität)</span>
+                </Label>
+                <Input type="date" value={form.planned_invoice_date}
+                  onChange={e => setForm(f => ({ ...f, planned_invoice_date: e.target.value }))}
+                  className={`h-8 text-xs mt-1 ${!form.planned_invoice_date ? 'border-amber-400' : ''}`} />
               </div>
             </div>
             {activePreviousInstructions.length > 0 && (
@@ -1181,7 +1199,7 @@ export default function BillingInstructionWizard({
         {/* ── STEP 2C — Manual amount ───────────────────────────────── */}
         {step === 2 && instructionType === 'manual_amount' && (
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs">Betrag netto (€) *</Label>
                 <Input type="number" placeholder="0.00" value={form.instruction_amount_net}
@@ -1192,6 +1210,15 @@ export default function BillingInstructionWizard({
               <div>
                 <Label className="text-xs">MwSt. %</Label>
                 <Input type="number" value={form.vat_rate} onChange={e => setForm(f => ({ ...f, vat_rate: e.target.value }))} className="h-8 text-xs mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">
+                  Rechnungsdatum *
+                  <span className="text-muted-foreground font-normal ml-1">(Liquidität)</span>
+                </Label>
+                <Input type="date" value={form.planned_invoice_date}
+                  onChange={e => setForm(f => ({ ...f, planned_invoice_date: e.target.value }))}
+                  className={`h-8 text-xs mt-1 ${!form.planned_invoice_date ? 'border-amber-400' : ''}`} />
               </div>
             </div>
             {finalAmountNet > 0 && (
@@ -1221,15 +1248,21 @@ export default function BillingInstructionWizard({
               <span className="text-muted-foreground">Betrag dieser Anweisung</span>
               <div className="text-right">
                 <p className="font-bold text-lg">{formatCurrency(finalAmountNet)} netto</p>
-                <p className="text-xs text-muted-foreground">{formatCurrency(finalAmountGross)} brutto · {INVOICE_TYPE_LABELS[form.invoice_type]}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatCurrency(finalAmountGross)} brutto · {INVOICE_TYPE_LABELS[form.invoice_type]}
+                  {form.planned_invoice_date && <span className="ml-2">· {form.planned_invoice_date}</span>}
+                </p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Geplantes Rechnungsdatum</Label>
+                <Label className="text-xs">
+                  Rechnungsdatum *
+                  {!form.planned_invoice_date && <span className="text-amber-500 ml-1">(Pflicht für Liquiditätsplanung)</span>}
+                </Label>
                 <Input type="date" value={form.planned_invoice_date}
                   onChange={e => setForm(f => ({ ...f, planned_invoice_date: e.target.value }))}
-                  className="h-8 text-xs mt-1" />
+                  className={`h-8 text-xs mt-1 ${!form.planned_invoice_date ? 'border-amber-400' : ''}`} />
               </div>
               <div>
                 <Label className="text-xs">Zuständig Backoffice</Label>

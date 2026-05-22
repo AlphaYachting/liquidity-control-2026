@@ -5,16 +5,50 @@ import { formatCurrency, MONTHS_2026, MONTH_LABELS } from '@/lib/liquidityUtils'
 
 const MONTHS = MONTHS_2026;
 
-// Build monthly cashflow from real data sources:
-// Inflows: ProjectBillingBlocks grouped by billing_month + RecurringContracts (monthly)
-// Outflows: Payables grouped by due month + LiquidityPlanLines (outflow)
-function buildCashflowData({ blocks = [], contracts = [], planLines = [], payables = [] }) {
+// Build monthly cashflow from real data sources.
+// Priority: BillingInstructions (confirmed PM intent, with real date) > ProjectBillingBlocks (planned) > RecurringContracts
+// Blocks that already have an active instruction are NOT counted again to avoid double-counting.
+function buildCashflowData({ blocks = [], contracts = [], planLines = [], payables = [], instructions = [] }) {
   const inflows = {};
   const outflows = {};
   MONTHS.forEach(m => { inflows[m] = 0; outflows[m] = 0; });
 
-  // Billing blocks → planned inflows
+  // Active instruction statuses that represent real planned cashflow
+  const ACTIVE_STATUSES = new Set(['draft', 'ready_for_backoffice', 'sent_to_backoffice', 'invoice_created']);
+
+  // Track which billing_block_ids are already covered by an instruction
+  const coveredBlockIds = new Set();
+
+  // 1. BillingInstructions → highest-priority planned inflows
+  instructions.forEach(instr => {
+    if (!ACTIVE_STATUSES.has(instr.status)) return; // skip paid/cancelled
+    if (instr.status === 'paid') return;
+    const amount = Number(instr.instruction_amount_net) || 0;
+    if (amount <= 0) return;
+
+    // Determine month: prefer planned_invoice_date, fall back to billing_month of linked block
+    let m = null;
+    if (instr.planned_invoice_date) {
+      m = instr.planned_invoice_date.slice(0, 7);
+    } else if (instr.billing_block_id) {
+      const block = blocks.find(b => b.id === instr.billing_block_id);
+      m = block?.billing_month || null;
+    }
+
+    if (m && inflows[m] !== undefined) {
+      // Weight by status: sent/created = 100%, draft/ready = 90%
+      const prob = (instr.status === 'sent_to_backoffice' || instr.status === 'invoice_created') ? 1.0 : 0.9;
+      inflows[m] += amount * prob;
+    }
+
+    // Mark block as covered so we don't double-count
+    if (instr.billing_block_id) coveredBlockIds.add(instr.billing_block_id);
+  });
+
+  // 2. Billing blocks → planned inflows (only if not already covered by an instruction)
   blocks.forEach(b => {
+    if (coveredBlockIds.has(b.id)) return; // already covered by instruction
+    if (b.invoice_readiness_status === 'invoiced' || b.invoice_readiness_status === 'paid') return;
     const m = b.billing_month;
     if (m && inflows[m] !== undefined) {
       const prob = (b.probability_percent ?? 90) / 100;
@@ -72,8 +106,8 @@ function buildCashflowData({ blocks = [], contracts = [], planLines = [], payabl
   });
 }
 
-export default function CashflowChart({ planLines = [], blocks = [], contracts = [], payables = [] }) {
-  const data = buildCashflowData({ blocks, contracts, planLines, payables });
+export default function CashflowChart({ planLines = [], blocks = [], contracts = [], payables = [], instructions = [] }) {
+  const data = buildCashflowData({ blocks, contracts, planLines, payables, instructions });
   const hasData = data.some(d => d.inflows > 0 || d.outflows > 0);
 
   const customTooltip = ({ active, payload, label }) => {
