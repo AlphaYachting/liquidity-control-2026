@@ -123,7 +123,7 @@ export default function Projects() {
               <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
                 <div className={`h-full ${barColor} rounded-full`} style={{ width: `${barPct}%` }} />
               </div>
-              <span className="text-xs font-medium text-blue-700">{pct}%</span>
+              {budgetPct !== null && <span className="text-xs font-medium text-blue-700">{budgetPct}%</span>}
             </div>
             {(trackedH || budgetH) && (
               <div className="text-xs text-muted-foreground">
