@@ -75,6 +75,7 @@ export default function ConfirmedOrderDetail() {
   const queryClient = useQueryClient();
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [linkingBlocks, setLinkingBlocks] = useState(false);
+  const [creatingCockpit, setCreatingCockpit] = useState(false);
   // Ownership note: this page is the commercial source/document view.
   // Operative management (BillingBlocks, Invoices, awork) lives in Project Cockpit.
 
@@ -113,6 +114,26 @@ export default function ConfirmedOrderDetail() {
     queryKey: ['projects'], queryFn: () => base44.entities.LiquidityProject.list()
   });
   const linkedProject = projects.find(p => p.id === order?.project_id);
+
+  const createCockpitMutation = useMutation({
+    mutationFn: async () => {
+      const newProject = await base44.entities.LiquidityProject.create({
+        project_name: order.project_name,
+        customer: order.customer,
+        order_number: order.order_number || '',
+        total_net_amount: order.total_net_amount || 0,
+        project_manager: order.responsible_project_manager || '',
+        status: 'active',
+      });
+      await base44.entities.ConfirmedOrder.update(orderId, { project_id: newProject.id });
+      return newProject;
+    },
+    onSuccess: (newProject) => {
+      queryClient.invalidateQueries({ queryKey: ['confirmedOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      navigate(`/projects/${newProject.id}`);
+    }
+  });
 
   const linkProjectMutation = useMutation({
     mutationFn: async ({ projectId, alsoLinkBlocks }) => {
@@ -204,10 +225,18 @@ export default function ConfirmedOrderDetail() {
             </div>
           </div>
           {!showProjectPicker ? (
-            <Button size="sm" variant="outline" className="border-amber-400 text-amber-800 hover:bg-amber-100"
-              onClick={() => setShowProjectPicker(true)}>
-              <Link2 className="w-4 h-4 mr-1.5" /> Mit Projekt-Cockpit verknüpfen
-            </Button>
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" variant="default"
+                disabled={creatingCockpit || createCockpitMutation.isPending}
+                onClick={() => createCockpitMutation.mutate()}>
+                <FolderKanban className="w-4 h-4 mr-1.5" />
+                {createCockpitMutation.isPending ? 'Erstellt…' : 'Neues Cockpit erstellen'}
+              </Button>
+              <Button size="sm" variant="outline" className="border-amber-400 text-amber-800 hover:bg-amber-100"
+                onClick={() => setShowProjectPicker(true)}>
+                <Link2 className="w-4 h-4 mr-1.5" /> Mit bestehendem verknüpfen
+              </Button>
+            </div>
           ) : (
             <ProjectPickerInline
               projects={projects}
