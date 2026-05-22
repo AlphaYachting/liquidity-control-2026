@@ -8,10 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { AlertTriangle, Info, ChevronRight, ChevronLeft, Lightbulb, CheckCircle2, X, RefreshCw, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Info, ChevronRight, ChevronLeft, Lightbulb, CheckCircle2, X, RefreshCw, ShieldAlert, History } from 'lucide-react';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { generateDeterministicBillingSuggestion } from '@/lib/billingSuggestionUtils';
+import { generateDeterministicBillingSuggestion, checkBillingInstructionOverlap } from '@/lib/billingSuggestionUtils';
 
 const BACKOFFICE_USERS = ['Anna', 'Birgit', 'Christine', 'Maria'];
 const INVOICE_TYPE_LABELS = {
@@ -145,16 +145,25 @@ function AiProposalCard({ suggestion, onApplyAll, onApplyTextOnly, onApplyAmount
         <p className="text-xs text-muted-foreground italic">Vorschlag ohne awork/eWork-Daten — geringere Sicherheit.</p>
       )}
 
+      {/* Overlap check results */}
+      {suggestion.overlap_check && (
+        <OverlapCheckPanel overlap={suggestion.overlap_check} />
+      )}
+
       {/* Actions */}
       <div className="flex flex-wrap gap-2 pt-1 border-t border-current/20">
-        <Button size="sm" onClick={onApplyAll} className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700">
+        <Button size="sm" onClick={onApplyAll}
+          disabled={suggestion.overlap_check?.recommendation === 'block'}
+          className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40">
           <CheckCircle2 className="w-3 h-3 mr-1" />
           Alles übernehmen
         </Button>
         <Button size="sm" variant="outline" onClick={onApplyTextOnly} className="h-7 text-xs">
           Nur Text
         </Button>
-        <Button size="sm" variant="outline" onClick={onApplyAmountOnly} className="h-7 text-xs">
+        <Button size="sm" variant="outline" onClick={onApplyAmountOnly}
+          disabled={suggestion.overlap_check?.recommendation === 'block'}
+          className="h-7 text-xs disabled:opacity-40">
           Nur Betrag
         </Button>
         <Button size="sm" variant="ghost" onClick={onRegenerate} className="h-7 text-xs ml-auto">
@@ -166,11 +175,71 @@ function AiProposalCard({ suggestion, onApplyAll, onApplyTextOnly, onApplyAmount
   );
 }
 
+// ── Overlap Check Panel ───────────────────────────────────────────────────────
+function OverlapCheckPanel({ overlap }) {
+  const severityConfig = {
+    none:     { bg: 'bg-emerald-50 border-emerald-200', icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />, label: 'Keine Überschneidungen' },
+    low:      { bg: 'bg-blue-50 border-blue-200',       icon: <Info className="w-3.5 h-3.5 text-blue-600" />,           label: 'Hinweis' },
+    medium:   { bg: 'bg-amber-50 border-amber-200',     icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />, label: 'Warnung' },
+    high:     { bg: 'bg-orange-50 border-orange-200',   icon: <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />,label: 'Starke Warnung' },
+    critical: { bg: 'bg-red-50 border-red-200',         icon: <ShieldAlert className="w-3.5 h-3.5 text-red-600" />,     label: 'Blockiert' },
+  };
+  const cfg = severityConfig[overlap.overlap_severity] || severityConfig.none;
+
+  return (
+    <div className={`rounded-lg border p-3 text-xs space-y-2 ${cfg.bg}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 font-medium">
+          {cfg.icon}
+          <span>Prüfung früherer Abrechnungsanweisungen: {cfg.label}</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-xs">
+        <div><span className="text-muted-foreground">Aktive Anweisungen:</span> <span className="font-medium">{overlap.active_instruction_amount_net > 0 ? formatCurrency(overlap.active_instruction_amount_net) : '—'}</span></div>
+        <div><span className="text-muted-foreground">Höchster Stand:</span> <span className="font-medium">{Math.round(overlap.highest_previous_billing_percent)}%</span></div>
+        <div><span className="text-muted-foreground">Sicher verfügbar:</span> <span className={`font-medium ${overlap.safe_remaining_to_invoice_net <= 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatCurrency(overlap.safe_remaining_to_invoice_net)}</span></div>
+      </div>
+      {overlap.blocking_reasons.map((r, i) => (
+        <div key={i} className="flex gap-1.5 p-1.5 bg-red-100 border border-red-200 rounded text-red-800">
+          <ShieldAlert className="w-3 h-3 flex-shrink-0 mt-0.5 text-red-600" />
+          <span>{r}</span>
+        </div>
+      ))}
+      {overlap.warnings.map((w, i) => (
+        <div key={i} className="flex gap-1.5 text-amber-800">
+          <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5 text-amber-600" />
+          <span>{w}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Main Wizard ───────────────────────────────────────────────────────────────
+const INSTRUCTION_STATUS_LABELS = {
+  draft: 'Entwurf',
+  ready_for_backoffice: 'Bereit',
+  sent_to_backoffice: 'Gesendet',
+  invoice_created: 'Rechnung erstellt',
+  paid: 'Bezahlt',
+  blocked: 'Blockiert',
+  cancelled: 'Storniert',
+};
+const INSTRUCTION_STATUS_COLORS = {
+  draft: 'bg-gray-100 text-gray-600',
+  ready_for_backoffice: 'bg-blue-100 text-blue-700',
+  sent_to_backoffice: 'bg-amber-100 text-amber-700',
+  invoice_created: 'bg-emerald-100 text-emerald-700',
+  paid: 'bg-emerald-200 text-emerald-800',
+  blocked: 'bg-red-100 text-red-700',
+  cancelled: 'bg-gray-100 text-gray-400',
+};
+
 export default function BillingInstructionWizard({
   open, onClose,
   project, fin, aworkTaskStats, projectBlocks,
   linkedOrders,
+  previousInstructions = [],
 }) {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
@@ -311,8 +380,37 @@ export default function BillingInstructionWizard({
     return null;
   }, [totalOrderNet, linkedOrders, openToInvoiceNet]);
 
+  // ── Previous instructions (non-cancelled) ───────────────────────────────────
+  const activePreviousInstructions = useMemo(() =>
+    previousInstructions.filter(i => i.status !== 'cancelled'),
+  [previousInstructions]);
+
+  const previousInstructionsSummary = useMemo(() => {
+    const activeStatuses = ['draft', 'ready_for_backoffice', 'sent_to_backoffice'];
+    const active = activePreviousInstructions.filter(i => activeStatuses.includes(i.status) && !i.linked_invoice_id);
+    const invoiced = activePreviousInstructions.filter(i => ['invoice_created', 'paid'].includes(i.status));
+    return {
+      total_previous_instruction_amount_net: activePreviousInstructions.reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0),
+      total_open_instruction_amount_net: active.reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0),
+      total_invoiced_instruction_amount_net: invoiced.reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0),
+      highest_previous_billing_percent: activePreviousInstructions.reduce((max, i) => Math.max(max, Number(i.new_billing_percent) || 0), 0),
+      active_instruction_count: active.length,
+      draft_instruction_count: activePreviousInstructions.filter(i => i.status === 'draft').length,
+      ready_for_backoffice_count: activePreviousInstructions.filter(i => i.status === 'ready_for_backoffice').length,
+      sent_to_backoffice_count: activePreviousInstructions.filter(i => i.status === 'sent_to_backoffice').length,
+      invoice_created_count: activePreviousInstructions.filter(i => i.status === 'invoice_created').length,
+      paid_count: activePreviousInstructions.filter(i => i.status === 'paid').length,
+    };
+  }, [activePreviousInstructions]);
+
   // ── AI Suggestion generation ─────────────────────────────────────────────────
   function handleGenerateSuggestion() {
+    const vatRate = Number(form.vat_rate) || 20;
+    const reqNewPct = parseFloat(form.new_billing_percent) || 0;
+    const reqAddPct = parseFloat(form.additional_billing_percent) || 0;
+    const requestedNewPct = reqNewPct || (prevBillingPercent + reqAddPct);
+    const requestedAmountNet = instructionType === 'manual_amount' ? (parseFloat(form.instruction_amount_net) || 0) : 0;
+
     const ctx = {
       instruction_type: instructionType,
       total_order_net: totalOrderNet,
@@ -328,14 +426,49 @@ export default function BillingInstructionWizard({
       overdue_invoices_count: overdueInvoices.length,
       awork_tasks_blocked: aworkTasksBlocked,
       project_risk_status: project?.risk_status || 'none',
-      manual_amount_input: instructionType === 'manual_amount' ? (parseFloat(form.instruction_amount_net) || null) : null,
-      manual_percent_input: instructionType === 'percentage_based' ? (parseFloat(form.additional_billing_percent) || null) : null,
-      vat_rate: Number(form.vat_rate) || 20,
+      manual_amount_input: requestedAmountNet || null,
+      manual_percent_input: reqAddPct || null,
+      vat_rate: vatRate,
       customer_name: project?.customer || '',
       project_name: project?.project_name || '',
       has_awork_data: hasAworkData,
     };
+
+    // Generate initial deterministic suggestion
     const suggestion = generateDeterministicBillingSuggestion(ctx);
+
+    // Run overlap check
+    const overlapCtx = {
+      instruction_type: instructionType,
+      total_order_net: totalOrderNet,
+      open_to_invoice_net: openToInvoiceNet,
+      previous_billing_percent: prevBillingPercent,
+      selected_billing_block_id: selectedBlock?.id || null,
+      requested_amount_net: suggestion.suggested_amount_net || requestedAmountNet,
+      requested_new_billing_percent: suggestion.suggested_new_billing_percent || requestedNewPct,
+      suggested_invoice_reason: suggestion.suggested_invoice_reason,
+      suggested_invoice_instruction_text: suggestion.suggested_invoice_instruction_text,
+      previousInstructions: activePreviousInstructions,
+      existingInvoices: allInvoices,
+      projectBlocks,
+    };
+    const overlap = checkBillingInstructionOverlap(overlapCtx);
+    suggestion.overlap_check = overlap;
+
+    // Apply overlap result to suggestion
+    if (overlap.recommendation === 'block') {
+      suggestion.confidence_level = 'low';
+      suggestion.confidence_score = Math.min(suggestion.confidence_score, 10);
+      suggestion.suggested_amount_net = 0;
+      suggestion.suggested_amount_gross = null;
+      suggestion.suggested_additional_billing_percent = 0;
+      suggestion.suggested_new_billing_percent = prevBillingPercent;
+      overlap.blocking_reasons.forEach(r => suggestion.risk_flags.push('overlap_blocked'));
+    } else if (overlap.recommendation === 'warn') {
+      suggestion.confidence_score = Math.max(5, suggestion.confidence_score - 20);
+      suggestion.confidence_level = suggestion.confidence_score >= 70 ? 'high' : suggestion.confidence_score >= 40 ? 'medium' : 'low';
+    }
+
     setAiSuggestion(suggestion);
   }
 
@@ -436,6 +569,14 @@ export default function BillingInstructionWizard({
 
   // ── Snapshot ─────────────────────────────────────────────────────────────────
   function buildSnapshot() {
+    const blockInstructions = selectedBlock
+      ? activePreviousInstructions.filter(i => i.billing_block_id === selectedBlock.id)
+      : [];
+    const blockInvoiced = selectedBlock
+      ? allInvoices.filter(i => i.billing_block_id === selectedBlock.id && !i.is_credit_note)
+          .reduce((s, i) => s + (Number(i.net_amount) || 0), 0)
+      : 0;
+
     return JSON.stringify({
       snapshot_at: new Date().toISOString(),
       total_order_net: totalOrderNet,
@@ -458,6 +599,27 @@ export default function BillingInstructionWizard({
       instruction_type: instructionType,
       selected_billing_block_id: selectedBlock?.id || null,
       selected_billing_block_title: selectedBlock?.title || null,
+      // Previous instructions context (for future LLM)
+      previous_instructions_summary: previousInstructionsSummary,
+      previous_instruction_items: activePreviousInstructions.map(i => ({
+        id: i.id,
+        status: i.status,
+        amount_net: i.instruction_amount_net,
+        additional_billing_percent: i.additional_billing_percent,
+        new_billing_percent: i.new_billing_percent,
+        billing_block_id: i.billing_block_id,
+        invoice_type: i.invoice_type,
+        planned_invoice_date: i.planned_invoice_date,
+        reason_short: (i.invoice_reason || '').slice(0, 80),
+        linked_invoice_id: i.linked_invoice_id,
+      })),
+      block_instruction_summary: selectedBlock ? {
+        block_amount_net: Number(selectedBlock.amount_net) || 0,
+        previous_instruction_amount_net_for_block: blockInstructions.reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0),
+        previous_invoice_amount_net_for_block: blockInvoiced,
+        remaining_block_amount_net: Math.max(0, (Number(selectedBlock.amount_net) || 0) - blockInvoiced),
+        active_instruction_exists_for_block: blockInstructions.some(i => ['draft','ready_for_backoffice','sent_to_backoffice'].includes(i.status)),
+      } : null,
     });
   }
 
@@ -682,6 +844,11 @@ export default function BillingInstructionWizard({
               </div>
             </div>
 
+            {/* Previous Instructions Panel */}
+            {activePreviousInstructions.length > 0 && (
+              <PreviousInstructionsPanel instructions={activePreviousInstructions} summary={previousInstructionsSummary} />
+            )}
+
             {/* AI Suggestion Section */}
             <AiSuggestionSection
               aiDisabledReason={aiDisabledReason}
@@ -727,6 +894,11 @@ export default function BillingInstructionWizard({
                 <SelectContent>{Object.entries(INVOICE_TYPE_LABELS).map(([v, l]) => <SelectItem key={v} value={v} className="text-xs">{l}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+
+            {/* Previous Instructions Panel */}
+            {activePreviousInstructions.length > 0 && (
+              <PreviousInstructionsPanel instructions={activePreviousInstructions} summary={previousInstructionsSummary} />
+            )}
 
             {/* AI Suggestion Section */}
             <AiSuggestionSection
@@ -851,6 +1023,72 @@ export default function BillingInstructionWizard({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── Previous Instructions Panel ──────────────────────────────────────────────
+function PreviousInstructionsPanel({ instructions, summary }) {
+  const [expanded, setExpanded] = useState(false);
+  const activeCount = summary.active_instruction_count;
+
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 overflow-hidden">
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-1.5">
+          <History className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="font-medium text-foreground">Bestehende Abrechnungsanweisungen</span>
+          <Badge variant="outline" className="text-xs py-0">{instructions.length}</Badge>
+          {activeCount > 0 && (
+            <Badge className="text-xs py-0 bg-amber-100 text-amber-700 border-amber-200">{activeCount} aktiv</Badge>
+          )}
+        </div>
+        <span className="text-muted-foreground">{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {/* Summary strip always visible */}
+      <div className="grid grid-cols-3 gap-0 border-t text-xs">
+        <div className="px-3 py-1.5 border-r">
+          <p className="text-muted-foreground">Offen in Anweisungen</p>
+          <p className="font-semibold text-amber-600">{formatCurrency(summary.total_open_instruction_amount_net)}</p>
+        </div>
+        <div className="px-3 py-1.5 border-r">
+          <p className="text-muted-foreground">Höchster Stand</p>
+          <p className="font-semibold">{Math.round(summary.highest_previous_billing_percent)}%</p>
+        </div>
+        <div className="px-3 py-1.5">
+          <p className="text-muted-foreground">Bereits fakturiert</p>
+          <p className="font-semibold text-emerald-600">{formatCurrency(summary.total_invoiced_instruction_amount_net)}</p>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="border-t divide-y">
+          {instructions.map(instr => (
+            <div key={instr.id} className="px-3 py-2 text-xs grid grid-cols-5 gap-2 items-start">
+              <div>
+                <Badge className={`text-xs py-0 ${INSTRUCTION_STATUS_COLORS[instr.status] || 'bg-gray-100 text-gray-600'}`}>
+                  {INSTRUCTION_STATUS_LABELS[instr.status] || instr.status}
+                </Badge>
+              </div>
+              <div>
+                <p className="font-medium">{formatCurrency(instr.instruction_amount_net)}</p>
+                <p className="text-muted-foreground">{Math.round(instr.additional_billing_percent || 0)}% → {Math.round(instr.new_billing_percent || 0)}%</p>
+              </div>
+              <div className="text-muted-foreground">
+                {instr.planned_invoice_date || '—'}
+              </div>
+              <div className="col-span-2 text-muted-foreground truncate">
+                {(instr.invoice_reason || '').slice(0, 60) || '—'}
+                {instr.linked_invoice_id && <span className="ml-1 text-emerald-600">✓ Rechnung</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

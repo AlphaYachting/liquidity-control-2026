@@ -268,6 +268,204 @@ export function generateDeterministicBillingSuggestion(ctx) {
 }
 
 /**
+ * checkBillingInstructionOverlap
+ *
+ * Checks whether a new billing suggestion would overlap with existing instructions.
+ * Must be called before finalizing any suggestion.
+ *
+ * @param {Object} ctx
+ * @returns {Object} overlap result
+ */
+export function checkBillingInstructionOverlap(ctx) {
+  const {
+    instruction_type,
+    total_order_net = 0,
+    open_to_invoice_net = 0,
+    previous_billing_percent = 0,
+    selected_billing_block_id = null,
+    requested_amount_net = 0,
+    requested_new_billing_percent = 0,
+    suggested_invoice_reason = '',
+    suggested_invoice_instruction_text = '',
+    previousInstructions = [],   // all non-cancelled instructions for this project/order
+    existingInvoices = [],       // linked InvoiceRecords
+    projectBlocks = [],
+  } = ctx;
+
+  const result = {
+    has_overlap: false,
+    overlap_severity: 'none',
+    overlap_type: [],
+    blocking_reasons: [],
+    warnings: [],
+    safe_remaining_to_invoice_net: open_to_invoice_net,
+    safe_remaining_percent: total_order_net > 0 ? (open_to_invoice_net / total_order_net) * 100 : 0,
+    highest_previous_billing_percent: 0,
+    active_instruction_amount_net: 0,
+    recommendation: 'allow',
+  };
+
+  const activeStatuses = ['draft', 'ready_for_backoffice', 'sent_to_backoffice'];
+  const completedStatuses = ['invoice_created', 'paid'];
+
+  // ── Aggregate previous instructions ────────────────────────────────────────
+  const activeInstructions = previousInstructions.filter(i => activeStatuses.includes(i.status) && !i.linked_invoice_id);
+  const completedInstructions = previousInstructions.filter(i => completedStatuses.includes(i.status));
+
+  const activeInstructionAmountNet = activeInstructions.reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0);
+  result.active_instruction_amount_net = activeInstructionAmountNet;
+
+  const highestBillingPct = previousInstructions.reduce((max, i) => {
+    const pct = Number(i.new_billing_percent) || 0;
+    return pct > max ? pct : max;
+  }, 0);
+  result.highest_previous_billing_percent = highestBillingPct;
+
+  // Safe remaining = open_to_invoice - active uninvoiced instructions
+  const safeRemaining = Math.max(0, open_to_invoice_net - activeInstructionAmountNet);
+  result.safe_remaining_to_invoice_net = safeRemaining;
+  result.safe_remaining_percent = total_order_net > 0 ? (safeRemaining / total_order_net) * 100 : 0;
+
+  let severity = 'none';
+  const setSeverity = (s) => {
+    const order = ['none', 'low', 'medium', 'high', 'critical'];
+    if (order.indexOf(s) > order.indexOf(severity)) severity = s;
+  };
+
+  // ── 1. Draft instruction already exists ─────────────────────────────────────
+  const draftExists = previousInstructions.some(i => i.status === 'draft');
+  if (draftExists) {
+    result.overlap_type.push('draft_exists');
+    result.warnings.push('Es existiert bereits eine Entwurfs-Abrechnungsanweisung für dieses Projekt. Bitte prüfen.');
+    setSeverity('low');
+  }
+
+  // ── 2. Sent to backoffice ─────────────────────────────────────────────────
+  const sentExists = previousInstructions.some(i => i.status === 'sent_to_backoffice');
+  if (sentExists) {
+    result.overlap_type.push('sent_to_backoffice_exists');
+    result.warnings.push('Es gibt eine bereits ans Backoffice gesendete Anweisung. Neue Anweisung erst nach Klärung erstellen.');
+    setSeverity('medium');
+  }
+
+  // ── 3. Percentage range overlap ──────────────────────────────────────────────
+  if (instruction_type === 'percentage_based' && requested_new_billing_percent > 0) {
+    if (requested_new_billing_percent <= highestBillingPct) {
+      result.overlap_type.push('same_percentage_range');
+      result.blocking_reasons.push(
+        `Dieser Abrechnungsstand (${Math.round(requested_new_billing_percent)}%) wurde bereits in einer früheren Anweisung erreicht oder überschritten (höchster Stand: ${Math.round(highestBillingPct)}%).`
+      );
+      setSeverity('critical');
+    } else if (requested_new_billing_percent - previous_billing_percent > result.safe_remaining_percent + 5) {
+      result.overlap_type.push('amount_exceeds_remaining_after_instructions');
+      result.warnings.push(
+        `Der gewünschte Abrechnungsanteil überschreitet den sicher verfügbaren Betrag nach Berücksichtigung bestehender Anweisungen.`
+      );
+      setSeverity('high');
+    }
+  }
+
+  // ── 4. Order fully instructed ────────────────────────────────────────────────
+  if (safeRemaining <= 0 && activeInstructionAmountNet > 0) {
+    result.overlap_type.push('order_already_fully_instructed');
+    result.blocking_reasons.push(
+      `Der gesamte offene Abrechnungsbetrag ist bereits durch bestehende Anweisungen abgedeckt (${fmtEur(activeInstructionAmountNet)} in aktiven Anweisungen).`
+    );
+    setSeverity('critical');
+  }
+
+  // ── 5. Package-based checks ──────────────────────────────────────────────────
+  if (instruction_type === 'package_based' && selected_billing_block_id) {
+    const block = projectBlocks.find(b => b.id === selected_billing_block_id);
+    const blockActiveInstructions = activeInstructions.filter(i => i.billing_block_id === selected_billing_block_id);
+    const blockInvoicedAmount = existingInvoices
+      .filter(i => i.billing_block_id === selected_billing_block_id && !i.is_credit_note)
+      .reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+
+    if (blockActiveInstructions.length > 0) {
+      result.overlap_type.push('same_block_active_instruction');
+      result.blocking_reasons.push(
+        `Für dieses Leistungspaket existiert bereits eine offene Abrechnungsanweisung (Status: ${blockActiveInstructions[0].status}).`
+      );
+      setSeverity('critical');
+    }
+
+    if (block && blockInvoicedAmount >= (Number(block.amount_net) || 0) * 0.99) {
+      result.overlap_type.push('block_already_fully_instructed');
+      result.blocking_reasons.push('Dieses Leistungspaket wurde bereits vollständig abgerechnet.');
+      setSeverity('critical');
+    }
+  }
+
+  // ── 6. Manual amount exceeds safe remaining ───────────────────────────────────
+  if (instruction_type === 'manual_amount' && requested_amount_net > 0) {
+    if (requested_amount_net > safeRemaining) {
+      result.overlap_type.push('amount_exceeds_remaining_after_instructions');
+      if (safeRemaining <= 0) {
+        result.blocking_reasons.push(
+          `Der offene abrechenbare Betrag ist bereits durch bestehende Anweisungen abgedeckt.`
+        );
+        setSeverity('critical');
+      } else {
+        result.warnings.push(
+          `Der Betrag (${fmtEur(requested_amount_net)}) überschreitet den sicher verbleibenden Betrag (${fmtEur(safeRemaining)}) nach Abzug bestehender Anweisungen.`
+        );
+        setSeverity('high');
+      }
+    }
+  }
+
+  // ── 7. Reason/text similarity check ──────────────────────────────────────────
+  if (suggested_invoice_reason || suggested_invoice_instruction_text) {
+    const normalizeText = (t) => (t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const currentReasonNorm = normalizeText(suggested_invoice_reason);
+    const currentTextNorm = normalizeText(suggested_invoice_instruction_text);
+
+    for (const prev of previousInstructions) {
+      const prevReasonNorm = normalizeText(prev.invoice_reason);
+      const prevTextNorm = normalizeText(prev.invoice_instruction_text);
+      if (!prevReasonNorm && !prevTextNorm) continue;
+
+      // Exact match
+      const reasonExact = currentReasonNorm && prevReasonNorm && currentReasonNorm === prevReasonNorm;
+      const textExact = currentTextNorm && prevTextNorm && currentTextNorm === prevTextNorm;
+
+      // Amount similarity ±5%
+      const prevAmt = Number(prev.instruction_amount_net) || 0;
+      const amountSimilar = prevAmt > 0 && requested_amount_net > 0 &&
+        Math.abs(prevAmt - requested_amount_net) / prevAmt < 0.05;
+
+      if (reasonExact || textExact || amountSimilar) {
+        if (!result.overlap_type.includes('duplicate_reason')) {
+          result.overlap_type.push('duplicate_reason');
+          result.warnings.push(
+            'Der vorgeschlagene Abrechnungsgrund ähnelt einer früheren Anweisung. Bitte prüfen, ob dies wirklich ein neuer Leistungsstand ist.'
+          );
+          setSeverity('medium');
+        }
+        break;
+      }
+    }
+  }
+
+  // ── Finalize ────────────────────────────────────────────────────────────────
+  result.overlap_severity = severity;
+  result.has_overlap = severity !== 'none';
+
+  if (result.blocking_reasons.length > 0) {
+    result.recommendation = 'block';
+  } else if (severity === 'high' || severity === 'medium') {
+    result.recommendation = 'warn';
+  } else if (severity === 'low') {
+    result.recommendation = 'warn';
+  } else {
+    result.recommendation = 'allow';
+  }
+
+  return result;
+}
+
+/**
  * Build German text templates for invoice_reason and invoice_instruction_text
  */
 function _buildTexts(result, additionalPct, prevPct, amountNet, type, ctx) {

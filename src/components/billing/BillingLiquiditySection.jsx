@@ -156,6 +156,7 @@ export default function BillingLiquiditySection({
         aworkTaskStats={aworkTaskStats}
         projectBlocks={projectBlocks}
         linkedOrders={linkedOrders}
+        previousInstructions={projectInstructions}
       />
     </Card>
   );
