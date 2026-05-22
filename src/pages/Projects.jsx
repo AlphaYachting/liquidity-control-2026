@@ -36,6 +36,17 @@ export default function Projects() {
     queryKey: ['billingBlocks'], queryFn: () => base44.entities.ProjectBillingBlock.list()
   });
 
+  const { data: aworkSnapshots = [] } = useQuery({
+    queryKey: ['aworkSnapshots'], queryFn: () => base44.entities.AworkProjectSnapshot.list()
+  });
+
+  // Map awork_project_id -> snapshot for fast lookup
+  const aworkSnapshotMap = useMemo(() => {
+    const map = {};
+    aworkSnapshots.forEach(s => { map[s.awork_project_id] = s; });
+    return map;
+  }, [aworkSnapshots]);
+
   // Per-project financials using shared helper — allBlocks now passed correctly
   const projectFinancialsMap = useMemo(() => {
     const map = {};
@@ -93,15 +104,27 @@ export default function Projects() {
     { key: 'total_net_amount', label: 'Gesamt netto', render: (v) => formatCurrency(v), cellClass: 'text-right font-medium' },
     { key: '_invoiced', label: 'Verrechnet netto', render: (v) => <span className={Number(v) > 0 ? 'text-green-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
     { key: '_open', label: 'Noch zu verr.', render: (v) => <span className={Number(v) > 0 ? 'text-amber-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
-    { key: '_awork', label: 'awork', width: '110px', render: (_, row) => {
+    { key: '_awork', label: 'awork / Stunden', width: '160px', render: (_, row) => {
         if (!row.awork_project_id) return <span className="text-xs text-muted-foreground">—</span>;
         const pct = row.awork_progress_percent ?? 0;
+        const snap = aworkSnapshotMap[row.awork_project_id];
+        const budgetH = snap?.time_budget_minutes > 0 ? (snap.time_budget_minutes / 60).toFixed(1) : null;
+        const trackedH = snap?.tracked_duration_minutes > 0 ? (snap.tracked_duration_minutes / 60).toFixed(1) : null;
         return (
-          <div className="flex items-center gap-1.5">
-            <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5">
+              <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="text-xs font-medium text-blue-700">{pct}%</span>
             </div>
-            <span className="text-xs font-medium text-blue-700">{pct}%</span>
+            {(trackedH || budgetH) && (
+              <div className="text-xs text-muted-foreground">
+                {trackedH && <span className="text-emerald-700">{trackedH}h</span>}
+                {trackedH && budgetH && <span> / </span>}
+                {budgetH && <span>{budgetH}h</span>}
+              </div>
+            )}
           </div>
         );
       }
