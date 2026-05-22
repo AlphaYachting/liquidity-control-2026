@@ -153,6 +153,29 @@
     "source_snapshot_json": {
       "type": "string",
       "description": "JSON snapshot of financial state at instruction creation time"
+    },
+    "ai_generated": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if the instruction content was generated or assisted by AI/deterministic suggestion"
+    },
+    "ai_suggestion_json": {
+      "type": "string",
+      "description": "JSON of the AI/deterministic suggestion output that was applied"
+    },
+    "ai_applied_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the AI suggestion was applied by the PM"
+    },
+    "ai_applied_by": {
+      "type": "string",
+      "description": "Email or name of the PM who applied the suggestion"
+    },
+    "ai_modified_after_apply": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if the PM manually edited fields after applying the AI suggestion"
     }
   },
   "required": [
