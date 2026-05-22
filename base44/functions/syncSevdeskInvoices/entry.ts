@@ -14,7 +14,7 @@ function mapInvoiceStatus(invoice) {
   const status = invoice.status;
   if (status === '200') return 'open';
   if (status === '1000') return 'paid';
-  if (status === '100') return 'open'; // draft
+  if (status === '100') return 'open';
   if (status === '50') return 'cancelled';
   return 'open';
 }
@@ -33,16 +33,25 @@ Deno.serve(async (req) => {
     if (!apiKey) return Response.json({ error: 'SEVDESK_API_KEY not set' }, { status: 500 });
 
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
-    const limit = body.limit || 100;
-    const offset = body.offset || 0;
+    const limit = body.limit || 500;
+    const year = body.year || null; // e.g. 2026
 
     // Fetch invoices from sevDesk
     const data = await sevdeskGet(
-      `/Invoice?limit=${limit}&offset=${offset}&embed=contact&orderBy=invoiceDate&orderDirection=desc`,
+      `/Invoice?limit=${limit}&offset=0&embed=contact&orderBy=invoiceDate&orderDirection=desc`,
       apiKey
     );
 
-    const invoices = data.objects || [];
+    let invoices = data.objects || [];
+
+    // Filter by year if provided
+    if (year) {
+      invoices = invoices.filter(inv => {
+        const d = inv.invoiceDate || '';
+        return d.startsWith(String(year));
+      });
+    }
+
     let created = 0;
     let updated = 0;
     let failed = 0;
@@ -50,24 +59,23 @@ Deno.serve(async (req) => {
     for (const inv of invoices) {
       try {
         const sevdeskId = String(inv.id);
-        
-        // Check if already exists
+
         const existing = await base44.asServiceRole.entities.InvoiceRecord.filter({ sevdesk_id: sevdeskId });
-        
+
         const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
         const dueDate = inv.payDate ? inv.payDate.substring(0, 10) : null;
         const paymentDate = inv.entryDate ? inv.entryDate.substring(0, 10) : null;
-        
+
         const netAmount = parseAmount(inv.sumNet);
         const grossAmount = parseAmount(inv.sumGross);
         const vatAmount = parseAmount(inv.sumTax);
         const paidAmount = parseAmount(inv.sumGrossPay || '0');
-        
+
         const invoiceType = inv.invoiceType === 'AN' ? 'advance_invoice' :
                             inv.invoiceType === 'RE' ? 'partial_invoice' : 'final_invoice';
 
         const paymentStatus = mapInvoiceStatus(inv);
-        
+
         const record = {
           invoice_number: inv.invoiceNumber || '',
           invoice_date: invoiceDate,
