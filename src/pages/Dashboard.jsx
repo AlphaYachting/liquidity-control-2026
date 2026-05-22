@@ -9,6 +9,7 @@ import PipelineChart from '@/components/dashboard/PipelineChart';
 import AgingChart from '@/components/dashboard/AgingChart';
 import ToolCostChart from '@/components/dashboard/ToolCostChart';
 import RiskTimeline from '@/components/dashboard/RiskTimeline';
+import LiquidityTrendChart from '@/components/dashboard/LiquidityTrendChart';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
@@ -120,6 +121,7 @@ export default function Dashboard() {
         <AgingChart receivables={receivables} />
         <ToolCostChart tools={tools} />
       </div>
+      <LiquidityTrendChart orders={allOrders} blocks={allBlocks} invoices={invoices} />
       <RiskTimeline planLines={planLines} />
     </div>
   );
