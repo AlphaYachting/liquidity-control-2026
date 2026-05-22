@@ -116,15 +116,26 @@ export default function AworkStatusBar({ order, data, taskStats, snapshot, onSel
       </div>
 
       {/* Progress bar */}
-      <div className="space-y-1">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-blue-800 font-medium">Fortschritt</span>
-          <span className="text-blue-900 font-bold">{progressPct}%</span>
-        </div>
-        <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
-          <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${Math.min(100, progressPct)}%` }} />
-        </div>
-      </div>
+      {(() => {
+        const budgetPct = budgetMinutes > 0 ? Math.min(100, Math.round((trackedMinutes / budgetMinutes) * 100)) : null;
+        const barPct = budgetPct ?? progressPct;
+        const barColor = budgetPct !== null
+          ? budgetPct >= 90 ? 'bg-red-500' : budgetPct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'
+          : 'bg-blue-500';
+        const barLabel = budgetPct !== null ? 'Budget verbraucht' : 'Fortschritt';
+        const barValue = budgetPct !== null ? `${budgetPct}%` : `${progressPct}%`;
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-blue-800 font-medium">{barLabel}</span>
+              <span className="text-blue-900 font-bold">{barValue}</span>
+            </div>
+            <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
+              <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${Math.min(100, barPct)}%` }} />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Stats row */}
       <div className="flex items-center gap-4 text-xs flex-wrap">
