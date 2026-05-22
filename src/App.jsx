@@ -29,6 +29,7 @@ import AworkSettings from '@/pages/AworkSettings';
 import AworkMappingReview from '@/pages/AworkMappingReview';
 import PaymentConsistencyCheck from '@/pages/PaymentConsistencyCheck';
 import SevdeskSettings from '@/pages/SevdeskSettings';
+import CashflowAdvisor from '@/pages/CashflowAdvisor';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -78,6 +79,7 @@ const AuthenticatedApp = () => {
         <Route path="/awork-mapping" element={<AworkMappingReview />} />
         <Route path="/payment-consistency" element={<PaymentConsistencyCheck />} />
         <Route path="/sevdesk-settings" element={<SevdeskSettings />} />
+        <Route path="/cashflow-advisor" element={<CashflowAdvisor />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

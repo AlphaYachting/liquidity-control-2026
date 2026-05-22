@@ -4,7 +4,7 @@ import {
   LayoutDashboard, FolderKanban, Megaphone, Shield, Wrench,
   CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
-  ClipboardList, GitMerge, CalendarCheck, Zap, Map
+  ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -22,6 +22,7 @@ const navItems = [
   { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
   { path: '/invoice-ready', label: 'Abrechnungsanweisungen', icon: CheckSquare },
   { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
+  { path: '/cashflow-advisor', label: 'Cashflow Berater', icon: BrainCircuit },
   { path: '/import', label: 'Import Center', icon: Upload },
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/awork-settings', label: 'awork Integration', icon: Zap },
