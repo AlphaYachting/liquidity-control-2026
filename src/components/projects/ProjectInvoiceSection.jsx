@@ -147,11 +147,7 @@ export default function ProjectInvoiceSection({
                         <p className="font-medium">{inv.invoice_number || '—'}</p>
                         <p className="text-xs text-muted-foreground">{inv.invoice_date || ''}</p>
                         {inv.is_credit_note && <Badge className="text-xs bg-purple-100 text-purple-700">Gutschrift</Badge>}
-                        {ep.usedFallback && (
-                          <Badge className="text-xs bg-blue-50 text-blue-700 border border-blue-200 mt-0.5 block w-fit">
-                            Bezahlt laut Status
-                          </Badge>
-                        )}
+
                       </td>
                       <td className="py-2 pl-2 text-xs text-muted-foreground">{inv.invoice_type?.replace(/_/g, ' ') || '—'}</td>
                       <td className="py-2 text-right font-semibold">{formatCurrency(inv.net_amount)}</td>
