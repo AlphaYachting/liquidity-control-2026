@@ -18,14 +18,16 @@ const CATEGORY_COLORS = {
   'Marketing': '#3b82f6',
   'Positionierung': '#8b5cf6',
   'Grafik & Design': '#f59e0b',
-  'Webdesign & Online-Marketing': '#10b981',
+  'Webdesign': '#10b981',
+  'Online-Marketing': '#ef4444',
 };
 
 const CATEGORY_ICONS = {
   'Marketing': '📣',
   'Positionierung': '🎯',
   'Grafik & Design': '🎨',
-  'Webdesign & Online-Marketing': '🌐',
+  'Webdesign': '🌐',
+  'Online-Marketing': '📈',
 };
 
 const STATUS_LABELS = {

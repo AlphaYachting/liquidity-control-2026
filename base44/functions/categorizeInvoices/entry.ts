@@ -1,13 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-const CATEGORIES = ['Marketing', 'Positionierung', 'Grafik & Design', 'Webdesign & Online-Marketing'];
+const CATEGORIES = ['Marketing', 'Positionierung', 'Grafik & Design', 'Webdesign', 'Online-Marketing'];
 
 const SYSTEM_PROMPT = `Du bist ein Experte für die Kategorisierung von Agenturleistungen.
 Ordne jede Rechnung GENAU EINER der folgenden Kategorien zu:
 - Marketing: allgemeine Marketingmaßnahmen, Kampagnen, Werbung, Social Media, Content
 - Positionierung: Strategie, Branding, Markenentwicklung, Unternehmensberatung, Kommunikationsstrategie
 - Grafik & Design: Grafikdesign, Corporate Design, Logo, Print, Illustration, Fotografie
-- Webdesign & Online-Marketing: Website, Web-Entwicklung, SEO, SEA, Google Ads, Newsletter, E-Mail-Marketing, Hosting, Lizenzen, CMS
+- Webdesign: Website, Web-Entwicklung, CMS, Hosting, Lizenzen, Wartung von Websites
+- Online-Marketing: SEO, SEA, Google Ads, Newsletter, E-Mail-Marketing, Social Media Ads, Performance Marketing
 
 Antworte NUR mit einem validen JSON-Array. Für jede Rechnung gib id, category und confidence (0-100) zurück.`;
 
