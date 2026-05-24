@@ -6,10 +6,9 @@ import PageHeader from '@/components/shared/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-function fmtH(minutes) {
-  if (!minutes) return '—';
-  const h = (minutes / 60).toFixed(1);
-  return `${h}h`;
+function fmtH(hours) {
+  if (!hours) return '—';
+  return `${Number(hours).toFixed(1)}h`;
 }
 
 function BudgetBar({ pct }) {
@@ -75,34 +74,39 @@ export default function AworkCostIndex() {
         return true;
       })
       .map(s => {
-        // Stunden direkt aus dem raw_payload lesen (Sekunden → Minuten)
-        // Das vermeidet Inkonsistenzen durch verschiedene Sync-Versionen in der DB
-        let trackedMin = s.tracked_duration_minutes ?? 0;
-        let budgetMin = s.time_budget_minutes ?? 0;
+        // Stunden direkt aus dem raw_payload lesen (Sekunden → Stunden)
+        // DB-Werte sind unzuverlässig (teils Sekunden, teils Minuten je nach Sync-Version)
+        let trackedH = 0;
+        let budgetH = 0;
         try {
           if (s.raw_payload) {
             const raw = typeof s.raw_payload === 'string' ? JSON.parse(s.raw_payload) : s.raw_payload;
-            if (typeof raw.trackedDuration === 'number') trackedMin = Math.round(raw.trackedDuration / 60);
-            if (typeof raw.timeBudget === 'number') budgetMin = Math.round(raw.timeBudget / 60);
+            if (typeof raw.trackedDuration === 'number') trackedH = raw.trackedDuration / 3600;
+            if (typeof raw.timeBudget === 'number') budgetH = raw.timeBudget / 3600;
           }
-        } catch (_) { /* raw_payload nicht parsebar, DB-Wert verwenden */ }
-        const budgetPct = budgetMin > 0 ? Math.round((trackedMin / budgetMin) * 100) : null;
+        } catch (_) {
+          // Fallback: DB-Wert als Minuten interpretieren
+          trackedH = (s.tracked_duration_minutes ?? 0) / 60;
+          budgetH = (s.time_budget_minutes ?? 0) / 60;
+        }
+        if (trackedH === 0) trackedH = (s.tracked_duration_minutes ?? 0) / 60;
+        if (budgetH === 0) budgetH = (s.time_budget_minutes ?? 0) / 60;
+        const budgetPct = budgetH > 0 ? Math.round((trackedH / budgetH) * 100) : null;
 
-        // Mitarbeiter-Verteilung aus den synced TimeEntries
+        // Mitarbeiter-Verteilung aus den synced TimeEntries (duration_minutes → Stunden)
         const byUser = timeByProject[s.awork_project_id]?.byUser ?? {};
         const topUsers = Object.entries(byUser)
-          .map(([name, minutes]) => ({ name, minutes }))
-          .sort((a, b) => b.minutes - a.minutes);
-        // Summe der TimeEntries (für %-Basis im Detail) — kann von Snapshot abweichen wenn nicht alle Einträge geladen
-        const timeEntryTotal = topUsers.reduce((sum, u) => sum + u.minutes, 0);
+          .map(([name, minutes]) => ({ name, hours: minutes / 60 }))
+          .sort((a, b) => b.hours - a.hours);
+        const timeEntryTotalH = topUsers.reduce((sum, u) => sum + u.hours, 0);
 
         return {
           ...s,
-          trackedMin,
-          budgetMin,
+          trackedH,
+          budgetH,
           budgetPct,
           topUsers,
-          timeEntryTotal,
+          timeEntryTotalH,
           isOverrun: budgetPct !== null && budgetPct >= 100,
         };
       });
@@ -118,7 +122,7 @@ export default function AworkCostIndex() {
         return b.budgetPct - a.budgetPct;
       });
     } else if (sortBy === 'tracked') {
-      list = [...list].sort((a, b) => b.trackedMin - a.trackedMin);
+      list = [...list].sort((a, b) => b.trackedH - a.trackedH);
     } else {
       list = [...list].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
     }
@@ -127,8 +131,8 @@ export default function AworkCostIndex() {
 
   const overrunCount = projects.filter(p => p.isOverrun).length;
   const warnCount = projects.filter(p => p.budgetPct !== null && p.budgetPct >= 80 && p.budgetPct < 100).length;
-  const totalTrackedH = (projects.reduce((s, p) => s + p.trackedMin, 0) / 60).toFixed(0);
-  const totalBudgetH = (projects.reduce((s, p) => s + p.budgetMin, 0) / 60).toFixed(0);
+  const totalTrackedH = projects.reduce((s, p) => s + p.trackedH, 0).toFixed(0);
+  const totalBudgetH = projects.reduce((s, p) => s + p.budgetH, 0).toFixed(0);
 
   if (isLoading) return (
     <div className="space-y-4">
@@ -247,17 +251,17 @@ export default function AworkCostIndex() {
                       </span>
                     )}
                   </div>
-                  {p.budgetMin > 0 && <BudgetBar pct={pct ?? 0} />}
+                  {p.budgetH > 0 && <BudgetBar pct={pct ?? 0} />}
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 flex-shrink-0 text-right ml-4">
                   <div>
                     <p className="text-xs text-muted-foreground">Erfasst</p>
-                    <p className="text-sm font-semibold">{fmtH(p.trackedMin)}</p>
+                    <p className="text-sm font-semibold">{fmtH(p.trackedH)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Budget</p>
-                    <p className="text-sm font-medium">{p.budgetMin > 0 ? fmtH(p.budgetMin) : '—'}</p>
+                    <p className="text-sm font-medium">{p.budgetH > 0 ? fmtH(p.budgetH) : '—'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Auslastung</p>
@@ -274,9 +278,8 @@ export default function AworkCostIndex() {
                     <div className="space-y-2">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Stunden nach Mitarbeiter</p>
                       {p.topUsers.map((u, i) => {
-                        // Anteil relativ zur Summe aller TimeEntries für dieses Projekt
-                        const base = p.timeEntryTotal > 0 ? p.timeEntryTotal : p.trackedMin;
-                        const userPct = base > 0 ? Math.round((u.minutes / base) * 100) : 0;
+                        const base = p.timeEntryTotalH > 0 ? p.timeEntryTotalH : p.trackedH;
+                        const userPct = base > 0 ? Math.round((u.hours / base) * 100) : 0;
                         return (
                           <div key={i} className="flex items-center gap-3">
                             <span className="text-xs w-32 truncate font-medium">{u.name}</span>
@@ -286,7 +289,7 @@ export default function AworkCostIndex() {
                                 style={{ width: `${userPct}%` }}
                               />
                             </div>
-                            <span className="text-xs text-muted-foreground w-12 text-right">{fmtH(u.minutes)}</span>
+                            <span className="text-xs text-muted-foreground w-12 text-right">{fmtH(u.hours)}</span>
                             <span className="text-xs text-muted-foreground w-8 text-right">{userPct}%</span>
                           </div>
                         );
@@ -297,10 +300,10 @@ export default function AworkCostIndex() {
                     {p.project_status && (
                       <span>Status: <span className="font-medium">{p.project_status}</span></span>
                     )}
-                    <span>Gesamt erfasst (awork): <span className="font-medium">{fmtH(p.trackedMin)}</span></span>
-                    {p.budgetMin > 0 && <span>Budget: <span className="font-medium">{fmtH(p.budgetMin)}</span></span>}
-                    {p.timeEntryTotal > 0 && Math.abs(p.timeEntryTotal - p.trackedMin) > 60 && (
-                      <span className="text-amber-600">⚠ Nur {fmtH(p.timeEntryTotal)} in lokaler DB (nicht vollständig synchronisiert)</span>
+                    <span>Gesamt erfasst (awork): <span className="font-medium">{fmtH(p.trackedH)}</span></span>
+                    {p.budgetH > 0 && <span>Budget: <span className="font-medium">{fmtH(p.budgetH)}</span></span>}
+                    {p.timeEntryTotalH > 0 && Math.abs(p.timeEntryTotalH - p.trackedH) > 1 && (
+                      <span className="text-amber-600">⚠ Nur {fmtH(p.timeEntryTotalH)} in lokaler DB (nicht vollständig synchronisiert)</span>
                     )}
                   </div>
                 </div>
