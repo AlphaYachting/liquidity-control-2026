@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Clock, ChevronDown, ChevronRight, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Clock, ChevronDown, ChevronRight, AlertTriangle, TrendingUp, ExternalLink } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -218,6 +218,16 @@ export default function AworkCostIndex() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-sm truncate">{p.name}</span>
                     {p.company_name && <span className="text-xs text-muted-foreground">· {p.company_name}</span>}
+                    <a
+                      href={`https://app.awork.com/projects/${p.awork_project_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                      title="In awork öffnen"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
                     {p.isOverrun && (
                       <span className="flex-shrink-0 text-xs bg-red-100 text-red-700 border border-red-200 rounded px-1.5 py-0.5 font-medium flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" /> Überzogen
