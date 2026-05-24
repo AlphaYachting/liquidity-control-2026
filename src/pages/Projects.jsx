@@ -98,12 +98,28 @@ export default function Projects() {
 
   const columns = [
     { key: 'status', label: 'Status', width: '100px', render: (v) => <StatusBadge status={v} /> },
-    { key: 'customer', label: 'Kunde / Projekt', render: (v, row) => (
-      <div className="min-w-0">
-        <p className="font-medium text-sm leading-tight truncate">{v}</p>
-        <p className="text-xs text-muted-foreground leading-tight truncate mt-0.5">{row.project_name}</p>
-      </div>
-    )},
+    { key: 'customer', label: 'Kunde / Projekt', render: (v, row) => {
+      const fin = projectFinancialsMap[row.id] || {};
+      const billingPct = fin.commercialBaseNet > 0
+        ? Math.round((fin.adjustedInvoicedNet / fin.commercialBaseNet) * 100)
+        : null;
+      const aworkPct = row.awork_progress_percent ?? 0;
+      const gap = billingPct !== null ? (aworkPct - billingPct) : 0;
+      return (
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="font-medium text-sm leading-tight truncate">{v}</p>
+            {gap >= 25 && row.status === 'active' && (
+              <span title={`awork ${aworkPct}% → Abrechnung ${billingPct}% (Lücke ${gap}%)`}
+                className="flex-shrink-0 text-xs bg-amber-100 text-amber-700 border border-amber-200 rounded px-1 py-0 leading-4 font-medium">
+                ⚠ +{gap}%
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground leading-tight truncate mt-0.5">{row.project_name}</p>
+        </div>
+      );
+    }},
     { key: 'project_manager', label: 'PM', width: '80px' },
     { key: 'total_net_amount', label: 'Gesamt netto', render: (v) => formatCurrency(v), cellClass: 'text-right font-medium' },
     { key: '_invoiced', label: 'Verrechnet netto', render: (v) => <span className={Number(v) > 0 ? 'text-green-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
