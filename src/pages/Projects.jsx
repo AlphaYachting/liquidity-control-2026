@@ -79,14 +79,33 @@ export default function Projects() {
       return (a.customer || '').localeCompare(b.customer || '', 'de');
     });
 
+  // Letzte Rechnung pro Projekt
+  const lastInvoiceDateMap = useMemo(() => {
+    const map = {};
+    invoices
+      .filter(inv => inv.invoice_date && !inv.is_credit_note)
+      .forEach(inv => {
+        const pid = inv.project_id;
+        if (!pid) return;
+        if (!map[pid] || inv.invoice_date > map[pid]) map[pid] = inv.invoice_date;
+      });
+    return map;
+  }, [invoices]);
+
   // Erweiterte Projekte mit live-berechneten Werten (shared helper)
   const filteredWithLive = filtered.map(p => {
     const fin = projectFinancialsMap[p.id] || {};
+    const lastInvDate = lastInvoiceDateMap[p.id] || null;
+    const daysSince = lastInvDate
+      ? Math.floor((new Date() - new Date(lastInvDate)) / (1000 * 60 * 60 * 24))
+      : null;
     return {
       ...p,
       _invoiced: fin.adjustedInvoicedNet || 0,
       _open: Math.max(0, fin.openToInvoiceNet ?? (p.total_net_amount || 0)),
       _paid: fin.paidGross || 0,
+      _lastInvoiceDate: lastInvDate,
+      _daysSinceInvoice: daysSince,
     };
   });
 
@@ -156,6 +175,17 @@ export default function Projects() {
         );
       }
     },
+    { key: '_lastInvoiceDate', label: 'Letzte Rechnung', width: '130px', render: (v, row) => {
+      if (!v) return <span className="text-xs text-muted-foreground">—</span>;
+      const days = row._daysSinceInvoice;
+      const color = days === null ? '' : days > 90 ? 'text-red-600' : days > 30 ? 'text-amber-600' : 'text-emerald-600';
+      return (
+        <div className="space-y-0.5">
+          <p className="text-xs font-medium">{v}</p>
+          <p className={`text-xs font-semibold ${color}`}>{days !== null ? `vor ${days} T.` : '—'}</p>
+        </div>
+      );
+    }},
     { key: 'expected_invoice_month', label: 'Erw. Monat', width: '100px' },
     { key: 'risk_status', label: 'Risiko', width: '90px', render: (v) => <StatusBadge status={v} /> },
   ];

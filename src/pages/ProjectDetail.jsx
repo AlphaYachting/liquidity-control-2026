@@ -31,6 +31,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import PdfViewerDialog from '@/components/shared/PdfViewerDialog';
 import { FileText } from 'lucide-react';
+import InvoicingTimeline from '@/components/projects/InvoicingTimeline';
 
 const WORK_STATUS_LABELS = {
   not_started: 'Nicht begonnen',
@@ -451,6 +452,9 @@ export default function ProjectDetail() {
           <p className="text-xs text-muted-foreground">inkl. MwSt.</p>
         </div>
       </div>
+
+      {/* ── Verrechnungshistorie nach Monat ─────────────────────────────── */}
+      <InvoicingTimeline projectInvoices={projectInvoices} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
