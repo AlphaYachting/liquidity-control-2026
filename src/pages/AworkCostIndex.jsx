@@ -75,9 +75,17 @@ export default function AworkCostIndex() {
         return true;
       })
       .map(s => {
-        // Stunden: Snapshot-Wert ist die offizielle awork-Gesamtsumme (korrekt)
-        const trackedMin = s.tracked_duration_minutes ?? 0;
-        const budgetMin = s.time_budget_minutes ?? 0;
+        // Stunden direkt aus dem raw_payload lesen (Sekunden → Minuten)
+        // Das vermeidet Inkonsistenzen durch verschiedene Sync-Versionen in der DB
+        let trackedMin = s.tracked_duration_minutes ?? 0;
+        let budgetMin = s.time_budget_minutes ?? 0;
+        try {
+          if (s.raw_payload) {
+            const raw = typeof s.raw_payload === 'string' ? JSON.parse(s.raw_payload) : s.raw_payload;
+            if (typeof raw.trackedDuration === 'number') trackedMin = Math.round(raw.trackedDuration / 60);
+            if (typeof raw.timeBudget === 'number') budgetMin = Math.round(raw.timeBudget / 60);
+          }
+        } catch (_) { /* raw_payload nicht parsebar, DB-Wert verwenden */ }
         const budgetPct = budgetMin > 0 ? Math.round((trackedMin / budgetMin) * 100) : null;
 
         // Mitarbeiter-Verteilung aus den synced TimeEntries

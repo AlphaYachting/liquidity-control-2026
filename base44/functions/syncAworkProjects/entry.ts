@@ -66,6 +66,7 @@ Deno.serve(async (req) => {
         project_type: proj.projectType?.name || '',
         start_date: proj.startDate ? proj.startDate.split('T')[0] : null,
         due_date: proj.dueDate ? proj.dueDate.split('T')[0] : null,
+        // awork liefert timeBudget und trackedDuration in Sekunden → umrechnen in Minuten
         time_budget_minutes: proj.timeBudget ? Math.round(proj.timeBudget / 60) : 0,
         tracked_duration_minutes: proj.trackedDuration ? Math.round(proj.trackedDuration / 60) : 0,
         tasks_count: proj.tasksCount || 0,
