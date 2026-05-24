@@ -85,6 +85,8 @@ export default function AworkCostIndex() {
         const topUsers = Object.entries(byUser)
           .map(([name, minutes]) => ({ name, minutes }))
           .sort((a, b) => b.minutes - a.minutes);
+        // Summe der TimeEntries (für %-Basis im Detail) — kann von Snapshot abweichen wenn nicht alle Einträge geladen
+        const timeEntryTotal = topUsers.reduce((sum, u) => sum + u.minutes, 0);
 
         return {
           ...s,
@@ -92,6 +94,7 @@ export default function AworkCostIndex() {
           budgetMin,
           budgetPct,
           topUsers,
+          timeEntryTotal,
           isOverrun: budgetPct !== null && budgetPct >= 100,
         };
       });
@@ -253,7 +256,9 @@ export default function AworkCostIndex() {
                     <div className="space-y-2">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Stunden nach Mitarbeiter</p>
                       {p.topUsers.map((u, i) => {
-                        const userPct = p.trackedMin > 0 ? Math.round((u.minutes / p.trackedMin) * 100) : 0;
+                        // Anteil relativ zur Summe aller TimeEntries für dieses Projekt
+                        const base = p.timeEntryTotal > 0 ? p.timeEntryTotal : p.trackedMin;
+                        const userPct = base > 0 ? Math.round((u.minutes / base) * 100) : 0;
                         return (
                           <div key={i} className="flex items-center gap-3">
                             <span className="text-xs w-32 truncate font-medium">{u.name}</span>
@@ -270,9 +275,16 @@ export default function AworkCostIndex() {
                       })}
                     </div>
                   )}
-                  {p.project_status && (
-                    <p className="text-xs text-muted-foreground mt-3">Status: <span className="font-medium">{p.project_status}</span></p>
-                  )}
+                  <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted-foreground">
+                    {p.project_status && (
+                      <span>Status: <span className="font-medium">{p.project_status}</span></span>
+                    )}
+                    <span>Gesamt erfasst (awork): <span className="font-medium">{fmtH(p.trackedMin)}</span></span>
+                    {p.budgetMin > 0 && <span>Budget: <span className="font-medium">{fmtH(p.budgetMin)}</span></span>}
+                    {p.timeEntryTotal > 0 && Math.abs(p.timeEntryTotal - p.trackedMin) > 60 && (
+                      <span className="text-amber-600">⚠ Nur {fmtH(p.timeEntryTotal)} in lokaler DB (nicht vollständig synchronisiert)</span>
+                    )}
+                  </div>
                 </div>
               )}
             </Card>
