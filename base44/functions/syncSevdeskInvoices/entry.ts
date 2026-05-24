@@ -144,12 +144,8 @@ Deno.serve(async (req) => {
         const sevdeskId = String(inv.id);
         const existing = existingMap[sevdeskId] || null;
 
-        // Nur Rechnungen importieren, die einer ConfirmedOrder zugeordnet werden können
+        // Alle Rechnungen importieren — auch ohne AB-Zuordnung
         const matchResult = findMatchingOrder(inv, allOrders, ordersBySevdeskId);
-        if (!matchResult && !existing?.confirmed_order_id) {
-          skipped++;
-          continue;
-        }
 
         const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
         const dueDate = inv.payDate ? inv.payDate.substring(0, 10) : null;

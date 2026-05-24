@@ -11,6 +11,7 @@ import ToolCostChart from '@/components/dashboard/ToolCostChart';
 import RiskTimeline from '@/components/dashboard/RiskTimeline';
 import LiquidityTrendChart from '@/components/dashboard/LiquidityTrendChart';
 import NonBillableWidget from '@/components/dashboard/NonBillableWidget';
+import CashflowForecastChart from '@/components/dashboard/CashflowForecastChart';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
@@ -122,6 +123,7 @@ export default function Dashboard() {
         <AgingChart receivables={receivables} />
         <ToolCostChart tools={tools} />
       </div>
+      <CashflowForecastChart invoiceRecords={invoices} />
       <NonBillableWidget />
       <LiquidityTrendChart orders={allOrders} blocks={allBlocks} invoices={invoices} />
       <RiskTimeline planLines={planLines} />
