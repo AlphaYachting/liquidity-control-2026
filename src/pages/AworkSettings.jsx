@@ -29,6 +29,7 @@ export default function AworkSettings() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSyncingTime, setIsSyncingTime] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [timeSyncProgress, setTimeSyncProgress] = useState(null); // { page, totalCreated, totalUpdated, hasMore }
 
   const { data: settings = [], isLoading: settingsLoading } = useQuery({
     queryKey: ['awork-settings'],
@@ -59,13 +60,31 @@ export default function AworkSettings() {
     setIsSyncing(false);
   };
 
-  const handleSyncTimeEntries = async () => {
+  const handleSyncTimeEntries = async (page = 1, accCreated = 0, accUpdated = 0) => {
     setIsSyncingTime(true);
     setSyncResult(null);
-    const resp = await base44.functions.invoke('syncAworkTimeEntries', {});
-    setSyncResult(resp.data);
-    queryClient.invalidateQueries({ queryKey: ['aworkTimeEntries'] });
-    setIsSyncingTime(false);
+    setTimeSyncProgress({ page, totalCreated: accCreated, totalUpdated: accUpdated, hasMore: false });
+
+    const now = new Date();
+    const fromDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const toDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    const resp = await base44.functions.invoke('syncAworkTimeEntries', { from: fromDate, to: toDate, page, pageSize: 50 });
+    const result = resp.data;
+
+    const newCreated = accCreated + (result.created || 0);
+    const newUpdated = accUpdated + (result.updated || 0);
+
+    if (result.has_more) {
+      setTimeSyncProgress({ page: result.next_page, totalCreated: newCreated, totalUpdated: newUpdated, hasMore: true });
+      setIsSyncingTime(false);
+      setSyncResult({ ...result, created: newCreated, updated: newUpdated, _partial: true });
+    } else {
+      setSyncResult({ ...result, created: newCreated, updated: newUpdated });
+      setTimeSyncProgress(null);
+      queryClient.invalidateQueries({ queryKey: ['aworkTimeEntries'] });
+      setIsSyncingTime(false);
+    }
   };
 
   const statusCfg = STATUS_CONFIG[setting?.connection_status || 'not_configured'];
@@ -179,15 +198,24 @@ export default function AworkSettings() {
 
       {/* Sync result */}
       {syncResult && (
-        <div className={`p-4 rounded-xl border text-sm ${syncResult.error ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
+        <div className={`p-4 rounded-xl border text-sm ${syncResult.error ? 'bg-red-50 border-red-200 text-red-700' : syncResult._partial ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
           {syncResult.error ? (
             <p>Fehler: {syncResult.error}</p>
           ) : syncResult.entries_fetched !== undefined ? (
-            <p>
-              ✓ Zeitbuchungen-Sync abgeschlossen: {syncResult.entries_fetched} Einträge abgerufen ({syncResult.period?.from} – {syncResult.period?.to}),
-              {' '}{syncResult.created} neu, {syncResult.updated} aktualisiert
-              {syncResult.failed > 0 ? `, ${syncResult.failed} fehlgeschlagen` : ''}.
-            </p>
+            <div className="flex items-center justify-between gap-4">
+              <p>
+                {syncResult._partial ? '⏳ Läuft...' : '✓ Zeitbuchungen-Sync abgeschlossen:'} {syncResult.period?.from} – {syncResult.period?.to} |{' '}
+                {syncResult.created} neu, {syncResult.updated} aktualisiert
+                {syncResult.failed > 0 ? `, ${syncResult.failed} fehlgeschlagen` : ''}
+                {syncResult._partial ? ` (Seite ${timeSyncProgress?.page ? timeSyncProgress.page - 1 : '?'} fertig, mehr verfügbar)` : ''}
+              </p>
+              {syncResult._partial && timeSyncProgress?.hasMore && (
+                <Button size="sm" onClick={() => handleSyncTimeEntries(timeSyncProgress.page, syncResult.created, syncResult.updated)} disabled={isSyncingTime}>
+                  {isSyncingTime ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                  Weiter (Seite {timeSyncProgress.page})
+                </Button>
+              )}
+            </div>
           ) : (
             <p>
               ✓ Projekte-Sync abgeschlossen: {syncResult.projects_fetched} Projekte abgerufen,
