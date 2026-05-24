@@ -4,7 +4,7 @@ import {
   LayoutDashboard, FolderKanban, Megaphone, Shield, Wrench,
   CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
-  ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit
+  ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -21,6 +21,7 @@ const navItems = [
   { path: '/tools', label: 'Toolkosten', icon: CreditCard },
   { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
   { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
+  { path: '/revenue-analysis', label: 'Umsatzbewertung', icon: PieChart },
   { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
   { path: '/cashflow-advisor', label: 'Cashflow Berater', icon: BrainCircuit },
   { path: '/import', label: 'Import Center', icon: Upload },
