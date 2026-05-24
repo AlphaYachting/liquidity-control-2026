@@ -76,21 +76,18 @@ export default function AworkCostIndex() {
       .map(s => {
         // Stunden direkt aus dem raw_payload lesen (Sekunden → Stunden)
         // DB-Werte sind unzuverlässig (teils Sekunden, teils Minuten je nach Sync-Version)
-        let trackedH = 0;
-        let budgetH = 0;
+        // DB speichert tracked_duration_minutes / time_budget_minutes als Rohwerte in Sekunden
+        // (trotz Feldname "minutes" — historischer Sync-Bug). Immer ÷3600 für Stunden.
+        // Wenn raw_payload vollständig parsebar: direkt trackedDuration/timeBudget in Sekunden nutzen (identisch).
+        let trackedH = (s.tracked_duration_minutes ?? 0) / 3600;
+        let budgetH = (s.time_budget_minutes ?? 0) / 3600;
         try {
           if (s.raw_payload) {
             const raw = typeof s.raw_payload === 'string' ? JSON.parse(s.raw_payload) : s.raw_payload;
             if (typeof raw.trackedDuration === 'number') trackedH = raw.trackedDuration / 3600;
             if (typeof raw.timeBudget === 'number') budgetH = raw.timeBudget / 3600;
           }
-        } catch (_) {
-          // Fallback: DB-Wert als Minuten interpretieren
-          trackedH = (s.tracked_duration_minutes ?? 0) / 60;
-          budgetH = (s.time_budget_minutes ?? 0) / 60;
-        }
-        if (trackedH === 0) trackedH = (s.tracked_duration_minutes ?? 0) / 60;
-        if (budgetH === 0) budgetH = (s.time_budget_minutes ?? 0) / 60;
+        } catch (_) { /* raw_payload abgeschnitten/ungültig — DB-Wert (÷3600) bereits gesetzt */ }
         const budgetPct = budgetH > 0 ? Math.round((trackedH / budgetH) * 100) : null;
 
         // Mitarbeiter-Verteilung aus den synced TimeEntries (duration_minutes → Stunden)
