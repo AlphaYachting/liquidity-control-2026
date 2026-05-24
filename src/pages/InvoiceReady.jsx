@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
-import { CheckSquare, ExternalLink, Info, AlertTriangle, ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import { CheckSquare, ExternalLink, Info, AlertTriangle, ChevronDown, ChevronUp, Filter, FileText, Loader2 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import { Card, CardContent } from '@/components/ui/card';
@@ -46,6 +46,23 @@ export default function InvoiceReady() {
   const queryClient = useQueryClient();
   const [expandedId, setExpandedId] = useState(null);
   const [filters, setFilters] = useState({ status: '', pm: '', customer: '', invoice_type: '' });
+  const [creatingDraft, setCreatingDraft] = useState(null);
+
+  async function handleCreateSevdeskDraft(instrId) {
+    setCreatingDraft(instrId);
+    try {
+      const res = await base44.functions.invoke('createSevdeskInvoiceDraft', { billing_instruction_id: instrId });
+      const data = res.data;
+      if (data?.sevdesk_url) {
+        window.open(data.sevdesk_url, '_blank');
+      }
+      queryClient.invalidateQueries({ queryKey: ['billingInstructions'] });
+    } catch (e) {
+      alert('Fehler: ' + (e?.response?.data?.error || e.message));
+    } finally {
+      setCreatingDraft(null);
+    }
+  }
 
   const { data: instructions = [], isLoading: i1 } = useQuery({
     queryKey: ['billingInstructions'],
@@ -307,6 +324,24 @@ export default function InvoiceReady() {
                             ✓ Rechnung erstellt
                           </Button>
                         )}
+                        {/* sevDesk Rechnungsentwurf — immer sichtbar */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                          disabled={creatingDraft === instr.id}
+                          onClick={() => instr.sevdesk_invoice_id
+                            ? window.open(instr.sevdesk_invoice_url || `https://my.sevdesk.de/#/fi/${instr.sevdesk_invoice_id}`, '_blank')
+                            : handleCreateSevdeskDraft(instr.id)
+                          }
+                        >
+                          {creatingDraft === instr.id
+                            ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Wird angelegt…</>
+                            : instr.sevdesk_invoice_id
+                              ? <><ExternalLink className="w-3 h-3 mr-1" /> In sevDesk öffnen</>
+                              : <><FileText className="w-3 h-3 mr-1" /> Rechnungsentwurf erzeugen</>
+                          }
+                        </Button>
                       </div>
                     </div>
                   )}
