@@ -118,11 +118,11 @@ export default function Dashboard() {
         <CashflowChart planLines={planLines} blocks={allBlocks} contracts={contracts} payables={payables} instructions={billingInstructions} />
         <PipelineChart projects={projects} contracts={contracts} planLines={planLines} />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <AgingChart receivables={receivables} />
         <ToolCostChart tools={tools} />
-        <NonBillableWidget />
       </div>
+      <NonBillableWidget />
       <LiquidityTrendChart orders={allOrders} blocks={allBlocks} invoices={invoices} />
       <RiskTimeline planLines={planLines} />
     </div>
