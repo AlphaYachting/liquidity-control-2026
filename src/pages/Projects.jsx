@@ -151,7 +151,7 @@ export default function Projects() {
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground leading-tight truncate mt-0.5">{row.project_name}</p>
+          <p className="text-xs text-muted-foreground leading-tight truncate mt-0.5">{(row.project_name || '').replace(/\s*[-–—]\s*(order confirmation|auftragsbestätigung).*$/i, '').trim()}</p>
         </div>
       );
     }},
