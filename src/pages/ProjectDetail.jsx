@@ -29,6 +29,8 @@ import ProjectInvoiceSection from '@/components/projects/ProjectInvoiceSection';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
+import PdfViewerDialog from '@/components/shared/PdfViewerDialog';
+import { FileText } from 'lucide-react';
 
 const WORK_STATUS_LABELS = {
   not_started: 'Nicht begonnen',
@@ -55,6 +57,7 @@ export default function ProjectDetail() {
   const [showAworkPicker, setShowAworkPicker] = useState(false);
   const [linkingBlock, setLinkingBlock] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [pdfViewer, setPdfViewer] = useState(null); // { url, title }
 
   // ── Data loading ──────────────────────────────────────────────────────────
   const { data: projects = [], isLoading: lpLoading } = useQuery({
@@ -760,11 +763,12 @@ export default function ProjectDetail() {
                           <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary flex-shrink-0 ml-2" />
                         </Link>
                         {o.document_url && (
-                          <a href={o.document_url} target="_blank" rel="noopener noreferrer"
+                          <button
+                            onClick={() => setPdfViewer({ url: o.document_url, title: `AB: ${o.project_name || o.order_number || 'Auftragsbestätigung'}` })}
                             className="flex items-center gap-1.5 text-xs text-primary hover:underline pl-0.5">
-                            <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                            AB-Dokument öffnen
-                          </a>
+                            <FileText className="w-3 h-3 flex-shrink-0" />
+                            AB-Dokument anzeigen
+                          </button>
                         )}
                       </div>
                     ))
@@ -790,11 +794,11 @@ export default function ProjectDetail() {
                 });
                 if (docs.length === 0) return <p className="text-sm text-muted-foreground text-center py-2">Keine Dokumente verknüpft</p>;
                 return docs.map((doc, i) => (
-                  <a key={i} href={doc.url} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-2 rounded-lg border hover:bg-muted/30 transition-colors text-xs text-primary group">
-                    <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                  <button key={i} onClick={() => setPdfViewer({ url: doc.url, title: doc.label })}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg border hover:bg-muted/30 transition-colors text-xs text-primary text-left group">
+                    <FileText className="w-3.5 h-3.5 flex-shrink-0" />
                     <span className="truncate">{doc.label}</span>
-                  </a>
+                  </button>
                 ));
               })()}
             </CardContent>
@@ -818,6 +822,12 @@ export default function ProjectDetail() {
           onSave={handleSaveTaskLink}
         />
       )}
+      <PdfViewerDialog
+        open={!!pdfViewer}
+        onClose={() => setPdfViewer(null)}
+        url={pdfViewer?.url}
+        title={pdfViewer?.title}
+      />
     </div>
   );
 }
