@@ -28,6 +28,11 @@ export default function AworkStatusBar({ order, data, taskStats, snapshot, onSel
   const budgetHours = budgetMinutes > 0 ? (budgetMinutes / 60).toFixed(1) : null;
   const trackedHours = trackedMinutes > 0 ? (trackedMinutes / 60).toFixed(1) : null;
   const blockedTasks = taskStats?.blocked_tasks ?? 0;
+  const totalTasks = taskStats?.total_tasks ?? snapshot?.tasks_count ?? 0;
+  const doneTasks = taskStats?.done_tasks ?? snapshot?.tasks_done_count ?? 0;
+  const openTasks = taskStats?.open_tasks ?? (totalTasks - doneTasks - blockedTasks);
+  const taskCompletionPct = taskStats?.task_completion_pct ?? (totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0);
+  const hoursBurnPct = taskStats?.hours_burn_pct ?? null;
   const progressPct = taskStats?.progress_percent ?? src.awork_progress_percent ?? snapshot?.progress_percent ?? 0;
   const lastActivityDate = taskStats?.last_activity_at ? new Date(taskStats.last_activity_at) : null;
   const lastActivityLabel = lastActivityDate
@@ -115,49 +120,63 @@ export default function AworkStatusBar({ order, data, taskStats, snapshot, onSel
         </div>
       </div>
 
-      {/* Progress bar */}
-      {(() => {
-        const budgetPct = budgetMinutes > 0 ? Math.min(100, Math.round((trackedMinutes / budgetMinutes) * 100)) : null;
-        const barPct = budgetPct ?? progressPct;
-        const barColor = budgetPct !== null
-          ? budgetPct >= 90 ? 'bg-red-500' : budgetPct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'
-          : 'bg-blue-500';
-        const barLabel = budgetPct !== null ? 'Budget verbraucht' : 'Fortschritt';
-        const barValue = budgetPct !== null ? `${budgetPct}%` : `${progressPct}%`;
-        return (
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-blue-800 font-medium">{barLabel}</span>
-              <span className="text-blue-900 font-bold">{barValue}</span>
-            </div>
-            <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
-              <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${Math.min(100, barPct)}%` }} />
-            </div>
-          </div>
-        );
-      })()}
+      {/* Kombinierter Fortschrittsindex */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-blue-800 font-medium">
+            Leistungsfortschritt
+            {hoursBurnPct !== null && <span className="text-blue-600 font-normal ml-1">(Tasks 60% · Stunden 40%)</span>}
+          </span>
+          <span className="text-blue-900 font-bold">{progressPct}%</span>
+        </div>
+        <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${
+              progressPct >= 90 ? 'bg-emerald-500' : progressPct >= 50 ? 'bg-blue-500' : 'bg-amber-500'
+            }`}
+            style={{ width: `${Math.min(100, progressPct)}%` }}
+          />
+        </div>
+      </div>
 
-      {/* Stats row */}
+      {/* Task-KPI-Zeile */}
+      {totalTasks > 0 && (
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          <div className="bg-white/60 rounded-lg px-2.5 py-1.5 text-center border border-blue-100">
+            <div className="font-bold text-emerald-700">{doneTasks}</div>
+            <div className="text-blue-700/70">erledigt</div>
+          </div>
+          <div className="bg-white/60 rounded-lg px-2.5 py-1.5 text-center border border-blue-100">
+            <div className="font-bold text-blue-800">{openTasks}</div>
+            <div className="text-blue-700/70">offen</div>
+          </div>
+          <div className={`rounded-lg px-2.5 py-1.5 text-center border ${blockedTasks > 0 ? 'bg-red-50 border-red-200' : 'bg-white/60 border-blue-100'}`}>
+            <div className={`font-bold ${blockedTasks > 0 ? 'text-red-600' : 'text-gray-400'}`}>{blockedTasks}</div>
+            <div className={blockedTasks > 0 ? 'text-red-500/80' : 'text-blue-700/70'}>blockiert</div>
+          </div>
+        </div>
+      )}
+
+      {/* Stunden-Zeile */}
       <div className="flex items-center gap-4 text-xs flex-wrap">
-        {budgetHours || trackedHours ? (
+        {hoursBurnPct !== null ? (
           <>
-            {trackedHours && (
-              <span className="flex items-center gap-1 text-emerald-700">
-                <CheckCircle2 className="w-3 h-3" />
-                {trackedHours} h verbraucht
+            <span className="flex items-center gap-1 text-blue-800">
+              <CheckCircle2 className="w-3 h-3" />
+              {trackedHours} h verbraucht
+              {budgetHours && <span className="text-blue-600">/ {budgetHours} h Budget ({hoursBurnPct}%)</span>}
+            </span>
+            {hoursBurnPct >= 90 && (
+              <span className="text-red-600 font-medium flex items-center gap-0.5">
+                <AlertTriangle className="w-3 h-3" /> Budget fast ausgeschöpft
               </span>
             )}
-            {budgetHours && (
-              <span className="text-blue-800 font-medium">/ {budgetHours} h Budget</span>
-            )}
-            {blockedTasks > 0 && (
-              <span className="text-red-600 font-medium">⊘ {blockedTasks} blockiert</span>
-            )}
           </>
+        ) : totalTasks > 0 ? (
+          <span className="text-muted-foreground italic">Keine Stundendaten — nur Task-Fortschritt ({taskCompletionPct}%)</span>
         ) : (
           <span className="text-muted-foreground italic">Keine Stundendaten synchronisiert</span>
         )}
-
         {lastActivityLabel && (
           <span className="text-muted-foreground flex items-center gap-1 ml-auto">
             <Clock className="w-3 h-3" />

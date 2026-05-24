@@ -232,12 +232,31 @@ export default function ProjectDetail() {
     const budgetMinutes = aworkTasks.reduce((s, t) => s + (Number(t.planned_duration_minutes) || 0), 0);
     const trackedMinutes = aworkTasks.reduce((s, t) => s + (Number(t.tracked_duration_minutes) || 0), 0);
     const blocked = aworkTasks.filter(t => t.task_status_type === 'blocked' || t.is_blocked).length;
-    // Progress: if budget defined use hours ratio, else task-done ratio
     const total = aworkTasks.length;
     const done = aworkTasks.filter(t => t.task_status_type === 'done' || t.is_done).length;
-    const progress = budgetMinutes > 0
+    const open = total - done - blocked;
+
+    // Task-completion ratio (unweighted by hours)
+    const taskCompletionPct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    // Hours burn ratio (nur wenn Budgetdaten vorhanden)
+    const hoursBurnPct = budgetMinutes > 0
       ? Math.min(100, Math.round((trackedMinutes / budgetMinutes) * 100))
-      : (total > 0 ? Math.round((done / total) * 100) : 0);
+      : null;
+
+    // Kombinierter Index:
+    // Wenn Stundendaten vorhanden: gewichteter Durchschnitt (60% Tasks, 40% Stunden)
+    // Sonst: nur Task-Completion
+    const combinedProgress = hoursBurnPct !== null
+      ? Math.round(taskCompletionPct * 0.6 + hoursBurnPct * 0.4)
+      : taskCompletionPct;
+
+    // Verhältnis: Ø Minuten pro Task (um zu beurteilen ob Tasks "schwer" oder "leicht" sind)
+    const avgMinutesPerTask = total > 0 && budgetMinutes > 0 ? Math.round(budgetMinutes / total) : null;
+    const avgMinutesPerDoneTask = done > 0 && budgetMinutes > 0
+      ? Math.round(aworkTasks.filter(t => t.is_done || t.task_status_type === 'done').reduce((s, t) => s + (Number(t.planned_duration_minutes) || 0), 0) / done)
+      : null;
+
     const syncDates = aworkTasks.map(t => t.last_synced_at).filter(Boolean).sort().reverse();
     const activityDates = aworkTasks.map(t => t.last_activity_at).filter(Boolean).sort().reverse();
     const lastSyncedAt = syncDates[0] || null;
@@ -249,7 +268,14 @@ export default function ProjectDetail() {
       budget_minutes: budgetMinutes,
       tracked_minutes: trackedMinutes,
       blocked_tasks: blocked,
-      progress_percent: progress,
+      total_tasks: total,
+      done_tasks: done,
+      open_tasks: open,
+      task_completion_pct: taskCompletionPct,
+      hours_burn_pct: hoursBurnPct,
+      progress_percent: combinedProgress,
+      avg_minutes_per_task: avgMinutesPerTask,
+      avg_minutes_per_done_task: avgMinutesPerDoneTask,
       last_activity_at: lastActivityAt,
       last_synced_at: lastSyncedAt,
       has_stale_data: hasStaleData
@@ -342,10 +368,16 @@ export default function ProjectDetail() {
           : null;
         const performancePct = aworkProgress ?? blockAvgProgress ?? 0;
 
+        const perfSubtitle = aworkTaskStats
+          ? aworkTaskStats.hours_burn_pct !== null
+            ? `Tasks: ${aworkTaskStats.task_completion_pct}% · Stunden: ${aworkTaskStats.hours_burn_pct}%`
+            : `${aworkTaskStats.done_tasks}/${aworkTaskStats.total_tasks} Tasks erledigt`
+          : null;
+
         const bars = [
-          { label: 'Leistungsfortschritt', value: performancePct, color: 'bg-emerald-500', textColor: 'text-emerald-700' },
-          { label: 'Abrechnungsfortschritt', value: billingPct, color: 'bg-blue-500', textColor: 'text-blue-700' },
-          { label: 'Zahlungsfortschritt', value: paymentPct, color: 'bg-purple-500', textColor: 'text-purple-700' },
+          { label: 'Leistungsfortschritt', value: performancePct, color: 'bg-emerald-500', textColor: 'text-emerald-700', subtitle: perfSubtitle },
+          { label: 'Abrechnungsfortschritt', value: billingPct, color: 'bg-blue-500', textColor: 'text-blue-700', subtitle: null },
+          { label: 'Zahlungsfortschritt', value: paymentPct, color: 'bg-purple-500', textColor: 'text-purple-700', subtitle: null },
         ];
 
         return (
@@ -360,6 +392,7 @@ export default function ProjectDetail() {
                   <div className={`h-full rounded-full transition-all ${bar.color}`}
                     style={{ width: `${Math.min(100, Math.max(0, bar.value))}%` }} />
                 </div>
+                {bar.subtitle && <p className="text-xs text-muted-foreground">{bar.subtitle}</p>}
               </div>
             ))}
           </div>
