@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
-import { CheckSquare, ExternalLink, Info, AlertTriangle, ChevronDown, ChevronUp, Filter, FileText, Loader2 } from 'lucide-react';
+import { CheckSquare, ExternalLink, Info, AlertTriangle, ChevronDown, ChevronUp, Filter, FileText, Loader2, Pencil } from 'lucide-react';
+import BillingInstructionEditDialog from '@/components/billing/BillingInstructionEditDialog';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import { Card, CardContent } from '@/components/ui/card';
@@ -47,6 +48,7 @@ export default function InvoiceReady() {
   const [expandedId, setExpandedId] = useState(null);
   const [filters, setFilters] = useState({ status: '', pm: '', customer: '', invoice_type: '' });
   const [creatingDraft, setCreatingDraft] = useState(null);
+  const [editingInstr, setEditingInstr] = useState(null);
 
   async function handleCreateSevdeskDraft(instrId) {
     setCreatingDraft(instrId);
@@ -240,6 +242,11 @@ export default function InvoiceReady() {
                         </SelectContent>
                       </Select>
 
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        title="Bearbeiten" onClick={() => setEditingInstr(instr)}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+
                       <Button variant="ghost" size="icon" className="h-8 w-8"
                         onClick={() => navigate(`/projects/${instr.project_id}`)}>
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -351,6 +358,15 @@ export default function InvoiceReady() {
           })}
         </div>
       )}
+
+      <BillingInstructionEditDialog
+        instruction={editingInstr}
+        open={!!editingInstr}
+        onClose={() => setEditingInstr(null)}
+        onSave={async (id, data) => {
+          await updateMutation.mutateAsync({ id, data });
+        }}
+      />
     </div>
   );
 }

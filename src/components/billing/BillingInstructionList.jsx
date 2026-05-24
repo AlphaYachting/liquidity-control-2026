@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/liquidityUtils';
 import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
+import BillingInstructionEditDialog from './BillingInstructionEditDialog';
 
 const STATUS_CFG = {
   draft:                { label: 'Entwurf',                color: 'bg-gray-100 text-gray-600' },
@@ -38,6 +39,7 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
   const [expandedId, setExpandedId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [creatingDraft, setCreatingDraft] = useState(null);
+  const [editingInstr, setEditingInstr] = useState(null);
 
   async function handleCreateSevdeskDraft(instrId) {
     setCreatingDraft(instrId);
@@ -70,6 +72,7 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
   }
 
   return (
+    <>
     <div className="space-y-2">
       <p className="text-xs font-medium text-muted-foreground">Abrechnungsanweisungen ({instructions.length})</p>
       {instructions.map(instr => {
@@ -114,6 +117,11 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
                   <p className="font-bold text-sm">{formatCurrency(instr.instruction_amount_net)}</p>
                   <p className="text-xs text-muted-foreground">netto</p>
                 </div>
+
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  onClick={() => setEditingInstr(instr)} title="Bearbeiten">
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
 
                 {/* Quick status */}
                 <Select value={instr.status} onValueChange={v => onUpdate(instr.id, { status: v, ...(v === 'sent_to_backoffice' ? { sent_to_backoffice_at: new Date().toISOString() } : {}), ...(v === 'invoice_created' ? { invoice_created_at: new Date().toISOString() } : {}) })}>
@@ -256,5 +264,12 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
         );
       })}
     </div>
+    <BillingInstructionEditDialog
+      instruction={editingInstr}
+      open={!!editingInstr}
+      onClose={() => setEditingInstr(null)}
+      onSave={async (id, data) => { await onUpdate(id, data); }}
+    />
+    </>
   );
 }
