@@ -56,6 +56,9 @@ function InlineDateEditor({ block, onDateChange }) {
   );
 }
 
+const TITLE_STRIP_PATTERN = /\s*[-–—]\s*(order confirmation|auftragsbestätigung).*$/i;
+const cleanTitle = (title) => (title || '').replace(TITLE_STRIP_PATTERN, '').trim();
+
 export default function BillingBlockList({ blocks, onEdit, onDelete, onStatusChange, onMonthChange, onDateChange }) {
   if (!blocks.length) {
     return (
@@ -73,7 +76,7 @@ export default function BillingBlockList({ blocks, onEdit, onDelete, onStatusCha
           <div key={block.id} className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
             <div className="w-1.5 h-12 rounded-full bg-primary/30 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">{block.title}</p>
+              <p className="font-medium text-sm truncate">{cleanTitle(block.title)}</p>
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <Select value={block.billing_month || ''} onValueChange={v => onMonthChange && onMonthChange(block.id, v)}>
                   <SelectTrigger className="h-5 text-xs border-0 px-1 py-0 bg-transparent text-muted-foreground hover:bg-muted/50 w-auto gap-0.5 shadow-none">
