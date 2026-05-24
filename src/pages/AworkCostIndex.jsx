@@ -60,7 +60,7 @@ export default function AworkCostIndex() {
   }, [timeEntries]);
 
   // Aktive Status-Werte in awork (Snapshots speichern project_status als String aus awork)
-  const INACTIVE_STATUSES = ['done', 'archived', 'abgeschlossen', 'completed', 'cancelled', 'abgebrochen'];
+  const INACTIVE_STATUSES = ['done', 'archived', 'abgeschlossen', 'completed', 'cancelled', 'abgebrochen', 'geblockt', 'blocked', 'stuck'];
 
   const projects = useMemo(() => {
     return snapshots
@@ -199,7 +199,7 @@ export default function AworkCostIndex() {
           onClick={() => setShowAll(f => !f)}
           className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${showAll ? 'bg-muted border-border font-medium' : 'border-border text-muted-foreground hover:text-foreground'}`}
         >
-          {showAll ? 'Nur laufende' : 'Alle anzeigen'}
+          {showAll ? 'Nur laufende (aktiv)' : 'Alle anzeigen (inkl. geblockt/abgeschlossen)'}
         </button>
       </div>
 
