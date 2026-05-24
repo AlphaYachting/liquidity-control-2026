@@ -29,6 +29,7 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
   };
 
   // Offene Forderungen: Receivable (manuell) + InvoiceRecord (sevDesk) — beide Quellen zusammengeführt
+  // BRUTTO-Beträge (inkl. MwSt.)
   const openReceivablesManual = receivables
     .filter(r => r.status !== 'paid' && r.status !== 'write_off')
     .reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
@@ -37,6 +38,15 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
     .reduce((s, i) => s + (Number(i.open_amount) > 0 ? Number(i.open_amount) : Number(i.gross_amount) || 0), 0);
   const openReceivables = openReceivablesManual + openReceivablesInvoices;
 
+  // Netto für Subtitle
+  const openReceivablesManualNet = receivables
+    .filter(r => r.status !== 'paid' && r.status !== 'write_off')
+    .reduce((s, r) => s + (Number(r.net_amount) || 0), 0);
+  const openReceivablesInvoicesNet = invoices
+    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note)
+    .reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+  const openReceivablesNet = openReceivablesManualNet + openReceivablesInvoicesNet;
+
   const overdueReceivablesManual = receivables
     .filter(r => r.status !== 'paid' && r.status !== 'write_off' && calcOverdueDays(effectiveDueDate(r)) > 0)
     .reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
@@ -44,6 +54,14 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
     .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note && calcOverdueDays(effectiveDueDate(i)) > 0)
     .reduce((s, i) => s + (Number(i.open_amount) > 0 ? Number(i.open_amount) : Number(i.gross_amount) || 0), 0);
   const overdueReceivables = overdueReceivablesManual + overdueReceivablesInvoices;
+
+  const overdueReceivablesManualNet = receivables
+    .filter(r => r.status !== 'paid' && r.status !== 'write_off' && calcOverdueDays(effectiveDueDate(r)) > 0)
+    .reduce((s, r) => s + (Number(r.net_amount) || 0), 0);
+  const overdueReceivablesInvoicesNet = invoices
+    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note && calcOverdueDays(effectiveDueDate(i)) > 0)
+    .reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+  const overdueReceivablesNet = overdueReceivablesManualNet + overdueReceivablesInvoicesNet;
 
   const toolCosts = tools.reduce((s, t) => s + (Number(t.annual_cost) || 0), 0);
   const monthlyToolAvg = tools.reduce((s, t) => s + (Number(t.monthly_cost) || 0), 0);
@@ -56,8 +74,8 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
     { title: 'Offene Projektbeträge', value: formatCurrency(openProject), icon: BarChart3, variant: 'warning' },
     { title: 'Zufluss nächste 30 Tage', value: formatCurrency(next30), icon: Clock, variant: 'info' },
     { title: 'Zufluss nächste 90 Tage', value: formatCurrency(next90), icon: Clock, variant: 'info' },
-    { title: 'Offene Forderungen', value: formatCurrency(openReceivables), icon: AlertTriangle, variant: openReceivables > 0 ? 'warning' : 'default' },
-    { title: 'Überfällige Forderungen', value: formatCurrency(overdueReceivables), icon: AlertTriangle, variant: overdueReceivables > 0 ? 'danger' : 'default' },
+    { title: 'Offene Forderungen (brutto)', value: formatCurrency(openReceivables), subtitle: openReceivablesNet > 0 ? `Netto: ${formatCurrency(openReceivablesNet)}` : undefined, icon: AlertTriangle, variant: openReceivables > 0 ? 'warning' : 'default' },
+    { title: 'Überfällige Forderungen (brutto)', value: formatCurrency(overdueReceivables), subtitle: overdueReceivablesNet > 0 ? `Netto: ${formatCurrency(overdueReceivablesNet)}` : undefined, icon: AlertTriangle, variant: overdueReceivables > 0 ? 'danger' : 'default' },
     { title: 'Toolkosten 2026', value: formatCurrency(toolCosts), subtitle: `Ø ${formatCurrency(monthlyToolAvg)}/Monat`, icon: CreditCard, variant: 'default' },
     { title: 'Offene Verbindlichkeiten', value: formatCurrency(openPayables), icon: FileText, variant: openPayables > 0 ? 'warning' : 'default' },
   ];
