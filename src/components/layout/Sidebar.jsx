@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban },
+  { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock },
   { path: '/confirmed-orders', label: 'Auftragsabwicklung', icon: ClipboardList, description: 'Aufträge erfassen, Dokumente prüfen' },
   { path: '/invoice-ready', label: 'Abrechnungsanweisungen', icon: CheckSquare },
   { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
@@ -23,7 +24,6 @@ const navItems = [
   { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
   { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
   { path: '/revenue-analysis', label: 'Umsatzbewertung', icon: PieChart },
-  { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock },
   { path: '/escalation-alerts', label: 'Eskalations-Alerts', icon: AlertTriangle },
   { path: '/weekly-cashflow', label: 'Wöchentl. Cashflow', icon: CalendarDays },
   { path: '/customer-risk', label: 'Kundenrisiko', icon: Users },
