@@ -17,6 +17,17 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
   const next90 = planLines.filter(l => l.direction === 'inflow' && l.date && new Date(l.date) <= in90 && new Date(l.date) >= today)
     .reduce((s, l) => s + (Number(l.amount_net) || 0), 0);
 
+  // Effektives Fälligkeitsdatum: due_date, sonst invoice_date + 30 Tage als Fallback
+  const effectiveDueDate = (item) => {
+    if (item.due_date) return item.due_date;
+    if (item.invoice_date) {
+      const d = new Date(item.invoice_date);
+      d.setDate(d.getDate() + 30);
+      return d.toISOString().substring(0, 10);
+    }
+    return null;
+  };
+
   // Offene Forderungen: Receivable (manuell) + InvoiceRecord (sevDesk) — beide Quellen zusammengeführt
   const openReceivablesManual = receivables
     .filter(r => r.status !== 'paid' && r.status !== 'write_off')
@@ -27,10 +38,10 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
   const openReceivables = openReceivablesManual + openReceivablesInvoices;
 
   const overdueReceivablesManual = receivables
-    .filter(r => r.status !== 'paid' && r.status !== 'write_off' && calcOverdueDays(r.due_date) > 0)
+    .filter(r => r.status !== 'paid' && r.status !== 'write_off' && calcOverdueDays(effectiveDueDate(r)) > 0)
     .reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
   const overdueReceivablesInvoices = invoices
-    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note && calcOverdueDays(i.due_date) > 0)
+    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note && calcOverdueDays(effectiveDueDate(i)) > 0)
     .reduce((s, i) => s + (Number(i.open_amount) > 0 ? Number(i.open_amount) : Number(i.gross_amount) || 0), 0);
   const overdueReceivables = overdueReceivablesManual + overdueReceivablesInvoices;
 

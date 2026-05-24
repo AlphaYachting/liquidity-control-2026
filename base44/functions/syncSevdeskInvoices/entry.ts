@@ -148,7 +148,19 @@ Deno.serve(async (req) => {
         const matchResult = findMatchingOrder(inv, allOrders, ordersBySevdeskId);
 
         const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
-        const dueDate = inv.payDate ? inv.payDate.substring(0, 10) : null;
+
+        // due_date: sevDesk payDate, sonst invoiceDate + timeToPay (Zahlungsziel in Tagen), sonst +30 Tage Fallback
+        let dueDate = null;
+        if (inv.payDate) {
+          dueDate = inv.payDate.substring(0, 10);
+        } else if (invoiceDate) {
+          const timeToPay = parseInt(inv.timeToPay || inv.discountTime || '30', 10);
+          const days = isNaN(timeToPay) || timeToPay <= 0 ? 30 : timeToPay;
+          const d = new Date(invoiceDate);
+          d.setDate(d.getDate() + days);
+          dueDate = d.toISOString().substring(0, 10);
+        }
+
         const paymentDate = inv.entryDate ? inv.entryDate.substring(0, 10) : null;
 
         const netAmount = parseAmount(inv.sumNet);
