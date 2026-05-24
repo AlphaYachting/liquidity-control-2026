@@ -4,7 +4,8 @@ import {
   LayoutDashboard, FolderKanban, Megaphone, Shield, Wrench,
   CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
-  ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart
+  ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
+  CalendarDays, Users, BarChart2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -22,6 +23,10 @@ const navItems = [
   { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
   { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
   { path: '/revenue-analysis', label: 'Umsatzbewertung', icon: PieChart },
+  { path: '/escalation-alerts', label: 'Eskalations-Alerts', icon: AlertTriangle },
+  { path: '/weekly-cashflow', label: 'Wöchentl. Cashflow', icon: CalendarDays },
+  { path: '/customer-risk', label: 'Kundenrisiko', icon: Users },
+  { path: '/variance-analysis', label: 'Abweichungsanalyse', icon: BarChart2 },
   { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
   { path: '/cashflow-advisor', label: 'Cashflow Berater', icon: BrainCircuit },
   { path: '/import', label: 'Import Center', icon: Upload },

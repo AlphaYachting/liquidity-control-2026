@@ -31,6 +31,10 @@ import PaymentConsistencyCheck from '@/pages/PaymentConsistencyCheck';
 import SevdeskSettings from '@/pages/SevdeskSettings';
 import CashflowAdvisor from '@/pages/CashflowAdvisor';
 import RevenueAnalysis from '@/pages/RevenueAnalysis';
+import EscalationAlerts from '@/pages/EscalationAlerts';
+import WeeklyCashflow from '@/pages/WeeklyCashflow';
+import CustomerRisk from '@/pages/CustomerRisk';
+import VarianceAnalysis from '@/pages/VarianceAnalysis';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -82,6 +86,10 @@ const AuthenticatedApp = () => {
         <Route path="/sevdesk-settings" element={<SevdeskSettings />} />
         <Route path="/cashflow-advisor" element={<CashflowAdvisor />} />
         <Route path="/revenue-analysis" element={<RevenueAnalysis />} />
+        <Route path="/escalation-alerts" element={<EscalationAlerts />} />
+        <Route path="/weekly-cashflow" element={<WeeklyCashflow />} />
+        <Route path="/customer-risk" element={<CustomerRisk />} />
+        <Route path="/variance-analysis" element={<VarianceAnalysis />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
