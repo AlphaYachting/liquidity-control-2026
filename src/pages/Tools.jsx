@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, Plus, Pencil, Trash2 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import FilterBar from '@/components/shared/FilterBar';
@@ -11,12 +11,15 @@ import { formatCurrency } from '@/lib/liquidityUtils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import ToolCostDialog from '@/components/tools/ToolCostDialog';
 
 const DEPT_LABELS = { design: 'Design', marketing: 'Marketing', programming: 'Programmierung', project_management: 'PM', general: 'Allgemein', other: 'Sonstiges' };
 const DECISION_COLORS = { keep: 'bg-emerald-100 text-emerald-700', cancel: 'bg-red-100 text-red-700', review: 'bg-amber-100 text-amber-700', undecided: 'bg-gray-100 text-gray-500' };
 
 export default function Tools() {
   const [filters, setFilters] = useState({});
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingTool, setEditingTool] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: tools = [], isLoading } = useQuery({
@@ -27,6 +30,36 @@ export default function Tools() {
     mutationFn: ({ id, data }) => base44.entities.ToolCost.update(id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tools'] })
   });
+
+  const createMutation = useMutation({
+    mutationFn: (data) => base44.entities.ToolCost.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tools'] })
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.ToolCost.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tools'] })
+  });
+
+  const openNew = () => { setEditingTool(null); setDialogOpen(true); };
+  const openEdit = (tool) => { setEditingTool(tool); setDialogOpen(true); };
+  const handleClose = () => { setDialogOpen(false); setEditingTool(null); };
+
+  const handleSave = (formData) => {
+    if (editingTool) {
+      updateMutation.mutate({ id: editingTool.id, data: formData });
+    } else {
+      createMutation.mutate(formData);
+    }
+    handleClose();
+  };
+
+  const handleDelete = (tool, e) => {
+    e.stopPropagation();
+    if (confirm(`„${tool.tool_name}" wirklich löschen?`)) {
+      deleteMutation.mutate(tool.id);
+    }
+  };
 
   const filtered = tools.filter(t => {
     if (filters.department && t.department !== filters.department) return false;
@@ -59,13 +92,28 @@ export default function Tools() {
         ))}
       </div>
     )},
+    { key: '_actions', label: '', sortable: false, render: (_, row) => (
+      <div className="flex gap-1 justify-end">
+        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(row); }}>
+          <Pencil className="w-3.5 h-3.5" />
+        </Button>
+        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={(e) => handleDelete(row, e)}>
+          <Trash2 className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+    )},
   ];
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-[400px]" /></div>;
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Toolkosten 2026" subtitle={`${filtered.length} Tools`} icon={CreditCard} />
+      <PageHeader
+        title="Toolkosten 2026"
+        subtitle={`${filtered.length} Tools`}
+        icon={CreditCard}
+        actions={<Button onClick={openNew} size="sm"><Plus className="w-4 h-4 mr-1" />Tool hinzufügen</Button>}
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard title="Jahreskosten" value={formatCurrency(annual)} variant="danger" />
@@ -86,6 +134,13 @@ export default function Tools() {
       />
 
       <DataTable columns={columns} data={filtered} />
+
+      <ToolCostDialog
+        open={dialogOpen}
+        onClose={handleClose}
+        onSave={handleSave}
+        tool={editingTool}
+      />
     </div>
   );
 }
