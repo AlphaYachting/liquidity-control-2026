@@ -3,7 +3,7 @@ import { TrendingUp, Receipt, AlertTriangle, CreditCard, FileText, Clock, Dollar
 import KpiCard from '@/components/shared/KpiCard';
 import { formatCurrency, calcOverdueDays } from '@/lib/liquidityUtils';
 
-export default function DashboardKpis({ projects, planLines, contracts, tools, receivables, payables, liveInvoiced, liveOpen }) {
+export default function DashboardKpis({ projects, planLines, contracts, tools, receivables, payables, invoices = [], liveInvoiced, liveOpen }) {
   const totalPlanned = planLines.filter(l => l.direction === 'inflow').reduce((s, l) => s + (Number(l.amount_net) || 0), 0);
   const alreadyInvoiced = liveInvoiced ?? projects.reduce((s, p) => s + (Number(p.already_invoiced_amount) || 0), 0);
   const openProject = liveOpen ?? projects.reduce((s, p) => s + (Number(p.open_amount) || 0), 0);
@@ -17,8 +17,22 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
   const next90 = planLines.filter(l => l.direction === 'inflow' && l.date && new Date(l.date) <= in90 && new Date(l.date) >= today)
     .reduce((s, l) => s + (Number(l.amount_net) || 0), 0);
 
-  const openReceivables = receivables.filter(r => r.status !== 'paid').reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
-  const overdueReceivables = receivables.filter(r => r.status !== 'paid' && calcOverdueDays(r.due_date) > 0).reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
+  // Offene Forderungen: Receivable (manuell) + InvoiceRecord (sevDesk) — beide Quellen zusammengeführt
+  const openReceivablesManual = receivables
+    .filter(r => r.status !== 'paid' && r.status !== 'write_off')
+    .reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
+  const openReceivablesInvoices = invoices
+    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note)
+    .reduce((s, i) => s + (Number(i.open_amount) > 0 ? Number(i.open_amount) : Number(i.gross_amount) || 0), 0);
+  const openReceivables = openReceivablesManual + openReceivablesInvoices;
+
+  const overdueReceivablesManual = receivables
+    .filter(r => r.status !== 'paid' && r.status !== 'write_off' && calcOverdueDays(r.due_date) > 0)
+    .reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
+  const overdueReceivablesInvoices = invoices
+    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note && calcOverdueDays(i.due_date) > 0)
+    .reduce((s, i) => s + (Number(i.open_amount) > 0 ? Number(i.open_amount) : Number(i.gross_amount) || 0), 0);
+  const overdueReceivables = overdueReceivablesManual + overdueReceivablesInvoices;
 
   const toolCosts = tools.reduce((s, t) => s + (Number(t.annual_cost) || 0), 0);
   const monthlyToolAvg = tools.reduce((s, t) => s + (Number(t.monthly_cost) || 0), 0);
