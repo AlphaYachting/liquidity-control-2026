@@ -27,6 +27,7 @@ const SYNC_STATUS_CONFIG = {
 export default function AworkSettings() {
   const queryClient = useQueryClient();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncingTime, setIsSyncingTime] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
 
   const { data: settings = [], isLoading: settingsLoading } = useQuery({
@@ -58,6 +59,15 @@ export default function AworkSettings() {
     setIsSyncing(false);
   };
 
+  const handleSyncTimeEntries = async () => {
+    setIsSyncingTime(true);
+    setSyncResult(null);
+    const resp = await base44.functions.invoke('syncAworkTimeEntries', {});
+    setSyncResult(resp.data);
+    queryClient.invalidateQueries({ queryKey: ['aworkTimeEntries'] });
+    setIsSyncingTime(false);
+  };
+
   const statusCfg = STATUS_CONFIG[setting?.connection_status || 'not_configured'];
   const StatusIcon = statusCfg.icon;
 
@@ -68,10 +78,16 @@ export default function AworkSettings() {
         subtitle="Verbindungseinstellungen und Synchronisation"
         icon={Settings}
         actions={
-          <Button onClick={handleSyncProjects} disabled={isSyncing}>
-            {isSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-            Projekte synchronisieren
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleSyncTimeEntries} disabled={isSyncingTime}>
+              {isSyncingTime ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Clock className="w-4 h-4 mr-2" />}
+              Zeitbuchungen synchronisieren
+            </Button>
+            <Button onClick={handleSyncProjects} disabled={isSyncing}>
+              {isSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              Projekte synchronisieren
+            </Button>
+          </div>
         }
       />
 
@@ -166,9 +182,15 @@ export default function AworkSettings() {
         <div className={`p-4 rounded-xl border text-sm ${syncResult.error ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
           {syncResult.error ? (
             <p>Fehler: {syncResult.error}</p>
+          ) : syncResult.entries_fetched !== undefined ? (
+            <p>
+              ✓ Zeitbuchungen-Sync abgeschlossen: {syncResult.entries_fetched} Einträge abgerufen ({syncResult.period?.from} – {syncResult.period?.to}),
+              {' '}{syncResult.created} neu, {syncResult.updated} aktualisiert
+              {syncResult.failed > 0 ? `, ${syncResult.failed} fehlgeschlagen` : ''}.
+            </p>
           ) : (
             <p>
-              ✓ Sync abgeschlossen: {syncResult.projects_fetched} Projekte abgerufen,
+              ✓ Projekte-Sync abgeschlossen: {syncResult.projects_fetched} Projekte abgerufen,
               {syncResult.created} neu, {syncResult.updated} aktualisiert
               {syncResult.failed > 0 ? `, ${syncResult.failed} fehlgeschlagen` : ''}.
             </p>
