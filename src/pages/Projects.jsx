@@ -79,18 +79,34 @@ export default function Projects() {
       return (a.customer || '').localeCompare(b.customer || '', 'de');
     });
 
-  // Letzte Rechnung pro Projekt
+  // Order-ID -> project_id map für indirekte Rechnungsverknüpfung
+  const orderProjectMap = useMemo(() => {
+    const map = {};
+    orders.forEach(o => { if (o.id && o.project_id) map[o.id] = o.project_id; });
+    return map;
+  }, [orders]);
+
+  // Block-ID -> project_id map
+  const blockProjectMap = useMemo(() => {
+    const map = {};
+    allBlocks.forEach(b => { if (b.id && b.project_id) map[b.id] = b.project_id; });
+    return map;
+  }, [allBlocks]);
+
+  // Letzte Rechnung pro Projekt — direkt, über Order oder über Block
   const lastInvoiceDateMap = useMemo(() => {
     const map = {};
     invoices
       .filter(inv => inv.invoice_date && !inv.is_credit_note)
       .forEach(inv => {
-        const pid = inv.project_id;
+        const pid = inv.project_id
+          || orderProjectMap[inv.confirmed_order_id]
+          || blockProjectMap[inv.billing_block_id];
         if (!pid) return;
         if (!map[pid] || inv.invoice_date > map[pid]) map[pid] = inv.invoice_date;
       });
     return map;
-  }, [invoices]);
+  }, [invoices, orderProjectMap, blockProjectMap]);
 
   // Erweiterte Projekte mit live-berechneten Werten (shared helper)
   const filteredWithLive = filtered.map(p => {
@@ -140,6 +156,17 @@ export default function Projects() {
       );
     }},
     { key: 'project_manager', label: 'PM', width: '80px' },
+    { key: '_lastInvoiceDate', label: 'Letzte Rechnung', width: '130px', render: (v, row) => {
+      if (!v) return <span className="text-xs text-muted-foreground">—</span>;
+      const days = row._daysSinceInvoice;
+      const color = days === null ? '' : days > 90 ? 'text-red-600' : days > 30 ? 'text-amber-600' : 'text-emerald-600';
+      return (
+        <div className="space-y-0.5">
+          <p className="text-xs font-medium">{v}</p>
+          <p className={`text-xs font-semibold ${color}`}>{days !== null ? `vor ${days} T.` : '—'}</p>
+        </div>
+      );
+    }},
     { key: 'total_net_amount', label: 'Gesamt netto', render: (v) => formatCurrency(v), cellClass: 'text-right font-medium' },
     { key: '_invoiced', label: 'Verrechnet netto', render: (v) => <span className={Number(v) > 0 ? 'text-green-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
     { key: '_open', label: 'Noch zu verr.', render: (v) => <span className={Number(v) > 0 ? 'text-amber-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
@@ -175,17 +202,6 @@ export default function Projects() {
         );
       }
     },
-    { key: '_lastInvoiceDate', label: 'Letzte Rechnung', width: '130px', render: (v, row) => {
-      if (!v) return <span className="text-xs text-muted-foreground">—</span>;
-      const days = row._daysSinceInvoice;
-      const color = days === null ? '' : days > 90 ? 'text-red-600' : days > 30 ? 'text-amber-600' : 'text-emerald-600';
-      return (
-        <div className="space-y-0.5">
-          <p className="text-xs font-medium">{v}</p>
-          <p className={`text-xs font-semibold ${color}`}>{days !== null ? `vor ${days} T.` : '—'}</p>
-        </div>
-      );
-    }},
     { key: 'expected_invoice_month', label: 'Erw. Monat', width: '100px' },
     { key: 'risk_status', label: 'Risiko', width: '90px', render: (v) => <StatusBadge status={v} /> },
   ];
