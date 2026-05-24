@@ -99,6 +99,12 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
                   {instr.assigned_backoffice_user && <span>👤 {instr.assigned_backoffice_user}</span>}
                   {instr.requested_by_pm && <span>PM: {instr.requested_by_pm}</span>}
                   {instr.linked_invoice_id && <span className="text-primary">🔗 Rechnung verknüpft</span>}
+                  {instr.sevdesk_invoice_id && (
+                    <a href={instr.sevdesk_invoice_url || `https://my.sevdesk.de/#/fi/${instr.sevdesk_invoice_id}`} target="_blank" rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center gap-0.5">
+                      <ExternalLink className="w-3 h-3" /> sevDesk Entwurf
+                    </a>
+                  )}
                   {instr.created_date && <span className="text-muted-foreground/60">{format(new Date(instr.created_date), 'dd.MM.yy')}</span>}
                 </div>
               </div>
@@ -210,7 +216,14 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
                     </Button>
                   )}
                   {/* sevDesk Rechnungsentwurf */}
-                  {instr.status !== 'invoice_created' && instr.status !== 'paid' && instr.status !== 'cancelled' && (
+                  {instr.sevdesk_invoice_id && (
+                    <a href={instr.sevdesk_invoice_url || `https://my.sevdesk.de/#/fi/${instr.sevdesk_invoice_id}`} target="_blank" rel="noopener noreferrer">
+                      <Button size="sm" variant="outline" className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50">
+                        <ExternalLink className="w-3 h-3 mr-1" /> In sevDesk öffnen
+                      </Button>
+                    </a>
+                  )}
+                  {!instr.sevdesk_invoice_id && instr.status !== 'paid' && instr.status !== 'cancelled' && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -220,10 +233,11 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
                     >
                       {creatingDraft === instr.id
                         ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Wird angelegt…</>
-                        : <><FileText className="w-3 h-3 mr-1" /> Rechnungsentwurf in sevDesk</>
+                        : <><FileText className="w-3 h-3 mr-1" /> Rechnungsentwurf in sevDesk erzeugen</>
                       }
                     </Button>
                   )}
+                  
                   <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onDuplicate(instr)}>
                     <Copy className="w-3 h-3 mr-1" /> Duplizieren
                   </Button>

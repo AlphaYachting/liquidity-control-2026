@@ -150,32 +150,34 @@
     "linked_invoice_id": {
       "type": "string"
     },
-    "source_snapshot_json": {
+    "sevdesk_invoice_id": {
       "type": "string",
-      "description": "JSON snapshot of financial state at instruction creation time"
+      "description": "sevDesk Rechnungs-ID nach Erstellung des Entwurfs"
+    },
+    "sevdesk_invoice_url": {
+      "type": "string",
+      "description": "Direktlink zur Rechnung in sevDesk"
+    },
+    "source_snapshot_json": {
+      "type": "string"
     },
     "ai_generated": {
       "type": "boolean",
-      "default": false,
-      "description": "True if the instruction content was generated or assisted by AI/deterministic suggestion"
+      "default": false
     },
     "ai_suggestion_json": {
-      "type": "string",
-      "description": "JSON of the AI/deterministic suggestion output that was applied"
+      "type": "string"
     },
     "ai_applied_at": {
       "type": "string",
-      "format": "date-time",
-      "description": "Timestamp when the AI suggestion was applied by the PM"
+      "format": "date-time"
     },
     "ai_applied_by": {
-      "type": "string",
-      "description": "Email or name of the PM who applied the suggestion"
+      "type": "string"
     },
     "ai_modified_after_apply": {
       "type": "boolean",
-      "default": false,
-      "description": "True if the PM manually edited fields after applying the AI suggestion"
+      "default": false
     }
   },
   "required": [

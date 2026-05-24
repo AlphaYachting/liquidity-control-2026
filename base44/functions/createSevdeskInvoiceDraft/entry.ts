@@ -9,7 +9,7 @@ async function sevdeskPost(path, apiKey, body) {
     body: JSON.stringify(body)
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`sevDesk API error ${res.status}: ${text.slice(0, 300)}`);
+  if (!res.ok) throw new Error(`sevDesk API error ${res.status}: ${text.slice(0, 500)}`);
   return JSON.parse(text);
 }
 
@@ -21,16 +21,14 @@ async function sevdeskGet(path, apiKey) {
   return res.json();
 }
 
-// Rechnungstyp-Mapping
 const INVOICE_TYPE_MAP = {
-  advance_invoice: 'AN',  // Anzahlungsrechnung
-  partial_invoice: 'RE',  // Teilrechnung
-  final_invoice:   'RE',  // Schlussrechnung
-  correction:      'SR',  // Stornorechnung
+  advance_invoice: 'AN',
+  partial_invoice: 'RE',
+  final_invoice:   'RE',
+  correction:      'SR',
   credit_note:     'SR',
 };
 
-// Rechnungstyp-Betreff
 const INVOICE_TYPE_HEADER = {
   advance_invoice: 'Anzahlungsrechnung',
   partial_invoice: 'Teilrechnung',
@@ -50,17 +48,14 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { billing_instruction_id } = body;
-
-    if (!billing_instruction_id) {
-      return Response.json({ error: 'billing_instruction_id required' }, { status: 400 });
-    }
+    if (!billing_instruction_id) return Response.json({ error: 'billing_instruction_id required' }, { status: 400 });
 
     // 1. Abrechnungsanweisung laden
     const instructions = await base44.asServiceRole.entities.BillingInstruction.filter({ id: billing_instruction_id });
     const instr = instructions?.[0];
     if (!instr) return Response.json({ error: 'BillingInstruction not found' }, { status: 404 });
 
-    // 2. Kontakt-ID ermitteln — zuerst aus verknüpftem ConfirmedOrder
+    // 2. Kontakt-ID aus verknüpftem ConfirmedOrder
     let sevdeskContactId = null;
     let sevdeskOrderId = null;
 
@@ -71,14 +66,12 @@ Deno.serve(async (req) => {
       if (order?.sevdesk_order_id) sevdeskOrderId = order.sevdesk_order_id;
     }
 
-    // 3. Falls keine Kontakt-ID → per Kundenname in sevDesk suchen
+    // 3. Fallback: Kontakt per Name suchen
     if (!sevdeskContactId && instr.customer_name) {
-      const searchName = encodeURIComponent(instr.customer_name.substring(0, 30));
-      const contactData = await sevdeskGet(`/Contact?name=${searchName}&limit=5`, apiKey);
-      const contacts = contactData.objects || [];
-      if (contacts.length > 0) {
-        sevdeskContactId = String(contacts[0].id);
-      }
+      const searchName = encodeURIComponent(instr.customer_name.substring(0, 40));
+      const contactData = await sevdeskGet(`/Contact?name=${searchName}&limit=5&depth=0`, apiKey);
+      const contacts = (contactData.objects || []);
+      if (contacts.length > 0) sevdeskContactId = String(contacts[0].id);
     }
 
     if (!sevdeskContactId) {
@@ -88,33 +81,39 @@ Deno.serve(async (req) => {
       }, { status: 422 });
     }
 
-    // 4. Rechnungstext aufbauen
+    // 4. SevUser (Mitarbeiter) laden — sevDesk erfordert contactPerson als SevUser
+    let contactPersonId = null;
+    const userResp = await sevdeskGet(`/SevUser?limit=1`, apiKey);
+    const sevUsers = userResp.objects || [];
+    if (sevUsers.length > 0) contactPersonId = String(sevUsers[0].id);
+
+    // 5. Rechnungstext
     const invoiceTypeLabel = INVOICE_TYPE_HEADER[instr.invoice_type] || 'Teilrechnung';
     const projectLabel = instr.project_name || '';
-    const headerText = `${invoiceTypeLabel} — Vereinbarte Teilabrechnung${projectLabel ? ': ' + projectLabel : ''}`;
+    const headerText = `${invoiceTypeLabel}${projectLabel ? ': ' + projectLabel : ''}`;
+    const footText = instr.invoice_instruction_text || `${invoiceTypeLabel} gemäß Auftragsbestätigung.`;
+    const headText = `Sehr geehrte Damen und Herren,\n\nbeiliegend erhalten Sie unsere ${invoiceTypeLabel}${projectLabel ? ' für das Projekt "' + projectLabel + '"' : ''}.`;
 
-    const footText = instr.invoice_instruction_text
-      ? instr.invoice_instruction_text
-      : `${invoiceTypeLabel} gemäß Auftragsbestätigung.`;
-
-    // 5. Rechnungsentwurf in sevDesk anlegen
+    // 6. Datum
     const today = new Date().toISOString().split('T')[0] + ' 00:00:00';
+
+    // 7. Rechnungsentwurf anlegen via Factory
     const invoicePayload = {
       objectName: 'Invoice',
       mapAll: true,
-      invoiceNumber: null, // sevDesk vergibt automatisch
       contact: { id: sevdeskContactId, objectName: 'Contact' },
+      contactPerson: { id: contactPersonId, objectName: 'SevUser' },
       invoiceDate: today,
       header: headerText,
-      headText: `Sehr geehrte Damen und Herren,\n\nwir erlauben uns, folgende ${invoiceTypeLabel} in Rechnung zu stellen:`,
+      headText: headText,
       footText: footText,
       invoiceType: INVOICE_TYPE_MAP[instr.invoice_type] || 'RE',
-      status: '100', // 100 = Entwurf
+      status: '100', // Entwurf
       taxRate: String(instr.vat_rate ?? 20),
       taxText: `${instr.vat_rate ?? 20}% MwSt.`,
       taxType: 'default',
       currency: 'EUR',
-      // Auftragsreferenz falls vorhanden
+      showNet: '1',
       ...(sevdeskOrderId ? { order: { id: sevdeskOrderId, objectName: 'Order' } } : {}),
     };
 
@@ -128,7 +127,8 @@ Deno.serve(async (req) => {
           quantity: '1',
           price: String(instr.instruction_amount_net ?? 0),
           name: headerText,
-          unity: { id: '1', objectName: 'Unity' }, // Stück
+          text: footText,
+          unity: { id: '1', objectName: 'Unity' },
           taxRate: String(instr.vat_rate ?? 20),
         }
       ],
@@ -138,20 +138,23 @@ Deno.serve(async (req) => {
     });
 
     const createdInvoice = invoiceResult?.objects?.invoice || invoiceResult?.invoice;
-    const sevdeskInvoiceId = createdInvoice?.id;
+    const sevdeskInvoiceId = createdInvoice?.id ? String(createdInvoice.id) : null;
+    const sevdeskUrl = sevdeskInvoiceId ? `https://my.sevdesk.de/#/fi/${sevdeskInvoiceId}` : null;
 
-    // 6. Abrechnungsanweisung aktualisieren — Status und sevDesk-Link
+    // 8. Status + Verlinkung in BillingInstruction speichern
     if (sevdeskInvoiceId) {
       await base44.asServiceRole.entities.BillingInstruction.update(billing_instruction_id, {
         status: 'invoice_created',
         invoice_created_at: new Date().toISOString(),
+        sevdesk_invoice_id: sevdeskInvoiceId,
+        sevdesk_invoice_url: sevdeskUrl,
       });
     }
 
     return Response.json({
       success: true,
       sevdesk_invoice_id: sevdeskInvoiceId,
-      sevdesk_url: sevdeskInvoiceId ? `https://my.sevdesk.de/#/fi/${sevdeskInvoiceId}` : null,
+      sevdesk_url: sevdeskUrl,
       message: `Rechnungsentwurf erfolgreich in sevDesk angelegt (ID: ${sevdeskInvoiceId})`
     });
 
