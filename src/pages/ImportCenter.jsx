@@ -18,6 +18,13 @@ const DEDICATED_IMPORTERS = [
     fn: 'importProjekte2026',
     description: 'Importiert alle 81 Projekte mit Gesamtbetrag, offenem Betrag und monatlichen IST/SOLL-Werten'
   },
+  {
+    label: 'Toolkosten 2026',
+    entity: 'ToolCost',
+    icon: '💳',
+    fn: 'importToolkosten2026',
+    description: 'Importiert alle Software-Tools mit Jahres-/Monatskosten, Abteilung, Zahlungsintervall und Status'
+  },
 ];
 
 const SHEET_MAPPINGS = [
