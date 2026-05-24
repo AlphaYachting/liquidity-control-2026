@@ -31,6 +31,7 @@ import PaymentConsistencyCheck from '@/pages/PaymentConsistencyCheck';
 import SevdeskSettings from '@/pages/SevdeskSettings';
 import CashflowAdvisor from '@/pages/CashflowAdvisor';
 import RevenueAnalysis from '@/pages/RevenueAnalysis';
+import AworkCostIndex from '@/pages/AworkCostIndex';
 import EscalationAlerts from '@/pages/EscalationAlerts';
 import WeeklyCashflow from '@/pages/WeeklyCashflow';
 import CustomerRisk from '@/pages/CustomerRisk';
@@ -86,6 +87,7 @@ const AuthenticatedApp = () => {
         <Route path="/sevdesk-settings" element={<SevdeskSettings />} />
         <Route path="/cashflow-advisor" element={<CashflowAdvisor />} />
         <Route path="/revenue-analysis" element={<RevenueAnalysis />} />
+        <Route path="/awork-cost-index" element={<AworkCostIndex />} />
         <Route path="/escalation-alerts" element={<EscalationAlerts />} />
         <Route path="/weekly-cashflow" element={<WeeklyCashflow />} />
         <Route path="/customer-risk" element={<CustomerRisk />} />

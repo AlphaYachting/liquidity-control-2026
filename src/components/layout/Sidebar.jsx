@@ -5,7 +5,7 @@ import {
   CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
-  CalendarDays, Users, BarChart2
+  CalendarDays, Users, BarChart2, Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -23,6 +23,7 @@ const navItems = [
   { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
   { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
   { path: '/revenue-analysis', label: 'Umsatzbewertung', icon: PieChart },
+  { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock },
   { path: '/escalation-alerts', label: 'Eskalations-Alerts', icon: AlertTriangle },
   { path: '/weekly-cashflow', label: 'Wöchentl. Cashflow', icon: CalendarDays },
   { path: '/customer-risk', label: 'Kundenrisiko', icon: Users },
