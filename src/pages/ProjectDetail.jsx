@@ -786,7 +786,15 @@ export default function ProjectDetail() {
             <CardContent className="space-y-2">
               {(() => {
                 const docs = [];
-                linkedOrders.forEach(o => {
+                // All relevant orders: directly linked + linked via invoices
+                const allRelevantOrders = allOrders.filter(o =>
+                  o.project_id === projectId ||
+                  (fin?.linkedInvoices || []).some(inv => inv.confirmed_order_id === o.id)
+                );
+                const seenOrderIds = new Set();
+                allRelevantOrders.forEach(o => {
+                  if (seenOrderIds.has(o.id)) return;
+                  seenOrderIds.add(o.id);
                   if (o.document_url) docs.push({ label: `AB: ${o.project_name || o.order_number || 'Auftragsbestätigung'}`, url: o.document_url, type: 'order' });
                 });
                 projectInvoices.forEach(inv => {
