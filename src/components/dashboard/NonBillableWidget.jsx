@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Clock, AlertTriangle } from 'lucide-react';
 
 const MONTHS_DE = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
@@ -18,7 +18,7 @@ export default function NonBillableWidget() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { monthlyData, totalBillable, totalNonBillable, nonBillablePct, topProjects } = useMemo(() => {
+  const { monthlyData, totalBillable, totalNonBillable, nonBillablePct, topProjects, userNonBillable = [], currentMonth } = useMemo(() => {
     if (!entries.length) return { monthlyData: [], totalBillable: 0, totalNonBillable: 0, nonBillablePct: 0, topProjects: [] };
 
     // Nur Kundenprojekte (nicht reine Intern-Projekte)
@@ -70,7 +70,27 @@ export default function NonBillableWidget() {
       .slice(0, 5)
       .map(([name, mins]) => ({ name, h: parseFloat((mins / 60).toFixed(1)) }));
 
-    return { monthlyData, totalBillable, totalNonBillable, nonBillablePct, topProjects };
+    // Kollegen - nicht verrechenbare Stunden (aktueller Monat)
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    const currentMonthEntries = clientEntries.filter(e => e.entry_month === currentMonth);
+    const byUser = {};
+    for (const e of currentMonthEntries) {
+      const name = e.user_name || 'Unbekannt';
+      if (!byUser[name]) byUser[name] = { nonBillable: 0, billable: 0 };
+      if (e.is_billable === false) byUser[name].nonBillable += e.duration_minutes || 0;
+      else byUser[name].billable += e.duration_minutes || 0;
+    }
+    const userNonBillable = Object.entries(byUser)
+      .map(([name, v]) => ({
+        name: name.split(' ').map(p => p[0]).join('') || name, // Initialen
+        fullName: name,
+        non_billable_h: parseFloat((v.nonBillable / 60).toFixed(1)),
+        billable_h: parseFloat((v.billable / 60).toFixed(1)),
+      }))
+      .filter(u => u.non_billable_h > 0 || u.billable_h > 0)
+      .sort((a, b) => b.non_billable_h - a.non_billable_h);
+
+    return { monthlyData, totalBillable, totalNonBillable, nonBillablePct, topProjects, userNonBillable, currentMonth };
   }, [entries]);
 
   const pctColor = nonBillablePct >= 30 ? 'text-red-500' : nonBillablePct >= 15 ? 'text-amber-500' : 'text-green-600';
@@ -161,6 +181,29 @@ export default function NonBillableWidget() {
                 <span className="font-medium text-red-500 ml-2">{p.h} h</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Kollegen – nicht verrechenbare Stunden aktueller Monat */}
+        {userNonBillable.length > 0 && (
+          <div className="space-y-2 pt-2 border-t">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Kollegen – nicht verrechenbar ({currentMonth?.replace('-', '/')})
+            </div>
+            <ResponsiveContainer width="100%" height={Math.max(120, userNonBillable.length * 28)}>
+              <BarChart data={userNonBillable} layout="vertical" barSize={16} margin={{ left: 0, right: 40, top: 2, bottom: 2 }}>
+                <XAxis type="number" hide />
+                <YAxis type="category" dataKey="fullName" tick={{ fontSize: 11 }} width={90} axisLine={false} tickLine={false} />
+                <Tooltip
+                  formatter={(v, key) => [`${v} h`, key === 'non_billable_h' ? 'Nicht verr.' : 'Verrechenbar']}
+                  contentStyle={{ fontSize: 12 }}
+                />
+                <Bar dataKey="billable_h" stackId="u" fill="hsl(var(--chart-2))" radius={[0,0,0,0]} />
+                <Bar dataKey="non_billable_h" stackId="u" fill="#ef4444" radius={[0,3,3,0]}>
+                  <LabelList dataKey="non_billable_h" position="right" formatter={v => v > 0 ? `${v} h` : ''} style={{ fontSize: 11, fill: '#ef4444', fontWeight: 600 }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         )}
       </CardContent>
