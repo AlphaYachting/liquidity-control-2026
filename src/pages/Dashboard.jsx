@@ -123,7 +123,7 @@ export default function Dashboard() {
         <AgingChart receivables={receivables} />
         <ToolCostChart tools={tools} />
       </div>
-      <CashflowForecastChart invoiceRecords={invoices} />
+      <CashflowForecastChart invoiceRecords={invoices} receivables={receivables} />
       <NonBillableWidget />
       <LiquidityTrendChart orders={allOrders} blocks={allBlocks} invoices={invoices} />
       <RiskTimeline planLines={planLines} />
