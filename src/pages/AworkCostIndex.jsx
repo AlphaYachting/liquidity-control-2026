@@ -35,41 +35,53 @@ export default function AworkCostIndex() {
   const [expanded, setExpanded] = useState({});
   const [sortBy, setSortBy] = useState('budget_pct'); // 'budget_pct' | 'tracked' | 'name'
   const [filterOverrun, setFilterOverrun] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const { data: snapshots = [], isLoading: sLoading } = useQuery({
     queryKey: ['aworkSnapshots'], queryFn: () => base44.entities.AworkProjectSnapshot.list()
   });
   const { data: timeEntries = [], isLoading: tLoading } = useQuery({
-    queryKey: ['aworkTimeEntries'], queryFn: () => base44.entities.AworkTimeEntry.list()
+    queryKey: ['aworkTimeEntries'], queryFn: () => base44.entities.AworkTimeEntry.list('-entry_date', 5000)
   });
 
   const isLoading = sLoading || tLoading;
 
   // Group time entries by awork_project_id → then by user_name
+  // AworkTimeEntry hat korrekte Einzeleinträge; Snapshot tracked_duration_minutes = offizielle awork-Summe
   const timeByProject = useMemo(() => {
     const map = {};
     timeEntries.forEach(e => {
       const pid = e.awork_project_id;
       if (!pid) return;
-      if (!map[pid]) map[pid] = { total: 0, byUser: {} };
-      map[pid].total += e.duration_minutes || 0;
+      if (!map[pid]) map[pid] = { byUser: {} };
       const user = e.user_name || 'Unbekannt';
       map[pid].byUser[user] = (map[pid].byUser[user] || 0) + (e.duration_minutes || 0);
     });
     return map;
   }, [timeEntries]);
 
+  // Aktive Status-Werte in awork (Snapshots speichern project_status als String aus awork)
+  const INACTIVE_STATUSES = ['done', 'archived', 'abgeschlossen', 'completed', 'cancelled', 'abgebrochen'];
+
   const projects = useMemo(() => {
     return snapshots
-      .filter(s => !s.is_archived)
+      .filter(s => {
+        if (s.is_archived) return false;
+        // Standardfilter: nur laufende Projekte
+        if (!showAll) {
+          const status = (s.project_status || '').toLowerCase();
+          if (INACTIVE_STATUSES.some(x => status.includes(x))) return false;
+        }
+        return true;
+      })
       .map(s => {
-        const tracked = timeByProject[s.awork_project_id];
-        const trackedMin = tracked?.total ?? s.tracked_duration_minutes ?? 0;
+        // Stunden: Snapshot-Wert ist die offizielle awork-Gesamtsumme (korrekt)
+        const trackedMin = s.tracked_duration_minutes ?? 0;
         const budgetMin = s.time_budget_minutes ?? 0;
         const budgetPct = budgetMin > 0 ? Math.round((trackedMin / budgetMin) * 100) : null;
 
-        // Top users by hours
-        const byUser = tracked?.byUser ?? {};
+        // Mitarbeiter-Verteilung aus den synced TimeEntries
+        const byUser = timeByProject[s.awork_project_id]?.byUser ?? {};
         const topUsers = Object.entries(byUser)
           .map(([name, minutes]) => ({ name, minutes }))
           .sort((a, b) => b.minutes - a.minutes);
@@ -83,7 +95,7 @@ export default function AworkCostIndex() {
           isOverrun: budgetPct !== null && budgetPct >= 100,
         };
       });
-  }, [snapshots, timeByProject]);
+  }, [snapshots, timeByProject, showAll]);
 
   const sorted = useMemo(() => {
     let list = filterOverrun ? projects.filter(p => p.isOverrun) : projects;
@@ -167,6 +179,12 @@ export default function AworkCostIndex() {
         >
           <AlertTriangle className="w-3 h-3" />
           Nur Überzieher
+        </button>
+        <button
+          onClick={() => setShowAll(f => !f)}
+          className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${showAll ? 'bg-muted border-border font-medium' : 'border-border text-muted-foreground hover:text-foreground'}`}
+        >
+          {showAll ? 'Nur laufende' : 'Alle anzeigen'}
         </button>
       </div>
 
