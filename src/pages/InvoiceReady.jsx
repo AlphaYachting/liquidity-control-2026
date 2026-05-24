@@ -39,7 +39,7 @@ const TYPE_LABELS = {
   manual_amount: 'Frei',
 };
 
-const BACKOFFICE_STATUSES_SHOWN = ['ready_for_backoffice', 'sent_to_backoffice', 'invoice_created', 'blocked'];
+const BACKOFFICE_STATUSES_SHOWN = ['draft', 'ready_for_backoffice', 'sent_to_backoffice', 'invoice_created', 'blocked', 'paid', 'cancelled'];
 
 export default function InvoiceReady() {
   const navigate = useNavigate();
