@@ -780,36 +780,42 @@ export default function ProjectDetail() {
 
           {/* Invoice documents */}
           {(() => {
-            const invoiceDocs = projectInvoices.filter(inv => inv.source_file || inv.sevdesk_invoice_url);
+            const invoiceDocs = projectInvoices.filter(inv => inv.source_file || inv.sevdesk_invoice_url || inv.sevdesk_id);
             if (invoiceDocs.length === 0) return null;
             return (
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Rechnungsdokumente ({invoiceDocs.length})</CardTitle>
+                  <CardTitle className="text-sm">Verknüpfte Rechnungen ({invoiceDocs.length})</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {invoiceDocs.map((inv, i) => {
-                    const url = inv.source_file || inv.sevdesk_invoice_url;
-                    const isSevdesk = !inv.source_file && !!inv.sevdesk_invoice_url;
+                    const fileUrl = inv.source_file || inv.sevdesk_invoice_url;
+                    const sevdeskUrl = inv.sevdesk_id
+                      ? `https://my.sevdesk.de/#/fi/edit/type/RE/id/${inv.sevdesk_id}`
+                      : null;
                     return (
                       <div key={i} className="flex items-center gap-2 p-2 rounded-lg border hover:bg-muted/30 transition-colors text-xs">
                         <FileText className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
-                        <span className="truncate flex-1 text-foreground">
-                          Rechnung {inv.invoice_number || '—'}
-                          {isSevdesk && <span className="ml-1 text-muted-foreground">(sevDesk)</span>}
-                        </span>
-                        {inv.invoice_date && <span className="text-muted-foreground flex-shrink-0">{inv.invoice_date}</span>}
-                        {isSevdesk ? (
-                          <a href={url} target="_blank" rel="noopener noreferrer"
-                            className="text-primary hover:underline flex-shrink-0 flex items-center gap-0.5">
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        ) : (
-                          <button onClick={() => setPdfViewer({ url, title: `Rechnung ${inv.invoice_number || '—'}` })}
-                            className="text-primary hover:underline flex-shrink-0">
-                            <FileText className="w-3 h-3" />
-                          </button>
-                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate font-medium">{inv.invoice_number || '—'}</p>
+                          {inv.invoice_date && <p className="text-muted-foreground">{inv.invoice_date}</p>}
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {fileUrl && (
+                            <button onClick={() => setPdfViewer({ url: fileUrl, title: `Rechnung ${inv.invoice_number || '—'}` })}
+                              title="PDF anzeigen"
+                              className="p-1 rounded hover:bg-muted text-primary">
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {sevdeskUrl && (
+                            <a href={sevdeskUrl} target="_blank" rel="noopener noreferrer"
+                              title="In sevDesk öffnen"
+                              className="p-1 rounded hover:bg-muted text-primary flex items-center">
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
