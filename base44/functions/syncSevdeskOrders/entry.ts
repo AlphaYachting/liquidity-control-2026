@@ -76,6 +76,8 @@ Deno.serve(async (req) => {
         const grossAmount = parseAmount(ord.sumGross);
         const vatRate = netAmount > 0 ? Math.round(((grossAmount - netAmount) / netAmount) * 100) : 20;
 
+        const contactId = ord.contact?.id ? String(ord.contact.id) : null;
+
         const record = {
           order_number: orderNumber,
           customer: ord.contact?.name || ord.contactName || '',
@@ -90,6 +92,8 @@ Deno.serve(async (req) => {
           source_type: 'sevdesk',
           notes: `sevDesk ID: ${sevdeskId} | Typ: ${ord.orderType || 'AB'}`,
           responsible_project_manager: ord.contact?.surename || '',
+          sevdesk_order_id: sevdeskId,
+          ...(contactId ? { sevdesk_contact_id: contactId } : {}),
         };
 
         // Check existing by order_number

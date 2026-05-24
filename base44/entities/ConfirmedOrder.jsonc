@@ -72,6 +72,14 @@
     "notes": {
       "type": "string"
     },
+    "sevdesk_order_id": {
+      "type": "string",
+      "description": "sevDesk interne Auftrags-ID"
+    },
+    "sevdesk_contact_id": {
+      "type": "string",
+      "description": "sevDesk Kontakt-ID des Kunden \u2014 wird f\u00fcr Rechnungsverkn\u00fcpfung ben\u00f6tigt"
+    },
     "awork_project_id": {
       "type": "string"
     },

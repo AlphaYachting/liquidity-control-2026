@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Pencil, Trash2, Copy, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { Pencil, Trash2, Copy, ExternalLink, ChevronDown, ChevronUp, FileText, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { format } from 'date-fns';
+import { base44 } from '@/api/base44Client';
+import { toast } from 'sonner';
 
 const STATUS_CFG = {
   draft:                { label: 'Entwurf',                color: 'bg-gray-100 text-gray-600' },
@@ -35,6 +37,29 @@ const BACKOFFICE_USERS = ['Anna', 'Birgit', 'Christine', 'Maria'];
 export default function BillingInstructionList({ instructions, projectBlocks, onUpdate, onDelete, onDuplicate }) {
   const [expandedId, setExpandedId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [creatingDraft, setCreatingDraft] = useState(null);
+
+  async function handleCreateSevdeskDraft(instrId) {
+    setCreatingDraft(instrId);
+    try {
+      const res = await base44.functions.invoke('createSevdeskInvoiceDraft', { billing_instruction_id: instrId });
+      const data = res.data;
+      if (data?.sevdesk_url) {
+        toast.success('Rechnungsentwurf in sevDesk angelegt', {
+          description: 'Entwurf wird geöffnet…',
+          action: { label: 'Öffnen', onClick: () => window.open(data.sevdesk_url, '_blank') }
+        });
+        window.open(data.sevdesk_url, '_blank');
+      } else {
+        toast.success(data?.message || 'Entwurf angelegt');
+      }
+      if (onUpdate) onUpdate(instrId, { status: 'invoice_created', invoice_created_at: new Date().toISOString() });
+    } catch (e) {
+      toast.error('Fehler beim Anlegen des Rechnungsentwurfs', { description: e?.response?.data?.error || e.message });
+    } finally {
+      setCreatingDraft(null);
+    }
+  }
 
   if (instructions.length === 0) {
     return (
@@ -182,6 +207,21 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
                     <Button size="sm" variant="outline" className="h-7 text-xs border-purple-300 text-purple-700"
                       onClick={() => onUpdate(instr.id, { status: 'invoice_created', invoice_created_at: new Date().toISOString() })}>
                       ✓ Rechnung erstellt
+                    </Button>
+                  )}
+                  {/* sevDesk Rechnungsentwurf */}
+                  {instr.status !== 'invoice_created' && instr.status !== 'paid' && instr.status !== 'cancelled' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                      disabled={creatingDraft === instr.id}
+                      onClick={() => handleCreateSevdeskDraft(instr.id)}
+                    >
+                      {creatingDraft === instr.id
+                        ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Wird angelegt…</>
+                        : <><FileText className="w-3 h-3 mr-1" /> Rechnungsentwurf in sevDesk</>
+                      }
                     </Button>
                   )}
                   <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onDuplicate(instr)}>
