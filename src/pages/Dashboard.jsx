@@ -10,6 +10,7 @@ import AgingChart from '@/components/dashboard/AgingChart';
 import ToolCostChart from '@/components/dashboard/ToolCostChart';
 import RiskTimeline from '@/components/dashboard/RiskTimeline';
 import LiquidityTrendChart from '@/components/dashboard/LiquidityTrendChart';
+import NonBillableWidget from '@/components/dashboard/NonBillableWidget';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
@@ -117,9 +118,10 @@ export default function Dashboard() {
         <CashflowChart planLines={planLines} blocks={allBlocks} contracts={contracts} payables={payables} instructions={billingInstructions} />
         <PipelineChart projects={projects} contracts={contracts} planLines={planLines} />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <AgingChart receivables={receivables} />
         <ToolCostChart tools={tools} />
+        <NonBillableWidget />
       </div>
       <LiquidityTrendChart orders={allOrders} blocks={allBlocks} invoices={invoices} />
       <RiskTimeline planLines={planLines} />

@@ -1,0 +1,70 @@
+{
+  "name": "AworkTimeEntry",
+  "type": "object",
+  "properties": {
+    "awork_entry_id": {
+      "type": "string"
+    },
+    "awork_project_id": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "project_key": {
+      "type": "string"
+    },
+    "is_billable_by_default": {
+      "type": "boolean",
+      "default": true
+    },
+    "user_id": {
+      "type": "string"
+    },
+    "user_name": {
+      "type": "string"
+    },
+    "type_of_work_id": {
+      "type": "string"
+    },
+    "type_of_work_name": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "task_name": {
+      "type": "string"
+    },
+    "duration_minutes": {
+      "type": "number",
+      "default": 0
+    },
+    "is_billable": {
+      "type": "boolean",
+      "default": true
+    },
+    "is_billed": {
+      "type": "boolean",
+      "default": false
+    },
+    "entry_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "entry_month": {
+      "type": "string",
+      "description": "YYYY-MM"
+    },
+    "note": {
+      "type": "string"
+    },
+    "last_synced_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "awork_entry_id"
+  ]
+}
