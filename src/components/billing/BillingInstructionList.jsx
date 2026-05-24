@@ -216,28 +216,24 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
                     </Button>
                   )}
                   {/* sevDesk Rechnungsentwurf */}
-                  {instr.sevdesk_invoice_id && (
-                    <a href={instr.sevdesk_invoice_url || `https://my.sevdesk.de/#/fi/${instr.sevdesk_invoice_id}`} target="_blank" rel="noopener noreferrer">
-                      <Button size="sm" variant="outline" className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50">
-                        <ExternalLink className="w-3 h-3 mr-1" /> In sevDesk öffnen
-                      </Button>
-                    </a>
-                  )}
-                  {!instr.sevdesk_invoice_id && instr.status !== 'paid' && instr.status !== 'cancelled' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
-                      disabled={creatingDraft === instr.id}
-                      onClick={() => handleCreateSevdeskDraft(instr.id)}
-                    >
-                      {creatingDraft === instr.id
-                        ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Wird angelegt…</>
-                        : <><FileText className="w-3 h-3 mr-1" /> Rechnungsentwurf in sevDesk erzeugen</>
-                      }
-                    </Button>
-                  )}
-                  
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                    disabled={creatingDraft === instr.id}
+                    onClick={() => instr.sevdesk_invoice_id
+                      ? window.open(instr.sevdesk_invoice_url || `https://my.sevdesk.de/#/fi/${instr.sevdesk_invoice_id}`, '_blank')
+                      : handleCreateSevdeskDraft(instr.id)
+                    }
+                  >
+                    {creatingDraft === instr.id
+                      ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Wird angelegt…</>
+                      : instr.sevdesk_invoice_id
+                        ? <><ExternalLink className="w-3 h-3 mr-1" /> In sevDesk öffnen</>
+                        : <><FileText className="w-3 h-3 mr-1" /> Rechnungsentwurf erzeugen</>
+                    }
+                  </Button>
+
                   <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onDuplicate(instr)}>
                     <Copy className="w-3 h-3 mr-1" /> Duplizieren
                   </Button>
