@@ -778,39 +778,28 @@ export default function ProjectDetail() {
             );
           })()}
 
-          {/* Documents from Projektabwicklung */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Dokumente aus Projektabwicklung</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {(() => {
-                const docs = [];
-                // All relevant orders: directly linked + linked via invoices
-                const allRelevantOrders = allOrders.filter(o =>
-                  o.project_id === projectId ||
-                  (fin?.linkedInvoices || []).some(inv => inv.confirmed_order_id === o.id)
-                );
-                const seenOrderIds = new Set();
-                allRelevantOrders.forEach(o => {
-                  if (seenOrderIds.has(o.id)) return;
-                  seenOrderIds.add(o.id);
-                  if (o.document_url) docs.push({ label: `AB: ${o.project_name || o.order_number || 'Auftragsbestätigung'}`, url: o.document_url, type: 'order' });
-                });
-                projectInvoices.forEach(inv => {
-                  if (inv.source_file) docs.push({ label: `Rechnung: ${inv.invoice_number || '—'}`, url: inv.source_file, type: 'invoice' });
-                });
-                if (docs.length === 0) return <p className="text-sm text-muted-foreground text-center py-2">Keine Dokumente verknüpft</p>;
-                return docs.map((doc, i) => (
-                  <button key={i} onClick={() => setPdfViewer({ url: doc.url, title: doc.label })}
-                    className="w-full flex items-center gap-2 p-2 rounded-lg border hover:bg-muted/30 transition-colors text-xs text-primary text-left group">
-                    <FileText className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="truncate">{doc.label}</span>
-                  </button>
-                ));
-              })()}
-            </CardContent>
-          </Card>
+          {/* Invoice documents */}
+          {(() => {
+            const invoiceDocs = projectInvoices.filter(inv => inv.source_file);
+            if (invoiceDocs.length === 0) return null;
+            return (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Rechnungsdokumente ({invoiceDocs.length})</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {invoiceDocs.map((inv, i) => (
+                    <button key={i} onClick={() => setPdfViewer({ url: inv.source_file, title: `Rechnung: ${inv.invoice_number || '—'}` })}
+                      className="w-full flex items-center gap-2 p-2 rounded-lg border hover:bg-muted/30 transition-colors text-xs text-primary text-left group">
+                      <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate">Rechnung {inv.invoice_number || '—'}</span>
+                      {inv.invoice_date && <span className="ml-auto text-muted-foreground flex-shrink-0">{inv.invoice_date}</span>}
+                    </button>
+                  ))}
+                </CardContent>
+              </Card>
+            );
+          })()}
         </div>
       </div>
 
