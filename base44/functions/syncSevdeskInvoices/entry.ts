@@ -14,7 +14,8 @@ function mapInvoiceStatus(invoice) {
   const status = invoice.status;
   if (status === '1000') return 'paid';
   if (status === '50') return 'cancelled';
-  return 'open';
+  if (status === '100') return 'draft'; // Entwurf — noch nicht verschickt
+  return 'open'; // 200 = versendet, 300 = bezahlt (partial), etc.
 }
 
 function parseAmount(val) {
@@ -149,11 +150,9 @@ Deno.serve(async (req) => {
 
         const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
 
-        // due_date: sevDesk payDate, sonst invoiceDate + timeToPay (Zahlungsziel in Tagen), sonst +30 Tage Fallback
+        // due_date: invoiceDate + timeToPay (Zahlungsziel), nicht payDate (= Zahlungsdatum)
         let dueDate = null;
-        if (inv.payDate) {
-          dueDate = inv.payDate.substring(0, 10);
-        } else if (invoiceDate) {
+        if (invoiceDate) {
           const timeToPay = parseInt(inv.timeToPay || inv.discountTime || '30', 10);
           const days = isNaN(timeToPay) || timeToPay <= 0 ? 30 : timeToPay;
           const d = new Date(invoiceDate);
@@ -161,7 +160,8 @@ Deno.serve(async (req) => {
           dueDate = d.toISOString().substring(0, 10);
         }
 
-        const paymentDate = inv.entryDate ? inv.entryDate.substring(0, 10) : null;
+        // payment_date: payDate ist das tatsächliche Zahlungsdatum in sevDesk
+        const paymentDate = inv.payDate ? inv.payDate.substring(0, 10) : null;
 
         const netAmount = parseAmount(inv.sumNet);
         const grossAmount = parseAmount(inv.sumGross);
@@ -205,8 +205,8 @@ Deno.serve(async (req) => {
         await saveWithRetry(base44, existing, record);
         if (existing) updated++; else created++;
 
-        // Delay every 5 records to avoid rate limiting
-        if (i > 0 && i % 5 === 0) await sleep(500);
+        // Delay every 3 records to avoid rate limiting
+        if (i > 0 && i % 3 === 0) await sleep(600);
 
       } catch {
         failed++;

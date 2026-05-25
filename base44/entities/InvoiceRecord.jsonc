@@ -66,6 +66,7 @@
     "payment_status": {
       "type": "string",
       "enum": [
+        "draft",
         "open",
         "partially_paid",
         "paid",
@@ -73,7 +74,8 @@
         "cancelled",
         "unclear"
       ],
-      "default": "open"
+      "default": "open",
+      "description": "draft = Entwurf in sevDesk (noch nicht versendet)"
     },
     "paid_amount": {
       "type": "number",
@@ -104,7 +106,7 @@
     },
     "sevdesk_id": {
       "type": "string",
-      "description": "Future sevDesk sync ID"
+      "description": "sevDesk Rechnungs-ID"
     },
     "match_status": {
       "type": "string",

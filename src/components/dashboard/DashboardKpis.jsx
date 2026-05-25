@@ -34,7 +34,7 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
     .filter(r => r.status !== 'paid' && r.status !== 'write_off')
     .reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
   const openReceivablesInvoices = invoices
-    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note)
+    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note)
     .reduce((s, i) => s + (Number(i.open_amount) > 0 ? Number(i.open_amount) : Number(i.gross_amount) || 0), 0);
   const openReceivables = openReceivablesManual + openReceivablesInvoices;
 
@@ -43,7 +43,7 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
     .filter(r => r.status !== 'paid' && r.status !== 'write_off')
     .reduce((s, r) => s + (Number(r.net_amount) || 0), 0);
   const openReceivablesInvoicesNet = invoices
-    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note)
+    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note)
     .reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
   const openReceivablesNet = openReceivablesManualNet + openReceivablesInvoicesNet;
 
@@ -51,7 +51,7 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
     .filter(r => r.status !== 'paid' && r.status !== 'write_off' && calcOverdueDays(effectiveDueDate(r)) > 0)
     .reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
   const overdueReceivablesInvoices = invoices
-    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note && calcOverdueDays(effectiveDueDate(i)) > 0)
+    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note && calcOverdueDays(effectiveDueDate(i)) > 0)
     .reduce((s, i) => s + (Number(i.open_amount) > 0 ? Number(i.open_amount) : Number(i.gross_amount) || 0), 0);
   const overdueReceivables = overdueReceivablesManual + overdueReceivablesInvoices;
 
@@ -59,7 +59,7 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
     .filter(r => r.status !== 'paid' && r.status !== 'write_off' && calcOverdueDays(effectiveDueDate(r)) > 0)
     .reduce((s, r) => s + (Number(r.net_amount) || 0), 0);
   const overdueReceivablesInvoicesNet = invoices
-    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note && calcOverdueDays(effectiveDueDate(i)) > 0)
+    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note && calcOverdueDays(effectiveDueDate(i)) > 0)
     .reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
   const overdueReceivablesNet = overdueReceivablesManualNet + overdueReceivablesInvoicesNet;
 
