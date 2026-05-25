@@ -25,16 +25,14 @@ Deno.serve(async (req) => {
 
     // Nur offene/überfällige Rechnungen — status 100 = Entwurf, 200 = geliefert, 300 = Teilzahlung
     // Wir holen alle und filtern auf nicht-bezahlt (status != 1000) und nicht-storniert (status != 50)
+    // Offene Rechnungen: Status 200 (versendet) und 300 (Teilzahlung)
+    // Nicht bezahlt (1000), nicht storniert (50), nicht Entwurf (100)
     const data = await sevdeskGet(
-      `/Invoice?limit=500&offset=0&embed=contact&orderBy=payDate&orderDirection=asc`,
+      `/Invoice?limit=500&offset=0&embed=contact&status[]=200&status[]=300&orderBy=invoiceDate&orderDirection=asc`,
       apiKey
     );
 
     const invoices = (data.objects || []).filter(inv => {
-      const status = inv.status;
-      // 100 = Entwurf, 50 = storniert/deaktiviert, 1000 = bezahlt — alle ausschließen
-      // GS = Gutschrift (Credit Note) wird separat behandelt, nicht als offene Forderung
-      if (status === '1000' || status === '50' || status === '100') return false;
       if (inv.invoiceType === 'GS') return false; // Gutschriften ausschließen
       return true;
     });
