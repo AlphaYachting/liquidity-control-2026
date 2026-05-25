@@ -307,12 +307,23 @@ export default function SevdeskSettings() {
     }
   });
 
+  const { data: lastSync = null, refetch: refetchLastSync } = useQuery({
+    queryKey: ['sevdesk-last-sync'],
+    queryFn: async () => {
+      const logs = await base44.entities.AuditLog.filter({ entity_type: 'sevdesk_sync' });
+      if (!logs || logs.length === 0) return null;
+      // Neuesten Eintrag finden
+      return logs.sort((a, b) => new Date(b.created_date) - new Date(a.created_date))[0];
+    }
+  });
+
   const handleImportDone = useCallback(() => {
     refetchInvoices();
     refetchOrders();
+    refetchLastSync();
     queryClient.invalidateQueries({ queryKey: ['confirmed-orders'] });
     queryClient.invalidateQueries({ queryKey: ['invoice-records'] });
-  }, [refetchInvoices, refetchOrders, queryClient]);
+  }, [refetchInvoices, refetchOrders, refetchLastSync, queryClient]);
 
   return (
     <div className="space-y-6">
@@ -367,13 +378,32 @@ export default function SevdeskSettings() {
 
       {/* Auto Sync Info */}
       <Card>
-        <CardContent className="pt-4">
+        <CardContent className="pt-4 space-y-3">
           <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
             <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
             <Badge className="bg-emerald-100 text-emerald-700">Aktiv</Badge>
             <p className="text-sm text-muted-foreground">
               Automatische Synchronisierung läuft <strong>alle 6 Stunden</strong> im Hintergrund.
             </p>
+          </div>
+          <div className="flex items-center gap-3 p-3 border rounded-lg">
+            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+            <div>
+              <p className="text-xs text-muted-foreground">Letzte erfolgreiche Synchronisierung</p>
+              {lastSync ? (
+                <p className="text-sm font-medium">
+                  {new Date(lastSync.created_date).toLocaleString('de-AT', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                  })}
+                  {lastSync.details && (
+                    <span className="text-xs text-muted-foreground ml-2">· {lastSync.details}</span>
+                  )}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Noch keine Synchronisierung protokolliert</p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

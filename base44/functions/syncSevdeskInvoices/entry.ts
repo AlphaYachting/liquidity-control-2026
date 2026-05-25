@@ -213,6 +213,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Sync-Zeitstempel in AuditLog festhalten
+    const syncFinishedAt = new Date().toISOString();
+    await base44.asServiceRole.entities.AuditLog.create({
+      action: 'import',
+      entity_type: 'sevdesk_sync',
+      entity_id: 'invoices',
+      user_email: user.email || 'system',
+      details: `sevDesk Rechnungen synchronisiert: ${created} neu, ${updated} aktualisiert, ${failed} Fehler. Zeitraum: ${year || 'alle'}`
+    });
+
     return Response.json({
       success: true,
       fetched: invoices.length,
@@ -220,7 +230,8 @@ Deno.serve(async (req) => {
       updated,
       failed,
       matched,
-      message: `sevDesk Rechnungen synchronisiert: ${created} neu, ${updated} aktualisiert, ${matched} Aufträgen zugeordnet, ${skipped} übersprungen (kein AB), ${failed} Fehler`
+      synced_at: syncFinishedAt,
+      message: `sevDesk Rechnungen synchronisiert: ${created} neu, ${updated} aktualisiert, ${matched} Aufträgen zugeordnet, ${failed} Fehler`
     });
 
   } catch (error) {
