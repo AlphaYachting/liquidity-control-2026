@@ -55,13 +55,7 @@ Deno.serve(async (req) => {
       return true;
     });
 
-    // Nur 2026er Rechnungen (Rechnungsdatum ab 01.01.2026)
-    const invoices2026 = invoices.filter(inv => {
-      const dateStr = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : '';
-      return dateStr >= '2026-01-01';
-    });
-
-    const result = invoices2026.map(inv => {
+    const result = invoices.map(inv => {
       const grossAmount = parseAmount(inv.sumGross);
       // sumOpenAmount = das von sevDesk berechnete offene Restfeld (identisch mit "offener Betrag" im Export)
       // Fallback auf sumGross - paidAmount wenn sumOpenAmount nicht vorhanden
