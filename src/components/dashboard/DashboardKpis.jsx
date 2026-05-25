@@ -3,7 +3,7 @@ import { TrendingUp, Receipt, AlertTriangle, CreditCard, FileText, Clock, Dollar
 import KpiCard from '@/components/shared/KpiCard';
 import { formatCurrency, calcOverdueDays } from '@/lib/liquidityUtils';
 
-export default function DashboardKpis({ projects, planLines, contracts, tools, receivables, payables, invoices = [], liveInvoiced, liveOpen }) {
+export default function DashboardKpis({ projects, planLines, contracts, tools, receivables, payables, invoices = [], liveInvoiced, liveOpen, liveReceivablesData }) {
   const totalPlanned = planLines.filter(l => l.direction === 'inflow').reduce((s, l) => s + (Number(l.amount_net) || 0), 0);
   const alreadyInvoiced = liveInvoiced ?? projects.reduce((s, p) => s + (Number(p.already_invoiced_amount) || 0), 0);
   const openProject = liveOpen ?? projects.reduce((s, p) => s + (Number(p.open_amount) || 0), 0);
@@ -28,40 +28,53 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
     return null;
   };
 
-  // Offene Forderungen: Receivable (manuell) + InvoiceRecord (sevDesk) — beide Quellen zusammengeführt
-  // BRUTTO-Beträge (inkl. MwSt.)
-  const openReceivablesManual = receivables
-    .filter(r => r.status !== 'paid' && r.status !== 'write_off')
-    .reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
-  const openReceivablesInvoices = invoices
-    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note)
-    .reduce((s, i) => s + (Number(i.open_amount) > 0 ? Number(i.open_amount) : Number(i.gross_amount) || 0), 0);
-  const openReceivables = openReceivablesManual + openReceivablesInvoices;
+  // Offene Forderungen: Wenn Live-Daten verfügbar → direkt von sevDesk API (exakte Übereinstimmung mit sevDesk UI)
+  // Fallback: lokale DB (InvoiceRecord + manuelle Receivables)
+  let openReceivables, openReceivablesNet, overdueReceivables, overdueReceivablesNet;
 
-  // Netto für Subtitle
-  const openReceivablesManualNet = receivables
-    .filter(r => r.status !== 'paid' && r.status !== 'write_off')
-    .reduce((s, r) => s + (Number(r.net_amount) || 0), 0);
-  const openReceivablesInvoicesNet = invoices
-    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note)
-    .reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
-  const openReceivablesNet = openReceivablesManualNet + openReceivablesInvoicesNet;
+  if (liveReceivablesData?.invoices) {
+    // Live-Modus: Direkt aus sevDesk API
+    const liveInvs = liveReceivablesData.invoices;
+    openReceivables = liveInvs.reduce((s, i) => s + (Number(i.open_amount) || 0), 0);
+    openReceivablesNet = openReceivables / 1.20; // Näherungswert Netto (20% MwSt.)
+    overdueReceivables = liveInvs
+      .filter(i => i.due_date && calcOverdueDays(i.due_date) > 0)
+      .reduce((s, i) => s + (Number(i.open_amount) || 0), 0);
+    overdueReceivablesNet = overdueReceivables / 1.20;
+  } else {
+    // Fallback: lokale DB
+    const openReceivablesManual = receivables
+      .filter(r => r.status !== 'paid' && r.status !== 'write_off')
+      .reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
+    const openReceivablesInvoices = invoices
+      .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note)
+      .reduce((s, i) => s + (Number(i.open_amount) > 0 ? Number(i.open_amount) : Number(i.gross_amount) || 0), 0);
+    openReceivables = openReceivablesManual + openReceivablesInvoices;
 
-  const overdueReceivablesManual = receivables
-    .filter(r => r.status !== 'paid' && r.status !== 'write_off' && calcOverdueDays(effectiveDueDate(r)) > 0)
-    .reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
-  const overdueReceivablesInvoices = invoices
-    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note && calcOverdueDays(effectiveDueDate(i)) > 0)
-    .reduce((s, i) => s + (Number(i.open_amount) > 0 ? Number(i.open_amount) : Number(i.gross_amount) || 0), 0);
-  const overdueReceivables = overdueReceivablesManual + overdueReceivablesInvoices;
+    const openReceivablesManualNet = receivables
+      .filter(r => r.status !== 'paid' && r.status !== 'write_off')
+      .reduce((s, r) => s + (Number(r.net_amount) || 0), 0);
+    const openReceivablesInvoicesNet = invoices
+      .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note)
+      .reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+    openReceivablesNet = openReceivablesManualNet + openReceivablesInvoicesNet;
 
-  const overdueReceivablesManualNet = receivables
-    .filter(r => r.status !== 'paid' && r.status !== 'write_off' && calcOverdueDays(effectiveDueDate(r)) > 0)
-    .reduce((s, r) => s + (Number(r.net_amount) || 0), 0);
-  const overdueReceivablesInvoicesNet = invoices
-    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note && calcOverdueDays(effectiveDueDate(i)) > 0)
-    .reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
-  const overdueReceivablesNet = overdueReceivablesManualNet + overdueReceivablesInvoicesNet;
+    const overdueReceivablesManual = receivables
+      .filter(r => r.status !== 'paid' && r.status !== 'write_off' && calcOverdueDays(effectiveDueDate(r)) > 0)
+      .reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
+    const overdueReceivablesInvoices = invoices
+      .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note && calcOverdueDays(effectiveDueDate(i)) > 0)
+      .reduce((s, i) => s + (Number(i.open_amount) > 0 ? Number(i.open_amount) : Number(i.gross_amount) || 0), 0);
+    overdueReceivables = overdueReceivablesManual + overdueReceivablesInvoices;
+
+    const overdueReceivablesManualNet = receivables
+      .filter(r => r.status !== 'paid' && r.status !== 'write_off' && calcOverdueDays(effectiveDueDate(r)) > 0)
+      .reduce((s, r) => s + (Number(r.net_amount) || 0), 0);
+    const overdueReceivablesInvoicesNet = invoices
+      .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note && calcOverdueDays(effectiveDueDate(i)) > 0)
+      .reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+    overdueReceivablesNet = overdueReceivablesManualNet + overdueReceivablesInvoicesNet;
+  }
 
   const toolCosts = tools.reduce((s, t) => s + (Number(t.annual_cost) || 0), 0);
   const monthlyToolAvg = tools.reduce((s, t) => s + (Number(t.monthly_cost) || 0), 0);
@@ -74,8 +87,8 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
     { title: 'Offene Projektbeträge', value: formatCurrency(openProject), icon: BarChart3, variant: 'warning' },
     { title: 'Zufluss nächste 30 Tage', value: formatCurrency(next30), icon: Clock, variant: 'info' },
     { title: 'Zufluss nächste 90 Tage', value: formatCurrency(next90), icon: Clock, variant: 'info' },
-    { title: 'Offene Forderungen (brutto)', value: formatCurrency(openReceivables), subtitle: openReceivablesNet > 0 ? `Netto: ${formatCurrency(openReceivablesNet)}` : undefined, icon: AlertTriangle, variant: openReceivables > 0 ? 'warning' : 'default' },
-    { title: 'Überfällige Forderungen (brutto)', value: formatCurrency(overdueReceivables), subtitle: overdueReceivablesNet > 0 ? `Netto: ${formatCurrency(overdueReceivablesNet)}` : undefined, icon: AlertTriangle, variant: overdueReceivables > 0 ? 'danger' : 'default' },
+    { title: 'Offene Forderungen (brutto)', value: formatCurrency(openReceivables), subtitle: liveReceivablesData ? `Live sevDesk · ${liveReceivablesData.count} Rechnungen` : openReceivablesNet > 0 ? `Netto: ${formatCurrency(openReceivablesNet)}` : undefined, icon: AlertTriangle, variant: openReceivables > 0 ? 'warning' : 'default' },
+    { title: 'Überfällige Forderungen (brutto)', value: formatCurrency(overdueReceivables), subtitle: overdueReceivablesNet > 0 ? `Netto ca. ${formatCurrency(overdueReceivablesNet)}` : undefined, icon: AlertTriangle, variant: overdueReceivables > 0 ? 'danger' : 'default' },
     { title: 'Toolkosten 2026', value: formatCurrency(toolCosts), subtitle: `Ø ${formatCurrency(monthlyToolAvg)}/Monat`, icon: CreditCard, variant: 'default' },
     { title: 'Offene Verbindlichkeiten', value: formatCurrency(openPayables), icon: FileText, variant: openPayables > 0 ? 'warning' : 'default' },
   ];

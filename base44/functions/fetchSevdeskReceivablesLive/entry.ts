@@ -32,7 +32,11 @@ Deno.serve(async (req) => {
 
     const invoices = (data.objects || []).filter(inv => {
       const status = inv.status;
-      return status !== '1000' && status !== '50'; // nicht bezahlt, nicht storniert
+      // 100 = Entwurf, 50 = storniert/deaktiviert, 1000 = bezahlt — alle ausschließen
+      // GS = Gutschrift (Credit Note) wird separat behandelt, nicht als offene Forderung
+      if (status === '1000' || status === '50' || status === '100') return false;
+      if (inv.invoiceType === 'GS') return false; // Gutschriften ausschließen
+      return true;
     });
 
     const result = invoices.map(inv => {
@@ -40,11 +44,21 @@ Deno.serve(async (req) => {
       const paidAmount = parseAmount(inv.sumGrossPay || '0');
       const openAmount = Math.max(0, grossAmount - paidAmount);
 
+      // due_date = invoiceDate + timeToPay (Zahlungsziel), nicht payDate (= tatsächliches Zahlungsdatum)
+      let dueDate = null;
+      if (inv.invoiceDate) {
+        const timeToPay = parseInt(inv.timeToPay || inv.discountTime || '30', 10);
+        const days = isNaN(timeToPay) || timeToPay <= 0 ? 30 : timeToPay;
+        const d = new Date(inv.invoiceDate.substring(0, 10));
+        d.setDate(d.getDate() + days);
+        dueDate = d.toISOString().substring(0, 10);
+      }
+
       return {
         id: String(inv.id),
         invoice_number: inv.invoiceNumber || '',
         invoice_date: inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null,
-        due_date: inv.payDate ? inv.payDate.substring(0, 10) : null,
+        due_date: dueDate,
         customer_name: inv.contact?.name || inv.contactName || '',
         gross_amount: grossAmount,
         open_amount: openAmount,
@@ -53,9 +67,12 @@ Deno.serve(async (req) => {
       };
     }).filter(inv => inv.open_amount > 0);
 
+    const totalOpen = result.reduce((s, i) => s + i.open_amount, 0);
+
     return Response.json({
       success: true,
       count: result.length,
+      total_open_gross: Math.round(totalOpen * 100) / 100,
       invoices: result,
     });
 

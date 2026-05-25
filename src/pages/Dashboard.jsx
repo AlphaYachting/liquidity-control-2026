@@ -19,7 +19,12 @@ export default function Dashboard() {
     queryKey: ['projects'], queryFn: () => base44.entities.LiquidityProject.list()
   });
   const { data: invoices = [], isLoading: iLoading } = useQuery({
-    queryKey: ['invoices'], queryFn: () => base44.entities.InvoiceRecord.list()
+    queryKey: ['invoices'], queryFn: () => base44.entities.InvoiceRecord.list('-invoice_date', 500)
+  });
+  const { data: liveReceivables, isLoading: lrLoading } = useQuery({
+    queryKey: ['liveReceivables'],
+    queryFn: () => base44.functions.invoke('fetchSevdeskReceivablesLive', {}),
+    staleTime: 5 * 60 * 1000, // 5 Minuten Cache
   });
   const { data: planLines = [], isLoading: lLoading } = useQuery({
     queryKey: ['planLines'], queryFn: () => base44.entities.LiquidityPlanLine.list()
@@ -99,6 +104,9 @@ export default function Dashboard() {
 
   const isLoading = pLoading || lLoading || iLoading;
 
+  // Live sevDesk Forderungen — direkt aus der API für maximale Genauigkeit
+  const liveReceivablesData = liveReceivables?.data || null;
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -114,7 +122,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <PageHeader title="Dashboard" subtitle="Liquiditätsübersicht 2026" icon={LayoutDashboard} />
-      <DashboardKpis projects={projects} planLines={planLines} contracts={contracts} tools={tools} receivables={receivables} payables={payables} invoices={invoices} liveInvoiced={liveInvoiced} liveOpen={liveOpen} />
+      <DashboardKpis projects={projects} planLines={planLines} contracts={contracts} tools={tools} receivables={receivables} payables={payables} invoices={invoices} liveInvoiced={liveInvoiced} liveOpen={liveOpen} liveReceivablesData={liveReceivablesData} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CashflowChart planLines={planLines} blocks={allBlocks} contracts={contracts} payables={payables} instructions={billingInstructions} />
         <PipelineChart projects={projects} contracts={contracts} planLines={planLines} />

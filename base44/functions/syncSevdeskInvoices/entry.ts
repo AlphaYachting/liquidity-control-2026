@@ -205,8 +205,8 @@ Deno.serve(async (req) => {
         await saveWithRetry(base44, existing, record);
         if (existing) updated++; else created++;
 
-        // Delay every 3 records to avoid rate limiting
-        if (i > 0 && i % 3 === 0) await sleep(600);
+        // Delay every 2 records to avoid DB rate limiting
+        if (i > 0 && i % 2 === 0) await sleep(800);
 
       } catch {
         failed++;
