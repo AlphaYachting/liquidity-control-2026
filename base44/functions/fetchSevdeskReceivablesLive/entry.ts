@@ -55,7 +55,13 @@ Deno.serve(async (req) => {
       return true;
     });
 
-    const result = invoices.map(inv => {
+    // Nur 2026er Rechnungen (Rechnungsdatum ab 01.01.2026)
+    const invoices2026 = invoices.filter(inv => {
+      const dateStr = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : '';
+      return dateStr >= '2026-01-01';
+    });
+
+    const result = invoices2026.map(inv => {
       const grossAmount = parseAmount(inv.sumGross);
       // paidAmount ist ein numerisches Feld direkt auf der Rechnung (kein String-Parsing nötig)
       const paidAmount = typeof inv.paidAmount === 'number' ? inv.paidAmount : parseAmount(inv.paidAmount);
