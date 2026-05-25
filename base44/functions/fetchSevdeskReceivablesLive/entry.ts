@@ -63,9 +63,11 @@ Deno.serve(async (req) => {
 
     const result = invoices2026.map(inv => {
       const grossAmount = parseAmount(inv.sumGross);
-      // paidAmount ist ein numerisches Feld direkt auf der Rechnung (kein String-Parsing nötig)
-      const paidAmount = typeof inv.paidAmount === 'number' ? inv.paidAmount : parseAmount(inv.paidAmount);
-      const openAmount = Math.max(0, grossAmount - paidAmount);
+      // sumOpenAmount = das von sevDesk berechnete offene Restfeld (identisch mit "offener Betrag" im Export)
+      // Fallback auf sumGross - paidAmount wenn sumOpenAmount nicht vorhanden
+      const openAmount = parseAmount(inv.sumOpenAmount) > 0
+        ? parseAmount(inv.sumOpenAmount)
+        : Math.max(0, grossAmount - parseAmount(inv.paidAmount));
 
       // Fälligkeitsdatum: invoiceDate + timeToPay Tage (Zahlungsziel lt. Rechnung)
       let dueDate = null;
@@ -85,7 +87,7 @@ Deno.serve(async (req) => {
         customer_name: inv.contact?.name || inv.contactName || '',
         gross_amount: grossAmount,
         open_amount: openAmount,
-        payment_status: paidAmount > 0 ? 'partially_paid' : 'open',
+        payment_status: parseAmount(inv.paidAmount) > 0 ? 'partially_paid' : 'open',
         source: 'sevdesk_live',
       };
     }).filter(inv => inv.open_amount > 0);
