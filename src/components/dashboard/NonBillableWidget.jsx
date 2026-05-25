@@ -50,17 +50,15 @@ export default function NonBillableWidget() {
         };
       });
 
-    // KPIs aus letzten 2 Monaten
-    const recentMonths = monthlyData.slice(-2).map(d => d.month);
-    const recentEntries = clientEntries.filter(e => recentMonths.includes(e.entry_month));
-    const totalBillable = recentEntries.filter(e => e.is_billable !== false).reduce((s, e) => s + (e.duration_minutes || 0), 0);
-    const totalNonBillable = recentEntries.filter(e => e.is_billable === false).reduce((s, e) => s + (e.duration_minutes || 0), 0);
+    // KPIs aus aktuellem Monat
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    const currentMonthEntries = clientEntries.filter(e => e.entry_month === currentMonth);
+    const totalBillable = currentMonthEntries.filter(e => e.is_billable !== false).reduce((s, e) => s + (e.duration_minutes || 0), 0);
+    const totalNonBillable = currentMonthEntries.filter(e => e.is_billable === false).reduce((s, e) => s + (e.duration_minutes || 0), 0);
     const total = totalBillable + totalNonBillable;
     const nonBillablePct = total > 0 ? Math.round((totalNonBillable / total) * 100) : 0;
 
-    // Kollegen - aktueller Monat
-    const currentMonth = new Date().toISOString().substring(0, 7);
-    const currentMonthEntries = clientEntries.filter(e => e.entry_month === currentMonth);
+    // Kollegen - aktueller Monat (currentMonth und currentMonthEntries bereits oben definiert)
     const byUser = {};
     for (const e of currentMonthEntries) {
       const name = e.user_name || 'Unbekannt';
@@ -143,7 +141,7 @@ export default function NonBillableWidget() {
               </div>
               <div className="text-center">
                 <div className={`text-2xl font-bold ${pctColor}`}>{nonBillablePct}%</div>
-                <div className="text-xs text-muted-foreground">Quote (2 Mon.)</div>
+                <div className="text-xs text-muted-foreground">Quote (akt. Monat)</div>
               </div>
             </div>
 
@@ -183,8 +181,14 @@ export default function NonBillableWidget() {
                     contentStyle={{ fontSize: 12 }}
                   />
                   <Bar dataKey="billable_h" stackId="u" fill="hsl(var(--chart-2))" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="non_billable_h" stackId="u" fill="#ef4444" radius={[0, 3, 3, 0]}>
-                    <LabelList dataKey="non_billable_h" position="right" formatter={v => v > 0 ? `${v} h` : ''} style={{ fontSize: 11, fill: '#ef4444', fontWeight: 600 }} />
+                  <Bar dataKey="non_billable_h" stackId="u" radius={[0, 3, 3, 0]}>
+                    {userNonBillable.map((u, i) => {
+                      const userTotal = u.billable_h + u.non_billable_h;
+                      const pct = userTotal > 0 ? (u.non_billable_h / userTotal) * 100 : 0;
+                      const color = pct >= 30 ? '#dc2626' : pct >= 15 ? '#f59e0b' : '#fca5a5';
+                      return <Cell key={i} fill={color} />;
+                    })}
+                    <LabelList dataKey="non_billable_h" position="right" formatter={v => v > 0 ? `${v} h` : ''} style={{ fontSize: 11, fill: '#6b7280', fontWeight: 600 }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
