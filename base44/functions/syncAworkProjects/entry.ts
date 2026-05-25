@@ -28,18 +28,26 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'AWORK_API_KEY not configured' }, { status: 400 });
   }
 
-  // Fetch first page only (100 projects) — filter active ones
-  const resp = await fetch(`${apiBase}/api/v1/projects?page=1&pageSize=100`, {
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
-  });
-
-  if (!resp.ok) {
-    const errText = await resp.text();
-    return Response.json({ error: `awork API error: ${resp.status}`, detail: errText.slice(0, 500) }, { status: 502 });
+  // Alle Seiten abrufen (Pagination), um keine Projekte zu verlieren
+  let allProjects = [];
+  let page = 1;
+  const pageSize = 100;
+  while (true) {
+    const resp = await fetch(`${apiBase}/api/v1/projects?page=${page}&pageSize=${pageSize}`, {
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return Response.json({ error: `awork API error: ${resp.status} (page ${page})`, detail: errText.slice(0, 500) }, { status: 502 });
+    }
+    const data = await resp.json();
+    const pageProjects = Array.isArray(data) ? data : (data.data || []);
+    allProjects = allProjects.concat(pageProjects);
+    console.log(`awork projects page ${page}: ${pageProjects.length} fetched (total so far: ${allProjects.length})`);
+    if (pageProjects.length < pageSize) break; // letzte Seite erreicht
+    page++;
+    await sleep(300);
   }
-
-  const data = await resp.json();
-  const allProjects = Array.isArray(data) ? data : (data.data || []);
 
   // Filter to only active projects
   const activeProjects = allProjects.filter(isActiveProject);
@@ -77,7 +85,7 @@ Deno.serve(async (req) => {
         responsible_user_email: responsible?.email || '',
         members_json: JSON.stringify(members.map(m => ({ id: m.userId, name: m.name, email: m.email }))),
         custom_fields_json: JSON.stringify(proj.entityCustomFields || []),
-        raw_payload: JSON.stringify(proj).slice(0, 4000),
+        raw_payload: JSON.stringify(proj), // kein slice — vollständiger Payload für korrekte Stundenberechnung
         last_synced_at: now,
         is_archived: false
       };

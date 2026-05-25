@@ -199,6 +199,7 @@ Deno.serve(async (req) => {
           match_status: matchStatus,
           match_confidence: matchConfidence,
           notes: inv.header || '',
+          source_file: JSON.stringify(inv), // Raw sevDesk Payload für Nachvollziehbarkeit
         };
 
         await saveWithRetry(base44, existing, record);

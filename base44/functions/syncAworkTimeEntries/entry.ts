@@ -23,22 +23,28 @@ Deno.serve(async (req) => {
   const fromDate = body.from || defaultFrom;
   const toDate = body.to || defaultTo;
 
-  // Nur erste Seite abrufen (max 100 Einträge), um Timeout zu vermeiden
-  const pageSize = body.pageSize || 100;
-  const page = body.page || 1;
-
-  const url = `${apiBase}/api/v1/timeentries?page=${page}&pageSize=${pageSize}&startDate=${fromDate}&endDate=${toDate}`;
-  const resp = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
-  });
-
-  if (!resp.ok) {
-    const errText = await resp.text();
-    return Response.json({ error: `awork API error: ${resp.status}`, detail: errText.slice(0, 300) }, { status: 502 });
+  // Alle Seiten abrufen (Pagination), um keine Zeiteinträge zu verlieren
+  const pageSize = 100;
+  let allEntries = [];
+  let page = 1;
+  while (true) {
+    const url = `${apiBase}/api/v1/timeentries?page=${page}&pageSize=${pageSize}&startDate=${fromDate}&endDate=${toDate}`;
+    const resp = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return Response.json({ error: `awork API error: ${resp.status} (page ${page})`, detail: errText.slice(0, 300) }, { status: 502 });
+    }
+    const data = await resp.json();
+    const pageEntries = Array.isArray(data) ? data : (data.data || []);
+    allEntries = allEntries.concat(pageEntries);
+    console.log(`awork time entries page ${page}: ${pageEntries.length} fetched (total: ${allEntries.length})`);
+    if (pageEntries.length < pageSize) break;
+    page++;
+    await sleep(300);
   }
-
-  const data = await resp.json();
-  const entries = Array.isArray(data) ? data : (data.data || []);
+  const entries = allEntries;
 
   const syncedAt = new Date().toISOString();
   let created = 0, updated = 0, failed = 0;
@@ -91,9 +97,8 @@ Deno.serve(async (req) => {
   return Response.json({
     success: true,
     period: { from: fromDate, to: toDate },
+    pages_fetched: page,
     entries_fetched: entries.length,
-    has_more: entries.length === pageSize,
-    next_page: entries.length === pageSize ? page + 1 : null,
     created,
     updated,
     failed
