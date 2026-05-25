@@ -23,29 +23,48 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get('SEVDESK_API_KEY');
     if (!apiKey) return Response.json({ error: 'SEVDESK_API_KEY not set' }, { status: 500 });
 
-    // Nur offene/überfällige Rechnungen — status 100 = Entwurf, 200 = geliefert, 300 = Teilzahlung
-    // Wir holen alle und filtern auf nicht-bezahlt (status != 1000) und nicht-storniert (status != 50)
-    // Offene Rechnungen: Status 200 (versendet) und 300 (Teilzahlung)
-    // Nicht bezahlt (1000), nicht storniert (50), nicht Entwurf (100)
-    const data = await sevdeskGet(
-      `/Invoice?limit=500&offset=0&embed=contact&status[]=200&status[]=300&orderBy=invoiceDate&orderDirection=asc`,
-      apiKey
-    );
+    // sevDesk Status-Codes:
+    // 100 = Entwurf, 200 = Versendet/offen, 750 = Teilweise bezahlt, 1000 = Vollständig bezahlt, 50 = Storniert
+    // Wir holen Status 200 (offen) und 750 (teilw. bezahlt) — paginiert um alle zu erfassen
+    async function fetchAllByStatus(status) {
+      const all = [];
+      let offset = 0;
+      const pageSize = 100;
+      while (true) {
+        const page = await sevdeskGet(
+          `/Invoice?limit=${pageSize}&offset=${offset}&embed=contact&status=${status}`,
+          apiKey
+        );
+        const items = page.objects || [];
+        all.push(...items);
+        if (items.length < pageSize) break;
+        offset += pageSize;
+      }
+      return all;
+    }
 
-    const invoices = (data.objects || []).filter(inv => {
+    const [raw200, raw750] = await Promise.all([
+      fetchAllByStatus(200),
+      fetchAllByStatus(750),
+    ]);
+
+    const allRaw = [...raw200, ...raw750];
+
+    const invoices = allRaw.filter(inv => {
       if (inv.invoiceType === 'GS') return false; // Gutschriften ausschließen
       return true;
     });
 
     const result = invoices.map(inv => {
       const grossAmount = parseAmount(inv.sumGross);
-      const paidAmount = parseAmount(inv.sumGrossPay || '0');
+      // paidAmount ist ein numerisches Feld direkt auf der Rechnung (kein String-Parsing nötig)
+      const paidAmount = typeof inv.paidAmount === 'number' ? inv.paidAmount : parseAmount(inv.paidAmount);
       const openAmount = Math.max(0, grossAmount - paidAmount);
 
-      // due_date = invoiceDate + timeToPay (Zahlungsziel), nicht payDate (= tatsächliches Zahlungsdatum)
+      // Fälligkeitsdatum: invoiceDate + timeToPay Tage (Zahlungsziel lt. Rechnung)
       let dueDate = null;
       if (inv.invoiceDate) {
-        const timeToPay = parseInt(inv.timeToPay || inv.discountTime || '30', 10);
+        const timeToPay = parseInt(inv.timeToPay || '30', 10);
         const days = isNaN(timeToPay) || timeToPay <= 0 ? 30 : timeToPay;
         const d = new Date(inv.invoiceDate.substring(0, 10));
         d.setDate(d.getDate() + days);
