@@ -36,6 +36,7 @@ export default function AworkSettings() {
   const queryClient = useQueryClient();
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSyncingTime, setIsSyncingTime] = useState(false);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [timeSyncProgress, setTimeSyncProgress] = useState(null); // { page, totalCreated, totalUpdated, hasMore }
 
@@ -95,6 +96,16 @@ export default function AworkSettings() {
     }
   };
 
+  const handleCleanupSnapshots = async () => {
+    setIsCleaningUp(true);
+    setSyncResult(null);
+    const resp = await base44.functions.invoke('syncAworkProjects', { cleanup: true });
+    setSyncResult(resp.data);
+    queryClient.invalidateQueries({ queryKey: ['awork-project-snapshots-count'] });
+    queryClient.invalidateQueries({ queryKey: ['aworkSnapshots'] });
+    setIsCleaningUp(false);
+  };
+
   const statusCfg = STATUS_CONFIG[setting?.connection_status || 'not_configured'];
   const StatusIcon = statusCfg.icon;
 
@@ -105,14 +116,18 @@ export default function AworkSettings() {
         subtitle="Verbindungseinstellungen und Synchronisation"
         icon={Settings}
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={handleCleanupSnapshots} disabled={isCleaningUp || isSyncing}>
+              {isCleaningUp ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              {isCleaningUp ? 'Bereinige...' : 'Alte archivieren (50)'}
+            </Button>
             <Button variant="outline" onClick={handleSyncTimeEntries} disabled={isSyncingTime}>
               {isSyncingTime ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Clock className="w-4 h-4 mr-2" />}
               Zeitbuchungen synchronisieren
             </Button>
             <Button onClick={handleSyncProjects} disabled={isSyncing}>
               {isSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-              Projekte synchronisieren
+              Aktive Projekte sync
             </Button>
           </div>
         }
@@ -226,9 +241,10 @@ export default function AworkSettings() {
             </div>
           ) : (
             <p>
-              ✓ Projekte-Sync abgeschlossen: {syncResult.projects_fetched} Projekte abgerufen,
-              {syncResult.created} neu, {syncResult.updated} aktualisiert
-              {syncResult.failed > 0 ? `, ${syncResult.failed} fehlgeschlagen` : ''}.
+              {syncResult.cleanup
+                ? `✓ Cleanup: ${syncResult.archived} alte Snapshots archiviert.`
+                : `✓ Projekte-Sync: ${syncResult.active_projects} aktive von ${syncResult.projects_fetched} gesamt — ${syncResult.created} neu, ${syncResult.updated} aktualisiert${syncResult.failed > 0 ? `, ${syncResult.failed} fehlgeschlagen` : ''}.`
+              }
             </p>
           )}
         </div>

@@ -35,7 +35,6 @@ export default function AworkCostIndex() {
   const [sortBy, setSortBy] = useState('budget_pct'); // 'budget_pct' | 'tracked' | 'name'
   const [filterOverrun, setFilterOverrun] = useState(false);
   const [filterNoBudget, setFilterNoBudget] = useState(false);
-  const [showAll, setShowAll] = useState(false);
 
   const { data: snapshots = [], isLoading: sLoading } = useQuery({
     queryKey: ['aworkSnapshots'], queryFn: () => base44.entities.AworkProjectSnapshot.list()
@@ -61,24 +60,9 @@ export default function AworkCostIndex() {
     return map;
   }, [timeEntries]);
 
-  // Aktive Status-Werte in awork (Snapshots speichern project_status als String aus awork)
-  const INACTIVE_STATUSES = ['done', 'archived', 'abgeschlossen', 'completed', 'cancelled', 'abgebrochen', 'geblockt', 'blocked', 'stuck', 'closed', 'fertig', 'beendet', 'inaktiv'];
-
   const projects = useMemo(() => {
     return snapshots
-      .filter(s => {
-        if (s.is_archived) return false;
-        // Standardfilter: nur laufende Projekte
-        if (!showAll) {
-          const status = (s.project_status || '').toLowerCase();
-          // Ausblenden wenn inaktiver Status ODER wenn kein aktiver Status erkennbar
-          if (INACTIVE_STATUSES.some(x => status.includes(x))) return false;
-          // Nur anzeigen wenn explizit als laufend erkennbar
-          const ACTIVE_STATUSES = ['läuft', 'laufend', 'progress', 'running', 'active', 'aktiv', 'in bearbeitung', 'offen', 'open'];
-          if (status && !ACTIVE_STATUSES.some(x => status.includes(x))) return false;
-        }
-        return true;
-      })
+      .filter(s => !s.is_archived)
       .map(s => {
         // DB-Felder sollten Minuten enthalten (Sync: Sekunden÷60).
         // Alte Einträge (vor Fix) können aber noch Sekunden enthalten → Heuristik:
@@ -123,7 +107,7 @@ export default function AworkCostIndex() {
           isOverrun: budgetPct !== null && budgetPct >= 100,
         };
       });
-  }, [snapshots, timeByProject, showAll]);
+  }, [snapshots, timeByProject]);
 
   const noBudgetCount = projects.filter(p => p.budgetH === 0).length;
 
@@ -218,12 +202,7 @@ export default function AworkCostIndex() {
         >
           Kein Budget ({noBudgetCount})
         </button>
-        <button
-          onClick={() => setShowAll(f => !f)}
-          className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${showAll ? 'bg-muted border-border font-medium' : 'border-border text-muted-foreground hover:text-foreground'}`}
-        >
-          {showAll ? 'Nur laufende (aktiv)' : 'Alle anzeigen (inkl. geblockt/abgeschlossen)'}
-        </button>
+
       </div>
 
       {/* Project list */}
