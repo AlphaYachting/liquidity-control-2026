@@ -10,8 +10,12 @@ const INACTIVE_STATUS_KEYWORDS = [
 
 function isActiveProject(proj) {
   if (proj.isArchived === true) return false;
-  const status = (proj.projectStatus?.name || '').toLowerCase();
-  return !INACTIVE_STATUS_KEYWORDS.some(kw => status.includes(kw));
+  // 'type' ist der zuverlässige API-Wert: 'progress' = läuft, 'closed' = abgeschlossen
+  const statusType = (proj.projectStatus?.type || '').toLowerCase();
+  if (statusType === 'closed') return false;
+  // Fallback auf Name-Prüfung
+  const statusName = (proj.projectStatus?.name || '').toLowerCase();
+  return !INACTIVE_STATUS_KEYWORDS.some(kw => statusName.includes(kw));
 }
 
 Deno.serve(async (req) => {

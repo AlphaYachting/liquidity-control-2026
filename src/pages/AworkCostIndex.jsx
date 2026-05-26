@@ -63,8 +63,15 @@ export default function AworkCostIndex() {
   const projects = useMemo(() => {
     const INACTIVE_KEYWORDS = ['done', 'archived', 'abgeschlossen', 'completed', 'cancelled',
       'abgebrochen', 'geblockt', 'blocked', 'stuck', 'closed', 'fertig', 'beendet', 'inaktiv'];
-    const isActiveStatus = (status) => {
-      const s = (status || '').toLowerCase();
+    const isActiveStatus = (snap) => {
+      // Prefer raw_payload.projectStatus.type for reliable check
+      try {
+        if (snap.raw_payload) {
+          const raw = typeof snap.raw_payload === 'string' ? JSON.parse(snap.raw_payload) : snap.raw_payload;
+          if (raw.projectStatus?.type === 'closed') return false;
+        }
+      } catch (_) {}
+      const s = (snap.project_status || '').toLowerCase();
       return !INACTIVE_KEYWORDS.some(kw => s.includes(kw));
     };
 
@@ -81,7 +88,7 @@ export default function AworkCostIndex() {
 
     // Filter: only active/ongoing projects
     return deduped
-      .filter(s => isActiveStatus(s.project_status))
+      .filter(s => isActiveStatus(s))
       .map(s => {
         // DB-Felder sollten Minuten enthalten (Sync: Sekunden÷60).
         // Alte Einträge (vor Fix) können aber noch Sekunden enthalten → Heuristik:
