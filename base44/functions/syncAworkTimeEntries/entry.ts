@@ -15,54 +15,69 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
 
-  // Standardmäßig nur aktuellen Monat synchronisieren (für Geschwindigkeit)
+  // Standard: aktueller Monat + letzter Monat (für Korrekturen)
   const now = new Date();
-  const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  const defaultTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const defaultFrom = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-01`;
+  const defaultTo = now.toISOString().split('T')[0];
 
   const fromDate = body.from || defaultFrom;
   const toDate = body.to || defaultTo;
 
-  // Alle Seiten abrufen (Pagination), um keine Zeiteinträge zu verlieren
+  // awork API mit korrektem datetime Filter
   const pageSize = 100;
   let allEntries = [];
   let page = 1;
+
   while (true) {
-    const url = `${apiBase}/api/v1/timeentries?page=${page}&pageSize=${pageSize}&startDate=${fromDate}&endDate=${toDate}`;
+    const filterParam = encodeURIComponent(`startDateLocal ge datetime'${fromDate}T00:00' and startDateLocal le datetime'${toDate}T23:59'`);
+    const url = `${apiBase}/api/v1/timeentries?page=${page}&pageSize=${pageSize}&filterby=${filterParam}`;
+
     const resp = await fetch(url, {
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
     });
+
     if (!resp.ok) {
       const errText = await resp.text();
       return Response.json({ error: `awork API error: ${resp.status} (page ${page})`, detail: errText.slice(0, 300) }, { status: 502 });
     }
+
     const data = await resp.json();
     const pageEntries = Array.isArray(data) ? data : (data.data || []);
     allEntries = allEntries.concat(pageEntries);
     console.log(`awork time entries page ${page}: ${pageEntries.length} fetched (total: ${allEntries.length})`);
+
     if (pageEntries.length < pageSize) break;
     page++;
-    await sleep(300);
+    await sleep(200);
   }
-  const entries = allEntries;
 
   const syncedAt = new Date().toISOString();
-  let created = 0, updated = 0, failed = 0;
 
-  // Upserts sequenziell (ohne vorheriges Laden aller existierenden)
-  for (const e of entries) {
-    const projectName = e.task?.project?.name || e.project?.name || '';
-    const projectKey = e.task?.project?.projectKey || e.project?.projectKey || '';
-    const isBillableByDefault = e.task?.project?.isBillableByDefault;
+  // Alle existierenden Einträge im Zeitraum auf einmal laden
+  const existingEntries = await base44.asServiceRole.entities.AworkTimeEntry.filter(
+    { entry_date: { $gte: fromDate, $lte: toDate } }
+  ).catch(() => []);
+
+  const existingMap = {};
+  for (const e of existingEntries) {
+    if (e.awork_entry_id) existingMap[e.awork_entry_id] = e.id;
+  }
+
+  // Einträge aufteilen in neue und zu aktualisierende
+  const toCreate = [];
+  const toUpdate = [];
+
+  for (const e of allEntries) {
     const entryDate = (e.startDateLocal || '').split('T')[0];
     const entryMonth = entryDate ? entryDate.substring(0, 7) : '';
 
     const record = {
       awork_entry_id: e.id,
       awork_project_id: e.projectId || '',
-      project_name: projectName,
-      project_key: projectKey,
-      is_billable_by_default: isBillableByDefault !== undefined ? isBillableByDefault : true,
+      project_name: e.task?.project?.name || e.project?.name || '',
+      project_key: e.task?.project?.projectKey || e.project?.projectKey || '',
+      is_billable_by_default: e.task?.project?.isBillableByDefault !== undefined ? e.task.project.isBillableByDefault : true,
       user_id: e.userId || '',
       user_name: e.user ? `${e.user.firstName || ''} ${e.user.lastName || ''}`.trim() : '',
       type_of_work_id: e.typeOfWorkId || '',
@@ -78,27 +93,49 @@ Deno.serve(async (req) => {
       last_synced_at: syncedAt
     };
 
-    try {
-      const existing = await base44.asServiceRole.entities.AworkTimeEntry.filter({ awork_entry_id: e.id });
-      if (existing && existing.length > 0) {
-        await base44.asServiceRole.entities.AworkTimeEntry.update(existing[0].id, record);
-        updated++;
-      } else {
-        await base44.asServiceRole.entities.AworkTimeEntry.create(record);
-        created++;
-      }
-    } catch (err) {
-      console.error('Failed entry', e.id, err.message);
-      failed++;
+    const existingId = existingMap[e.id];
+    if (existingId) {
+      toUpdate.push({ id: existingId, data: record });
+    } else {
+      toCreate.push(record);
     }
-    await sleep(50);
+  }
+
+  let created = 0, updated = 0, failed = 0;
+
+  // Neue Einträge in Batches von 50 erstellen
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
+    const batch = toCreate.slice(i, i + BATCH_SIZE);
+    try {
+      await base44.asServiceRole.entities.AworkTimeEntry.bulkCreate(batch);
+      created += batch.length;
+    } catch (err) {
+      console.error(`bulkCreate batch ${i}-${i + BATCH_SIZE} failed:`, err.message);
+      failed += batch.length;
+    }
+    if (i + BATCH_SIZE < toCreate.length) await sleep(600);
+  }
+
+  // Updates in Batches von 10
+  const UPDATE_BATCH = 10;
+  for (let i = 0; i < toUpdate.length; i += UPDATE_BATCH) {
+    const batch = toUpdate.slice(i, i + UPDATE_BATCH);
+    await Promise.allSettled(
+      batch.map(({ id, data }) =>
+        base44.asServiceRole.entities.AworkTimeEntry.update(id, data)
+          .then(() => { updated++; })
+          .catch(() => { failed++; })
+      )
+    );
+    if (i + UPDATE_BATCH < toUpdate.length) await sleep(600);
   }
 
   return Response.json({
     success: true,
     period: { from: fromDate, to: toDate },
     pages_fetched: page,
-    entries_fetched: entries.length,
+    entries_fetched: allEntries.length,
     created,
     updated,
     failed
