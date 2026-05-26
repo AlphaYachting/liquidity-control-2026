@@ -280,13 +280,14 @@ export default function AworkCostIndex() {
               {isOpen && (
                 <div className="border-t px-4 pb-4 pt-3 bg-muted/20">
                   {p.topUsers.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Keine Zeiteinträge vorhanden.</p>
+                    <p className="text-xs text-muted-foreground">Keine lokalen Zeiteinträge (letzte 2 Monate) vorhanden.</p>
                   ) : (
                     <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Stunden nach Mitarbeiter</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                        Mitarbeiter-Verteilung <span className="normal-case font-normal">(lokal erfasst, letzte 2 Monate · {fmtH(p.timeEntryTotalH)} total)</span>
+                      </p>
                       {p.topUsers.map((u, i) => {
-                        const base = p.timeEntryTotalH > 0 ? p.timeEntryTotalH : p.trackedH;
-                        const userPct = base > 0 ? Math.round((u.hours / base) * 100) : 0;
+                        const userPct = p.timeEntryTotalH > 0 ? Math.round((u.hours / p.timeEntryTotalH) * 100) : 0;
                         return (
                           <div key={i} className="flex items-center gap-3">
                             <span className="text-xs w-32 truncate font-medium">{u.name}</span>
@@ -303,15 +304,12 @@ export default function AworkCostIndex() {
                       })}
                     </div>
                   )}
-                  <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted-foreground border-t pt-3">
                     {p.project_status && (
-                      <span>Status: <span className="font-medium">{p.project_status}</span></span>
+                      <span>Status: <span className="font-medium text-foreground">{p.project_status}</span></span>
                     )}
-                    <span>Gesamt erfasst (awork, alle Zeiten): <span className="font-medium">{fmtH(p.trackedH)}</span></span>
-                    {p.budgetH > 0 && <span>Budget: <span className="font-medium">{fmtH(p.budgetH)}</span></span>}
-                    {p.timeEntryTotalH > 0 && (
-                      <span className="text-muted-foreground">Lokal (letzte Monate): <span className="font-medium">{fmtH(p.timeEntryTotalH)}</span></span>
-                    )}
+                    <span>Gesamt erfasst (awork): <span className="font-medium text-foreground">{fmtH(p.trackedH)}</span></span>
+                    {p.budgetH > 0 && <span>Budget: <span className="font-medium text-foreground">{fmtH(p.budgetH)}</span></span>}
                   </div>
                 </div>
               )}
