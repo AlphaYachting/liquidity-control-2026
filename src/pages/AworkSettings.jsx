@@ -24,6 +24,14 @@ const SYNC_STATUS_CONFIG = {
   failed: { label: 'Fehlgeschlagen', color: 'bg-red-100 text-red-700' },
 };
 
+const SYNC_TYPE_LABELS = {
+  projects: 'Projekte',
+  tasks: 'Aufgaben',
+  project_tasks: 'Projektaufgaben',
+  time_entries: 'Zeitbuchungen',
+  full: 'Vollständig',
+};
+
 export default function AworkSettings() {
   const queryClient = useQueryClient();
   const [isSyncing, setIsSyncing] = useState(false);
@@ -253,7 +261,7 @@ export default function AworkSettings() {
                     const sc = SYNC_STATUS_CONFIG[log.status] || SYNC_STATUS_CONFIG.failed;
                     return (
                       <tr key={log.id} className="border-b last:border-0">
-                        <td className="py-1.5">{log.sync_type}</td>
+                        <td className="py-1.5">{SYNC_TYPE_LABELS[log.sync_type] || log.sync_type}</td>
                         <td className="py-1.5">
                           <span className={`px-2 py-0.5 rounded-full ${sc.color}`}>{sc.label}</span>
                         </td>

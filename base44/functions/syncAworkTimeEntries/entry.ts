@@ -103,6 +103,18 @@ Deno.serve(async (req) => {
 
   let created = 0, updated = 0, failed = 0;
 
+  // Sync-Log anlegen
+  let syncLog = null;
+  try {
+    syncLog = await base44.asServiceRole.entities.AworkSyncLog.create({
+      sync_type: 'time_entries',
+      started_at: syncedAt,
+      status: 'running',
+      triggered_by: body.triggered_by || 'manual',
+      notes: `Zeitbuchungen: ${fromDate} – ${toDate}`
+    });
+  } catch (_) { /* Log-Fehler darf Sync nicht blockieren */ }
+
   // Neue Einträge in Batches von 50 erstellen
   const BATCH_SIZE = 50;
   for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
@@ -129,6 +141,20 @@ Deno.serve(async (req) => {
       )
     );
     if (i + UPDATE_BATCH < toUpdate.length) await sleep(600);
+  }
+
+  // Sync-Log abschließen
+  if (syncLog?.id) {
+    const finishedAt = new Date().toISOString();
+    await base44.asServiceRole.entities.AworkSyncLog.update(syncLog.id, {
+      finished_at: finishedAt,
+      status: failed > 0 && created === 0 && updated === 0 ? 'failed' : failed > 0 ? 'partial' : 'success',
+      records_fetched: allEntries.length,
+      records_created: created,
+      records_updated: updated,
+      records_failed: failed,
+      notes: `Zeitbuchungen: ${fromDate} – ${toDate}`
+    }).catch(() => {});
   }
 
   return Response.json({
