@@ -74,20 +74,25 @@ export default function AworkCostIndex() {
         return true;
       })
       .map(s => {
-        // Stunden direkt aus dem raw_payload lesen (Sekunden → Stunden)
-        // DB-Werte sind unzuverlässig (teils Sekunden, teils Minuten je nach Sync-Version)
-        // DB speichert tracked_duration_minutes / time_budget_minutes als Rohwerte in Sekunden
-        // (trotz Feldname "minutes" — historischer Sync-Bug). Immer ÷3600 für Stunden.
-        // Wenn raw_payload vollständig parsebar: direkt trackedDuration/timeBudget in Sekunden nutzen (identisch).
-        let trackedH = (s.tracked_duration_minutes ?? 0) / 3600;
-        let budgetH = (s.time_budget_minutes ?? 0) / 3600;
+        // raw_payload ist die einzige zuverlässige Quelle.
+        // trackedDuration und timeBudget/plannedDuration sind in awork immer Sekunden.
+        // DB-Felder (tracked_duration_minutes, time_budget_minutes) enthalten Minuten — als Fallback ÷60.
+        let trackedH = (s.tracked_duration_minutes ?? 0) / 60;
+        let budgetH = (s.time_budget_minutes ?? 0) / 60;
         try {
           if (s.raw_payload) {
             const raw = typeof s.raw_payload === 'string' ? JSON.parse(s.raw_payload) : s.raw_payload;
             if (typeof raw.trackedDuration === 'number') trackedH = raw.trackedDuration / 3600;
-            if (typeof raw.timeBudget === 'number') budgetH = raw.timeBudget / 3600;
+            // timeBudget bevorzugen; wenn 0 oder fehlt, plannedDuration als Budget nehmen
+            if (typeof raw.timeBudget === 'number' && raw.timeBudget > 0) {
+              budgetH = raw.timeBudget / 3600;
+            } else if (typeof raw.plannedDuration === 'number' && raw.plannedDuration > 0) {
+              budgetH = raw.plannedDuration / 3600;
+            } else {
+              budgetH = 0;
+            }
           }
-        } catch (_) { /* raw_payload abgeschnitten/ungültig — DB-Wert (÷3600) bereits gesetzt */ }
+        } catch (_) { /* raw_payload abgeschnitten/ungültig — DB-Wert (÷60) bereits gesetzt */ }
         const budgetPct = budgetH > 0 ? Math.round((trackedH / budgetH) * 100) : null;
 
         // Mitarbeiter-Verteilung aus den synced TimeEntries (duration_minutes → Stunden)
