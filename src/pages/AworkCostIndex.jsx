@@ -60,7 +60,7 @@ export default function AworkCostIndex() {
   }, [timeEntries]);
 
   // Aktive Status-Werte in awork (Snapshots speichern project_status als String aus awork)
-  const INACTIVE_STATUSES = ['done', 'archived', 'abgeschlossen', 'completed', 'cancelled', 'abgebrochen', 'geblockt', 'blocked', 'stuck'];
+  const INACTIVE_STATUSES = ['done', 'archived', 'abgeschlossen', 'completed', 'cancelled', 'abgebrochen', 'geblockt', 'blocked', 'stuck', 'closed', 'fertig', 'beendet', 'inaktiv'];
 
   const projects = useMemo(() => {
     return snapshots
@@ -69,7 +69,11 @@ export default function AworkCostIndex() {
         // Standardfilter: nur laufende Projekte
         if (!showAll) {
           const status = (s.project_status || '').toLowerCase();
+          // Ausblenden wenn inaktiver Status ODER wenn kein aktiver Status erkennbar
           if (INACTIVE_STATUSES.some(x => status.includes(x))) return false;
+          // Nur anzeigen wenn explizit als laufend erkennbar
+          const ACTIVE_STATUSES = ['läuft', 'laufend', 'progress', 'running', 'active', 'aktiv', 'in bearbeitung', 'offen', 'open'];
+          if (status && !ACTIVE_STATUSES.some(x => status.includes(x))) return false;
         }
         return true;
       })
