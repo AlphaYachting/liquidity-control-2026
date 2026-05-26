@@ -54,7 +54,8 @@ export default function AworkCostIndex() {
       if (!pid) return;
       if (!map[pid]) map[pid] = { byUser: {} };
       const user = e.user_name || 'Unbekannt';
-      map[pid].byUser[user] = (map[pid].byUser[user] || 0) + (e.duration_minutes || 0);
+      // duration_minutes enthält laut awork-API Sekunden (trotz Feldname) → ÷3600
+      map[pid].byUser[user] = (map[pid].byUser[user] || 0) + (e.duration_minutes || 0) / 3600;
     });
     return map;
   }, [timeEntries]);
@@ -102,7 +103,7 @@ export default function AworkCostIndex() {
         // Mitarbeiter-Verteilung aus den synced TimeEntries (duration_minutes → Stunden)
         const byUser = timeByProject[s.awork_project_id]?.byUser ?? {};
         const topUsers = Object.entries(byUser)
-          .map(([name, minutes]) => ({ name, hours: minutes / 60 }))
+          .map(([name, hours]) => ({ name, hours }))
           .sort((a, b) => b.hours - a.hours);
         const timeEntryTotalH = topUsers.reduce((sum, u) => sum + u.hours, 0);
 
