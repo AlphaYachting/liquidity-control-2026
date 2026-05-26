@@ -72,7 +72,18 @@ Deno.serve(async (req) => {
         responsible_user_email: responsible?.email || '',
         members_json: JSON.stringify(members.map(m => ({ id: m.userId, name: m.name, email: m.email }))),
         custom_fields_json: JSON.stringify(proj.entityCustomFields || []),
-        raw_payload: JSON.stringify(proj), // kein slice — vollständiger Payload für korrekte Stundenberechnung
+        // Nur relevante Felder im raw_payload speichern (kein HTML/Description) um Truncation zu vermeiden
+        raw_payload: JSON.stringify({
+          id: proj.id,
+          trackedDuration: proj.trackedDuration,
+          timeBudget: proj.timeBudget,
+          plannedDuration: proj.plannedDuration,
+          projectStatus: proj.projectStatus,
+          projectKey: proj.projectKey,
+          tasksCount: proj.tasksCount,
+          tasksDoneCount: proj.tasksDoneCount,
+          isArchived: proj.isArchived,
+        }),
         last_synced_at: now,
         is_archived: proj.isArchived === true
       };

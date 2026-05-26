@@ -80,11 +80,16 @@ export default function AworkCostIndex() {
         return true;
       })
       .map(s => {
-        // raw_payload ist die einzige zuverlässige Quelle.
-        // trackedDuration und timeBudget/plannedDuration sind in awork immer Sekunden.
-        // DB-Felder (tracked_duration_minutes, time_budget_minutes) enthalten Minuten — als Fallback ÷60.
-        let trackedH = (s.tracked_duration_minutes ?? 0) / 60;
-        let budgetH = (s.time_budget_minutes ?? 0) / 60;
+        // DB-Felder sollten Minuten enthalten (Sync: Sekunden÷60).
+        // Alte Einträge (vor Fix) können aber noch Sekunden enthalten → Heuristik:
+        // Wenn tracked_duration_minutes > 50000 und kein raw_payload-Parsing möglich,
+        // dann wahrscheinlich Sekunden → ÷3600 statt ÷60.
+        // raw_payload (jetzt ohne HTML) überschreibt den Fallback immer korrekt.
+        const rawTracked = s.tracked_duration_minutes ?? 0;
+        const rawBudget = s.time_budget_minutes ?? 0;
+        // Heuristik: >50000 "Minuten" wären >833h — unrealistisch für ein einzelnes Projekt → Sekunden
+        let trackedH = rawTracked > 50000 ? rawTracked / 3600 : rawTracked / 60;
+        let budgetH = rawBudget > 50000 ? rawBudget / 3600 : rawBudget / 60;
         try {
           if (s.raw_payload) {
             const raw = typeof s.raw_payload === 'string' ? JSON.parse(s.raw_payload) : s.raw_payload;
