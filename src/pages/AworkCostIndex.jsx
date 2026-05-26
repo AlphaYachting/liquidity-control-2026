@@ -61,8 +61,27 @@ export default function AworkCostIndex() {
   }, [timeEntries]);
 
   const projects = useMemo(() => {
-    return snapshots
-      .filter(s => !s.is_archived)
+    const INACTIVE_KEYWORDS = ['done', 'archived', 'abgeschlossen', 'completed', 'cancelled',
+      'abgebrochen', 'geblockt', 'blocked', 'stuck', 'closed', 'fertig', 'beendet', 'inaktiv'];
+    const isActiveStatus = (status) => {
+      const s = (status || '').toLowerCase();
+      return !INACTIVE_KEYWORDS.some(kw => s.includes(kw));
+    };
+
+    // Deduplicate: keep only the most recently synced snapshot per awork_project_id
+    const byProjectId = {};
+    for (const s of snapshots) {
+      if (s.is_archived) continue;
+      const existing = byProjectId[s.awork_project_id];
+      if (!existing || s.last_synced_at > existing.last_synced_at) {
+        byProjectId[s.awork_project_id] = s;
+      }
+    }
+    const deduped = Object.values(byProjectId);
+
+    // Filter: only active/ongoing projects
+    return deduped
+      .filter(s => isActiveStatus(s.project_status))
       .map(s => {
         // DB-Felder sollten Minuten enthalten (Sync: Sekunden÷60).
         // Alte Einträge (vor Fix) können aber noch Sekunden enthalten → Heuristik:
