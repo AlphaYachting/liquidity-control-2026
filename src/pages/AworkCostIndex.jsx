@@ -40,7 +40,7 @@ export default function AworkCostIndex() {
     queryKey: ['aworkSnapshots'], queryFn: () => base44.entities.AworkProjectSnapshot.list()
   });
   const { data: timeEntries = [], isLoading: tLoading } = useQuery({
-    queryKey: ['aworkTimeEntries'], queryFn: () => base44.entities.AworkTimeEntry.list('-entry_date', 5000)
+    queryKey: ['aworkTimeEntries'], queryFn: () => base44.entities.AworkTimeEntry.list('-entry_date', 10000)
   });
 
   const isLoading = sLoading || tLoading;
@@ -297,10 +297,10 @@ export default function AworkCostIndex() {
                     {p.project_status && (
                       <span>Status: <span className="font-medium">{p.project_status}</span></span>
                     )}
-                    <span>Gesamt erfasst (awork): <span className="font-medium">{fmtH(p.trackedH)}</span></span>
+                    <span>Gesamt erfasst (awork, alle Zeiten): <span className="font-medium">{fmtH(p.trackedH)}</span></span>
                     {p.budgetH > 0 && <span>Budget: <span className="font-medium">{fmtH(p.budgetH)}</span></span>}
-                    {p.timeEntryTotalH > 0 && Math.abs(p.timeEntryTotalH - p.trackedH) > 1 && (
-                      <span className="text-amber-600">⚠ Nur {fmtH(p.timeEntryTotalH)} in lokaler DB (nicht vollständig synchronisiert)</span>
+                    {p.timeEntryTotalH > 0 && (
+                      <span className="text-muted-foreground">Lokal (letzte Monate): <span className="font-medium">{fmtH(p.timeEntryTotalH)}</span></span>
                     )}
                   </div>
                 </div>
