@@ -2,18 +2,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-// Status type names that indicate "active" in awork
-const ACTIVE_STATUS_TYPES = ['progress', 'todo', 'open'];
-
-function isActiveProject(proj) {
-  if (proj.isArchived) return false;
-  const statusType = (proj.projectStatus?.type || '').toLowerCase();
-  const statusName = (proj.projectStatus?.name || '').toLowerCase();
-  // Exclude done/completed/archived statuses
-  if (['done', 'archived', 'closed', 'completed', 'abgeschlossen', 'archiviert'].includes(statusType)) return false;
-  if (['done', 'archived', 'closed', 'completed', 'abgeschlossen', 'archiviert'].includes(statusName)) return false;
-  return true;
-}
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
@@ -49,16 +37,15 @@ Deno.serve(async (req) => {
     await sleep(300);
   }
 
-  // Filter to only active projects
-  const activeProjects = allProjects.filter(isActiveProject);
+  // ALLE Projekte speichern (inkl. abgeschlossene), damit der Frontend-Filter "Alle anzeigen" korrekt funktioniert.
+  // is_archived wird korrekt gesetzt — der Filter im UI entscheidet was angezeigt wird.
 
   const now = new Date().toISOString();
   let created = 0, updated = 0, failed = 0;
 
-  // Process in small batches with delays
   const BATCH_SIZE = 5;
-  for (let i = 0; i < activeProjects.length; i += BATCH_SIZE) {
-    const batch = activeProjects.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < allProjects.length; i += BATCH_SIZE) {
+    const batch = allProjects.slice(i, i + BATCH_SIZE);
 
     for (const proj of batch) {
       const members = proj.members || [];
@@ -87,7 +74,7 @@ Deno.serve(async (req) => {
         custom_fields_json: JSON.stringify(proj.entityCustomFields || []),
         raw_payload: JSON.stringify(proj), // kein slice — vollständiger Payload für korrekte Stundenberechnung
         last_synced_at: now,
-        is_archived: false
+        is_archived: proj.isArchived === true
       };
 
       try {
@@ -119,7 +106,8 @@ Deno.serve(async (req) => {
     const settingData = {
       connection_status: 'connected',
       last_successful_sync: now,
-      total_projects_synced: created + updated
+      total_projects_synced: created + updated,
+      notes: `Alle Projekte gespeichert (inkl. abgeschlossen). Gefiltert wird im Frontend.`
     };
     if (settings.length > 0) {
       await base44.asServiceRole.entities.AworkIntegrationSetting.update(settings[0].id, settingData);
@@ -135,7 +123,6 @@ Deno.serve(async (req) => {
   return Response.json({
     success: true,
     projects_fetched: allProjects.length,
-    active_projects: activeProjects.length,
     created,
     updated,
     failed

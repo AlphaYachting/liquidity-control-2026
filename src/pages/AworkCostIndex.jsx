@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function fmtH(hours) {
-  if (!hours) return '—';
+  if (hours === null || hours === undefined) return '—';
   return `${Number(hours).toFixed(1)}h`;
 }
 
@@ -34,6 +34,7 @@ export default function AworkCostIndex() {
   const [expanded, setExpanded] = useState({});
   const [sortBy, setSortBy] = useState('budget_pct'); // 'budget_pct' | 'tracked' | 'name'
   const [filterOverrun, setFilterOverrun] = useState(false);
+  const [filterNoBudget, setFilterNoBudget] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
   const { data: snapshots = [], isLoading: sLoading } = useQuery({
@@ -119,8 +120,12 @@ export default function AworkCostIndex() {
       });
   }, [snapshots, timeByProject, showAll]);
 
+  const noBudgetCount = projects.filter(p => p.budgetH === 0).length;
+
   const sorted = useMemo(() => {
-    let list = filterOverrun ? projects.filter(p => p.isOverrun) : projects;
+    let list = projects;
+    if (filterOverrun) list = list.filter(p => p.isOverrun);
+    if (filterNoBudget) list = list.filter(p => p.budgetH === 0);
     if (sortBy === 'budget_pct') {
       list = [...list].sort((a, b) => {
         if (a.budgetPct === null && b.budgetPct === null) return 0;
@@ -134,7 +139,7 @@ export default function AworkCostIndex() {
       list = [...list].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'));
     }
     return list;
-  }, [projects, sortBy, filterOverrun]);
+  }, [projects, sortBy, filterOverrun, filterNoBudget]);
 
   const overrunCount = projects.filter(p => p.isOverrun).length;
   const warnCount = projects.filter(p => p.budgetPct !== null && p.budgetPct >= 80 && p.budgetPct < 100).length;
@@ -176,6 +181,11 @@ export default function AworkCostIndex() {
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Budget überzogen</p>
           <p className="text-2xl font-bold mt-1 text-red-600">{overrunCount}</p>
         </Card>
+        <Card className="p-4 border-l-4 border-l-slate-400">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">Kein Budget hinterlegt</p>
+          <p className="text-2xl font-bold mt-1 text-slate-500">{noBudgetCount}</p>
+          <p className="text-xs text-muted-foreground">keine Kontrolle möglich</p>
+        </Card>
       </div>
 
       {/* Controls */}
@@ -201,6 +211,12 @@ export default function AworkCostIndex() {
         >
           <AlertTriangle className="w-3 h-3" />
           Nur Überzieher
+        </button>
+        <button
+          onClick={() => { setFilterNoBudget(f => !f); if (filterOverrun) setFilterOverrun(false); }}
+          className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5 ${filterNoBudget ? 'bg-slate-100 border-slate-400 text-slate-700 font-medium' : 'border-border text-muted-foreground hover:text-foreground'}`}
+        >
+          Kein Budget ({noBudgetCount})
         </button>
         <button
           onClick={() => setShowAll(f => !f)}
