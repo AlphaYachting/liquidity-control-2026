@@ -168,11 +168,6 @@ export default function AworkCostIndex() {
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Projekte gesamt</p>
           <p className="text-2xl font-bold mt-1">{projects.length}</p>
         </Card>
-        <Card className="p-4 border-l-4 border-l-emerald-500">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Erfasste Stunden</p>
-          <p className="text-2xl font-bold mt-1">{totalTrackedH}h</p>
-          <p className="text-xs text-muted-foreground">von {totalBudgetH}h Budget</p>
-        </Card>
         <Card className="p-4 border-l-4 border-l-amber-500">
           <p className="text-xs text-muted-foreground uppercase tracking-wider">In Warnzone (≥80%)</p>
           <p className="text-2xl font-bold mt-1 text-amber-600">{warnCount}</p>
