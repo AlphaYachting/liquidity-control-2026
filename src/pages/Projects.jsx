@@ -218,6 +218,28 @@ export default function Projects() {
   };
 
   const columns = [
+    // 0. Geprüft (erste Spalte)
+    { key: '_checked', label: 'Geprüft', width: '70px', render: (_, row) => {
+      const plans = plansByProject[row.id] || [];
+      const curPlan = plans.find(p => p.planning_month === currentMonth);
+      const nxtPlan = plans.find(p => p.planning_month === nextMonth);
+      const curChecked = curPlan?.current_month_checked || false;
+      const nxtChecked = nxtPlan?.next_month_checked || false;
+      return (
+        <div className="flex flex-col items-center gap-1">
+          <button title="Planung dieser Monat geprüft" onClick={e => handleToggleChecked(e, row, 'current_month_checked')}
+            className={`text-xs flex items-center gap-0.5 rounded px-1 py-0.5 transition-colors ${curChecked ? 'text-emerald-600 bg-emerald-50' : 'text-muted-foreground hover:text-foreground'}`}>
+            {curChecked ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+            <span>M</span>
+          </button>
+          <button title="Planung Folgemonat geprüft" onClick={e => handleToggleChecked(e, row, 'next_month_checked')}
+            className={`text-xs flex items-center gap-0.5 rounded px-1 py-0.5 transition-colors ${nxtChecked ? 'text-amber-600 bg-amber-50' : 'text-muted-foreground hover:text-foreground'}`}>
+            {nxtChecked ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+            <span>F</span>
+          </button>
+        </div>
+      );
+    }},
     // 1. Abrechnungsfortschritt (primary billing indicator)
     { key: '_billing', label: 'Abrechnung', width: '140px', render: (_, row) => {
       const fin = projectFinancialsMap[row.id] || {};
@@ -266,28 +288,6 @@ export default function Projects() {
             {pct > 0 && <span className="text-xs text-muted-foreground">{Math.round(pct)}%</span>}
             {types.map(t => <span key={t} className="text-xs bg-blue-100 text-blue-700 rounded px-1 font-medium">{t}</span>)}
           </div>
-        </div>
-      );
-    }},
-    // 7. Planung geprüft (current + next month checkboxes)
-    { key: '_checked', label: 'Geprüft', width: '70px', render: (_, row) => {
-      const plans = plansByProject[row.id] || [];
-      const curPlan = plans.find(p => p.planning_month === currentMonth);
-      const nxtPlan = plans.find(p => p.planning_month === nextMonth);
-      const curChecked = curPlan?.current_month_checked || false;
-      const nxtChecked = nxtPlan?.next_month_checked || false;
-      return (
-        <div className="flex flex-col items-center gap-1">
-          <button title="Planung dieser Monat geprüft" onClick={e => handleToggleChecked(e, row, 'current_month_checked')}
-            className={`text-xs flex items-center gap-0.5 rounded px-1 py-0.5 transition-colors ${curChecked ? 'text-emerald-600 bg-emerald-50' : 'text-muted-foreground hover:text-foreground'}`}>
-            {curChecked ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
-            <span>M</span>
-          </button>
-          <button title="Planung Folgemonat geprüft" onClick={e => handleToggleChecked(e, row, 'next_month_checked')}
-            className={`text-xs flex items-center gap-0.5 rounded px-1 py-0.5 transition-colors ${nxtChecked ? 'text-amber-600 bg-amber-50' : 'text-muted-foreground hover:text-foreground'}`}>
-            {nxtChecked ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
-            <span>F</span>
-          </button>
         </div>
       );
     }},
