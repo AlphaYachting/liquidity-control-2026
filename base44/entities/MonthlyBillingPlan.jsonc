@@ -1,0 +1,137 @@
+{
+  "name": "MonthlyBillingPlan",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "confirmed_order_id": {
+      "type": "string"
+    },
+    "billing_block_id": {
+      "type": "string"
+    },
+    "planning_month": {
+      "type": "string",
+      "description": "YYYY-MM"
+    },
+    "planning_type": {
+      "type": "string",
+      "enum": [
+        "current_month",
+        "next_month",
+        "future_month"
+      ],
+      "default": "next_month"
+    },
+    "planned_invoice_type": {
+      "type": "string",
+      "enum": [
+        "AZ",
+        "TR",
+        "ER"
+      ],
+      "default": "TR",
+      "description": "AZ=Anzahlung, TR=Teilrechnung, ER=Schlussrechnung"
+    },
+    "planned_percent": {
+      "type": "number",
+      "default": 0,
+      "description": "Additional % to invoice (not cumulative)"
+    },
+    "planned_amount_net": {
+      "type": "number",
+      "default": 0
+    },
+    "planned_amount_gross": {
+      "type": "number",
+      "default": 0
+    },
+    "awork_progress_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "real_progress_checked": {
+      "type": "boolean",
+      "default": false
+    },
+    "real_progress_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "progress_difference_reason": {
+      "type": "string"
+    },
+    "billing_progress_percent": {
+      "type": "number",
+      "default": 0,
+      "description": "Already invoiced % of total order"
+    },
+    "payment_progress_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "billing_status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "planned",
+        "in_review",
+        "ready_for_invoice",
+        "sent_to_backoffice",
+        "invoiced",
+        "postponed",
+        "on_hold"
+      ],
+      "default": "planned"
+    },
+    "current_month_checked": {
+      "type": "boolean",
+      "default": false
+    },
+    "next_month_checked": {
+      "type": "boolean",
+      "default": false
+    },
+    "invoice_reason": {
+      "type": "string"
+    },
+    "internal_note": {
+      "type": "string"
+    },
+    "review_deadline": {
+      "type": "string",
+      "format": "date"
+    },
+    "reminder_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "reminder_reason": {
+      "type": "string"
+    },
+    "reminder_status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "checked",
+        "postponed",
+        "converted_to_instruction"
+      ],
+      "default": "open"
+    },
+    "assigned_pm": {
+      "type": "string"
+    },
+    "linked_billing_instruction_id": {
+      "type": "string"
+    },
+    "linked_invoice_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "planning_month"
+  ]
+}

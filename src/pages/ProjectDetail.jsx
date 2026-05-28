@@ -31,7 +31,10 @@ import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import PdfViewerDialog from '@/components/shared/PdfViewerDialog';
 import { FileText } from 'lucide-react';
-import InvoicingTimeline from '@/components/projects/InvoicingTimeline';
+import BillingHistoryTimeline from '@/components/projects/BillingHistoryTimeline';
+import RealProgressValidator from '@/components/projects/RealProgressValidator';
+import NextMonthsBillingPreview from '@/components/projects/NextMonthsBillingPreview';
+import WebsiteMilestoneGuide from '@/components/projects/WebsiteMilestoneGuide';
 
 const WORK_STATUS_LABELS = {
   not_started: 'Nicht begonnen',
@@ -59,6 +62,8 @@ export default function ProjectDetail() {
   const [linkingBlock, setLinkingBlock] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pdfViewer, setPdfViewer] = useState(null); // { url, title }
+  const [editingNextInvoiceNote, setEditingNextInvoiceNote] = useState(false);
+  const [nextInvoiceNote, setNextInvoiceNote] = useState('');
 
   // ── Data loading ──────────────────────────────────────────────────────────
   const { data: projects = [], isLoading: lpLoading } = useQuery({
@@ -454,7 +459,60 @@ export default function ProjectDetail() {
       </div>
 
       {/* ── Verrechnungshistorie nach Monat ─────────────────────────────── */}
-      <InvoicingTimeline projectInvoices={projectInvoices} />
+      <BillingHistoryTimeline projectInvoices={projectInvoices} commercialBaseNet={commercialBaseNet} />
+
+      {/* ── Real Progress Validator ──────────────────────────────────────── */}
+      <div className="space-y-1">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-0.5">
+          awork-Fortschritt entspricht Realität?
+        </p>
+        <RealProgressValidator
+          aworkProgressPct={aworkTaskStats?.progress_percent ?? project.awork_progress_percent ?? 0}
+          realProgressChecked={project.real_progress_checked || false}
+          realProgressPct={project.real_progress_percent || 0}
+          progressDifferenceReason={project.progress_difference_reason || ''}
+          isSaving={updateProjectMutation.isPending}
+          onSave={(data) => updateProjectMutation.mutate(data)}
+        />
+      </div>
+
+      {/* ── Anmerkungen für nächste Rechnung (Task 4) ───────────────────── */}
+      <div className="bg-card border rounded-xl p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Anmerkungen für nächste Rechnung</h3>
+          {!editingNextInvoiceNote && (
+            <button onClick={() => { setNextInvoiceNote(project.notes_next_invoice || ''); setEditingNextInvoiceNote(true); }}
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <Pencil className="w-3 h-3" /> Bearbeiten
+            </button>
+          )}
+        </div>
+        {editingNextInvoiceNote ? (
+          <div className="space-y-2">
+            <textarea
+              value={nextInvoiceNote}
+              onChange={e => setNextInvoiceNote(e.target.value)}
+              rows={3}
+              placeholder="Hinweise für die nächste Rechnung, Vorbedingungen, Meilensteine..."
+              className="w-full text-sm border rounded-lg p-2 resize-none bg-background"
+            />
+            <div className="flex gap-2">
+              <button onClick={() => { updateProjectMutation.mutate({ notes_next_invoice: nextInvoiceNote }); setEditingNextInvoiceNote(false); }}
+                className="text-xs px-3 py-1 bg-primary text-primary-foreground rounded-md">
+                Speichern
+              </button>
+              <button onClick={() => setEditingNextInvoiceNote(false)}
+                className="text-xs px-3 py-1 border rounded-md text-muted-foreground hover:text-foreground">
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className={`text-sm ${project.notes_next_invoice ? 'text-foreground' : 'text-muted-foreground italic'}`}>
+            {project.notes_next_invoice || 'Noch keine Anmerkungen eingegeben.'}
+          </p>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -673,6 +731,21 @@ export default function ProjectDetail() {
 
           {/* ── Leistungspositionen aus AB ──────────────────────────────── */}
           <OrderItemsView linkedOrders={linkedOrders} />
+
+          {/* ── Verrechnungsplanung 4 Monate (Task 7) ───────────────────── */}
+          <NextMonthsBillingPreview
+            project={project}
+            fin={fin}
+            linkedOrders={linkedOrders}
+          />
+
+          {/* ── Website Meilenstein-Leitfaden (Task 10) ──────────────── */}
+          {(project.category === 'web_project' || (project.project_name || '').toLowerCase().includes('website')) && (
+            <WebsiteMilestoneGuide
+              billingPct={fin?.commercialBaseNet > 0 ? ((fin?.adjustedInvoicedNet || 0) / fin.commercialBaseNet) * 100 : 0}
+              commercialBaseNet={fin?.commercialBaseNet || 0}
+            />
+          )}
 
           {/* ── Abrechnung & Liquidität ──────────────────────────────────── */}
           <BillingLiquiditySection

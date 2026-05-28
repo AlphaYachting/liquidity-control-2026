@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
-import { FolderKanban } from 'lucide-react';
+import { FolderKanban, CheckSquare, Square } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import FilterBar from '@/components/shared/FilterBar';
@@ -11,14 +11,31 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { calculateProjectFinancials } from '@/lib/projectFinancials';
+import BillingProgressBar from '@/components/projects/BillingProgressBar';
 
 const PM_OPTIONS = ['Lara', 'Sebastian', 'Pascal', 'Anna'].map(v => ({ value: v, label: v }));
 const STATUS_OPTIONS = ['active', 'completed', 'on_hold', 'cancelled', 'unclear'].map(v => ({ value: v, label: v }));
 const RISK_OPTIONS = ['none', 'low', 'medium', 'high', 'critical'].map(v => ({ value: v, label: v }));
+const BILLING_STATUS_OPTIONS = ['open','planned','in_review','ready_for_invoice','sent_to_backoffice','invoiced','postponed','on_hold'].map(v => ({ value: v, label: v }));
+
+const INVOICE_TYPE_SHORT = { advance_invoice:'AZ', partial_invoice:'TR', final_invoice:'ER', correction:'KO', credit_note:'GS' };
+
+function getCurrentMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
+}
+function getNextMonth() {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
+}
 
 export default function Projects() {
   const [filters, setFilters] = useState({});
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const currentMonth = getCurrentMonth();
+  const nextMonth = getNextMonth();
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery({
     queryKey: ['projects'], queryFn: () => base44.entities.LiquidityProject.list()
@@ -40,12 +57,56 @@ export default function Projects() {
     queryKey: ['aworkSnapshots'], queryFn: () => base44.entities.AworkProjectSnapshot.list()
   });
 
+  const { data: billingPlans = [] } = useQuery({
+    queryKey: ['monthlyBillingPlansAll'], queryFn: () => base44.entities.MonthlyBillingPlan.list()
+  });
+  const { data: billingInstructions = [] } = useQuery({
+    queryKey: ['billingInstructions'], queryFn: () => base44.entities.BillingInstruction.list()
+  });
+
+  const updatePlanMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.MonthlyBillingPlan.update(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlansAll'] })
+  });
+  const createPlanMutation = useMutation({
+    mutationFn: (data) => base44.entities.MonthlyBillingPlan.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlansAll'] })
+  });
+
   // Map awork_project_id -> snapshot for fast lookup
   const aworkSnapshotMap = useMemo(() => {
     const map = {};
     aworkSnapshots.forEach(s => { map[s.awork_project_id] = s; });
     return map;
   }, [aworkSnapshots]);
+
+  // Lookup: plans per project
+  const plansByProject = useMemo(() => {
+    const map = {};
+    billingPlans.forEach(p => {
+      if (!map[p.project_id]) map[p.project_id] = [];
+      map[p.project_id].push(p);
+    });
+    return map;
+  }, [billingPlans]);
+
+  // Expected billing current month from plans + instructions + blocks
+  const expectedCurrentMonth = useMemo(() => {
+    let total = 0;
+    // From MonthlyBillingPlan
+    billingPlans.filter(p => p.planning_month === currentMonth && !['invoiced','postponed','on_hold'].includes(p.billing_status))
+      .forEach(p => total += Number(p.planned_amount_net) || 0);
+    // From BillingInstructions planned for current month
+    billingInstructions.filter(i => {
+      if (['invoiced','paid','cancelled'].includes(i.status)) return false;
+      return i.planned_invoice_date?.startsWith(currentMonth);
+    }).forEach(i => {
+      // Avoid double-counting if already in plans
+      const alreadyInPlan = billingPlans.some(p => p.linked_billing_instruction_id === i.id);
+      if (!alreadyInPlan) total += Number(i.instruction_amount_net) || 0;
+    });
+    return total;
+  }, [billingPlans, billingInstructions, currentMonth]);
 
   // Per-project financials using shared helper — allBlocks now passed correctly
   const projectFinancialsMap = useMemo(() => {
@@ -70,6 +131,11 @@ export default function Projects() {
       if (filters.project_manager && p.project_manager !== filters.project_manager) return false;
       if (filters.status && p.status !== filters.status) return false;
       if (filters.risk_status && p.risk_status !== filters.risk_status) return false;
+      if (filters.billing_status) {
+        const pPlans = plansByProject[p.id] || [];
+        const hasStatus = pPlans.some(plan => plan.billing_status === filters.billing_status);
+        if (!hasStatus) return false;
+      }
       return true;
     })
     .sort((a, b) => {
@@ -126,84 +192,111 @@ export default function Projects() {
   });
 
   const totalNet = filteredWithLive.reduce((s, p) => s + (Number(p.total_net_amount) || 0), 0);
-  const totalInvoiced = filteredWithLive.reduce((s, p) => s + p._invoiced, 0);
   const totalOpen = filteredWithLive
     .filter(p => p.status !== 'completed' && p.status !== 'cancelled')
     .reduce((s, p) => s + p._open, 0);
+  const activeCount = filteredWithLive.filter(p => p.status === 'active').length;
+
+  // Toggle planning-checked for a project/month
+  const handleToggleChecked = (e, project, field) => {
+    e.stopPropagation();
+    const plans = plansByProject[project.id] || [];
+    const curPlan = plans.find(p => p.planning_month === (field === 'current_month_checked' ? currentMonth : nextMonth));
+    if (curPlan) {
+      updatePlanMutation.mutate({ id: curPlan.id, data: { [field]: !curPlan[field] } });
+    } else {
+      // Create a minimal plan record just to store the check
+      createPlanMutation.mutate({
+        project_id: project.id,
+        planning_month: field === 'current_month_checked' ? currentMonth : nextMonth,
+        planning_type: field === 'current_month_checked' ? 'current_month' : 'next_month',
+        billing_status: 'open',
+        [field]: true,
+        assigned_pm: project.project_manager || '',
+      });
+    }
+  };
 
   const columns = [
-    { key: 'status', label: 'Status', width: '100px', render: (v) => <StatusBadge status={v} /> },
-    { key: 'customer', label: 'Kunde / Projekt', render: (v, row) => {
+    // 1. Abrechnungsfortschritt (primary billing indicator)
+    { key: '_billing', label: 'Abrechnung', width: '140px', render: (_, row) => {
       const fin = projectFinancialsMap[row.id] || {};
-      const billingPct = fin.commercialBaseNet > 0
-        ? Math.round((fin.adjustedInvoicedNet / fin.commercialBaseNet) * 100)
-        : null;
+      const billingPct = fin.commercialBaseNet > 0 ? (fin.adjustedInvoicedNet / fin.commercialBaseNet) * 100 : 0;
       const aworkPct = row.awork_progress_percent ?? 0;
-      const gap = billingPct !== null ? (aworkPct - billingPct) : 0;
-      return (
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="font-medium text-sm leading-tight truncate">{v}</p>
-            {gap >= 25 && row.status === 'active' && (
-              <span title={`awork ${aworkPct}% → Abrechnung ${billingPct}% (Lücke ${gap}%)`}
-                className="flex-shrink-0 text-xs bg-amber-100 text-amber-700 border border-amber-200 rounded px-1 py-0 leading-4 font-medium">
-                ⚠ +{gap}%
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground leading-tight truncate mt-0.5">{(row.project_name || '').replace(/^(order confirmation|auftragsbestätigung)\s*[|]\s*/i, '').trim()}</p>
-        </div>
-      );
+      return <BillingProgressBar billingPct={billingPct} performancePct={aworkPct} />;
     }},
-    { key: 'project_manager', label: 'PM', width: '80px' },
+    // 2. Kunde / Projekt
+    { key: 'customer', label: 'Kunde / Projekt', render: (v, row) => (
+      <div className="min-w-0">
+        <p className="font-medium text-sm leading-tight truncate">{v}</p>
+        <p className="text-xs text-muted-foreground leading-tight truncate mt-0.5">
+          {(row.project_name || '').replace(/^(order confirmation|auftragsbestätigung)\s*[|]\s*/i, '').trim()}
+        </p>
+      </div>
+    )},
+    // 3. Letzte Rechnung
     { key: '_lastInvoiceDate', label: 'Letzte Rechnung', width: '130px', render: (v, row) => {
-      if (!v) return <span className="text-xs text-muted-foreground">—</span>;
+      if (!v) return <span className="text-xs text-muted-foreground italic">keine</span>;
       const days = row._daysSinceInvoice;
-      const color = days === null ? '' : days > 90 ? 'text-red-600' : days > 30 ? 'text-amber-600' : 'text-emerald-600';
+      const color = days === null ? '' : days > 90 ? 'text-red-600 font-semibold' : days > 30 ? 'text-amber-600' : 'text-emerald-600';
+      const fin = projectFinancialsMap[row.id] || {};
+      // Find last invoice type from fin.linkedInvoices
       return (
         <div className="space-y-0.5">
           <p className="text-xs font-medium">{v}</p>
-          <p className={`text-xs font-semibold ${color}`}>{days !== null ? `vor ${days} T.` : '—'}</p>
+          <p className={`text-xs ${color}`}>{days !== null ? `vor ${days}d` : '—'}</p>
         </div>
       );
     }},
-    { key: 'total_net_amount', label: 'Gesamt netto', render: (v) => formatCurrency(v), cellClass: 'text-right font-medium' },
-    { key: '_invoiced', label: 'Verrechnet netto', render: (v) => <span className={Number(v) > 0 ? 'text-green-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
-    { key: '_open', label: 'Noch zu verr.', render: (v) => <span className={Number(v) > 0 ? 'text-amber-600 font-medium' : ''}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
-    { key: '_awork', label: 'awork / Stunden', width: '160px', render: (_, row) => {
-        if (!row.awork_project_id) return <span className="text-xs text-muted-foreground">—</span>;
-        const pct = row.awork_progress_percent ?? 0;
-        const snap = aworkSnapshotMap[row.awork_project_id];
-        const budgetMin = snap?.time_budget_minutes ?? 0;
-        const trackedMin = snap?.tracked_duration_minutes ?? 0;
-        const budgetH = budgetMin > 0 ? (budgetMin / 60).toFixed(1) : null;
-        const trackedH = trackedMin > 0 ? (trackedMin / 60).toFixed(1) : null;
-        const budgetPct = budgetMin > 0 ? Math.min(100, Math.round((trackedMin / budgetMin) * 100)) : null;
-        const barPct = budgetPct ?? pct;
-        const barColor = budgetPct !== null
-          ? budgetPct >= 90 ? 'bg-red-500' : budgetPct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'
-          : 'bg-blue-500';
-        return (
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div className={`h-full ${barColor} rounded-full`} style={{ width: `${barPct}%` }} />
-              </div>
-              {budgetPct !== null && <span className="text-xs font-medium text-blue-700">{budgetPct}%</span>}
-            </div>
-            {(trackedH || budgetH) && (
-              <div className="text-xs text-muted-foreground">
-                {trackedH && <span className="text-emerald-700">{trackedH}h</span>}
-                {trackedH && budgetH && <span> / </span>}
-                {budgetH && <span>{budgetH}h</span>}
-              </div>
-            )}
+    // 4. Gesamt netto
+    { key: 'total_net_amount', label: 'Gesamt netto', render: (v) => <span className="text-sm font-medium">{formatCurrency(v)}</span>, cellClass: 'text-right' },
+    // 5. Noch zu verrechnen
+    { key: '_open', label: 'Offen', render: (v) => <span className={Number(v) > 0 ? 'text-amber-600 font-semibold' : 'text-emerald-600'}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
+    // 6. Geplant nächster Monat
+    { key: '_nextPlan', label: 'Nächster Monat', width: '120px', render: (_, row) => {
+      const plans = (plansByProject[row.id] || []).filter(p => p.planning_month === nextMonth && !['invoiced','postponed'].includes(p.billing_status));
+      if (!plans.length) return <span className="text-xs text-muted-foreground">—</span>;
+      const total = plans.reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0);
+      const pct = plans.reduce((s, p) => s + (Number(p.planned_percent) || 0), 0);
+      const types = [...new Set(plans.map(p => p.planned_invoice_type))];
+      return (
+        <div className="text-right space-y-0.5">
+          <p className="text-xs font-semibold text-amber-700">{formatCurrency(total)}</p>
+          <div className="flex gap-1 justify-end flex-wrap">
+            {pct > 0 && <span className="text-xs text-muted-foreground">{Math.round(pct)}%</span>}
+            {types.map(t => <span key={t} className="text-xs bg-blue-100 text-blue-700 rounded px-1 font-medium">{t}</span>)}
           </div>
-        );
-      }
-    },
-    { key: 'expected_invoice_month', label: 'Erw. Monat', width: '100px' },
-    { key: 'risk_status', label: 'Risiko', width: '90px', render: (v) => <StatusBadge status={v} /> },
+        </div>
+      );
+    }},
+    // 7. Planung geprüft (current + next month checkboxes)
+    { key: '_checked', label: 'Geprüft', width: '70px', render: (_, row) => {
+      const plans = plansByProject[row.id] || [];
+      const curPlan = plans.find(p => p.planning_month === currentMonth);
+      const nxtPlan = plans.find(p => p.planning_month === nextMonth);
+      const curChecked = curPlan?.current_month_checked || false;
+      const nxtChecked = nxtPlan?.next_month_checked || false;
+      return (
+        <div className="flex flex-col items-center gap-1">
+          <button title="Planung dieser Monat geprüft" onClick={e => handleToggleChecked(e, row, 'current_month_checked')}
+            className={`text-xs flex items-center gap-0.5 rounded px-1 py-0.5 transition-colors ${curChecked ? 'text-emerald-600 bg-emerald-50' : 'text-muted-foreground hover:text-foreground'}`}>
+            {curChecked ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+            <span>M</span>
+          </button>
+          <button title="Planung Folgemonat geprüft" onClick={e => handleToggleChecked(e, row, 'next_month_checked')}
+            className={`text-xs flex items-center gap-0.5 rounded px-1 py-0.5 transition-colors ${nxtChecked ? 'text-amber-600 bg-amber-50' : 'text-muted-foreground hover:text-foreground'}`}>
+            {nxtChecked ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+            <span>F</span>
+          </button>
+        </div>
+      );
+    }},
+    // 8. Risiko
+    { key: 'risk_status', label: 'Risiko', width: '80px', render: (v) => <StatusBadge status={v} /> },
+    // 9. PM
+    { key: 'project_manager', label: 'PM', width: '70px', render: v => <span className="text-xs">{v || '—'}</span> },
+    // 10. Projektstatus (rightmost)
+    { key: 'status', label: 'Status', width: '90px', render: (v) => <StatusBadge status={v} /> },
   ];
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-[400px]" /></div>;
@@ -214,16 +307,17 @@ export default function Projects() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard title="Gesamtvolumen" value={formatCurrency(totalNet)} variant="info" />
-        <KpiCard title="Bereits verrechnet" value={formatCurrency(totalInvoiced)} variant="success" />
         <KpiCard title="Offene Beträge" value={formatCurrency(totalOpen)} variant="warning" />
-        <KpiCard title="Projekte" value={filtered.length} subtitle={`${filtered.filter(p => p.status === 'active').length} aktiv`} />
+        <KpiCard title="Aktive Projekte" value={activeCount} subtitle={`von ${filtered.length} gesamt`} />
+        <KpiCard title="Geplant dieser Monat" value={formatCurrency(expectedCurrentMonth)} variant="success" subtitle="aus Planung + Anweisungen" />
       </div>
 
       <FilterBar
         filters={[
           { key: 'project_manager', label: 'PM', options: PM_OPTIONS },
-          { key: 'status', label: 'Status', options: STATUS_OPTIONS },
+          { key: 'billing_status', label: 'Abrechnungsstatus', options: BILLING_STATUS_OPTIONS },
           { key: 'risk_status', label: 'Risiko', options: RISK_OPTIONS },
+          { key: 'status', label: 'Projektstatus', options: STATUS_OPTIONS },
         ]}
         values={filters}
         onChange={(k, v) => setFilters(f => ({ ...f, [k]: v }))}

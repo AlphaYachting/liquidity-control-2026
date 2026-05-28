@@ -58,6 +58,10 @@
     "notes": {
       "type": "string"
     },
+    "notes_next_invoice": {
+      "type": "string",
+      "description": "PM-Anmerkungen f\u00fcr die n\u00e4chste Rechnung \u2014 wird als Kontext f\u00fcr BillingInstruction genutzt"
+    },
     "fixed_billing_expected": {
       "type": "boolean",
       "default": false
@@ -120,6 +124,20 @@
     "awork_last_synced_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "real_progress_checked": {
+      "type": "boolean",
+      "default": false,
+      "description": "Hat der PM den awork-Fortschritt validiert?"
+    },
+    "real_progress_percent": {
+      "type": "number",
+      "default": 0,
+      "description": "Vom PM korrigierter tats\u00e4chlicher Fortschritt"
+    },
+    "progress_difference_reason": {
+      "type": "string",
+      "description": "Begr\u00fcndung wenn awork-Fortschritt korrigiert wurde"
     }
   },
   "required": [

@@ -30,17 +30,42 @@ function BudgetBar({ pct }) {
   );
 }
 
+const BUDGET_CATEGORY_OPTIONS = [
+  { value: 'fixed_budget_project', label: 'Fixpreis-Projekt' },
+  { value: 'ongoing_support', label: 'Laufende Umsetzung / OM' },
+  { value: 'maintenance_contract', label: 'Wartungsvertrag' },
+  { value: 'internal', label: 'Intern' },
+  { value: 'support_request', label: 'Support-Anfrage' },
+  { value: 'no_budget', label: 'Kein Budget' },
+];
+
+// Heuristic: detect likely non-budget-relevant projects by name keywords
+function detectBudgetCategory(name = '', projectType = '') {
+  const n = name.toLowerCase();
+  const t = (projectType || '').toLowerCase();
+  if (t.includes('online marketing') || n.includes('online marketing') || n.includes('om ') || n.includes(' om-')) return 'ongoing_support';
+  if (n.includes('wartung') || n.includes('maintenance') || n.includes('support') || t.includes('maintenance')) return 'maintenance_contract';
+  if (n.includes('intern') || n.includes('internal')) return 'internal';
+  return 'fixed_budget_project';
+}
+
 export default function AworkCostIndex() {
   const [expanded, setExpanded] = useState({});
   const [sortBy, setSortBy] = useState('budget_pct'); // 'budget_pct' | 'tracked' | 'name'
   const [filterOverrun, setFilterOverrun] = useState(false);
   const [filterNoBudget, setFilterNoBudget] = useState(false);
+  const [filterPM, setFilterPM] = useState('');
+  const [filterCategory, setFilterCategory] = useState('fixed_budget_project');
+  const [showNonBudget, setShowNonBudget] = useState(false);
 
   const { data: snapshots = [], isLoading: sLoading } = useQuery({
     queryKey: ['aworkSnapshots'], queryFn: () => base44.entities.AworkProjectSnapshot.list()
   });
   const { data: timeEntries = [], isLoading: tLoading } = useQuery({
     queryKey: ['aworkTimeEntries'], queryFn: () => base44.entities.AworkTimeEntry.list('-entry_date', 10000)
+  });
+  const { data: liquidityProjects = [] } = useQuery({
+    queryKey: ['projects'], queryFn: () => base44.entities.LiquidityProject.list()
   });
 
   const isLoading = sLoading || tLoading;
@@ -123,6 +148,14 @@ export default function AworkCostIndex() {
           .sort((a, b) => b.hours - a.hours);
         const timeEntryTotalH = topUsers.reduce((sum, u) => sum + u.hours, 0);
 
+        // PM from linked LiquidityProject
+        const linkedProject = liquidityProjects.find(p => p.awork_project_id === s.awork_project_id);
+        const pm = linkedProject?.project_manager || s.responsible_user_name || '';
+
+        // Budget category heuristic
+        const budgetCategory = detectBudgetCategory(s.name, s.project_type);
+        const isBudgetRelevant = budgetCategory === 'fixed_budget_project' && budgetH > 0;
+
         return {
           ...s,
           trackedH,
@@ -130,15 +163,24 @@ export default function AworkCostIndex() {
           budgetPct,
           topUsers,
           timeEntryTotalH,
-          isOverrun: budgetPct !== null && budgetPct >= 100,
+          isOverrun: isBudgetRelevant && budgetPct !== null && budgetPct >= 100,
+          pm,
+          budgetCategory,
+          isBudgetRelevant,
         };
       });
-  }, [snapshots, timeByProject]);
+  }, [snapshots, timeByProject, liquidityProjects]);
 
-  const noBudgetCount = projects.filter(p => p.budgetH === 0).length;
+  const allPMs = useMemo(() => [...new Set(projects.map(p => p.pm).filter(Boolean))].sort(), [projects]);
+  const budgetRelevant = projects.filter(p => p.isBudgetRelevant);
+  const nonBudgetRelevant = projects.filter(p => !p.isBudgetRelevant);
+  const noBudgetCount = budgetRelevant.filter(p => p.budgetH === 0).length;
 
   const sorted = useMemo(() => {
-    let list = projects;
+    let list = filterCategory === 'fixed_budget_project' ? budgetRelevant :
+               filterCategory ? projects.filter(p => p.budgetCategory === filterCategory) :
+               projects;
+    if (filterPM) list = list.filter(p => p.pm === filterPM);
     if (filterOverrun) list = list.filter(p => p.isOverrun);
     if (filterNoBudget) list = list.filter(p => p.budgetH === 0);
     if (sortBy === 'budget_pct') {
@@ -156,8 +198,8 @@ export default function AworkCostIndex() {
     return list;
   }, [projects, sortBy, filterOverrun, filterNoBudget]);
 
-  const overrunCount = projects.filter(p => p.isOverrun).length;
-  const warnCount = projects.filter(p => p.budgetPct !== null && p.budgetPct >= 80 && p.budgetPct < 100).length;
+  const overrunCount = budgetRelevant.filter(p => p.isOverrun).length;
+  const warnCount = budgetRelevant.filter(p => p.budgetPct !== null && p.budgetPct >= 80 && p.budgetPct < 100).length;
   const totalTrackedH = projects.reduce((s, p) => s + p.trackedH, 0).toFixed(0);
   const totalBudgetH = projects.reduce((s, p) => s + p.budgetH, 0).toFixed(0);
 
@@ -200,36 +242,72 @@ export default function AworkCostIndex() {
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
+        {/* Category filter */}
+        <div className="flex gap-1 border rounded-lg p-1">
+          {[
+            { key: 'fixed_budget_project', label: 'Fixpreis' },
+            { key: '', label: 'Alle' },
+          ].map(s => (
+            <button key={s.key} onClick={() => setFilterCategory(s.key)}
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${filterCategory === s.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+        {/* PM filter */}
+        <select
+          className="border rounded-lg px-2.5 py-1.5 text-xs bg-card h-8"
+          value={filterPM}
+          onChange={e => setFilterPM(e.target.value)}
+        >
+          <option value="">Alle PM</option>
+          {allPMs.map(pm => <option key={pm} value={pm}>{pm}</option>)}
+        </select>
+        {/* Sort */}
         <div className="flex gap-1 border rounded-lg p-1">
           {[
             { key: 'budget_pct', label: 'Budget %' },
             { key: 'tracked', label: 'Stunden' },
             { key: 'name', label: 'Name' },
           ].map(s => (
-            <button
-              key={s.key}
-              onClick={() => setSortBy(s.key)}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${sortBy === s.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-            >
+            <button key={s.key} onClick={() => setSortBy(s.key)}
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${sortBy === s.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               {s.label}
             </button>
           ))}
         </div>
-        <button
-          onClick={() => setFilterOverrun(f => !f)}
-          className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5 ${filterOverrun ? 'bg-red-50 border-red-300 text-red-700 font-medium' : 'border-border text-muted-foreground hover:text-foreground'}`}
-        >
+        <button onClick={() => setFilterOverrun(f => !f)}
+          className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5 ${filterOverrun ? 'bg-red-50 border-red-300 text-red-700 font-medium' : 'border-border text-muted-foreground hover:text-foreground'}`}>
           <AlertTriangle className="w-3 h-3" />
           Nur Überzieher
         </button>
-        <button
-          onClick={() => { setFilterNoBudget(f => !f); if (filterOverrun) setFilterOverrun(false); }}
-          className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5 ${filterNoBudget ? 'bg-slate-100 border-slate-400 text-slate-700 font-medium' : 'border-border text-muted-foreground hover:text-foreground'}`}
-        >
+        <button onClick={() => { setFilterNoBudget(f => !f); if (filterOverrun) setFilterOverrun(false); }}
+          className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5 ${filterNoBudget ? 'bg-slate-100 border-slate-400 text-slate-700 font-medium' : 'border-border text-muted-foreground hover:text-foreground'}`}>
           Kein Budget ({noBudgetCount})
         </button>
-
+        <button onClick={() => setShowNonBudget(f => !f)}
+          className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${showNonBudget ? 'bg-muted border-muted-foreground/30 font-medium' : 'border-border text-muted-foreground hover:text-foreground'}`}>
+          Nicht budgetrelevant ({nonBudgetRelevant.length})
+        </button>
       </div>
+
+      {/* Non-budget section */}
+      {showNonBudget && nonBudgetRelevant.length > 0 && (
+        <div className="rounded-xl border border-dashed border-muted-foreground/30 p-4 space-y-2 bg-muted/10">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Nicht budgetrelevant / ohne Gesamtbudget ({nonBudgetRelevant.length})
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {nonBudgetRelevant.map(p => (
+              <span key={p.awork_project_id} className="text-xs border rounded-lg px-2.5 py-1 bg-card flex items-center gap-1.5">
+                <span className="text-muted-foreground">{p.budgetCategory?.replace(/_/g, ' ')}</span>
+                <span className="font-medium">{p.name}</span>
+                {p.pm && <span className="text-muted-foreground">· {p.pm}</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Project list */}
       <div className="space-y-2">
