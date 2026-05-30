@@ -13,10 +13,33 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { calculateProjectFinancials } from '@/lib/projectFinancials';
 import BillingProgressBar from '@/components/projects/BillingProgressBar';
 
-const PM_OPTIONS = ['Lara', 'Sebastian', 'Pascal', 'Anna'].map(v => ({ value: v, label: v }));
+const PM_OPTIONS = ['Anna', 'Lara', 'Mathias', 'Pascal', 'Sebastian'].map(v => ({ value: v, label: v }));
 const STATUS_OPTIONS = ['active', 'completed', 'on_hold', 'cancelled', 'unclear'].map(v => ({ value: v, label: v }));
 const RISK_OPTIONS = ['none', 'low', 'medium', 'high', 'critical'].map(v => ({ value: v, label: v }));
-const BILLING_STATUS_OPTIONS = ['open','planned','in_review','ready_for_invoice','sent_to_backoffice','invoiced','postponed','on_hold'].map(v => ({ value: v, label: v }));
+// Simplified billing status options — in_review and ready_for_invoice excluded from filter
+const BILLING_STATUS_OPTIONS = [
+  { value: 'open', label: 'offen' },
+  { value: 'planned', label: 'geplant' },
+  { value: 'sent_to_backoffice', label: 'in Verrechnung' },
+  { value: 'invoiced', label: 'verrechnet' },
+  { value: 'on_hold', label: 'on hold' },
+  { value: 'postponed', label: 'verschoben' },
+];
+const BILLING_STATUS_DISPLAY = {
+  open: 'offen', planned: 'geplant', in_review: 'in Prüfung',
+  ready_for_invoice: 'bereit', sent_to_backoffice: 'in Verrechnung',
+  invoiced: 'verrechnet', postponed: 'verschoben', on_hold: 'on hold',
+};
+const BILLING_STATUS_COLORS = {
+  open: 'bg-slate-100 text-slate-600',
+  planned: 'bg-blue-100 text-blue-700',
+  in_review: 'bg-amber-100 text-amber-700',
+  ready_for_invoice: 'bg-emerald-100 text-emerald-700',
+  sent_to_backoffice: 'bg-orange-100 text-orange-700',
+  invoiced: 'bg-purple-100 text-purple-700',
+  postponed: 'bg-gray-100 text-gray-500',
+  on_hold: 'bg-red-100 text-red-600',
+};
 
 const INVOICE_TYPE_SHORT = { advance_invoice:'AZ', partial_invoice:'TR', final_invoice:'ER', correction:'KO', credit_note:'GS' };
 
@@ -32,6 +55,7 @@ function getNextMonth() {
 
 export default function Projects() {
   const [filters, setFilters] = useState({});
+  const [sortOverride, setSortOverride] = useState(null); // null | 'erwartung_desc'
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const currentMonth = getCurrentMonth();
@@ -62,6 +86,12 @@ export default function Projects() {
   });
   const { data: billingInstructions = [] } = useQuery({
     queryKey: ['billingInstructions'], queryFn: () => base44.entities.BillingInstruction.list()
+  });
+
+  // Mutation für Billing-Status direkt in der Übersicht
+  const updatePlanBillingStatusMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.MonthlyBillingPlan.update(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlansAll'] })
   });
 
   const updatePlanMutation = useMutation({
@@ -126,6 +156,18 @@ export default function Projects() {
 
   const STATUS_SORT_ORDER = { active: 0, on_hold: 1, unclear: 2, completed: 3, cancelled: 4 };
 
+  // Per-project: expected current month amount (for sorting)
+  const expectedByProject = useMemo(() => {
+    const map = {};
+    projects.forEach(p => {
+      const plans = (plansByProject[p.id] || []).filter(pl =>
+        pl.planning_month === currentMonth && !['invoiced','postponed','on_hold'].includes(pl.billing_status)
+      );
+      map[p.id] = plans.reduce((s, pl) => s + (Number(pl.planned_amount_net) || 0), 0);
+    });
+    return map;
+  }, [projects, plansByProject, currentMonth]);
+
   const filtered = projects
     .filter(p => {
       if (filters.project_manager && p.project_manager !== filters.project_manager) return false;
@@ -139,6 +181,9 @@ export default function Projects() {
       return true;
     })
     .sort((a, b) => {
+      if (sortOverride === 'erwartung_desc') {
+        return (expectedByProject[b.id] || 0) - (expectedByProject[a.id] || 0);
+      }
       const sA = STATUS_SORT_ORDER[a.status] ?? 99;
       const sB = STATUS_SORT_ORDER[b.status] ?? 99;
       if (sA !== sB) return sA - sB;
@@ -274,16 +319,21 @@ export default function Projects() {
     { key: 'total_net_amount', label: 'Gesamt netto', render: (v) => <span className="text-sm font-medium">{formatCurrency(v)}</span>, cellClass: 'text-right' },
     // 5. Noch zu verrechnen
     { key: '_open', label: 'Offen', render: (v) => <span className={Number(v) > 0 ? 'text-amber-600 font-semibold' : 'text-emerald-600'}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
-    // 6. Geplant nächster Monat
-    { key: '_nextPlan', label: 'Nächster Monat', width: '120px', render: (_, row) => {
-      const plans = (plansByProject[row.id] || []).filter(p => p.planning_month === nextMonth && !['invoiced','postponed'].includes(p.billing_status));
+    // 7. Erwartung dieser Monat (renamed + uses currentMonth)
+    { key: '_curPlan', label: 'Erwartung d. Monat', width: '130px', render: (_, row) => {
+      const plans = (plansByProject[row.id] || []).filter(p => p.planning_month === currentMonth && !['invoiced','postponed'].includes(p.billing_status));
+      const risk = row.risk_status;
+      const amtColor = risk === 'critical' ? 'text-red-800 font-bold'
+        : risk === 'high' ? 'text-red-600 font-semibold'
+        : risk === 'medium' ? 'text-amber-600 font-semibold'
+        : 'text-emerald-700 font-semibold';
       if (!plans.length) return <span className="text-xs text-muted-foreground">—</span>;
       const total = plans.reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0);
       const pct = plans.reduce((s, p) => s + (Number(p.planned_percent) || 0), 0);
       const types = [...new Set(plans.map(p => p.planned_invoice_type))];
       return (
         <div className="text-right space-y-0.5">
-          <p className="text-xs font-semibold text-amber-700">{formatCurrency(total)}</p>
+          <p className={`text-xs ${amtColor}`}>{formatCurrency(total)}</p>
           <div className="flex gap-1 justify-end flex-wrap">
             {pct > 0 && <span className="text-xs text-muted-foreground">{Math.round(pct)}%</span>}
             {types.map(t => <span key={t} className="text-xs bg-blue-100 text-blue-700 rounded px-1 font-medium">{t}</span>)}
@@ -293,9 +343,35 @@ export default function Projects() {
     }},
     // 8. Risiko
     { key: 'risk_status', label: 'Risiko', width: '80px', render: (v) => <StatusBadge status={v} /> },
-    // 9. PM
+    // 9. Verrechnungsstatus
+    { key: '_billing_status', label: 'Verr.-Status', width: '120px', render: (_, row) => {
+      const plans = plansByProject[row.id] || [];
+      const activePlan = plans.find(p => p.planning_month === currentMonth)
+        || plans.find(p => p.planning_month === nextMonth)
+        || plans.sort((a, b) => (b.planning_month || '').localeCompare(a.planning_month || ''))[0];
+      const status = activePlan?.billing_status || 'open';
+      if (!activePlan) {
+        return <span className="text-xs text-muted-foreground">—</span>;
+      }
+      return (
+        <select
+          value={status}
+          onClick={e => e.stopPropagation()}
+          onChange={e => {
+            e.stopPropagation();
+            updatePlanBillingStatusMutation.mutate({ id: activePlan.id, data: { billing_status: e.target.value } });
+          }}
+          className={`text-xs rounded px-1.5 py-0.5 border-0 cursor-pointer ${BILLING_STATUS_COLORS[status] || 'bg-slate-100 text-slate-600'}`}
+        >
+          {Object.entries(BILLING_STATUS_DISPLAY).map(([val, lbl]) => (
+            <option key={val} value={val}>{lbl}</option>
+          ))}
+        </select>
+      );
+    }},
+    // 10. PM
     { key: 'project_manager', label: 'PM', width: '70px', render: v => <span className="text-xs">{v || '—'}</span> },
-    // 10. Projektstatus (rightmost)
+    // 11. Projektstatus (rightmost)
     { key: 'status', label: 'Status', width: '90px', render: (v) => <StatusBadge status={v} /> },
   ];
 
@@ -312,17 +388,25 @@ export default function Projects() {
         <KpiCard title="Geplant dieser Monat" value={formatCurrency(expectedCurrentMonth)} variant="success" subtitle="aus Planung + Anweisungen" />
       </div>
 
-      <FilterBar
-        filters={[
-          { key: 'project_manager', label: 'PM', options: PM_OPTIONS },
-          { key: 'billing_status', label: 'Abrechnungsstatus', options: BILLING_STATUS_OPTIONS },
-          { key: 'risk_status', label: 'Risiko', options: RISK_OPTIONS },
-          { key: 'status', label: 'Projektstatus', options: STATUS_OPTIONS },
-        ]}
-        values={filters}
-        onChange={(k, v) => setFilters(f => ({ ...f, [k]: v }))}
-        onReset={() => setFilters({})}
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterBar
+          filters={[
+            { key: 'project_manager', label: 'PM', options: PM_OPTIONS },
+            { key: 'billing_status', label: 'Verr.-Status', options: BILLING_STATUS_OPTIONS },
+            { key: 'risk_status', label: 'Risiko', options: RISK_OPTIONS },
+            { key: 'status', label: 'Projektstatus', options: STATUS_OPTIONS },
+          ]}
+          values={filters}
+          onChange={(k, v) => setFilters(f => ({ ...f, [k]: v }))}
+          onReset={() => { setFilters({}); setSortOverride(null); }}
+        />
+        <button
+          onClick={() => setSortOverride(s => s === 'erwartung_desc' ? null : 'erwartung_desc')}
+          className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5 ${sortOverride === 'erwartung_desc' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+        >
+          Sortieren: Erwartung ↓
+        </button>
+      </div>
 
       <DataTable columns={columns} data={filteredWithLive} onRowClick={(p) => navigate(`/projects/${p.id}`)} />
 

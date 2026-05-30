@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, FileText, Upload, AlertTriangle } from 'lucide-react';
+import { Plus, FileText, Upload, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import StatusBadge from '@/components/shared/StatusBadge';
 import PaymentSourceBadge from '@/components/shared/PaymentSourceBadge';
@@ -128,7 +128,6 @@ export default function ProjectInvoiceSection({
               <thead>
                 <tr className="border-b text-xs text-muted-foreground">
                   <th className="text-left pb-2 font-medium">Rechnung</th>
-                  <th className="text-left pb-2 font-medium pl-2">Typ</th>
                   <th className="text-right pb-2 font-medium">Netto</th>
                   <th className="text-right pb-2 font-medium">Bezahlt brutto</th>
                   <th className="text-right pb-2 font-medium">Offen</th>
@@ -141,15 +140,43 @@ export default function ProjectInvoiceSection({
                 {projectInvoices.map(inv => {
                   const ep = getEffectivePaid(inv);
                   const openAmt = Math.max(0, (Number(inv.gross_amount) || 0) - ep.amount);
+                  const fileUrl = inv.source_file;
+                  const sevdeskUrl = inv.sevdesk_id
+                    ? `https://my.sevdesk.de/#/fi/edit/type/RE/id/${inv.sevdesk_id}`
+                    : inv.sevdesk_invoice_url || null;
+                  const hasLink = fileUrl || sevdeskUrl;
                   return (
                     <tr key={inv.id} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="py-2">
-                        <p className="font-medium">{inv.invoice_number || '—'}</p>
-                        <p className="text-xs text-muted-foreground">{inv.invoice_date || ''}</p>
-                        {inv.is_credit_note && <Badge className="text-xs bg-purple-100 text-purple-700">Gutschrift</Badge>}
-
+                        <div className="flex items-center gap-1.5">
+                          {hasLink ? (
+                            sevdeskUrl ? (
+                              <a href={sevdeskUrl} target="_blank" rel="noopener noreferrer"
+                                className="font-medium text-primary hover:underline flex items-center gap-1" title="In sevDesk öffnen">
+                                {inv.invoice_number || '—'}
+                                <ExternalLink className="w-3 h-3 opacity-60" />
+                              </a>
+                            ) : (
+                              <button onClick={() => {/* handled via existing PDF viewer in parent */}}
+                                className="font-medium text-primary hover:underline flex items-center gap-1" title="Dokument öffnen">
+                                {inv.invoice_number || '—'}
+                                <FileText className="w-3 h-3 opacity-60" />
+                              </button>
+                            )
+                          ) : (
+                            <span className="font-medium">{inv.invoice_number || '—'}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <p className="text-xs text-muted-foreground">{inv.invoice_date || ''}</p>
+                          {inv.invoice_type && (
+                            <span className="text-xs bg-slate-100 text-slate-600 rounded px-1">
+                              {inv.invoice_type === 'advance_invoice' ? 'AZ' : inv.invoice_type === 'partial_invoice' ? 'TR' : inv.invoice_type === 'final_invoice' ? 'ER' : inv.invoice_type === 'credit_note' ? 'GS' : inv.invoice_type === 'correction' ? 'KO' : inv.invoice_type}
+                            </span>
+                          )}
+                          {inv.is_credit_note && <Badge className="text-xs bg-purple-100 text-purple-700">Gutschrift</Badge>}
+                        </div>
                       </td>
-                      <td className="py-2 pl-2 text-xs text-muted-foreground">{inv.invoice_type?.replace(/_/g, ' ') || '—'}</td>
                       <td className="py-2 text-right font-semibold">{formatCurrency(inv.net_amount)}</td>
                       <td className="py-2 text-right text-emerald-600">{formatCurrency(ep.amount)}</td>
                       <td className="py-2 text-right text-amber-600">{formatCurrency(openAmt)}</td>
@@ -174,7 +201,7 @@ export default function ProjectInvoiceSection({
               </tbody>
               <tfoot>
                 <tr className="border-t bg-muted/20">
-                  <td colSpan={2} className="py-2 text-sm font-semibold">Summe</td>
+                  <td className="py-2 text-sm font-semibold">Summe</td>
                   <td className="py-2 text-right font-bold">{formatCurrency(adjustedInvoicedNet)}</td>
                   <td className="py-2 text-right font-bold text-emerald-600">{formatCurrency(totalPaidGross)}</td>
                   <td className="py-2 text-right font-bold text-amber-600">{formatCurrency(openReceivableGross)}</td>

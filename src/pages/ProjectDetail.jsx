@@ -408,60 +408,7 @@ export default function ProjectDetail() {
         );
       })()}
 
-      {/* KPI row — Tasks 1, 2, 3 */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        {/* Auftragsvolumen netto */}
-        <div className="bg-card border rounded-xl p-3 space-y-1">
-          <p className="text-xs text-muted-foreground">Auftragsvolumen netto</p>
-          <p className="text-lg font-bold">{formatCurrency(commercialBaseNet)}</p>
-          <p className="text-xs text-muted-foreground">{commercialBaseLabel}</p>
-          {commercialDeviation && (
-            <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
-              <AlertTriangle className="w-3 h-3" />
-              Importwert: {formatCurrency(importedProjectNet)}
-            </span>
-          )}
-          {fin?.linkedOrdersTotalNet > 0 && fin?.billingBlocksTotalNet > 0 && (
-            <p className="text-xs text-muted-foreground">Pakete: {formatCurrency(fin.billingBlocksTotalNet)}</p>
-          )}
-        </div>
-
-        {/* Verrechnet netto */}
-        <div className="bg-card border rounded-xl p-3 space-y-1">
-          <p className="text-xs text-muted-foreground">Verrechnet netto</p>
-          <p className="text-lg font-bold text-emerald-600">{formatCurrency(adjustedInvoicedNet)}</p>
-          <p className="text-xs text-muted-foreground">{projectInvoices.filter(i => !i.is_credit_note).length} Rechnung(en)</p>
-          {creditNotes.length > 0 && (
-            <p className="text-xs text-purple-600">– {formatCurrency(creditNotes.reduce((s,i) => s + (Number(i.net_amount)||0), 0))} Gutschriften</p>
-          )}
-        </div>
-
-        {/* Noch zu verrechnen netto */}
-        <div className={`bg-card border rounded-xl p-3 space-y-1 ${openToInvoice > 0 ? 'border-amber-200' : ''}`}>
-          <p className="text-xs text-muted-foreground">Noch zu verrechnen netto</p>
-          <p className={`text-lg font-bold ${openToInvoice > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{formatCurrency(openToInvoice)}</p>
-          {readyAmount > 0 && <p className="text-xs text-emerald-700">davon bereit: {formatCurrency(readyAmount)}</p>}
-        </div>
-
-        {/* Bezahlt brutto */}
-        <div className="bg-card border rounded-xl p-3 space-y-1">
-          <p className="text-xs text-muted-foreground">Bezahlt brutto</p>
-          <p className="text-lg font-bold text-emerald-600">{formatCurrency(totalPaidGross)}</p>
-          <p className="text-xs text-muted-foreground">inkl. MwSt.</p>
-        </div>
-
-        {/* Offene Forderung brutto */}
-        <div className={`bg-card border rounded-xl p-3 space-y-1 ${openReceivableGross > 0 ? 'border-red-200' : ''}`}>
-          <p className="text-xs text-muted-foreground">Offene Forderung brutto</p>
-          <p className={`text-lg font-bold ${openReceivableGross > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatCurrency(Math.max(0, openReceivableGross))}</p>
-          <p className="text-xs text-muted-foreground">inkl. MwSt.</p>
-        </div>
-      </div>
-
-      {/* ── Verrechnungshistorie nach Monat ─────────────────────────────── */}
-      <BillingHistoryTimeline projectInvoices={projectInvoices} commercialBaseNet={commercialBaseNet} />
-
-      {/* ── Real Progress Validator ──────────────────────────────────────── */}
+      {/* ── Real Progress Validator (moved above notes) ─────────────────── */}
       <div className="space-y-1">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-0.5">
           awork-Fortschritt entspricht Realität?
@@ -476,7 +423,7 @@ export default function ProjectDetail() {
         />
       </div>
 
-      {/* ── Anmerkungen für nächste Rechnung (Task 4) ───────────────────── */}
+      {/* ── Anmerkungen für nächste Rechnung ────────────────────────────── */}
       <div className="bg-card border rounded-xl p-4 space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Anmerkungen für nächste Rechnung</h3>
@@ -513,6 +460,75 @@ export default function ProjectDetail() {
           </p>
         )}
       </div>
+
+      {/* ── KPI row (simplified — Task 7) ───────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {/* Verrechnet netto + % */}
+        <div className="bg-card border rounded-xl p-3 space-y-1">
+          <p className="text-xs text-muted-foreground">Verrechnet netto</p>
+          <p className="text-lg font-bold text-emerald-600">{formatCurrency(adjustedInvoicedNet)}</p>
+          {commercialBaseNet > 0 && (
+            <p className="text-xs text-emerald-700 font-medium">{Math.round((adjustedInvoicedNet / commercialBaseNet) * 100)}% von {formatCurrency(commercialBaseNet)}</p>
+          )}
+          {creditNotes.length > 0 && (
+            <p className="text-xs text-purple-600">– {formatCurrency(creditNotes.reduce((s,i) => s + (Number(i.net_amount)||0), 0))} GS</p>
+          )}
+          {commercialDeviation && (
+            <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 rounded px-1">
+              <AlertTriangle className="w-3 h-3" /> Importwert: {formatCurrency(importedProjectNet)}
+            </span>
+          )}
+        </div>
+
+        {/* Noch zu verrechnen netto */}
+        <div className={`bg-card border rounded-xl p-3 space-y-1 ${openToInvoice > 0 ? 'border-amber-200' : ''}`}>
+          <p className="text-xs text-muted-foreground">Noch zu verrechnen</p>
+          <p className={`text-lg font-bold ${openToInvoice > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{formatCurrency(openToInvoice)}</p>
+          {readyAmount > 0 && <p className="text-xs text-emerald-700">davon bereit: {formatCurrency(readyAmount)}</p>}
+          <p className="text-xs text-muted-foreground">{commercialBaseLabel}</p>
+        </div>
+
+        {/* Offene Forderung */}
+        <div className={`bg-card border rounded-xl p-3 space-y-1 ${openReceivableGross > 0 ? 'border-red-200' : ''}`}>
+          <p className="text-xs text-muted-foreground">Offene Forderung</p>
+          <p className={`text-lg font-bold ${openReceivableGross > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatCurrency(Math.max(0, openReceivableGross))}</p>
+          <p className="text-xs text-muted-foreground">brutto inkl. MwSt.</p>
+        </div>
+
+        {/* Anzahl Rechnungen */}
+        <div className="bg-card border rounded-xl p-3 space-y-1">
+          <p className="text-xs text-muted-foreground">Rechnungen</p>
+          <p className="text-lg font-bold">{projectInvoices.filter(i => !i.is_credit_note).length}</p>
+          <p className="text-xs text-muted-foreground">Bezahlt: {formatCurrency(totalPaidGross)} brutto</p>
+        </div>
+      </div>
+
+      {/* ── Verrechnungshistorie nach Monat ─────────────────────────────── */}
+      <BillingHistoryTimeline projectInvoices={projectInvoices} commercialBaseNet={commercialBaseNet} />
+
+      {/* ── Abrechnung & Liquidität (moved up per PM feedback) ─────────── */}
+      <BillingLiquiditySection
+        project={project}
+        fin={fin}
+        aworkTaskStats={aworkTaskStats}
+        projectBlocks={projectBlocks}
+        linkedOrders={linkedOrders}
+      />
+
+      {/* ── Verrechnungsplanung 4 Monate ────────────────────────────────── */}
+      <NextMonthsBillingPreview
+        project={project}
+        fin={fin}
+        linkedOrders={linkedOrders}
+      />
+
+      {/* ── Website Meilenstein-Leitfaden ─────────────────────────────── */}
+      {(project.category === 'web_project' || (project.project_name || '').toLowerCase().includes('website')) && (
+        <WebsiteMilestoneGuide
+          billingPct={fin?.commercialBaseNet > 0 ? ((fin?.adjustedInvoicedNet || 0) / fin.commercialBaseNet) * 100 : 0}
+          commercialBaseNet={fin?.commercialBaseNet || 0}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -731,30 +747,6 @@ export default function ProjectDetail() {
 
           {/* ── Leistungspositionen aus AB ──────────────────────────────── */}
           <OrderItemsView linkedOrders={linkedOrders} />
-
-          {/* ── Verrechnungsplanung 4 Monate (Task 7) ───────────────────── */}
-          <NextMonthsBillingPreview
-            project={project}
-            fin={fin}
-            linkedOrders={linkedOrders}
-          />
-
-          {/* ── Website Meilenstein-Leitfaden (Task 10) ──────────────── */}
-          {(project.category === 'web_project' || (project.project_name || '').toLowerCase().includes('website')) && (
-            <WebsiteMilestoneGuide
-              billingPct={fin?.commercialBaseNet > 0 ? ((fin?.adjustedInvoicedNet || 0) / fin.commercialBaseNet) * 100 : 0}
-              commercialBaseNet={fin?.commercialBaseNet || 0}
-            />
-          )}
-
-          {/* ── Abrechnung & Liquidität ──────────────────────────────────── */}
-          <BillingLiquiditySection
-            project={project}
-            fin={fin}
-            aworkTaskStats={aworkTaskStats}
-            projectBlocks={projectBlocks}
-            linkedOrders={linkedOrders}
-          />
 
           {/* ── Invoice / Payment Table ─────────────────────────────────── */}
           <ProjectInvoiceSection

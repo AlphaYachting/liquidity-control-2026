@@ -82,13 +82,16 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
   const openPayables = payables.filter(p => p.status !== 'paid').reduce((s, p) => s + (Number(p.gross_amount) || 0), 0);
 
   const kpis = [
-    { title: 'Geplante Zuflüsse 2026', value: formatCurrency(totalPlanned), icon: TrendingUp, variant: 'info' },
-    { title: 'Bereits verrechnet', value: formatCurrency(alreadyInvoiced), icon: Receipt, variant: 'success' },
+    // 1. Billing decisions first
     { title: 'Offene Projektbeträge', value: formatCurrency(openProject), icon: BarChart3, variant: 'warning' },
+    { title: 'Bereits verrechnet', value: formatCurrency(alreadyInvoiced), icon: Receipt, variant: 'success' },
+    // 2. Liquidity / cashflow
+    { title: 'Geplante Zuflüsse 2026', value: formatCurrency(totalPlanned), icon: TrendingUp, variant: 'info' },
     { title: 'Zufluss nächste 30 Tage', value: formatCurrency(next30), icon: Clock, variant: 'info' },
-    { title: 'Zufluss nächste 90 Tage', value: formatCurrency(next90), icon: Clock, variant: 'info' },
+    // 3. Receivables risk
     { title: 'Offene Forderungen (brutto)', value: formatCurrency(openReceivables), subtitle: liveReceivablesData ? `Live sevDesk · ${liveReceivablesData.count} Rechnungen` : openReceivablesNet > 0 ? `Netto: ${formatCurrency(openReceivablesNet)}` : undefined, icon: AlertTriangle, variant: openReceivables > 0 ? 'warning' : 'default' },
     { title: 'Überfällige Forderungen (brutto)', value: formatCurrency(overdueReceivables), subtitle: overdueReceivablesNet > 0 ? `Netto ca. ${formatCurrency(overdueReceivablesNet)}` : undefined, icon: AlertTriangle, variant: overdueReceivables > 0 ? 'danger' : 'default' },
+    // 4. Costs
     { title: 'Toolkosten 2026', value: formatCurrency(toolCosts), subtitle: `Ø ${formatCurrency(monthlyToolAvg)}/Monat`, icon: CreditCard, variant: 'default' },
     { title: 'Offene Verbindlichkeiten', value: formatCurrency(openPayables), icon: FileText, variant: openPayables > 0 ? 'warning' : 'default' },
   ];
