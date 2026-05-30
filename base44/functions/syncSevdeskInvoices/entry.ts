@@ -14,8 +14,8 @@ function mapInvoiceStatus(invoice) {
   const status = invoice.status;
   if (status === '1000') return 'paid';
   if (status === '50') return 'cancelled';
-  if (status === '100') return 'draft'; // Entwurf — noch nicht verschickt
-  return 'open'; // 200 = versendet, 300 = bezahlt (partial), etc.
+  if (status === '100') return 'draft';
+  return 'open'; // 200 = versendet, 300 = teilbezahlt
 }
 
 function parseAmount(val) {
@@ -23,22 +23,17 @@ function parseAmount(val) {
 }
 
 function extractSevdeskIdFromNotes(notes) {
-  // Notes field contains e.g. "sevDesk ID: 25809765 | Typ: AB"
   const match = (notes || '').match(/sevDesk ID:\s*(\d+)/i);
   return match ? match[1] : null;
 }
 
 function findMatchingOrder(invoice, confirmedOrders, ordersBySevdeskId) {
-  // 1. Exact match via origin field (invoice created from an Order in sevDesk)
   const originId = invoice.origin?.id;
   if (originId && invoice.origin?.objectName === 'Order') {
     const exactMatch = ordersBySevdeskId[originId];
-    if (exactMatch) {
-      return { order: exactMatch, confidence: 100, method: 'sevdesk_origin' };
-    }
+    if (exactMatch) return { order: exactMatch, confidence: 100, method: 'sevdesk_origin' };
   }
 
-  // 2. Fuzzy fallback: customer name + amount
   const invCustomer = (invoice.contact?.name || invoice.contactName || '').toLowerCase().trim();
   const invNet = parseAmount(invoice.sumNet);
   const invHeader = (invoice.header || '').toLowerCase();
@@ -64,26 +59,68 @@ function findMatchingOrder(invoice, confirmedOrders, ordersBySevdeskId) {
   return bestScore >= 40 ? { order: best, confidence: bestScore, method: 'fuzzy' } : null;
 }
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+function buildRecord(inv, matchResult, existing) {
+  const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
 
-async function saveWithRetry(base44, existing, record, retries = 3) {
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      if (existing) {
-        await base44.asServiceRole.entities.InvoiceRecord.update(existing.id, record);
-      } else {
-        await base44.asServiceRole.entities.InvoiceRecord.create(record);
-      }
-      return true;
-    } catch (e) {
-      if (attempt < retries - 1) {
-        await sleep(1000 * (attempt + 1)); // 1s, 2s backoff
-      } else {
-        throw e;
-      }
-    }
+  let dueDate = null;
+  if (invoiceDate) {
+    const timeToPay = parseInt(inv.timeToPay || inv.discountTime || '30', 10);
+    const days = isNaN(timeToPay) || timeToPay <= 0 ? 30 : timeToPay;
+    const d = new Date(invoiceDate);
+    d.setDate(d.getDate() + days);
+    dueDate = d.toISOString().substring(0, 10);
   }
+
+  const paymentDate = inv.payDate ? inv.payDate.substring(0, 10) : null;
+
+  const netAmount = parseAmount(inv.sumNet);
+  const grossAmount = parseAmount(inv.sumGross);
+  const vatAmount = parseAmount(inv.sumTax);
+
+  // sevDesk invoiceType mapping:
+  // AN = Anzahlung/Advance, TR = Teilrechnung/Partial, SR = Schlussrechnung/Final
+  // RE = Dauerrechnung/Recurring → partial_invoice (no project link expected)
+  const invoiceType = inv.invoiceType === 'AN' ? 'advance_invoice' :
+                      inv.invoiceType === 'SR' ? 'final_invoice' :
+                      inv.invoiceType === 'TR' ? 'partial_invoice' :
+                      'partial_invoice'; // RE, MA, unknown → partial
+
+  // sumGrossPay is often 0 even for paid invoices in older sevDesk records.
+  // If status = 1000 (paid) and sumGrossPay = 0, use grossAmount as paid amount.
+  const paymentStatus = mapInvoiceStatus(inv);
+  const rawPaidAmount = parseAmount(inv.sumGrossPay || '0');
+  const paidAmount = rawPaidAmount > 0 ? rawPaidAmount :
+                     (paymentStatus === 'paid' ? grossAmount : 0);
+
+  const confirmedOrderId = matchResult?.order?.id || existing?.confirmed_order_id || null;
+  const matchStatus = matchResult ? 'auto_matched' : (existing?.match_status || 'unmatched');
+  const matchConfidence = matchResult?.confidence || existing?.match_confidence || 0;
+
+  return {
+    invoice_number: inv.invoiceNumber || '',
+    invoice_date: invoiceDate,
+    customer_name: inv.contact?.name || inv.contactName || '',
+    invoice_type: invoiceType,
+    net_amount: netAmount,
+    gross_amount: grossAmount,
+    vat_amount: vatAmount,
+    vat_rate: netAmount > 0 ? Math.round((vatAmount / netAmount) * 100) : 20,
+    due_date: dueDate,
+    payment_status: paymentStatus,
+    paid_amount: paidAmount,
+    open_amount: Math.max(0, grossAmount - paidAmount),
+    payment_date: paymentStatus === 'paid' ? paymentDate : null,
+    source_type: 'sevdesk',
+    sevdesk_id: String(inv.id),
+    confirmed_order_id: confirmedOrderId,
+    match_status: matchStatus,
+    match_confidence: matchConfidence,
+    notes: inv.header || '',
+    source_file: JSON.stringify(inv),
+  };
 }
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 Deno.serve(async (req) => {
   try {
@@ -95,12 +132,14 @@ Deno.serve(async (req) => {
     if (!apiKey) return Response.json({ error: 'SEVDESK_API_KEY not set' }, { status: 500 });
 
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
-    const limit = body.limit || 200;
+    // offset/batchSize allow paginated syncs to avoid timeouts
+    const limit = body.limit || 50;
+    const offset = body.offset || 0;
     const year = body.year || null;
 
-    // Fetch invoices from sevDesk
+    // Fetch invoices from sevDesk (paginated)
     const data = await sevdeskGet(
-      `/Invoice?limit=${limit}&offset=0&embed=contact&orderBy=invoiceDate&orderDirection=desc`,
+      `/Invoice?limit=${limit}&offset=${offset}&embed=contact&orderBy=invoiceDate&orderDirection=desc`,
       apiKey
     );
 
@@ -114,113 +153,67 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Load everything needed in bulk upfront (avoids per-record DB calls)
+    // Load lookup data in bulk
     const [allOrders, existingInvoices] = await Promise.all([
       base44.asServiceRole.entities.ConfirmedOrder.list(),
       base44.asServiceRole.entities.InvoiceRecord.filter({ source_type: 'sevdesk' })
     ]);
 
-    // Build lookup map: sevdesk_id → existing InvoiceRecord
     const existingMap = {};
     for (const r of existingInvoices) {
       if (r.sevdesk_id) existingMap[r.sevdesk_id] = r;
     }
 
-    // Build lookup map: sevdesk order id → ConfirmedOrder (from notes field)
     const ordersBySevdeskId = {};
     for (const o of allOrders) {
       const sid = extractSevdeskIdFromNotes(o.notes);
       if (sid) ordersBySevdeskId[sid] = o;
+      // Also index by sevdesk_order_id field if present
+      if (o.sevdesk_order_id) ordersBySevdeskId[String(o.sevdesk_order_id)] = o;
     }
 
     let created = 0;
     let updated = 0;
     let failed = 0;
-    let matched = 0;
-    let skipped = 0;
+    const errors = [];
 
     for (let i = 0; i < invoices.length; i++) {
       const inv = invoices[i];
       try {
         const sevdeskId = String(inv.id);
         const existing = existingMap[sevdeskId] || null;
-
-        // Alle Rechnungen importieren — auch ohne AB-Zuordnung
         const matchResult = findMatchingOrder(inv, allOrders, ordersBySevdeskId);
+        const record = buildRecord(inv, matchResult, existing);
 
-        const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
-
-        // due_date: invoiceDate + timeToPay (Zahlungsziel), nicht payDate (= Zahlungsdatum)
-        let dueDate = null;
-        if (invoiceDate) {
-          const timeToPay = parseInt(inv.timeToPay || inv.discountTime || '30', 10);
-          const days = isNaN(timeToPay) || timeToPay <= 0 ? 30 : timeToPay;
-          const d = new Date(invoiceDate);
-          d.setDate(d.getDate() + days);
-          dueDate = d.toISOString().substring(0, 10);
+        if (existing) {
+          await base44.asServiceRole.entities.InvoiceRecord.update(existing.id, record);
+          updated++;
+        } else {
+          await base44.asServiceRole.entities.InvoiceRecord.create(record);
+          created++;
         }
 
-        // payment_date: payDate ist das tatsächliche Zahlungsdatum in sevDesk
-        const paymentDate = inv.payDate ? inv.payDate.substring(0, 10) : null;
+        // 1s between writes to stay within rate limits
+        await sleep(1000);
 
-        const netAmount = parseAmount(inv.sumNet);
-        const grossAmount = parseAmount(inv.sumGross);
-        const vatAmount = parseAmount(inv.sumTax);
-        const paidAmount = parseAmount(inv.sumGrossPay || '0');
-
-        const invoiceType = inv.invoiceType === 'AN' ? 'advance_invoice' :
-                            inv.invoiceType === 'RE' ? 'partial_invoice' : 'final_invoice';
-
-        const paymentStatus = mapInvoiceStatus(inv);
-
-        const confirmedOrderId = matchResult?.order?.id || existing?.confirmed_order_id || null;
-        const matchStatus = matchResult ? 'auto_matched' : (existing?.match_status || 'unmatched');
-        const matchConfidence = matchResult?.confidence || existing?.match_confidence || 0;
-
-        matched++;
-
-        const record = {
-          invoice_number: inv.invoiceNumber || '',
-          invoice_date: invoiceDate,
-          customer_name: inv.contact?.name || inv.contactName || '',
-          invoice_type: invoiceType,
-          net_amount: netAmount,
-          gross_amount: grossAmount,
-          vat_amount: vatAmount,
-          vat_rate: netAmount > 0 ? Math.round((vatAmount / netAmount) * 100) : 20,
-          due_date: dueDate,
-          payment_status: paymentStatus,
-          paid_amount: paidAmount,
-          open_amount: grossAmount - paidAmount,
-          payment_date: paymentStatus === 'paid' ? paymentDate : null,
-          source_type: 'sevdesk',
-          sevdesk_id: sevdeskId,
-          confirmed_order_id: confirmedOrderId,
-          match_status: matchStatus,
-          match_confidence: matchConfidence,
-          notes: inv.header || '',
-          source_file: JSON.stringify(inv), // Raw sevDesk Payload für Nachvollziehbarkeit
-        };
-
-        await saveWithRetry(base44, existing, record);
-        if (existing) updated++; else created++;
-
-        // Delay every 2 records to avoid DB rate limiting
-        if (i > 0 && i % 2 === 0) await sleep(800);
-
-      } catch {
+      } catch (e) {
         failed++;
+        errors.push(`${inv.invoiceNumber}: ${e.message}`);
+        // On rate limit, wait longer before continuing
+        if (e.message?.includes('429') || e.message?.includes('Rate limit')) {
+          await sleep(5000);
+        } else {
+          await sleep(1000);
+        }
       }
     }
 
-    // Sync-Zeitstempel in AuditLog festhalten
-    const syncFinishedAt = new Date().toISOString();
     await base44.asServiceRole.entities.AuditLog.create({
       action: 'import',
       entity_type: 'sevdesk_sync',
       entity_id: 'invoices',
       user_email: user.email || 'system',
-      details: `sevDesk Rechnungen synchronisiert: ${created} neu, ${updated} aktualisiert, ${failed} Fehler. Zeitraum: ${year || 'alle'}`
+      details: `sevDesk sync offset=${offset} limit=${limit}: ${created} neu, ${updated} aktualisiert, ${failed} Fehler. Jahr: ${year || 'alle'}`
     });
 
     return Response.json({
@@ -229,9 +222,11 @@ Deno.serve(async (req) => {
       created,
       updated,
       failed,
-      matched,
-      synced_at: syncFinishedAt,
-      message: `sevDesk Rechnungen synchronisiert: ${created} neu, ${updated} aktualisiert, ${matched} Aufträgen zugeordnet, ${failed} Fehler`
+      offset,
+      next_offset: offset + limit,
+      has_more: (data.objects || []).length >= limit,
+      errors: errors.slice(0, 10),
+      message: `Sync offset=${offset}: ${created} neu, ${updated} aktualisiert, ${failed} Fehler`
     });
 
   } catch (error) {
