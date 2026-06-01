@@ -15,21 +15,25 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
 
-  // Standard: aktueller Monat + letzter Monat (für Korrekturen)
+  // Standard für täglichen Sync: nur die letzten 3 Tage (heute + 2 Tage zurück für Korrekturen)
+  // Für vollständigen Re-Sync: body.from / body.to übergeben
   const now = new Date();
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const defaultFrom = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-01`;
+  const daysBack = body.days_back || 3;
+  const defaultFrom = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const defaultTo = now.toISOString().split('T')[0];
 
   const fromDate = body.from || defaultFrom;
   const toDate = body.to || defaultTo;
 
-  // awork API mit korrektem datetime Filter
+  console.log(`Sync Zeitbuchungen: ${fromDate} – ${toDate}`);
+
+  // awork API mit korrektem datetime Filter — max 500 Einträge (5 Seiten) pro Aufruf
   const pageSize = 100;
+  const maxPages = 5;
   let allEntries = [];
   let page = 1;
 
-  while (true) {
+  while (page <= maxPages) {
     const filterParam = encodeURIComponent(`startDateLocal ge datetime'${fromDate}T00:00' and startDateLocal le datetime'${toDate}T23:59'`);
     const url = `${apiBase}/api/v1/timeentries?page=${page}&pageSize=${pageSize}&filterby=${filterParam}`;
 
@@ -126,11 +130,11 @@ Deno.serve(async (req) => {
       console.error(`bulkCreate batch ${i}-${i + BATCH_SIZE} failed:`, err.message);
       failed += batch.length;
     }
-    if (i + BATCH_SIZE < toCreate.length) await sleep(600);
+    if (i + BATCH_SIZE < toCreate.length) await sleep(200);
   }
 
-  // Updates in Batches von 10
-  const UPDATE_BATCH = 10;
+  // Updates in Batches von 20
+  const UPDATE_BATCH = 20;
   for (let i = 0; i < toUpdate.length; i += UPDATE_BATCH) {
     const batch = toUpdate.slice(i, i + UPDATE_BATCH);
     await Promise.allSettled(
@@ -140,7 +144,7 @@ Deno.serve(async (req) => {
           .catch(() => { failed++; })
       )
     );
-    if (i + UPDATE_BATCH < toUpdate.length) await sleep(600);
+    if (i + UPDATE_BATCH < toUpdate.length) await sleep(200);
   }
 
   // Sync-Log abschließen
