@@ -36,16 +36,20 @@ Deno.serve(async (req) => {
 
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
 
-    // selectedIds: array of sevDesk order IDs to import (if empty, import all)
-    const selectedIds = body.selectedIds || null; // null = no filter
+    const selectedIds = body.selectedIds || null;
     const year = body.year || null;
-    const includeOrderItems = body.includeOrderItems !== false; // default true
-    const limit = body.limit || 500;
+    const includeOrderItems = body.includeOrderItems === true;
+    // Batch-Größe und Offset für inkrementellen Sync
+    const batchSize = body.batch_size || 30;
+    const offset = body.offset || 0;
 
-    // Fetch only AB (Auftragsbestätigungen) — keine Angebote (AN)
-    const abData = await sevdeskGet(`/Order?orderType=AB&limit=${limit}&offset=0&embed=contact&orderBy=orderDate&orderDirection=desc`, apiKey);
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    // Fetch only AB (Auftragsbestätigungen)
+    const abData = await sevdeskGet(`/Order?orderType=AB&limit=${batchSize}&offset=${offset}&embed=contact&orderBy=orderDate&orderDirection=desc`, apiKey);
 
     let orders = abData.objects || [];
+    const hasMore = orders.length === batchSize;
 
     // Filter by year
     if (year) {
@@ -59,6 +63,17 @@ Deno.serve(async (req) => {
     if (selectedIds && selectedIds.length > 0) {
       const idSet = new Set(selectedIds.map(String));
       orders = orders.filter(o => idSet.has(String(o.id)));
+    }
+
+    console.log(`sevDesk Aufträge offset=${offset}: ${orders.length} gefunden`);
+
+    // Alle existierenden ConfirmedOrders einmal vorab laden (1 Query statt N)
+    const allExisting = await base44.asServiceRole.entities.ConfirmedOrder.list();
+    const existingByOrderNumber = {};
+    const existingBySevdeskId = {};
+    for (const e of allExisting) {
+      if (e.order_number) existingByOrderNumber[e.order_number] = e;
+      if (e.sevdesk_order_id) existingBySevdeskId[e.sevdesk_order_id] = e;
     }
 
     let created = 0;
@@ -96,13 +111,12 @@ Deno.serve(async (req) => {
           ...(contactId ? { sevdesk_contact_id: contactId } : {}),
         };
 
-        // Check existing by order_number
-        const existing = await base44.asServiceRole.entities.ConfirmedOrder.filter({ order_number: orderNumber });
+        const existing = existingByOrderNumber[orderNumber] || existingBySevdeskId[sevdeskId];
         let confirmedOrderId;
 
-        if (existing && existing.length > 0) {
-          await base44.asServiceRole.entities.ConfirmedOrder.update(existing[0].id, record);
-          confirmedOrderId = existing[0].id;
+        if (existing) {
+          await base44.asServiceRole.entities.ConfirmedOrder.update(existing.id, record);
+          confirmedOrderId = existing.id;
           updated++;
         } else {
           const created_record = await base44.asServiceRole.entities.ConfirmedOrder.create(record);
@@ -110,19 +124,13 @@ Deno.serve(async (req) => {
           created++;
         }
 
-        // Fetch and import order positions (Auftragspositionen)
+        // Positionen nur bei explizitem manuellem Aufruf
         if (includeOrderItems && confirmedOrderId) {
           try {
             const posData = await sevdeskGet(`/OrderPos?order[id]=${sevdeskId}&order[objectName]=Order&embed=part&limit=100`, apiKey);
             const positions = posData.objects || [];
-
-            // Delete existing items for this order first
             const existingItems = await base44.asServiceRole.entities.ConfirmedOrderItem.filter({ confirmed_order_id: confirmedOrderId });
-            for (const item of existingItems) {
-              await base44.asServiceRole.entities.ConfirmedOrderItem.delete(item.id);
-            }
-
-            // Create new items
+            await Promise.all(existingItems.map(item => base44.asServiceRole.entities.ConfirmedOrderItem.delete(item.id)));
             let posNum = 1;
             for (const pos of positions) {
               const unitPrice = parseAmount(pos.price);
@@ -141,10 +149,10 @@ Deno.serve(async (req) => {
               });
               itemsCreated++;
             }
-          } catch {
-            // positions not critical
-          }
+          } catch { /* positions not critical */ }
         }
+
+        await sleep(300);
 
       } catch {
         failed++;
@@ -158,7 +166,10 @@ Deno.serve(async (req) => {
       updated,
       failed,
       itemsCreated,
-      message: `sevDesk Aufträge synchronisiert: ${created} neu, ${updated} aktualisiert, ${itemsCreated} Positionen importiert, ${failed} Fehler`
+      offset,
+      next_offset: offset + batchSize,
+      has_more: hasMore,
+      message: `sevDesk Aufträge offset=${offset}: ${created} neu, ${updated} aktualisiert, ${failed} Fehler`
     });
 
   } catch (error) {
