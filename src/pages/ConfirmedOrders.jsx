@@ -2,12 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, Plus, AlertTriangle, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ClipboardList, Plus, AlertTriangle, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, Search, X } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { calculateOrderReconciliation } from '@/lib/reconciliationUtils';
 import NewOrderUploadModal from '@/components/orders/NewOrderUploadModal';
@@ -17,6 +18,7 @@ export default function ConfirmedOrders() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [sortField, setSortField] = useState(null); // 'customer' | 'open'
   const [sortDir, setSortDir] = useState('asc');
+  const [search, setSearch] = useState('');
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -46,9 +48,19 @@ export default function ConfirmedOrders() {
     return { ...order, recon, blockCount: orderBlocks.length, invoiceCount: orderInvoices.length };
   });
 
+  const filtered = useMemo(() => {
+    if (!search.trim()) return enriched;
+    const q = search.toLowerCase();
+    return enriched.filter(o =>
+      (o.customer || '').toLowerCase().includes(q) ||
+      (o.project_name || '').toLowerCase().includes(q) ||
+      (o.order_number || '').toLowerCase().includes(q)
+    );
+  }, [enriched, search]);
+
   const sorted = useMemo(() => {
-    if (!sortField) return enriched;
-    return [...enriched].sort((a, b) => {
+    if (!sortField) return filtered;
+    return [...filtered].sort((a, b) => {
       let av, bv;
       if (sortField === 'customer') {
         av = (a.customer || '').toLowerCase();
@@ -62,7 +74,7 @@ export default function ConfirmedOrders() {
       }
       return 0;
     });
-  }, [enriched, sortField, sortDir]);
+  }, [filtered, sortField, sortDir]);
 
   const totalOrderValue = enriched.reduce((s, o) => s + o.recon.total_order_net, 0);
   const totalInvoiced = enriched.reduce((s, o) => s + o.recon.adjusted_invoiced_net, 0);
@@ -100,6 +112,21 @@ export default function ConfirmedOrders() {
           variant={criticalCount > 0 ? 'destructive' : warningCount > 0 ? 'warning' : 'default'} />
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Kunde, Projekt oder AB-Nr. suchen…"
+          className="pl-9 pr-8"
+        />
+        {search && (
+          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
       <div className="rounded-xl border bg-card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/40">
@@ -125,8 +152,10 @@ export default function ConfirmedOrders() {
             </tr>
           </thead>
           <tbody>
-            {enriched.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-12 text-muted-foreground">Noch keine Auftragsbestätigungen</td></tr>
+            {sorted.length === 0 ? (
+              <tr><td colSpan={8} className="text-center py-12 text-muted-foreground">
+                {search ? `Keine Treffer für „${search}"` : 'Noch keine Auftragsbestätigungen'}
+              </td></tr>
             ) : (
               sorted.map(order => (
                 <tr
