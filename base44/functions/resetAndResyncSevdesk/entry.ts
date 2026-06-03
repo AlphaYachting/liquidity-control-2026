@@ -93,96 +93,75 @@ Deno.serve(async (req) => {
     }
 
     // ── RESET ORDERS: delete all ConfirmedOrders + ConfirmedOrderItems ──────
-    if (action === 'reset_orders') {
-      // Fetch ALL records (paginate to get beyond 50-record limit)
-      async function listAll(entity) {
-        const all = [];
-        let skip = 0;
-        const limit = 100;
-        while (true) {
-          const batch = await entity.list(null, limit, skip);
-          all.push(...batch);
-          if (batch.length < limit) break;
-          skip += limit;
-          await sleep(200);
+    // Supports sub-actions: 'reset_orders' (full), 'reset_orders_batch' (one page at a time)
+    if (action === 'reset_orders' || action === 'reset_orders_batch') {
+      const batchSize = 15; // delete max 15 per call to stay well within timeout
+
+      // Fetch one page of orders
+      const orders = await base44.asServiceRole.entities.ConfirmedOrder.list(null, batchSize, 0);
+
+      if (orders.length === 0) {
+        // No orders left — now clean up items too
+        const items = await base44.asServiceRole.entities.ConfirmedOrderItem.list(null, batchSize, 0);
+        let deletedItems = 0;
+        for (const item of items) {
+          await base44.asServiceRole.entities.ConfirmedOrderItem.delete(item.id);
+          deletedItems++;
+          await sleep(100);
         }
-        return all;
+        return Response.json({
+          success: true,
+          done: items.length === 0,
+          deleted_orders: 0,
+          deleted_items: deletedItems,
+          remaining: 0,
+          message: items.length === 0 ? 'Alle ABs und Positionen gelöscht ✓' : `${deletedItems} Positionen gelöscht, weitere folgen...`
+        });
       }
 
-      const [orders, items, blocks] = await Promise.all([
-        listAll(base44.asServiceRole.entities.ConfirmedOrder),
-        listAll(base44.asServiceRole.entities.ConfirmedOrderItem),
-        listAll(base44.asServiceRole.entities.ProjectBillingBlock),
-      ]);
-
+      // Unlink billing blocks for this batch
       const orderIds = new Set(orders.map(o => o.id));
+      const blocks = await base44.asServiceRole.entities.ProjectBillingBlock.list(null, 200, 0);
       const linkedBlocks = blocks.filter(b => b.confirmed_order_id && orderIds.has(b.confirmed_order_id));
-
-      let deletedOrders = 0;
-      let deletedItems = 0;
-      let unlinkedBlocks = 0;
-
-      // Unlink billing blocks first
       for (const b of linkedBlocks) {
         await base44.asServiceRole.entities.ProjectBillingBlock.update(b.id, { confirmed_order_id: null });
-        unlinkedBlocks++;
-        await sleep(200);
+        await sleep(100);
       }
 
-      // Delete order items
-      for (const item of items) {
-        await base44.asServiceRole.entities.ConfirmedOrderItem.delete(item.id);
-        deletedItems++;
-        await sleep(150);
-      }
-
-      // Delete orders (in batches with longer pauses)
-      for (let i = 0; i < orders.length; i++) {
-        await base44.asServiceRole.entities.ConfirmedOrder.delete(orders[i].id);
+      // Delete this batch of orders
+      let deletedOrders = 0;
+      for (const o of orders) {
+        await base44.asServiceRole.entities.ConfirmedOrder.delete(o.id);
         deletedOrders++;
-        // Every 20 deletes, pause 2 seconds to avoid rate limit
-        if (i > 0 && i % 20 === 0) {
-          await sleep(2000);
-        } else {
-          await sleep(200);
-        }
+        await sleep(100);
       }
 
       return Response.json({
         success: true,
+        done: false, // caller should keep calling until done=true
         deleted_orders: deletedOrders,
-        deleted_items: deletedItems,
-        unlinked_blocks: unlinkedBlocks,
-        message: `${deletedOrders} ABs gelöscht, ${deletedItems} Positionen gelöscht, ${unlinkedBlocks} Leistungspakete entknüpft`
+        deleted_items: 0,
+        unlinked_blocks: linkedBlocks.length,
+        remaining: '?', // unknown without full count
+        message: `${deletedOrders} ABs gelöscht, weitere folgen...`
       });
     }
 
-    // ── RESET INVOICES: delete all InvoiceRecords ────────────────────────────
-    if (action === 'reset_invoices') {
-      const all = [];
-      let skip = 0;
-      const limit = 100;
-      while (true) {
-        const batch = await base44.asServiceRole.entities.InvoiceRecord.list(null, limit, skip);
-        all.push(...batch);
-        if (batch.length < limit) break;
-        skip += limit;
-        await sleep(200);
-      }
+    // ── RESET INVOICES: delete batch of InvoiceRecords ──────────────────────
+    if (action === 'reset_invoices' || action === 'reset_invoices_batch') {
+      const batchSize = 15;
+      const invoices = await base44.asServiceRole.entities.InvoiceRecord.list(null, batchSize, 0);
       let deleted = 0;
-      for (let i = 0; i < all.length; i++) {
-        await base44.asServiceRole.entities.InvoiceRecord.delete(all[i].id);
+      for (const inv of invoices) {
+        await base44.asServiceRole.entities.InvoiceRecord.delete(inv.id);
         deleted++;
-        if (i > 0 && i % 20 === 0) {
-          await sleep(2000);
-        } else {
-          await sleep(200);
-        }
+        await sleep(100);
       }
       return Response.json({
         success: true,
+        done: invoices.length === 0,
         deleted_invoices: deleted,
-        message: `${deleted} Rechnungen gelöscht`
+        message: invoices.length === 0 ? 'Alle Rechnungen gelöscht ✓' : `${deleted} Rechnungen gelöscht, weitere folgen...`
       });
     }
 

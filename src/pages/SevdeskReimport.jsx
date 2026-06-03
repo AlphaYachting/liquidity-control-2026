@@ -79,25 +79,76 @@ export default function SevdeskReimport() {
     }
     setConfirmReset(null);
     setIsLoading(true);
+
     try {
-      const res = await base44.functions.invoke('resetAndResyncSevdesk', { action: stepId });
-      const data = res.data;
+      // Batch-loop for reset steps to avoid 504 timeout
+      if (stepId === 'reset_orders') {
+        let totalDeleted = 0;
+        let totalItems = 0;
+        let totalUnlinked = 0;
+        let rounds = 0;
+        while (true) {
+          const res = await base44.functions.invoke('resetAndResyncSevdesk', { action: 'reset_orders_batch' });
+          const data = res.data;
+          totalDeleted += data.deleted_orders || 0;
+          totalItems += data.deleted_items || 0;
+          totalUnlinked += data.unlinked_blocks || 0;
+          rounds++;
+          setStepResults(prev => ({
+            ...prev,
+            [stepId]: `Läuft... ${totalDeleted} ABs gelöscht (Durchgang ${rounds})`
+          }));
+          if (data.done) break;
+          if (rounds > 50) break; // safety limit
+          await new Promise(r => setTimeout(r, 500));
+        }
+        setStepStatuses(prev => ({ ...prev, [stepId]: 'done' }));
+        setStepResults(prev => ({
+          ...prev,
+          [stepId]: `✓ ${totalDeleted} ABs gelöscht, ${totalItems} Positionen, ${totalUnlinked} Blöcke entknüpft`
+        }));
+        setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
 
-      setStepStatuses(prev => ({ ...prev, [stepId]: 'done' }));
+      } else if (stepId === 'reset_invoices') {
+        let totalDeleted = 0;
+        let rounds = 0;
+        while (true) {
+          const res = await base44.functions.invoke('resetAndResyncSevdesk', { action: 'reset_invoices_batch' });
+          const data = res.data;
+          totalDeleted += data.deleted_invoices || 0;
+          rounds++;
+          setStepResults(prev => ({
+            ...prev,
+            [stepId]: `Läuft... ${totalDeleted} Rechnungen gelöscht (Durchgang ${rounds})`
+          }));
+          if (data.done) break;
+          if (rounds > 50) break;
+          await new Promise(r => setTimeout(r, 500));
+        }
+        setStepStatuses(prev => ({ ...prev, [stepId]: 'done' }));
+        setStepResults(prev => ({
+          ...prev,
+          [stepId]: `✓ ${totalDeleted} Rechnungen gelöscht`
+        }));
+        setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
 
-      // Build readable summary
-      let summary = data.message || JSON.stringify(data);
-      if (stepId === 'status') {
-        summary = [
-          `📋 Auftragsbestätigungen gesamt: ${data.total_orders}`,
-          ...Object.entries(data.orders_by_year || {}).map(([y, c]) => `   ${y}: ${c} ABs`),
-          `🧾 Rechnungen gesamt: ${data.total_invoices}`,
-          ...Object.entries(data.invoices_by_year || {}).map(([y, c]) => `   ${y}: ${c} Rechnungen`),
-        ].join('\n');
+      } else {
+        // Non-batched steps (status, import_orders, import_invoices)
+        const res = await base44.functions.invoke('resetAndResyncSevdesk', { action: stepId });
+        const data = res.data;
+        let summary = data.message || JSON.stringify(data);
+        if (stepId === 'status') {
+          summary = [
+            `📋 Auftragsbestätigungen gesamt: ${data.total_orders}`,
+            ...Object.entries(data.orders_by_year || {}).map(([y, c]) => `   ${y}: ${c} ABs`),
+            `🧾 Rechnungen gesamt: ${data.total_invoices}`,
+            ...Object.entries(data.invoices_by_year || {}).map(([y, c]) => `   ${y}: ${c} Rechnungen`),
+          ].join('\n');
+        }
+        setStepStatuses(prev => ({ ...prev, [stepId]: 'done' }));
+        setStepResults(prev => ({ ...prev, [stepId]: summary }));
+        setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
       }
-
-      setStepResults(prev => ({ ...prev, [stepId]: summary }));
-      setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
     } catch (e) {
       setStepStatuses(prev => ({ ...prev, [stepId]: 'error' }));
       setStepResults(prev => ({ ...prev, [stepId]: `Fehler: ${e.message}` }));
