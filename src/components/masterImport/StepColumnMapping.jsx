@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const FIELD_OPTIONS = [
-  { value: '', label: '— Nicht zuordnen —' },
+  { value: '__none__', label: '— Nicht zuordnen —' },
   { value: 'customer_name_raw', label: 'Kundenname' },
   { value: 'project_name_raw', label: 'Projektname' },
   { value: 'project_manager', label: 'Projektmanager' },
@@ -26,12 +26,12 @@ export default function StepColumnMapping({ parseResult, onConfirm }) {
   const [mapping, setMapping] = useState(() => {
     const initial = {};
     Object.entries(parseResult.column_mapping || {}).forEach(([idx, { field }]) => {
-      initial[idx] = field || '';
+      initial[idx] = field || '__none__';
     });
     return initial;
   });
 
-  const mappedFields = Object.values(mapping).filter(Boolean);
+  const mappedFields = Object.values(mapping).filter(v => v && v !== '__none__');
   const hasCustomer = mappedFields.includes('customer_name_raw');
   const hasProject = mappedFields.includes('project_name_raw');
 
@@ -84,7 +84,7 @@ export default function StepColumnMapping({ parseResult, onConfirm }) {
                   <span className="font-medium truncate">{header || `Spalte ${idx + 1}`}</span>
                 </div>
                 <span className="text-muted-foreground text-xs truncate">{String(exampleVal ?? '—')}</span>
-                <Select value={mapping[idx] || ''} onValueChange={v => setMapping(prev => ({ ...prev, [idx]: v }))}>
+                <Select value={mapping[idx] || '__none__'} onValueChange={v => setMapping(prev => ({ ...prev, [idx]: v }))}>
                   <SelectTrigger className="h-7 text-xs">
                     <SelectValue placeholder="Nicht zuordnen" />
                   </SelectTrigger>
@@ -132,7 +132,11 @@ export default function StepColumnMapping({ parseResult, onConfirm }) {
 
       <Button
         disabled={!hasCustomer && !hasProject}
-        onClick={() => onConfirm(mapping)}
+        onClick={() => {
+          const cleaned = {};
+          Object.entries(mapping).forEach(([k, v]) => { cleaned[k] = v === '__none__' ? '' : v; });
+          onConfirm(cleaned);
+        }}
         className="gap-2"
       >
         Spalten bestätigen & weiter
