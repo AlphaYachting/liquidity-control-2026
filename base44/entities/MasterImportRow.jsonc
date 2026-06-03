@@ -1,0 +1,176 @@
+{
+  "name": "MasterImportRow",
+  "type": "object",
+  "properties": {
+    "master_import_session_id": {
+      "type": "string"
+    },
+    "row_number": {
+      "type": "number"
+    },
+    "raw_row_json": {
+      "type": "string"
+    },
+    "customer_name_raw": {
+      "type": "string"
+    },
+    "customer_name_normalized": {
+      "type": "string"
+    },
+    "project_name_raw": {
+      "type": "string"
+    },
+    "project_name_normalized": {
+      "type": "string"
+    },
+    "project_manager": {
+      "type": "string"
+    },
+    "project_status": {
+      "type": "string"
+    },
+    "billing_status": {
+      "type": "string"
+    },
+    "total_order_amount_net": {
+      "type": "number",
+      "default": 0
+    },
+    "already_invoiced_net": {
+      "type": "number",
+      "default": 0
+    },
+    "already_invoiced_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "open_amount_net": {
+      "type": "number",
+      "default": 0
+    },
+    "open_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "expected_current_month_amount_net": {
+      "type": "number",
+      "default": 0
+    },
+    "expected_current_month_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "expected_next_month_amount_net": {
+      "type": "number",
+      "default": 0
+    },
+    "expected_next_month_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "risk_status": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "next_invoice_note": {
+      "type": "string"
+    },
+    "is_active_project": {
+      "type": "boolean",
+      "default": true
+    },
+    "active_detection_reason": {
+      "type": "string"
+    },
+    "confidence_score": {
+      "type": "number",
+      "default": 0
+    },
+    "matched_project_id": {
+      "type": "string"
+    },
+    "matched_customer_key": {
+      "type": "string"
+    },
+    "matched_confirmed_order_id": {
+      "type": "string"
+    },
+    "matched_invoice_ids_json": {
+      "type": "string"
+    },
+    "match_status": {
+      "type": "string",
+      "enum": [
+        "unmatched",
+        "suggested",
+        "confirmed",
+        "conflict",
+        "ignored"
+      ],
+      "default": "unmatched"
+    },
+    "missing_customer": {
+      "type": "boolean",
+      "default": false
+    },
+    "missing_project_name": {
+      "type": "boolean",
+      "default": false
+    },
+    "missing_order_amount": {
+      "type": "boolean",
+      "default": false
+    },
+    "amount_mismatch": {
+      "type": "boolean",
+      "default": false
+    },
+    "invoice_mismatch": {
+      "type": "boolean",
+      "default": false
+    },
+    "duplicate_candidate": {
+      "type": "boolean",
+      "default": false
+    },
+    "needs_review": {
+      "type": "boolean",
+      "default": false
+    },
+    "warning_messages_json": {
+      "type": "string"
+    },
+    "user_override_active": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "force_active",
+        "force_inactive",
+        "ignore"
+      ],
+      "default": "auto"
+    },
+    "ai_suggestion_json": {
+      "type": "string"
+    },
+    "reconciliation_status": {
+      "type": "string",
+      "enum": [
+        "balanced",
+        "minor_difference",
+        "warning",
+        "critical",
+        "unchecked"
+      ],
+      "default": "unchecked"
+    },
+    "reconciliation_detail_json": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "master_import_session_id"
+  ]
+}

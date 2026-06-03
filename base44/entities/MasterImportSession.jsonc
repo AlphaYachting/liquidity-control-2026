@@ -1,0 +1,87 @@
+{
+  "name": "MasterImportSession",
+  "type": "object",
+  "properties": {
+    "file_name": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "excel",
+        "csv",
+        "manual"
+      ],
+      "default": "excel"
+    },
+    "uploaded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "uploaded_by": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "uploaded",
+        "parsed",
+        "reviewed",
+        "partially_imported",
+        "imported",
+        "failed"
+      ],
+      "default": "uploaded"
+    },
+    "total_rows": {
+      "type": "number",
+      "default": 0
+    },
+    "active_projects_detected": {
+      "type": "number",
+      "default": 0
+    },
+    "projects_matched": {
+      "type": "number",
+      "default": 0
+    },
+    "projects_created": {
+      "type": "number",
+      "default": 0
+    },
+    "orders_matched": {
+      "type": "number",
+      "default": 0
+    },
+    "orders_missing": {
+      "type": "number",
+      "default": 0
+    },
+    "invoices_matched": {
+      "type": "number",
+      "default": 0
+    },
+    "invoices_unmatched": {
+      "type": "number",
+      "default": 0
+    },
+    "conflicts_count": {
+      "type": "number",
+      "default": 0
+    },
+    "warnings_count": {
+      "type": "number",
+      "default": 0
+    },
+    "notes": {
+      "type": "string"
+    },
+    "raw_summary_json": {
+      "type": "string"
+    }
+  },
+  "required": []
+}

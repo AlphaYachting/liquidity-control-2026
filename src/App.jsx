@@ -36,6 +36,7 @@ import EscalationAlerts from '@/pages/EscalationAlerts';
 import WeeklyCashflow from '@/pages/WeeklyCashflow';
 import CustomerRisk from '@/pages/CustomerRisk';
 import VarianceAnalysis from '@/pages/VarianceAnalysis';
+import MasterDataImport from '@/pages/MasterDataImport';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -92,6 +93,7 @@ const AuthenticatedApp = () => {
         <Route path="/weekly-cashflow" element={<WeeklyCashflow />} />
         <Route path="/customer-risk" element={<CustomerRisk />} />
         <Route path="/variance-analysis" element={<VarianceAnalysis />} />
+        <Route path="/master-import" element={<MasterDataImport />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
