@@ -82,22 +82,19 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
   const openPayables = payables.filter(p => p.status !== 'paid').reduce((s, p) => s + (Number(p.gross_amount) || 0), 0);
 
   const kpis = [
-    // 1. Billing decisions first
-    { title: 'Offene Projektbeträge', value: formatCurrency(openProject), icon: BarChart3, variant: 'warning' },
-    { title: 'Bereits verrechnet', value: formatCurrency(alreadyInvoiced), icon: Receipt, variant: 'success' },
-    // 2. Liquidity / cashflow
-    { title: 'Geplante Zuflüsse 2026', value: formatCurrency(totalPlanned), icon: TrendingUp, variant: 'info' },
-    { title: 'Zufluss nächste 30 Tage', value: formatCurrency(next30), icon: Clock, variant: 'info' },
-    // 3. Receivables risk
-    { title: 'Offene Forderungen (brutto)', value: formatCurrency(openReceivables), subtitle: liveReceivablesData ? `Live sevDesk · ${liveReceivablesData.count} Rechnungen` : openReceivablesNet > 0 ? `Netto: ${formatCurrency(openReceivablesNet)}` : undefined, icon: AlertTriangle, variant: openReceivables > 0 ? 'warning' : 'default' },
-    { title: 'Überfällige Forderungen (brutto)', value: formatCurrency(overdueReceivables), subtitle: overdueReceivablesNet > 0 ? `Netto ca. ${formatCurrency(overdueReceivablesNet)}` : undefined, icon: AlertTriangle, variant: overdueReceivables > 0 ? 'danger' : 'default' },
-    // 4. Costs
+    // 1. Liquidity & billing decisions first
+    { title: 'Erwartete Verrechnung aktueller Monat', value: formatCurrency(next30), subtitle: 'nächste 30 Tage', icon: TrendingUp, variant: 'info' },
+    { title: 'Offene Projektbeträge', value: formatCurrency(openProject), subtitle: 'noch zu verrechnen', icon: BarChart3, variant: 'warning' },
+    { title: 'Bereits verrechnet 2026', value: formatCurrency(alreadyInvoiced), icon: Receipt, variant: 'success' },
+    { title: 'Aktive Projekte', value: projects.filter(p => p.status === 'active').length, icon: DollarSign, variant: 'default' },
+    // 2. Receivables risk
+    { title: 'Überfällige Forderungen (brutto)', value: formatCurrency(overdueReceivables), subtitle: overdueReceivablesNet > 0 ? `Netto ca. ${formatCurrency(overdueReceivablesNet)}` : (liveReceivablesData ? 'Live sevDesk' : undefined), icon: AlertTriangle, variant: overdueReceivables > 0 ? 'danger' : 'default' },
+    // 3. Costs
     { title: 'Toolkosten 2026', value: formatCurrency(toolCosts), subtitle: `Ø ${formatCurrency(monthlyToolAvg)}/Monat`, icon: CreditCard, variant: 'default' },
-    { title: 'Offene Verbindlichkeiten', value: formatCurrency(openPayables), icon: FileText, variant: openPayables > 0 ? 'warning' : 'default' },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
       {kpis.map((k, i) => <KpiCard key={i} {...k} />)}
     </div>
   );

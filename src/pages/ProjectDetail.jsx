@@ -220,20 +220,9 @@ export default function ProjectDetail() {
 
   // ── KPIs from shared helper ───────────────────────────────────────────────
   const commercialBaseNet = fin?.commercialBaseNet || 0;
-  const commercialBaseSource = fin?.commercialBaseSource || 'project';
-  const commercialBaseLabel = commercialBaseSource === 'orders' ? 'Basis: Summe Auftragsabwicklung'
-    : commercialBaseSource === 'blocks' ? 'Basis: Summe Auftragspakete'
-    : 'Basis: importierter Projektwert';
-  const importedProjectNet = fin?.importedProjectTotalNet || 0;
-  const commercialDeviation = Math.abs(commercialBaseNet - importedProjectNet) > 1
-    && importedProjectNet > 0 && commercialBaseSource !== 'project';
-
   const adjustedInvoicedNet = fin?.adjustedInvoicedNet || 0;
-  const creditNotes = projectInvoices.filter(i => i.is_credit_note);
   const totalPaidGross = fin?.paidGross || 0;
   const openReceivableGross = fin?.openReceivableGross || 0;
-  const openToInvoice = fin?.openToInvoiceNet || 0;
-  const readyAmount = fin?.invoiceReadyNet || 0;
 
   // ── awork task aggregation ────────────────────────────────────────────────
   const aworkTaskStats = useMemo(() => {
@@ -461,52 +450,14 @@ export default function ProjectDetail() {
         )}
       </div>
 
-      {/* ── KPI row (simplified — Task 7) ───────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {/* Verrechnet netto + % */}
-        <div className="bg-card border rounded-xl p-3 space-y-1">
-          <p className="text-xs text-muted-foreground">Verrechnet netto</p>
-          <p className="text-lg font-bold text-emerald-600">{formatCurrency(adjustedInvoicedNet)}</p>
-          {commercialBaseNet > 0 && (
-            <p className="text-xs text-emerald-700 font-medium">{Math.round((adjustedInvoicedNet / commercialBaseNet) * 100)}% von {formatCurrency(commercialBaseNet)}</p>
-          )}
-          {creditNotes.length > 0 && (
-            <p className="text-xs text-purple-600">– {formatCurrency(creditNotes.reduce((s,i) => s + (Number(i.net_amount)||0), 0))} GS</p>
-          )}
-          {commercialDeviation && (
-            <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 rounded px-1">
-              <AlertTriangle className="w-3 h-3" /> Importwert: {formatCurrency(importedProjectNet)}
-            </span>
-          )}
-        </div>
+      {/* ── Verrechnungsplanung 4 Monate ────────────────────────────────── */}
+      <NextMonthsBillingPreview
+        project={project}
+        fin={fin}
+        linkedOrders={linkedOrders}
+      />
 
-        {/* Noch zu verrechnen netto */}
-        <div className={`bg-card border rounded-xl p-3 space-y-1 ${openToInvoice > 0 ? 'border-amber-200' : ''}`}>
-          <p className="text-xs text-muted-foreground">Noch zu verrechnen</p>
-          <p className={`text-lg font-bold ${openToInvoice > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{formatCurrency(openToInvoice)}</p>
-          {readyAmount > 0 && <p className="text-xs text-emerald-700">davon bereit: {formatCurrency(readyAmount)}</p>}
-          <p className="text-xs text-muted-foreground">{commercialBaseLabel}</p>
-        </div>
-
-        {/* Offene Forderung */}
-        <div className={`bg-card border rounded-xl p-3 space-y-1 ${openReceivableGross > 0 ? 'border-red-200' : ''}`}>
-          <p className="text-xs text-muted-foreground">Offene Forderung</p>
-          <p className={`text-lg font-bold ${openReceivableGross > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatCurrency(Math.max(0, openReceivableGross))}</p>
-          <p className="text-xs text-muted-foreground">brutto inkl. MwSt.</p>
-        </div>
-
-        {/* Anzahl Rechnungen */}
-        <div className="bg-card border rounded-xl p-3 space-y-1">
-          <p className="text-xs text-muted-foreground">Rechnungen</p>
-          <p className="text-lg font-bold">{projectInvoices.filter(i => !i.is_credit_note).length}</p>
-          <p className="text-xs text-muted-foreground">Bezahlt: {formatCurrency(totalPaidGross)} brutto</p>
-        </div>
-      </div>
-
-      {/* ── Verrechnungshistorie nach Monat ─────────────────────────────── */}
-      <BillingHistoryTimeline projectInvoices={projectInvoices} commercialBaseNet={commercialBaseNet} />
-
-      {/* ── Abrechnung & Liquidität (moved up per PM feedback) ─────────── */}
+      {/* ── Abrechnung & Liquidität (incl. Reminder + Abrechnungsanweisung) */}
       <BillingLiquiditySection
         project={project}
         fin={fin}
@@ -515,12 +466,8 @@ export default function ProjectDetail() {
         linkedOrders={linkedOrders}
       />
 
-      {/* ── Verrechnungsplanung 4 Monate ────────────────────────────────── */}
-      <NextMonthsBillingPreview
-        project={project}
-        fin={fin}
-        linkedOrders={linkedOrders}
-      />
+      {/* ── Verrechnungshistorie nach Monat ─────────────────────────────── */}
+      <BillingHistoryTimeline projectInvoices={projectInvoices} commercialBaseNet={commercialBaseNet} />
 
       {/* ── Website Meilenstein-Leitfaden ─────────────────────────────── */}
       {(project.category === 'web_project' || (project.project_name || '').toLowerCase().includes('website')) && (

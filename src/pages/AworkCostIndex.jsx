@@ -40,12 +40,34 @@ const BUDGET_CATEGORY_OPTIONS = [
 ];
 
 // Heuristic: detect likely non-budget-relevant projects by name keywords
+// Explicit exclusion patterns based on PM feedback
+const NON_BUDGET_PATTERNS = [
+  // Internal / admin
+  { pattern: /rittler.*(admin|tätigkeiten|tätig|intern|referenzen|meeting|supportanfragen)/i, category: 'internal' },
+  { pattern: /rittler.*(online.?marketing)/i, category: 'ongoing_support' },
+  { pattern: /^rittler$/i, category: 'internal' },
+  // OM / ongoing
+  { pattern: /online.?marketing/i, category: 'ongoing_support' },
+  { pattern: /\bom\b/i, category: 'ongoing_support' },
+  { pattern: /laufende.?betreuung/i, category: 'ongoing_support' },
+  // Maintenance / Wartung
+  { pattern: /wartung/i, category: 'maintenance_contract' },
+  { pattern: /maintenance/i, category: 'maintenance_contract' },
+  // Support
+  { pattern: /supportanfragen?/i, category: 'support_request' },
+  // Generic internal
+  { pattern: /\bintern\b/i, category: 'internal' },
+];
+
 function detectBudgetCategory(name = '', projectType = '') {
-  const n = name.toLowerCase();
+  const combined = `${name} ${projectType || ''}`;
+  for (const { pattern, category } of NON_BUDGET_PATTERNS) {
+    if (pattern.test(combined)) return category;
+  }
+  // Fallback type-based check
   const t = (projectType || '').toLowerCase();
-  if (t.includes('online marketing') || n.includes('online marketing') || n.includes('om ') || n.includes(' om-')) return 'ongoing_support';
-  if (n.includes('wartung') || n.includes('maintenance') || n.includes('support') || t.includes('maintenance')) return 'maintenance_contract';
-  if (n.includes('intern') || n.includes('internal')) return 'internal';
+  if (t.includes('online marketing')) return 'ongoing_support';
+  if (t.includes('maintenance')) return 'maintenance_contract';
   return 'fixed_budget_project';
 }
 
@@ -154,7 +176,16 @@ export default function AworkCostIndex() {
 
         // Budget category heuristic
         const budgetCategory = detectBudgetCategory(s.name, s.project_type);
+        // Budget relevant = fixed_budget_project AND has a total project budget (not just ticket-level)
         const isBudgetRelevant = budgetCategory === 'fixed_budget_project' && budgetH > 0;
+        const exclusionReason = !isBudgetRelevant ? (
+          budgetH === 0 ? 'kein Gesamtbudget' :
+          budgetCategory === 'ongoing_support' ? 'laufende Betreuung / OM' :
+          budgetCategory === 'maintenance_contract' ? 'Wartungsvertrag' :
+          budgetCategory === 'internal' ? 'intern' :
+          budgetCategory === 'support_request' ? 'Support' :
+          'kein Gesamtbudget'
+        ) : null;
 
         return {
           ...s,
@@ -167,6 +198,7 @@ export default function AworkCostIndex() {
           pm,
           budgetCategory,
           isBudgetRelevant,
+          exclusionReason,
         };
       });
   }, [snapshots, timeByProject, liquidityProjects]);
@@ -300,7 +332,7 @@ export default function AworkCostIndex() {
           <div className="flex flex-wrap gap-2">
             {nonBudgetRelevant.map(p => (
               <span key={p.awork_project_id} className="text-xs border rounded-lg px-2.5 py-1 bg-card flex items-center gap-1.5">
-                <span className="text-muted-foreground">{p.budgetCategory?.replace(/_/g, ' ')}</span>
+                <span className="text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{p.exclusionReason || p.budgetCategory?.replace(/_/g, ' ')}</span>
                 <span className="font-medium">{p.name}</span>
                 {p.pm && <span className="text-muted-foreground">· {p.pm}</span>}
               </span>

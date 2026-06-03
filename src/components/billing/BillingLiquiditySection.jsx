@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/liquidityUtils';
 import BillingInstructionWizard from './BillingInstructionWizard';
 import BillingInstructionList from './BillingInstructionList';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import PmReminderButton from '@/components/projects/PmReminderButton';
 
 function ProgressCompare({ performancePct, billingPct, paymentPct }) {
   const bars = [
@@ -34,7 +35,7 @@ function ProgressCompare({ performancePct, billingPct, paymentPct }) {
 }
 
 export default function BillingLiquiditySection({
-  project, fin, aworkTaskStats, projectBlocks, linkedOrders
+  project, fin, aworkTaskStats, projectBlocks, linkedOrders, selectedPlanId
 }) {
   const queryClient = useQueryClient();
   const [showWizard, setShowWizard] = useState(false);
@@ -102,10 +103,13 @@ export default function BillingLiquiditySection({
             <TrendingUp className="w-4 h-4 text-primary" />
             Abrechnung & Liquidität
           </CardTitle>
-          <Button size="sm" onClick={() => setShowWizard(true)} className="h-8 text-xs">
-            <Plus className="w-3.5 h-3.5 mr-1" />
-            Abrechnungsanweisung erstellen
-          </Button>
+          <div className="flex items-center gap-2">
+            <PmReminderButton project={project} selectedPlanId={selectedPlanId} />
+            <Button size="sm" onClick={() => setShowWizard(true)} className="h-8 text-xs">
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Abrechnungsanweisung erstellen
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
