@@ -30,13 +30,13 @@ function mapInvoiceStatus(inv) {
   return 'open';
 }
 
-// Fetch ALL ABs from sevDesk with server-side year filter (startDate parameter)
-async function fetchAllOrders(apiKey, startDate, endDate) {
+// Fetch ALL ABs from sevDesk (client-side year filter)
+async function fetchAllOrders(apiKey, years) {
   const allOrders = [];
   let offset = 0;
   const limit = 100;
   while (true) {
-    const url = `/Order?orderType=AB&limit=${limit}&offset=${offset}&embed=contact&startDate=${startDate}&endDate=${endDate}&orderBy=orderDate&orderDirection=desc`;
+    const url = `/Order?orderType=AB&limit=${limit}&offset=${offset}&embed=contact&orderBy=orderDate&orderDirection=desc`;
     const data = await sevdeskGet(url, apiKey);
     const batch = data.objects || [];
     allOrders.push(...batch);
@@ -44,7 +44,11 @@ async function fetchAllOrders(apiKey, startDate, endDate) {
     offset += limit;
     await sleep(300);
   }
-  return allOrders;
+  // Filter client-side by year
+  return allOrders.filter(o => {
+    const d = o.orderDate || o.deliveryDate || '';
+    return years.some(y => d.startsWith(String(y)));
+  });
 }
 
 // Fetch ALL invoices linked to a specific sevDesk order ID
@@ -167,11 +171,9 @@ Deno.serve(async (req) => {
 
     // ── IMPORT ORDERS: fetch ABs from sevDesk 2025+2026 ─────────────────────
     if (action === 'import_orders') {
-      const orders2025 = await fetchAllOrders(apiKey, '01.01.2025', '31.12.2025');
-      const orders2026 = await fetchAllOrders(apiKey, '01.01.2026', '31.12.2026');
-      const allOrders = [...orders2025, ...orders2026];
+      const allOrders = await fetchAllOrders(apiKey, [2025, 2026]);
 
-      console.log(`sevDesk: ${orders2025.length} ABs 2025, ${orders2026.length} ABs 2026`);
+      console.log(`sevDesk: ${allOrders.length} ABs (2025+2026) gefunden`);
 
       let created = 0;
       let failed = 0;
