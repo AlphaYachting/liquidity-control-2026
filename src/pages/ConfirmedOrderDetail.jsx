@@ -117,9 +117,10 @@ export default function ConfirmedOrderDetail() {
 
   const createCockpitMutation = useMutation({
     mutationFn: async () => {
+      const projectName = order.project_name || order.description || `AB ${order.order_number || orderId}`;
       const newProject = await base44.entities.LiquidityProject.create({
-        project_name: order.project_name,
-        customer: order.customer,
+        project_name: projectName,
+        customer: order.customer || '',
         order_number: order.order_number || '',
         total_net_amount: order.total_net_amount || 0,
         project_manager: order.responsible_project_manager || '',
@@ -132,6 +133,9 @@ export default function ConfirmedOrderDetail() {
       queryClient.invalidateQueries({ queryKey: ['confirmedOrders'] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       navigate(`/projects/${newProject.id}`);
+    },
+    onError: (err) => {
+      console.error('createCockpit failed:', err);
     }
   });
 
@@ -225,17 +229,25 @@ export default function ConfirmedOrderDetail() {
             </div>
           </div>
           {!showProjectPicker ? (
-            <div className="flex gap-2 flex-wrap">
-              <Button size="sm" variant="default"
-                disabled={creatingCockpit || createCockpitMutation.isPending}
-                onClick={() => createCockpitMutation.mutate()}>
-                <FolderKanban className="w-4 h-4 mr-1.5" />
-                {createCockpitMutation.isPending ? 'Erstellt…' : 'Neues Cockpit erstellen'}
-              </Button>
-              <Button size="sm" variant="outline" className="border-amber-400 text-amber-800 hover:bg-amber-100"
-                onClick={() => setShowProjectPicker(true)}>
-                <Link2 className="w-4 h-4 mr-1.5" /> Mit bestehendem verknüpfen
-              </Button>
+            <div className="space-y-2">
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="default"
+                  disabled={createCockpitMutation.isPending}
+                  onClick={() => createCockpitMutation.mutate()}>
+                  <FolderKanban className="w-4 h-4 mr-1.5" />
+                  {createCockpitMutation.isPending ? 'Erstellt…' : 'Neues Cockpit erstellen'}
+                </Button>
+                <Button size="sm" variant="outline" className="border-amber-400 text-amber-800 hover:bg-amber-100"
+                  onClick={() => setShowProjectPicker(true)}>
+                  <Link2 className="w-4 h-4 mr-1.5" /> Mit bestehendem verknüpfen
+                </Button>
+              </div>
+              {createCockpitMutation.isError && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                  Fehler beim Erstellen: {createCockpitMutation.error?.message || 'Unbekannter Fehler'}
+                </div>
+              )}
             </div>
           ) : (
             <ProjectPickerInline
