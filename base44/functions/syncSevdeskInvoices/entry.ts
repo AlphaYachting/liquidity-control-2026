@@ -136,6 +136,9 @@ Deno.serve(async (req) => {
     const limit = body.limit || 50;
     const offset = body.offset || 0;
     const year = body.year || null;
+    // YEAR GUARD: Nur 2025 und 2026 werden synchronisiert.
+    // Schützt den bereinigten Datenstand nach Re-Import.
+    const allowedYears = body.allowedYears || [2025, 2026];
 
     // Fetch invoices from sevDesk (paginated)
     const data = await sevdeskGet(
@@ -145,11 +148,16 @@ Deno.serve(async (req) => {
 
     let invoices = data.objects || [];
 
-    // Filter by year if provided
+    // YEAR GUARD: Einzeljahr-Filter hat Vorrang, ansonsten allowedYears-Liste anwenden
     if (year) {
       invoices = invoices.filter(inv => {
         const d = inv.invoiceDate || '';
         return d.startsWith(String(year));
+      });
+    } else {
+      invoices = invoices.filter(inv => {
+        const d = inv.invoiceDate || '';
+        return allowedYears.some(y => d.startsWith(String(y)));
       });
     }
 

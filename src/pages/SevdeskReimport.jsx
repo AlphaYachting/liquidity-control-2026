@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertTriangle, CheckCircle2, RefreshCw, Trash2, Download,
-  FileText, ArrowRight, Info, RotateCcw
+  FileText, Info, RotateCcw, Shield, Clock, ShieldCheck, ShieldAlert
 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 
@@ -165,6 +165,42 @@ export default function SevdeskReimport() {
 
   const isDone = currentStep >= STEPS.length && Object.values(stepStatuses).every(s => s === 'done');
 
+  // Sync automations audit data (static — based on known setup)
+  const syncAudits = [
+    {
+      name: 'sevDesk Aufträge Sync (6h)',
+      function: 'syncSevdeskOrders',
+      interval: 'Alle 6 Stunden',
+      active: true,
+      yearGuard: true,
+      guardInfo: 'Nur ABs 2025 & 2026 (clientseitiger Filter)',
+    },
+    {
+      name: 'sevDesk Rechnungen Sync (6h)',
+      function: 'syncSevdeskInvoices',
+      interval: 'Alle 6 Stunden',
+      active: true,
+      yearGuard: true,
+      guardInfo: 'Nur Rechnungen 2025 & 2026 (clientseitiger Filter)',
+    },
+    {
+      name: 'Täglicher Awork Projekte-Sync',
+      function: 'syncAworkProjects',
+      interval: 'Täglich 01:30',
+      active: true,
+      yearGuard: null, // nicht relevant
+      guardInfo: 'Kein sevDesk-Bezug — unbedenklich',
+    },
+    {
+      name: 'Täglicher Awork Zeitbuchungen-Sync',
+      function: 'syncAworkTimeEntries',
+      interval: 'Täglich 04:00',
+      active: false,
+      yearGuard: null,
+      guardInfo: 'Deaktiviert — kein Risiko',
+    },
+  ];
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <PageHeader
@@ -192,6 +228,50 @@ export default function SevdeskReimport() {
           </p>
         </div>
       </div>
+
+      {/* Sync Safety Audit */}
+      <Card className="border-2 border-blue-200">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Shield className="w-4 h-4 text-blue-600" />
+            Aktive Synchronisierungen — Sicherheits-Audit
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-xs text-muted-foreground mb-3">
+            Nach dem Re-Import laufen diese automatischen Syncs weiter. Jeder ist auf
+            <strong> nur 2025 & 2026</strong> begrenzt, damit alte Daten nicht überschrieben werden.
+          </p>
+          {syncAudits.map((audit) => (
+            <div key={audit.name} className="flex items-start gap-3 p-2.5 rounded-lg bg-muted/50">
+              <div className="mt-0.5 flex-shrink-0">
+                {audit.yearGuard === true ? (
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                ) : audit.yearGuard === false ? (
+                  <ShieldAlert className="w-4 h-4 text-red-500" />
+                ) : (
+                  <Info className="w-4 h-4 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-medium">{audit.name}</span>
+                  <Badge variant={audit.active ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                    {audit.active ? 'aktiv' : 'pausiert'}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-1 mt-0.5 text-[11px] text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  {audit.interval}
+                  <span className="mx-1">·</span>
+                  <code className="bg-muted px-1 rounded">{audit.function}</code>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{audit.guardInfo}</p>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       {/* Flow info */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">

@@ -37,7 +37,11 @@ Deno.serve(async (req) => {
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
 
     const selectedIds = body.selectedIds || null;
+    // YEAR GUARD: Nur 2025 und 2026 werden synchronisiert.
+    // Dies schützt den bereinigten Datenstand nach dem Re-Import.
+    // Alte Auftragsbestätigungen (2024 und früher) werden NICHT überschrieben.
     const year = body.year || null;
+    const allowedYears = body.allowedYears || [2025, 2026]; // explizit überschreibbar
     const includeOrderItems = body.includeOrderItems === true;
     // Batch-Größe und Offset für inkrementellen Sync
     const batchSize = body.batch_size || 30;
@@ -51,11 +55,17 @@ Deno.serve(async (req) => {
     let orders = abData.objects || [];
     const hasMore = orders.length === batchSize;
 
-    // Filter by year
+    // YEAR GUARD: Nur erlaubte Jahre importieren (Standard: 2025+2026)
+    // Einzeljahr-Filter hat Vorrang, ansonsten allowedYears-Liste anwenden
     if (year) {
       orders = orders.filter(o => {
         const d = o.orderDate || o.deliveryDate || '';
         return d.startsWith(String(year));
+      });
+    } else {
+      orders = orders.filter(o => {
+        const d = o.orderDate || o.deliveryDate || '';
+        return allowedYears.some(y => d.startsWith(String(y)));
       });
     }
 
