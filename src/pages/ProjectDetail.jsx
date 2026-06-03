@@ -721,10 +721,16 @@ export default function ProjectDetail() {
                 <span className="text-muted-foreground">Projektmanager</span>
                 {editingPM ? (
                   <div className="flex items-center gap-1">
-                    <Input value={pmValue} onChange={e => setPmValue(e.target.value)} className="h-7 w-32 text-sm"
-                      onKeyDown={e => { if (e.key === 'Enter') { updateProjectMutation.mutate({ project_manager: pmValue }); setEditingPM(false); } if (e.key === 'Escape') setEditingPM(false); }}
-                      autoFocus />
-                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { updateProjectMutation.mutate({ project_manager: pmValue }); setEditingPM(false); }}><Check className="w-3 h-3" /></Button>
+                    <Select value={pmValue} onValueChange={v => { setPmValue(v); updateProjectMutation.mutate({ project_manager: v }); setEditingPM(false); }}>
+                      <SelectTrigger className="h-7 w-36 text-sm">
+                        <SelectValue placeholder="PM wählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['Anna', 'Lara', 'Mathias', 'Pascal', 'Sebastian'].map(pm => (
+                          <SelectItem key={pm} value={pm}>{pm}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditingPM(false)}><X className="w-3 h-3" /></Button>
                   </div>
                 ) : (
