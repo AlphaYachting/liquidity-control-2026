@@ -138,6 +138,80 @@
     "progress_difference_reason": {
       "type": "string",
       "description": "Begr\u00fcndung wenn awork-Fortschritt korrigiert wurde"
+    },
+    "billing_relevance_status": {
+      "type": "string",
+      "enum": [
+        "active_billing_relevant",
+        "future_billing_relevant",
+        "inactive",
+        "archived",
+        "not_billing_relevant",
+        "needs_review"
+      ],
+      "default": "active_billing_relevant",
+      "description": "Klassifizierung f\u00fcr aktive Abrechnungsansicht basierend auf PM-Excel-Reset"
+    },
+    "is_active_for_billing": {
+      "type": "boolean",
+      "default": true,
+      "description": "Erscheint im Projekt-Cockpit und Forecast"
+    },
+    "excluded_from_project_cockpit": {
+      "type": "boolean",
+      "default": false
+    },
+    "excluded_from_forecast": {
+      "type": "boolean",
+      "default": false
+    },
+    "exclusion_reason": {
+      "type": "string"
+    },
+    "archived_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "archived_by": {
+      "type": "string"
+    },
+    "archive_source": {
+      "type": "string",
+      "enum": [
+        "excel_master_reset",
+        "manual",
+        "auto_cleanup",
+        "sevdesk_sync"
+      ],
+      "description": "Quelle der Archivierung"
+    },
+    "excel_reset_batch_id": {
+      "type": "string",
+      "description": "MasterImportSession ID des letzten Excel-Resets"
+    },
+    "excel_total_order_net": {
+      "type": "number",
+      "default": 0
+    },
+    "excel_already_invoiced_net": {
+      "type": "number",
+      "default": 0
+    },
+    "excel_open_amount_net": {
+      "type": "number",
+      "default": 0
+    },
+    "excel_expected_current_month_net": {
+      "type": "number",
+      "default": 0
+    },
+    "excel_expected_next_month_net": {
+      "type": "number",
+      "default": 0
+    },
+    "excel_last_synced_at": {
+      "type": "string",
+      "format": "date-time"
     }
   },
   "required": [

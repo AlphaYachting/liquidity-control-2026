@@ -5,7 +5,7 @@ import {
   CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
-  CalendarDays, Users, BarChart2, Clock, DatabaseZap
+  CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -30,6 +30,7 @@ const navItems = [
   { path: '/variance-analysis', label: 'Abweichungsanalyse', icon: BarChart2 },
   { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
   { path: '/cashflow-advisor', label: 'Cashflow Berater', icon: BrainCircuit },
+  { path: '/billing-reset', label: 'Verrechnungsdaten Reset', icon: RefreshCw },
   { path: '/master-import', label: 'Master-Datenimport', icon: DatabaseZap },
   { path: '/import', label: 'Import Center', icon: Upload },
   { path: '/settings', label: 'Settings', icon: Settings },

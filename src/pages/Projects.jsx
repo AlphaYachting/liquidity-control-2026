@@ -56,6 +56,7 @@ function getNextMonth() {
 export default function Projects() {
   const [filters, setFilters] = useState({});
   const [sortOverride, setSortOverride] = useState(null); // null | 'erwartung_desc'
+  const [showArchived, setShowArchived] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const currentMonth = getCurrentMonth();
@@ -170,6 +171,12 @@ export default function Projects() {
 
   const filtered = projects
     .filter(p => {
+      // Billing relevance filter — default: hide archived/not_billing_relevant
+      if (!showArchived) {
+        const rel = p.billing_relevance_status;
+        if (rel && ['archived', 'not_billing_relevant'].includes(rel)) return false;
+        if (p.excluded_from_project_cockpit) return false;
+      }
       if (filters.project_manager && p.project_manager !== filters.project_manager) return false;
       if (filters.status && p.status !== filters.status) return false;
       if (filters.risk_status && p.risk_status !== filters.risk_status) return false;
@@ -177,6 +184,9 @@ export default function Projects() {
         const pPlans = plansByProject[p.id] || [];
         const hasStatus = pPlans.some(plan => plan.billing_status === filters.billing_status);
         if (!hasStatus) return false;
+      }
+      if (filters.billing_relevance) {
+        if (p.billing_relevance_status !== filters.billing_relevance) return false;
       }
       return true;
     })
@@ -405,6 +415,12 @@ export default function Projects() {
           className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5 ${sortOverride === 'erwartung_desc' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
         >
           Sortieren: Erwartung ↓
+        </button>
+        <button
+          onClick={() => setShowArchived(s => !s)}
+          className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5 ${showArchived ? 'bg-amber-100 text-amber-800 border-amber-300' : 'border-border text-muted-foreground hover:text-foreground'}`}
+        >
+          {showArchived ? 'Archivierte ausblenden' : 'Archivierte einblenden'}
         </button>
       </div>
 
