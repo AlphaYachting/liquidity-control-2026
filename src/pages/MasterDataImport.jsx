@@ -46,18 +46,34 @@ export default function MasterDataImport() {
   }
 
   function handleColumnsConfirmed(mapping) {
-    // Re-map raw rows using user-confirmed column mapping
-    const remapped = applyColumnMapping(
-      parseResult.parsed_rows.map(r => {
-        // Reconstruct raw array from headers
-        return parseResult.headers.map((_, idx) => {
-          const colKey = Object.entries(parseResult.column_mapping).find(([i]) => parseInt(i) === idx);
-          const origField = colKey?.[1]?.field;
-          return origField ? r[origField] : null;
-        });
-      }),
-      mapping
-    );
+    // parsed_rows already have fields by name; applyColumnMapping expects index-keyed raw arrays.
+    // Re-build index-keyed rows from the raw_row_json stored on each parsed row, or fall back
+    // to using the header order the backend returned.
+    const rawRows = parseResult.parsed_rows.map(r => {
+      // Backend stores rows as objects keyed by field name; try raw_row_json first
+      if (r.raw_row_json) {
+        try {
+          const raw = JSON.parse(r.raw_row_json);
+          // If the backend stored an array, use it directly
+          if (Array.isArray(raw)) return raw;
+          // If it's an object keyed by column index strings, convert to array
+          const maxIdx = Math.max(...Object.keys(raw).map(Number).filter(n => !isNaN(n)));
+          if (maxIdx >= 0) {
+            const arr = [];
+            for (let i = 0; i <= maxIdx; i++) arr.push(raw[i] ?? null);
+            return arr;
+          }
+        } catch (_) { /* fall through */ }
+      }
+      // Fallback: reconstruct from header order using the auto-detected column_mapping
+      return parseResult.headers.map((_, idx) => {
+        const colEntry = parseResult.column_mapping?.[idx];
+        const field = colEntry?.field;
+        return field ? r[field] ?? null : null;
+      });
+    });
+
+    const remapped = applyColumnMapping(rawRows, mapping);
     setParseResult(prev => ({ ...prev, confirmed_rows: remapped, confirmed_mapping: mapping }));
     setStep('active');
   }

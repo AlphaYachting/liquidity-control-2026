@@ -52,16 +52,27 @@ export default function BillingDataReset() {
   }
 
   function handleColumnsConfirmed(mapping) {
-    const remapped = applyColumnMapping(
-      parseResult.parsed_rows.map(r =>
-        parseResult.headers.map((_, idx) => {
-          const colKey = Object.entries(parseResult.column_mapping).find(([i]) => parseInt(i) === idx);
-          const origField = colKey?.[1]?.field;
-          return origField ? r[origField] : null;
-        })
-      ),
-      mapping
-    );
+    const rawRows = parseResult.parsed_rows.map(r => {
+      if (r.raw_row_json) {
+        try {
+          const raw = JSON.parse(r.raw_row_json);
+          if (Array.isArray(raw)) return raw;
+          const maxIdx = Math.max(...Object.keys(raw).map(Number).filter(n => !isNaN(n)));
+          if (maxIdx >= 0) {
+            const arr = [];
+            for (let i = 0; i <= maxIdx; i++) arr.push(raw[i] ?? null);
+            return arr;
+          }
+        } catch (_) { /* fall through */ }
+      }
+      return parseResult.headers.map((_, idx) => {
+        const colEntry = parseResult.column_mapping?.[idx];
+        const field = colEntry?.field;
+        return field ? r[field] ?? null : null;
+      });
+    });
+
+    const remapped = applyColumnMapping(rawRows, mapping);
     setParseResult(prev => ({ ...prev, confirmed_rows: remapped }));
     setExcelRows(remapped.filter(r => r.customer_name_raw || r.project_name_raw));
     setStep('classify');
