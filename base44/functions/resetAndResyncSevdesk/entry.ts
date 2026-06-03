@@ -94,17 +94,28 @@ Deno.serve(async (req) => {
 
     // ── RESET ORDERS: delete all ConfirmedOrders + ConfirmedOrderItems ──────
     if (action === 'reset_orders') {
-      const [orders, items] = await Promise.all([
-        base44.asServiceRole.entities.ConfirmedOrder.list(),
-        base44.asServiceRole.entities.ConfirmedOrderItem.list(),
+      // Fetch ALL records (paginate to get beyond 50-record limit)
+      async function listAll(entity) {
+        const all = [];
+        let skip = 0;
+        const limit = 100;
+        while (true) {
+          const batch = await entity.list(null, limit, skip);
+          all.push(...batch);
+          if (batch.length < limit) break;
+          skip += limit;
+          await sleep(200);
+        }
+        return all;
+      }
+
+      const [orders, items, blocks] = await Promise.all([
+        listAll(base44.asServiceRole.entities.ConfirmedOrder),
+        listAll(base44.asServiceRole.entities.ConfirmedOrderItem),
+        listAll(base44.asServiceRole.entities.ProjectBillingBlock),
       ]);
-      // Null out project_id references on LiquidityProjects that point to these orders
-      // (we keep LiquidityProjects intact — just unlink them)
+
       const orderIds = new Set(orders.map(o => o.id));
-      const projects = await base44.asServiceRole.entities.LiquidityProject.list();
-      const linkedProjects = projects.filter(p => p.order_number || p.notes?.includes('sevDesk'));
-      // For each billing block linked to these orders, clear confirmed_order_id
-      const blocks = await base44.asServiceRole.entities.ProjectBillingBlock.list();
       const linkedBlocks = blocks.filter(b => b.confirmed_order_id && orderIds.has(b.confirmed_order_id));
 
       let deletedOrders = 0;
@@ -115,21 +126,26 @@ Deno.serve(async (req) => {
       for (const b of linkedBlocks) {
         await base44.asServiceRole.entities.ProjectBillingBlock.update(b.id, { confirmed_order_id: null });
         unlinkedBlocks++;
-        await sleep(100);
+        await sleep(200);
       }
 
       // Delete order items
       for (const item of items) {
         await base44.asServiceRole.entities.ConfirmedOrderItem.delete(item.id);
         deletedItems++;
-        await sleep(50);
+        await sleep(150);
       }
 
-      // Delete orders
-      for (const o of orders) {
-        await base44.asServiceRole.entities.ConfirmedOrder.delete(o.id);
+      // Delete orders (in batches with longer pauses)
+      for (let i = 0; i < orders.length; i++) {
+        await base44.asServiceRole.entities.ConfirmedOrder.delete(orders[i].id);
         deletedOrders++;
-        await sleep(80);
+        // Every 20 deletes, pause 2 seconds to avoid rate limit
+        if (i > 0 && i % 20 === 0) {
+          await sleep(2000);
+        } else {
+          await sleep(200);
+        }
       }
 
       return Response.json({
@@ -143,12 +159,25 @@ Deno.serve(async (req) => {
 
     // ── RESET INVOICES: delete all InvoiceRecords ────────────────────────────
     if (action === 'reset_invoices') {
-      const invoices = await base44.asServiceRole.entities.InvoiceRecord.list();
+      const all = [];
+      let skip = 0;
+      const limit = 100;
+      while (true) {
+        const batch = await base44.asServiceRole.entities.InvoiceRecord.list(null, limit, skip);
+        all.push(...batch);
+        if (batch.length < limit) break;
+        skip += limit;
+        await sleep(200);
+      }
       let deleted = 0;
-      for (const inv of invoices) {
-        await base44.asServiceRole.entities.InvoiceRecord.delete(inv.id);
+      for (let i = 0; i < all.length; i++) {
+        await base44.asServiceRole.entities.InvoiceRecord.delete(all[i].id);
         deleted++;
-        await sleep(80);
+        if (i > 0 && i % 20 === 0) {
+          await sleep(2000);
+        } else {
+          await sleep(200);
+        }
       }
       return Response.json({
         success: true,
