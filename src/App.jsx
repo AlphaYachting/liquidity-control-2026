@@ -38,6 +38,7 @@ import CustomerRisk from '@/pages/CustomerRisk';
 import VarianceAnalysis from '@/pages/VarianceAnalysis';
 import MasterDataImport from '@/pages/MasterDataImport';
 import BillingDataReset from '@/pages/BillingDataReset';
+import OperationalReset from '@/pages/OperationalReset';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -96,6 +97,7 @@ const AuthenticatedApp = () => {
         <Route path="/variance-analysis" element={<VarianceAnalysis />} />
         <Route path="/master-import" element={<MasterDataImport />} />
         <Route path="/billing-reset" element={<BillingDataReset />} />
+        <Route path="/operational-reset" element={<OperationalReset />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
