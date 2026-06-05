@@ -19,15 +19,16 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
-    const forceRefresh = body.force_refresh ?? false;
+    // Limit schützt vor Timeout: max 100 Rechnungen pro Aufruf (ca. 2 LLM-Calls)
+    const limit = Math.min(body.limit ?? 100, 150);
 
-    // Load all invoices
-    const invoices = await base44.asServiceRole.entities.InvoiceRecord.list('-invoice_date', 500);
+    // Load invoices with hard limit
+    const invoices = await base44.asServiceRole.entities.InvoiceRecord.list('-invoice_date', limit);
 
     if (!invoices.length) return Response.json({ categorized: [], categories: CATEGORIES });
 
-    // Build prompt chunks of max 80 invoices per call to stay within token limits
-    const chunkSize = 80;
+    // Build prompt chunks — max 40 per call für zuverlässige Antwortzeiten
+    const chunkSize = 40;
     const allResults = [];
 
     for (let i = 0; i < invoices.length; i += chunkSize) {
