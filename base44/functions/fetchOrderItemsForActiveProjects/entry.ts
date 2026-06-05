@@ -25,11 +25,33 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get('SEVDESK_API_KEY');
     if (!apiKey) return Response.json({ error: 'SEVDESK_API_KEY not set' }, { status: 500 });
 
-    // Alle ConfirmedOrders mit sevdesk_order_id laden
-    const allOrders = await base44.asServiceRole.entities.ConfirmedOrder.list();
-    const ordersWithSevdeskId = allOrders.filter(o => o.sevdesk_order_id);
+    const body = await req.json().catch(() => ({}));
+    // Optionaler Filter: nur bestimmte ConfirmedOrder-IDs verarbeiten
+    const filterOrderIds = body.order_ids ?? null; // Array<string> | null
 
-    console.log(`Gefundene ConfirmedOrders mit sevDesk-ID: ${ordersWithSevdeskId.length}`);
+    let targetOrders = [];
+
+    if (filterOrderIds && filterOrderIds.length > 0) {
+      // Gezielter Modus: nur die angegebenen Orders
+      const all = await base44.asServiceRole.entities.ConfirmedOrder.list();
+      targetOrders = all.filter(o => o.sevdesk_order_id && filterOrderIds.includes(o.id));
+    } else {
+      // Standard: nur Orders die einem aktiven Projekt zugeordnet sind
+      const [allOrders, activeProjects] = await Promise.all([
+        base44.asServiceRole.entities.ConfirmedOrder.list(),
+        base44.asServiceRole.entities.LiquidityProject.filter({ is_active_for_billing: true }),
+      ]);
+
+      const activeProjectIds = new Set(activeProjects.map(p => p.id));
+
+      targetOrders = allOrders.filter(o =>
+        o.sevdesk_order_id &&
+        o.project_id &&
+        activeProjectIds.has(o.project_id)
+      );
+    }
+
+    console.log(`Verarbeite ${targetOrders.length} ConfirmedOrders (aktive Projekte)`);
 
     let itemsCreated = 0;
     let itemsDeleted = 0;
@@ -37,7 +59,7 @@ Deno.serve(async (req) => {
     let ordersFailed = 0;
     const errors = [];
 
-    for (const order of ordersWithSevdeskId) {
+    for (const order of targetOrders) {
       try {
         const sevdeskId = order.sevdesk_order_id;
 
@@ -85,8 +107,7 @@ Deno.serve(async (req) => {
         ordersProcessed++;
         console.log(`Order ${sevdeskId} (${order.customer}): ${positions.length} Positionen importiert`);
 
-        // Rate limiting
-        await sleep(350);
+        await sleep(300);
 
       } catch (err) {
         ordersFailed++;
@@ -98,7 +119,7 @@ Deno.serve(async (req) => {
 
     return Response.json({
       success: true,
-      ordersTotal: ordersWithSevdeskId.length,
+      ordersTotal: targetOrders.length,
       ordersProcessed,
       ordersFailed,
       itemsDeleted,

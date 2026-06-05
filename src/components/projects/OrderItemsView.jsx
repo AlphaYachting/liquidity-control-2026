@@ -17,12 +17,20 @@ const STATUS_CONFIG = {
 export default function OrderItemsView({ linkedOrders }) {
   const orderIds = linkedOrders.map(o => o.id);
 
+  // Gefilterte Abfrage pro Order-ID — keine Vollabfrage aller Items
   const { data: allItems = [], isLoading } = useQuery({
     queryKey: ['orderItems', ...orderIds],
-    queryFn: () => base44.entities.ConfirmedOrderItem.list(),
+    queryFn: async () => {
+      const results = await Promise.all(
+        orderIds.map(oid =>
+          base44.entities.ConfirmedOrderItem.filter({ confirmed_order_id: oid })
+        )
+      );
+      return results.flat();
+    },
     enabled: orderIds.length > 0,
     select: (items) => items
-      .filter(i => orderIds.includes(i.confirmed_order_id) && !i.is_discount)
+      .filter(i => !i.is_discount)
       .sort((a, b) => (a.position || 0) - (b.position || 0)),
   });
 

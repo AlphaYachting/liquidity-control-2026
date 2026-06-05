@@ -355,9 +355,8 @@ function OrderItemsFetcher() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">
-          Lädt für alle importierten Auftragsbestätigungen die Auftragspositionen aus sevDesk nach.
-          Schreibt <strong>nur</strong> in <code className="bg-muted px-1 rounded">ConfirmedOrderItem</code> — 
-          keine anderen Daten werden verändert.
+          Lädt die AB-Positionen aus sevDesk nach — aber <strong>nur für Auftragsbestätigungen, die einem aktiven Projekt zugeordnet sind</strong>.
+          Schreibt ausschließlich in <code className="bg-muted px-1 rounded">ConfirmedOrderItem</code>, keine anderen Daten werden verändert.
         </p>
         {result && (
           <div className="text-xs rounded-lg p-3 font-mono whitespace-pre-wrap bg-muted text-muted-foreground">
