@@ -50,8 +50,11 @@ export default function NonBillableWidget() {
         };
       });
 
-    // KPIs aus aktuellem Monat
-    const currentMonth = new Date().toISOString().substring(0, 7);
+    // KPIs aus aktuellem Monat — falls keine Daten, letzten verfügbaren Monat nehmen
+    const todayMonth = new Date().toISOString().substring(0, 7);
+    const availableMonths = Object.keys(byMonth).sort();
+    const lastAvailableMonth = availableMonths[availableMonths.length - 1] || todayMonth;
+    const currentMonth = byMonth[todayMonth] ? todayMonth : lastAvailableMonth;
     const currentMonthEntries = clientEntries.filter(e => e.entry_month === currentMonth);
     const totalBillable = currentMonthEntries.filter(e => e.is_billable !== false).reduce((s, e) => s + (e.duration_minutes || 0), 0);
     const totalNonBillable = currentMonthEntries.filter(e => e.is_billable === false).reduce((s, e) => s + (e.duration_minutes || 0), 0);
