@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── IMPORT ORDERS: fetch ABs from sevDesk 2025+2026 ─────────────────────
+    // ── IMPORT ORDERS: fetch ABs from sevDesk 2025+2026 (inkl. Positionen) ────
     if (action === 'import_orders') {
       const allOrders = await fetchAllOrders(apiKey, [2025, 2026]);
 
@@ -177,6 +177,7 @@ Deno.serve(async (req) => {
 
       let created = 0;
       let failed = 0;
+      let itemsCreated = 0;
       const errors = [];
 
       for (const ord of allOrders) {
@@ -189,7 +190,7 @@ Deno.serve(async (req) => {
           const vatRate = netAmount > 0 ? Math.round(((grossAmount - netAmount) / netAmount) * 100) : 20;
           const contactId = ord.contact?.id ? String(ord.contact.id) : null;
 
-          await base44.asServiceRole.entities.ConfirmedOrder.create({
+          const newOrder = await base44.asServiceRole.entities.ConfirmedOrder.create({
             order_number: orderNumber,
             customer: ord.contact?.name || '',
             project_name: ord.header || `sevDesk-${sevdeskId}`,
@@ -205,7 +206,35 @@ Deno.serve(async (req) => {
             ...(contactId ? { sevdesk_contact_id: contactId } : {}),
           });
           created++;
-          await sleep(200);
+
+          // Auftragspositionen direkt mitholen
+          try {
+            const posData = await sevdeskGet(`/OrderPos?order[id]=${sevdeskId}&order[objectName]=Order&embed=part&limit=100`, apiKey);
+            const positions = posData.objects || [];
+            let posNum = 1;
+            for (const pos of positions) {
+              const unitPrice = parseAmount(pos.price);
+              const qty = parseFloat(pos.quantity || '1') || 1;
+              await base44.asServiceRole.entities.ConfirmedOrderItem.create({
+                confirmed_order_id: newOrder.id,
+                position: posNum++,
+                title: pos.name || pos.part?.name || `Position ${posNum}`,
+                description: pos.text || '',
+                unit: pos.unity?.name || 'pauschal',
+                unit_price: unitPrice,
+                quantity: qty,
+                total_price: unitPrice * qty,
+                is_discount: parseAmount(pos.discount || 0) < 0,
+                status: 'not_started',
+              });
+              itemsCreated++;
+            }
+            console.log(`AB ${sevdeskId}: ${positions.length} Positionen importiert`);
+          } catch (posErr) {
+            console.error(`AB ${sevdeskId} Positionen fehlgeschlagen: ${posErr.message}`);
+          }
+
+          await sleep(300);
         } catch (e) {
           failed++;
           errors.push(e.message);
@@ -217,8 +246,9 @@ Deno.serve(async (req) => {
         total_from_sevdesk: allOrders.length,
         created,
         failed,
+        itemsCreated,
         errors: errors.slice(0, 10),
-        message: `${created} ABs importiert (2025+2026), ${failed} Fehler`
+        message: `${created} ABs importiert (2025+2026), ${itemsCreated} Positionen, ${failed} Fehler`
       });
     }
 

@@ -144,6 +144,12 @@ export default function SevdeskReimport() {
             `🧾 Rechnungen gesamt: ${data.total_invoices}`,
             ...Object.entries(data.invoices_by_year || {}).map(([y, c]) => `   ${y}: ${c} Rechnungen`),
           ].join('\n');
+        } else if (stepId === 'import_orders') {
+          summary = [
+            `✓ ${data.created ?? 0} ABs importiert`,
+            `✓ ${data.itemsCreated ?? 0} Auftragspositionen importiert`,
+            data.failed > 0 ? `⚠ ${data.failed} Fehler` : null,
+          ].filter(Boolean).join('\n');
         }
         setStepStatuses(prev => ({ ...prev, [stepId]: 'done' }));
         setStepResults(prev => ({ ...prev, [stepId]: summary }));
@@ -355,8 +361,9 @@ function OrderItemsFetcher() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">
-          Lädt die AB-Positionen aus sevDesk nach — aber <strong>nur für Auftragsbestätigungen, die einem aktiven Projekt zugeordnet sind</strong>.
-          Schreibt ausschließlich in <code className="bg-muted px-1 rounded">ConfirmedOrderItem</code>, keine anderen Daten werden verändert.
+          <strong>Nur als Fallback nötig</strong> — beim Re-Import (Schritt 4) werden Positionen automatisch mitgeholt.
+          Nur verwenden wenn einzelne ABs nachträglich ohne Positionen importiert wurden, z.B. bei der automatischen 6h-Synchronisierung.
+          Verarbeitet nur ABs die einem <strong>aktiven Projekt</strong> zugeordnet sind.
         </p>
         {result && (
           <div className="text-xs rounded-lg p-3 font-mono whitespace-pre-wrap bg-muted text-muted-foreground">
