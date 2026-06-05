@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertTriangle, CheckCircle2, RefreshCw, Trash2, Download,
-  FileText, Info, RotateCcw, Shield, Clock, ShieldCheck, ShieldAlert
+  FileText, Info, RotateCcw, Shield, Clock, ShieldCheck, ShieldAlert, Package
 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 
@@ -318,6 +318,75 @@ export default function SevdeskReimport() {
           </div>
         </div>
       )}
+
+      {/* ── SEPARATER BEREICH: AB-Positionen nachladen ── */}
+      <OrderItemsFetcher />
     </div>
+  );
+}
+
+function OrderItemsFetcher() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const run = async () => {
+    setIsLoading(true);
+    setResult(null);
+    setError(null);
+    try {
+      const res = await base44.functions.invoke('fetchOrderItemsForActiveProjects', {});
+      setResult(res.data);
+    } catch (e) {
+      setError(e.message);
+    }
+    setIsLoading(false);
+  };
+
+  return (
+    <Card className="border-2 border-blue-200 mt-2">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-blue-50">
+            <Package className="w-4 h-4 text-blue-600" />
+          </div>
+          AB-Positionen nachladen (nicht-destruktiv)
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Lädt für alle importierten Auftragsbestätigungen die Auftragspositionen aus sevDesk nach.
+          Schreibt <strong>nur</strong> in <code className="bg-muted px-1 rounded">ConfirmedOrderItem</code> — 
+          keine anderen Daten werden verändert.
+        </p>
+        {result && (
+          <div className="text-xs rounded-lg p-3 font-mono whitespace-pre-wrap bg-muted text-muted-foreground">
+            {[
+              `✓ ${result.ordersProcessed} Aufträge verarbeitet (von ${result.ordersTotal})`,
+              `✓ ${result.itemsCreated} Positionen importiert`,
+              result.ordersFailed > 0 ? `⚠ ${result.ordersFailed} Fehler` : null,
+              result.errors?.length > 0 ? `\nFehler:\n${result.errors.join('\n')}` : null,
+            ].filter(Boolean).join('\n')}
+          </div>
+        )}
+        {error && (
+          <div className="text-xs rounded-lg p-3 bg-red-50 text-red-800 border border-red-200">
+            Fehler: {error}
+          </div>
+        )}
+        <Button size="sm" onClick={run} disabled={isLoading} className="w-full">
+          {isLoading ? (
+            <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Läuft… (kann mehrere Minuten dauern)</>
+          ) : (
+            <><Package className="w-4 h-4 mr-2" />AB-Positionen jetzt laden</>
+          )}
+        </Button>
+        {isLoading && (
+          <p className="text-[11px] text-muted-foreground text-center">
+            Ca. 350ms pro Auftrag — bitte warten und Tab nicht schließen.
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
