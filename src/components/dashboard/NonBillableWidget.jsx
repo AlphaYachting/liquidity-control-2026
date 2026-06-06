@@ -7,8 +7,8 @@ import { Clock, AlertTriangle } from 'lucide-react';
 
 const MONTHS_DE = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
-function formatH(minutes) {
-  return (minutes / 60).toFixed(1) + ' h';
+function formatH(seconds) {
+  return (seconds / 3600).toFixed(1) + ' h';
 }
 
 export default function NonBillableWidget() {
@@ -44,8 +44,8 @@ export default function NonBillableWidget() {
         return {
           name: MONTHS_DE[parseInt(m, 10) - 1],
           month,
-          billable_h: parseFloat((v.billable / 60).toFixed(1)),
-          non_billable_h: parseFloat((v.nonBillable / 60).toFixed(1)),
+          billable_h: parseFloat((v.billable / 3600).toFixed(1)),
+          non_billable_h: parseFloat((v.nonBillable / 3600).toFixed(1)),
           pct: total > 0 ? Math.round((v.nonBillable / total) * 100) : 0,
         };
       });
@@ -72,8 +72,8 @@ export default function NonBillableWidget() {
     const userNonBillable = Object.entries(byUser)
       .map(([fullName, v]) => ({
         fullName,
-        non_billable_h: parseFloat((v.nonBillable / 60).toFixed(1)),
-        billable_h: parseFloat((v.billable / 60).toFixed(1)),
+        non_billable_h: parseFloat((v.nonBillable / 3600).toFixed(1)),
+          billable_h: parseFloat((v.billable / 3600).toFixed(1)),
       }))
       .filter(u => u.non_billable_h > 0 || u.billable_h > 0)
       .sort((a, b) => b.non_billable_h - a.non_billable_h);
