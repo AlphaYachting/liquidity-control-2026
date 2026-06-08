@@ -8,7 +8,10 @@ import { Clock, AlertTriangle } from 'lucide-react';
 const MONTHS_DE = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
 function formatH(seconds) {
-  return (seconds / 3600).toFixed(1) + ' h';
+  const totalMinutes = Math.round(seconds / 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}:${String(m).padStart(2, '0')} h`;
 }
 
 export default function NonBillableWidget() {
@@ -155,7 +158,10 @@ export default function NonBillableWidget() {
                   <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                   <YAxis hide />
                   <Tooltip
-                    formatter={(v, name) => [`${v} h`, name === 'billable_h' ? 'Verrechenbar' : 'Nicht verr.']}
+                    formatter={(v, name) => {
+                      const h = Math.floor(v); const m = Math.round((v - h) * 60);
+                      return [`${h}:${String(m).padStart(2,'0')} h`, name === 'billable_h' ? 'Verrechenbar' : 'Nicht verr.'];
+                    }}
                     contentStyle={{ fontSize: 12 }}
                   />
                   <Bar dataKey="billable_h" stackId="a" fill="hsl(var(--chart-2))" />
@@ -180,7 +186,10 @@ export default function NonBillableWidget() {
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="fullName" tick={{ fontSize: 11 }} width={100} axisLine={false} tickLine={false} />
                   <Tooltip
-                    formatter={(v, key) => [`${v} h`, key === 'non_billable_h' ? 'Nicht verr.' : 'Verrechenbar']}
+                    formatter={(v, key) => {
+                      const h = Math.floor(v); const m = Math.round((v - h) * 60);
+                      return [`${h}:${String(m).padStart(2,'0')} h`, key === 'non_billable_h' ? 'Nicht verr.' : 'Verrechenbar'];
+                    }}
                     contentStyle={{ fontSize: 12 }}
                   />
                   <Bar dataKey="billable_h" stackId="u" fill="hsl(var(--chart-2))" radius={[0, 0, 0, 0]} />
@@ -191,7 +200,7 @@ export default function NonBillableWidget() {
                       const color = pct >= 30 ? '#dc2626' : pct >= 15 ? '#f59e0b' : '#fca5a5';
                       return <Cell key={i} fill={color} />;
                     })}
-                    <LabelList dataKey="non_billable_h" position="right" formatter={v => v > 0 ? `${v} h` : ''} style={{ fontSize: 11, fill: '#6b7280', fontWeight: 600 }} />
+                    <LabelList dataKey="non_billable_h" position="right" formatter={v => { if (!v) return ''; const h = Math.floor(v); const m = Math.round((v - h) * 60); return `${h}:${String(m).padStart(2,'0')} h`; }} style={{ fontSize: 11, fill: '#6b7280', fontWeight: 600 }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
