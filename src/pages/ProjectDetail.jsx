@@ -477,6 +477,19 @@ export default function ProjectDetail() {
         />
       )}
 
+      {/* ── Rechnungen & Zahlungsstatus — volle Breite ──────────────────── */}
+      <ProjectInvoiceSection
+        projectId={projectId}
+        projectBlocks={projectBlocks}
+        linkedOrders={linkedOrders}
+        projectInvoices={projectInvoices}
+        likelyUnmatchedInvoices={likelyUnmatchedInvoices}
+        adjustedInvoicedNet={adjustedInvoicedNet}
+        totalPaidGross={totalPaidGross}
+        openReceivableGross={openReceivableGross}
+        customerName={project.customer}
+      />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
 
@@ -695,18 +708,7 @@ export default function ProjectDetail() {
           {/* ── Leistungspositionen aus AB ──────────────────────────────── */}
           <OrderItemsView linkedOrders={linkedOrders} />
 
-          {/* ── Invoice / Payment Table ─────────────────────────────────── */}
-          <ProjectInvoiceSection
-            projectId={projectId}
-            projectBlocks={projectBlocks}
-            linkedOrders={linkedOrders}
-            projectInvoices={projectInvoices}
-            likelyUnmatchedInvoices={likelyUnmatchedInvoices}
-            adjustedInvoicedNet={adjustedInvoicedNet}
-            totalPaidGross={totalPaidGross}
-            openReceivableGross={openReceivableGross}
-            customerName={project.customer}
-          />
+
         </div>
 
         {/* ── Sidebar ──────────────────────────────────────────────────── */}
@@ -743,7 +745,19 @@ export default function ProjectDetail() {
                   </div>
                 )}
               </div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Kategorie</span><span>{project.category || '—'}</span></div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Kategorie</span>
+                <Select value={project.category || ''} onValueChange={v => updateProjectMutation.mutate({ category: v })}>
+                  <SelectTrigger className="h-6 w-36 text-xs border-0 px-1 py-0 bg-transparent text-right hover:bg-muted/50 shadow-none">
+                    <SelectValue placeholder="—" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[['web_project','Web-Projekt'],['design','Design'],['programming','Programmierung'],['consulting','Beratung'],['marketing','Marketing'],['other','Sonstiges']].map(([v,l]) => (
+                      <SelectItem key={v} value={v} className="text-xs">{l}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex justify-between"><span className="text-muted-foreground">Erw. Monat</span><span>{project.expected_invoice_month ? getMonthLabel(project.expected_invoice_month) : '—'}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Externe Kosten</span><span>{formatCurrency(project.external_costs)}</span></div>
               {project.notes && <div className="pt-2 border-t"><p className="text-xs text-muted-foreground">{project.notes}</p></div>}
