@@ -453,7 +453,20 @@ export default function ConfirmedOrderDetail() {
               <CardTitle className="text-sm">Auftragsbestätigung — Kommerziell</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Auftragsnr.</span><span className="font-medium">{order.order_number || '—'}</span></div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Auftragsnr.</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-medium">{order.order_number || '—'}</span>
+                  {order.sevdesk_order_id && (
+                    <a href={`https://my.sevdesk.de/#/or/edit/type/AN/id/${order.sevdesk_order_id}`}
+                      target="_blank" rel="noopener noreferrer"
+                      title="In sevDesk öffnen"
+                      className="text-primary hover:opacity-70">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                </div>
+              </div>
               <div className="flex justify-between"><span className="text-muted-foreground">Bestätigt am</span><span>{order.confirmation_date || '—'}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">PM</span><span>{order.responsible_project_manager || '—'}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Zahlungsbedingungen</span><span className="text-right max-w-[140px] text-xs">{order.payment_terms || '—'}</span></div>

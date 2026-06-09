@@ -48,6 +48,8 @@ export default function PmReminderButton({ project, selectedPlanId }) {
 
   // Check if any plan has a due reminder
   const duePlan = plans.find(p => p.reminder_date && isDue(p.reminder_date) && p.reminder_status === 'open');
+  // Check if any plan has a future (active but not yet due) reminder
+  const activeFutureReminder = !duePlan && plans.find(p => p.reminder_date && !isDue(p.reminder_date) && p.reminder_status === 'open');
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.MonthlyBillingPlan.create(data),
@@ -122,6 +124,9 @@ export default function PmReminderButton({ project, selectedPlanId }) {
         >
           {duePlan ? <BellRing className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
           Erinnerung an PM
+          {activeFutureReminder && (
+            <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" title={`Erinnerung aktiv: ${activeFutureReminder.reminder_date}`} />
+          )}
         </Button>
         {duePlan && (
           <Badge className="text-xs bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
