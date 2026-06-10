@@ -56,40 +56,85 @@ export default function Dashboard() {
 
 
   const { liveInvoiced, liveOpen } = useMemo(() => {
+    if (!projects.length) return { liveInvoiced: 0, liveOpen: 0 };
+
+    // Build lookup maps once — O(n) instead of O(n²)
+    const ordersByProjectId = {};
+    allOrders.forEach(o => {
+      if (!ordersByProjectId[o.project_id]) ordersByProjectId[o.project_id] = [];
+      ordersByProjectId[o.project_id].push(o);
+    });
+
+    const blocksByProjectId = {};
+    const blocksByOrderId = {};
+    allBlocks.forEach(b => {
+      if (b.project_id) {
+        if (!blocksByProjectId[b.project_id]) blocksByProjectId[b.project_id] = [];
+        blocksByProjectId[b.project_id].push(b);
+      }
+      if (b.confirmed_order_id) {
+        if (!blocksByOrderId[b.confirmed_order_id]) blocksByOrderId[b.confirmed_order_id] = [];
+        blocksByOrderId[b.confirmed_order_id].push(b);
+      }
+    });
+
+    const invoicesByProjectId = {};
+    const invoicesByOrderId = {};
+    const invoicesByBlockId = {};
+    const invoicesByOrderNumber = {};
+    invoices.forEach(i => {
+      if (i.payment_status === 'cancelled') return;
+      if (i.project_id) {
+        if (!invoicesByProjectId[i.project_id]) invoicesByProjectId[i.project_id] = [];
+        invoicesByProjectId[i.project_id].push(i);
+      }
+      if (i.confirmed_order_id) {
+        if (!invoicesByOrderId[i.confirmed_order_id]) invoicesByOrderId[i.confirmed_order_id] = [];
+        invoicesByOrderId[i.confirmed_order_id].push(i);
+      }
+      if (i.billing_block_id) {
+        if (!invoicesByBlockId[i.billing_block_id]) invoicesByBlockId[i.billing_block_id] = [];
+        invoicesByBlockId[i.billing_block_id].push(i);
+      }
+      if (i.order_number) {
+        const key = i.order_number.toLowerCase();
+        if (!invoicesByOrderNumber[key]) invoicesByOrderNumber[key] = [];
+        invoicesByOrderNumber[key].push(i);
+      }
+    });
+
     let liveInvoiced = 0;
     let liveOpen = 0;
 
     projects.forEach(p => {
       const projectId = p.id;
-      const customerKey = (p.customer || '').toLowerCase();
-
-      const linkedOrders = allOrders.filter(o => o.project_id === projectId);
+      const linkedOrders = ordersByProjectId[projectId] || [];
       const linkedOrderIds = new Set(linkedOrders.map(o => o.id));
-      const linkedOrderNumbers = new Set(
-        linkedOrders.map(o => (o.order_number || '').toLowerCase()).filter(Boolean)
-      );
-      const linkedBlocks = allBlocks.filter(b =>
-        b.project_id === projectId ||
-        (b.confirmed_order_id && linkedOrderIds.has(b.confirmed_order_id))
-      );
+
+      const linkedBlocks = [...(blocksByProjectId[projectId] || [])];
+      linkedOrders.forEach(o => {
+        (blocksByOrderId[o.id] || []).forEach(b => {
+          if (!linkedBlocks.find(x => x.id === b.id)) linkedBlocks.push(b);
+        });
+      });
       const linkedBlockIds = new Set(linkedBlocks.map(b => b.id));
 
-      const linkedInvoices = invoices.filter(i => {
-        if (i.payment_status === 'cancelled') return false;
-        if (i.project_id === projectId) return true;
-        if (i.confirmed_order_id && linkedOrderIds.has(i.confirmed_order_id)) return true;
-        if (i.billing_block_id && linkedBlockIds.has(i.billing_block_id)) return true;
-        if (i.order_number && linkedOrderNumbers.has((i.order_number || '').toLowerCase())) return true;
-        return false;
+      // Collect invoices via all lookup paths, deduplicating by id
+      const seen = new Set();
+      const linkedInvoices = [];
+      const addInv = (arr) => arr?.forEach(i => { if (!seen.has(i.id)) { seen.add(i.id); linkedInvoices.push(i); } });
+
+      addInv(invoicesByProjectId[projectId]);
+      linkedOrderIds.forEach(oid => addInv(invoicesByOrderId[oid]));
+      linkedBlockIds.forEach(bid => addInv(invoicesByBlockId[bid]));
+      linkedOrders.forEach(o => {
+        if (o.order_number) addInv(invoicesByOrderNumber[o.order_number.toLowerCase()]);
       });
 
-      const realInvoices = linkedInvoices.filter(i => !i.is_credit_note);
-      const creditNotes = linkedInvoices.filter(i => i.is_credit_note);
-      const invoicedNet = realInvoices.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
-      const creditNoteNet = creditNotes.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+      const invoicedNet = linkedInvoices.filter(i => !i.is_credit_note).reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+      const creditNoteNet = linkedInvoices.filter(i => i.is_credit_note).reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
       const adjustedInvoicedNet = invoicedNet - creditNoteNet;
 
-      // Commercial base: orders > blocks > project field (same priority as calculateProjectFinancials)
       const ordersTotalNet = linkedOrders.reduce((s, o) => s + (Number(o.total_net_amount) || 0), 0);
       const blocksTotalNet = linkedBlocks.reduce((s, b) => s + (Number(b.amount_net) || 0), 0);
       const projectTotalNet = Number(p.total_net_amount) || 0;
