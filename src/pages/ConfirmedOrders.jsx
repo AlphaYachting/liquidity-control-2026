@@ -16,7 +16,7 @@ import NewOrderUploadModal from '@/components/orders/NewOrderUploadModal';
 export default function ConfirmedOrders() {
   const navigate = useNavigate();
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [sortField, setSortField] = useState(null); // 'customer' | 'open'
+  const [sortField, setSortField] = useState('customer'); // 'customer' | 'open'
   const [sortDir, setSortDir] = useState('asc');
   const [search, setSearch] = useState('');
 
