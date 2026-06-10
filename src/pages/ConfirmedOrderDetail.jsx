@@ -4,10 +4,10 @@ import { base44 } from '@/api/base44Client';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, ClipboardList, AlertTriangle, CheckCircle2, ExternalLink,
-  FolderKanban, Link2, Info
+  FolderKanban, Link2, Info, Plus
 } from 'lucide-react';
-// Note: InvoiceRecordForm and InvoiceScanUploader removed — invoice management moved to Project Cockpit
 import { Button } from '@/components/ui/button';
+import InvoiceRecordForm from '@/components/orders/InvoiceRecordForm';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -76,6 +76,8 @@ export default function ConfirmedOrderDetail() {
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [linkingBlocks, setLinkingBlocks] = useState(false);
   const [creatingCockpit, setCreatingCockpit] = useState(false);
+  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState(null);
   // Ownership note: this page is the commercial source/document view.
   // Operative management (BillingBlocks, Invoices, awork) lives in Project Cockpit.
 
@@ -136,6 +138,17 @@ export default function ConfirmedOrderDetail() {
     },
     onError: (err) => {
       console.error('createCockpit failed:', err);
+    }
+  });
+
+  const saveInvoiceMutation = useMutation({
+    mutationFn: ({ id, data }) => id
+      ? base44.entities.InvoiceRecord.update(id, data)
+      : base44.entities.InvoiceRecord.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoiceRecords'] });
+      setShowInvoiceForm(false);
+      setEditingInvoice(null);
     }
   });
 
@@ -364,24 +377,48 @@ export default function ConfirmedOrderDetail() {
             </CardContent>
           </Card>
 
-          {/* Invoices — reference only, managed in Cockpit */}
+          {/* Invoices */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Rechnungsübersicht ({orderInvoices.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200 mb-3">
-                <FolderKanban className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-800">
-                  Rechnungen und Teilrechnungen werden im <strong>Projekt-Cockpit</strong> erfasst und verwaltet.
-                </p>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Rechnungsübersicht ({orderInvoices.length})</CardTitle>
+                <Button size="sm" className="h-7 text-xs gap-1"
+                  onClick={() => { setEditingInvoice(null); setShowInvoiceForm(true); }}>
+                  <Plus className="w-3 h-3" /> Rechnung erfassen
+                </Button>
               </div>
-              {orderInvoices.length === 0 ? (
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Manual form */}
+              {showInvoiceForm && (
+                <div className="p-4 border rounded-xl bg-muted/30">
+                  <InvoiceRecordForm
+                    invoice={editingInvoice || {
+                      confirmed_order_id: orderId,
+                      customer_name: order.customer || '',
+                      invoice_type: 'partial_invoice',
+                      source_type: 'manual',
+                      match_status: 'manually_matched',
+                      match_confidence: 100,
+                    }}
+                    confirmedOrderId={orderId}
+                    billingBlocks={orderBlocks}
+                    onSave={(data) => saveInvoiceMutation.mutate({
+                      id: editingInvoice?.id,
+                      data: { ...data, confirmed_order_id: orderId, project_id: order.project_id || '' }
+                    })}
+                    onCancel={() => { setShowInvoiceForm(false); setEditingInvoice(null); }}
+                    isSaving={saveInvoiceMutation.isPending}
+                  />
+                </div>
+              )}
+
+              {orderInvoices.length === 0 && !showInvoiceForm ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Keine Rechnungen verknüpft</p>
-              ) : (
+              ) : orderInvoices.length > 0 ? (
                 <div className="space-y-1.5">
                   {orderInvoices.map(inv => (
-                    <div key={inv.id} className="flex items-center justify-between p-2.5 rounded-lg border text-sm">
+                    <div key={inv.id} className="flex items-center justify-between p-2.5 rounded-lg border text-sm hover:bg-muted/20">
                       <div>
                         <span className="font-medium">{inv.invoice_number || '—'}</span>
                         <span className="text-muted-foreground ml-2 text-xs">{inv.invoice_date || ''}</span>
@@ -390,6 +427,10 @@ export default function ConfirmedOrderDetail() {
                       <div className="flex items-center gap-3">
                         <span className="font-semibold">{formatCurrency(inv.net_amount)}</span>
                         <StatusBadge status={inv.payment_status} />
+                        <Button variant="ghost" size="sm" className="h-6 text-xs"
+                          onClick={() => { setEditingInvoice(inv); setShowInvoiceForm(true); }}>
+                          Bearb.
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -398,12 +439,13 @@ export default function ConfirmedOrderDetail() {
                     <span className="text-emerald-600">{formatCurrency(recon.total_paid)}</span>
                   </div>
                 </div>
-              )}
+              ) : null}
+
               {linkedProject && (
-                <Link to={`/projects/${linkedProject.id}`} className="block mt-3">
+                <Link to={`/projects/${linkedProject.id}`} className="block">
                   <Button size="sm" variant="outline" className="w-full h-8 text-xs gap-1.5">
                     <FolderKanban className="w-3.5 h-3.5" />
-                    Rechnungen im Projekt-Cockpit öffnen →
+                    Im Projekt-Cockpit öffnen →
                   </Button>
                 </Link>
               )}
