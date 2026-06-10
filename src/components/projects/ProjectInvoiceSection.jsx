@@ -37,7 +37,7 @@ export default function ProjectInvoiceSection({
       ? base44.entities.InvoiceRecord.update(id, data)
       : base44.entities.InvoiceRecord.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoiceRecords-project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['invoiceRecords-project', projectId], exact: false });
       setShowForm(false);
       setEditingInvoice(null);
       setPrefillBlockId(null);
@@ -115,7 +115,7 @@ export default function ProjectInvoiceSection({
               customerName={customerName}
               billingBlocks={projectBlocks}
               onSaved={() => {
-                queryClient.invalidateQueries({ queryKey: ['invoiceRecords-project', projectId] });
+                queryClient.invalidateQueries({ queryKey: ['invoiceRecords-project', projectId], exact: false });
                 setShowForm(false);
               }}
               onCancel={() => setShowForm(false)}
