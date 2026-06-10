@@ -86,9 +86,20 @@ export default function ProjectDetail() {
   });
 
   const { data: allInvoices = [], isLoading: invoicesLoading } = useQuery({
-    queryKey: ['invoiceRecords-project', projectId],
-    queryFn: () => base44.entities.InvoiceRecord.filter({ project_id: projectId }),
-    enabled: !!project
+    queryKey: ['invoiceRecords-project', projectId, allOrders.map(o => o.id).join(',')],
+    queryFn: async () => {
+      // Load invoices linked via project_id AND via confirmed_order_id of linked orders
+      const byProject = await base44.entities.InvoiceRecord.filter({ project_id: projectId });
+      const byProjectIds = new Set(byProject.map(i => i.id));
+
+      const byOrderResults = await Promise.all(
+        allOrders.map(o => base44.entities.InvoiceRecord.filter({ confirmed_order_id: o.id }))
+      );
+      const byOrder = byOrderResults.flat().filter(i => !byProjectIds.has(i.id));
+
+      return [...byProject, ...byOrder];
+    },
+    enabled: !!project && !ordersLoading
   });
 
   // ── awork data ─────────────────────────────────────────────────────────────
