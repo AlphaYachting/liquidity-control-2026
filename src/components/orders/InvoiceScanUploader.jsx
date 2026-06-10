@@ -119,7 +119,7 @@ function ScannedInvoiceRow({ item, index, billingBlocks, onChange, onRemove }) {
           <Select value={d.billing_block_id || ''} onValueChange={v => set('billing_block_id', v)}>
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Paket wählen…" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value={null} className="text-xs">— Kein Paket —</SelectItem>
+              <SelectItem value='' className="text-xs">— Kein Paket —</SelectItem>
               {billingBlocks.map(b => (
                 <SelectItem key={b.id} value={b.id} className="text-xs">
                   {b.title} ({fmt(b.amount_net)})
@@ -133,7 +133,7 @@ function ScannedInvoiceRow({ item, index, billingBlocks, onChange, onRemove }) {
   );
 }
 
-export default function InvoiceScanUploader({ confirmedOrderId, customerName, billingBlocks = [], onSaved, onCancel }) {
+export default function InvoiceScanUploader({ confirmedOrderId, projectId = null, customerName, billingBlocks = [], onSaved, onCancel }) {
   const fileRef = useRef();
   const [items, setItems] = useState([]); // { fileName, status, data, fileUrl }
   const [saving, setSaving] = useState(false);
@@ -257,7 +257,8 @@ Setze null wenn ein Feld nicht gefunden wird.`,
         open_amount: gross - paid,
         is_credit_note: Boolean(d.is_credit_note),
         source_file: item.fileUrl,
-        confirmed_order_id: confirmedOrderId,
+        confirmed_order_id: confirmedOrderId || d.confirmed_order_id || undefined,
+        project_id: projectId || undefined,
       });
       count++;
     }

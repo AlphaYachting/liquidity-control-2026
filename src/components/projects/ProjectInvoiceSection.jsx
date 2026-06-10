@@ -111,9 +111,13 @@ export default function ProjectInvoiceSection({
           <div className="p-4 border rounded-xl bg-muted/30">
             <InvoiceScanUploader
               confirmedOrderId={primaryOrder?.id}
+              projectId={projectId}
               customerName={customerName}
               billingBlocks={projectBlocks}
-              onSaved={() => { queryClient.invalidateQueries({ queryKey: ['invoiceRecords'] }); setShowForm(false); }}
+              onSaved={() => {
+                queryClient.invalidateQueries({ queryKey: ['invoiceRecords-project', projectId] });
+                setShowForm(false);
+              }}
               onCancel={() => setShowForm(false)}
             />
           </div>
