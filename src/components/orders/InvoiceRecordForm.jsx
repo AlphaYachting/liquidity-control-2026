@@ -77,10 +77,10 @@ export default function InvoiceRecordForm({ invoice, confirmedOrderId, billingBl
         </div>
         <div>
           <Label className="text-xs">Verknüpftes Paket</Label>
-          <Select value={form.billing_block_id || ''} onValueChange={v => set('billing_block_id', v)}>
+          <Select value={form.billing_block_id || '__none__'} onValueChange={v => set('billing_block_id', v === '__none__' ? '' : v)}>
             <SelectTrigger><SelectValue placeholder="Paket wählen…" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value={null}>— Kein Paket —</SelectItem>
+              <SelectItem value="__none__">— Kein Paket —</SelectItem>
               {billingBlocks.map(b => (
                 <SelectItem key={b.id} value={b.id} className="text-xs">{b.title}</SelectItem>
               ))}
