@@ -198,14 +198,14 @@ export default function InvoiceMatchingReview() {
                 {/* Manual assignment */}
                 <div className="flex items-center gap-3">
                   <Select
-                    value={inv.confirmed_order_id || ''}
-                    onValueChange={(v) => handleManualOrderLink(inv, v)}
+                    value={inv.confirmed_order_id || '__none__'}
+                    onValueChange={(v) => handleManualOrderLink(inv, v === '__none__' ? '' : v)}
                   >
                     <SelectTrigger className="flex-1 h-8 text-xs">
                       <SelectValue placeholder="Auftrag manuell zuordnen…" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={null}>— Keine Zuordnung —</SelectItem>
+                      <SelectItem value="__none__">— Keine Zuordnung —</SelectItem>
                       {orders.map(o => (
                         <SelectItem key={o.id} value={o.id} className="text-xs">
                           {o.customer} · {o.project_name} {o.order_number ? `(${o.order_number})` : ''}

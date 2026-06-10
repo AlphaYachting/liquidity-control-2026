@@ -116,10 +116,10 @@ function ScannedInvoiceRow({ item, index, billingBlocks, onChange, onRemove }) {
         </div>
         <div className="col-span-2">
           <Label className="text-xs">Paket zuordnen</Label>
-          <Select value={d.billing_block_id || ''} onValueChange={v => set('billing_block_id', v)}>
+          <Select value={d.billing_block_id || '__none__'} onValueChange={v => set('billing_block_id', v === '__none__' ? '' : v)}>
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Paket wählen…" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value='' className="text-xs">— Kein Paket —</SelectItem>
+              <SelectItem value='__none__' className="text-xs">— Kein Paket —</SelectItem>
               {billingBlocks.map(b => (
                 <SelectItem key={b.id} value={b.id} className="text-xs">
                   {b.title} ({fmt(b.amount_net)})
