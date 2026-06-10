@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, FolderKanban, Plus, Pencil, Check, X, AlertTriangle,
-  Link2, Unlink, RefreshCw, ClipboardList, ExternalLink, Info
+  Link2, Unlink, RefreshCw, ClipboardList, ExternalLink, Info, Trash2
 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
@@ -35,6 +35,7 @@ import BillingHistoryTimeline from '@/components/projects/BillingHistoryTimeline
 import RealProgressValidator from '@/components/projects/RealProgressValidator';
 import NextMonthsBillingPreview from '@/components/projects/NextMonthsBillingPreview';
 import WebsiteMilestoneGuide from '@/components/projects/WebsiteMilestoneGuide';
+import DeleteProjectCockpitDialog from '@/components/projects/DeleteProjectCockpitDialog';
 
 const WORK_STATUS_LABELS = {
   not_started: 'Nicht begonnen',
@@ -56,6 +57,7 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingPM, setEditingPM] = useState(false);
   const [pmValue, setPmValue] = useState('');
   const [showAworkPicker, setShowAworkPicker] = useState(false);
@@ -321,10 +323,19 @@ export default function ProjectDetail() {
           subtitle={`${project.customer} · Projekt-Cockpit`}
           icon={FolderKanban}
           actions={
-            <div className="flex items-center gap-2">
-              <StatusBadge status={project.status} />
-              {project.risk_status && project.risk_status !== 'none' && <StatusBadge status={project.risk_status} />}
-            </div>
+          <div className="flex items-center gap-2">
+            <StatusBadge status={project.status} />
+            {project.risk_status && project.risk_status !== 'none' && <StatusBadge status={project.risk_status} />}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1" />
+              Cockpit löschen
+            </Button>
+          </div>
           }
         />
       </div>
@@ -861,6 +872,17 @@ export default function ProjectDetail() {
           })()}
         </div>
       </div>
+
+      {/* Delete Dialog */}
+      {showDeleteDialog && (
+        <DeleteProjectCockpitDialog
+          project={project}
+          allOrders={allOrders}
+          allBlocks={allBlocks}
+          onDeleted={() => navigate('/projects')}
+          onClose={() => setShowDeleteDialog(false)}
+        />
+      )}
 
       {/* Modals */}
       <AworkProjectPicker
