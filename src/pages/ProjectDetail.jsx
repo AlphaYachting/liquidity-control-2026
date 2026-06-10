@@ -68,21 +68,27 @@ export default function ProjectDetail() {
   const [nextInvoiceNote, setNextInvoiceNote] = useState('');
 
   // ── Data loading ──────────────────────────────────────────────────────────
-  const { data: projects = [], isLoading: lpLoading } = useQuery({
-    queryKey: ['projects'], queryFn: () => base44.entities.LiquidityProject.list()
+  const { data: project = null, isLoading: lpLoading } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: () => base44.entities.LiquidityProject.filter({ id: projectId }).then(r => r[0] || null)
   });
-  const project = projects.find(p => p.id === projectId);
 
   const { data: allOrders = [], isLoading: ordersLoading } = useQuery({
-    queryKey: ['confirmedOrders'], queryFn: () => base44.entities.ConfirmedOrder.list()
+    queryKey: ['confirmedOrders-project', projectId],
+    queryFn: () => base44.entities.ConfirmedOrder.filter({ project_id: projectId }),
+    enabled: !!project
   });
 
   const { data: allBlocks = [], isLoading: blocksLoading } = useQuery({
-    queryKey: ['billingBlocks'], queryFn: () => base44.entities.ProjectBillingBlock.list()
+    queryKey: ['billingBlocks-project', projectId],
+    queryFn: () => base44.entities.ProjectBillingBlock.filter({ project_id: projectId }),
+    enabled: !!project
   });
 
   const { data: allInvoices = [], isLoading: invoicesLoading } = useQuery({
-    queryKey: ['invoiceRecords'], queryFn: () => base44.entities.InvoiceRecord.list()
+    queryKey: ['invoiceRecords-project', projectId],
+    queryFn: () => base44.entities.InvoiceRecord.filter({ project_id: projectId }),
+    enabled: !!project
   });
 
   // ── awork data ─────────────────────────────────────────────────────────────
@@ -125,18 +131,23 @@ export default function ProjectDetail() {
   // ── Mutations ──────────────────────────────────────────────────────────────
   const updateProjectMutation = useMutation({
     mutationFn: (data) => base44.entities.LiquidityProject.update(projectId, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['project', projectId] })
   });
 
   const saveBlockMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.ProjectBillingBlock.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['billingBlocks'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['billingBlocks-project', projectId] })
   });
 
   const { data: allOrderItems = [] } = useQuery({
-    queryKey: ['orderItems'],
-    queryFn: () => base44.entities.ConfirmedOrderItem.list(),
-    enabled: !!project
+    queryKey: ['orderItems-project', projectId, allOrders.map(o => o.id).join(',')],
+    queryFn: async () => {
+      const results = await Promise.all(
+        allOrders.map(o => base44.entities.ConfirmedOrderItem.filter({ confirmed_order_id: o.id }))
+      );
+      return results.flat();
+    },
+    enabled: !!project && allOrders.length > 0
   });
 
   const promoteItemsToBlocksMutation = useMutation({
@@ -191,7 +202,7 @@ export default function ProjectDetail() {
         await base44.entities.ProjectBillingBlock.update(block.id, { ...status, awork_last_synced_at: new Date().toISOString() });
       }
     }
-    queryClient.invalidateQueries({ queryKey: ['billingBlocks'] });
+    queryClient.invalidateQueries({ queryKey: ['billingBlocks-project', projectId] });
     await updateProjectMutation.mutateAsync({ awork_last_synced_at: new Date().toISOString() });
     setIsSyncing(false);
   };

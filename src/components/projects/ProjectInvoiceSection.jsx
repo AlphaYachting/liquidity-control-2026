@@ -15,7 +15,7 @@ import { formatCurrency } from '@/lib/liquidityUtils';
 import { getEffectivePaid } from '@/lib/projectFinancials';
 
 export default function ProjectInvoiceSection({
-  projectId,
+  projectId = null,
   projectBlocks,
   linkedOrders,
   projectInvoices,
@@ -37,7 +37,7 @@ export default function ProjectInvoiceSection({
       ? base44.entities.InvoiceRecord.update(id, data)
       : base44.entities.InvoiceRecord.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoiceRecords'] });
+      queryClient.invalidateQueries({ queryKey: ['invoiceRecords-project', projectId] });
       setShowForm(false);
       setEditingInvoice(null);
       setPrefillBlockId(null);
