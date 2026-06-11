@@ -133,15 +133,24 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
                   </SelectContent>
                 </Select>
 
-                {confirmDelete === instr.id ? (
-                  <>
-                    <span className="text-xs text-destructive font-medium">Löschen?</span>
-                    <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => { onDelete(instr.id); setConfirmDelete(null); }}>Ja</Button>
-                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setConfirmDelete(null)}>Nein</Button>
-                  </>
+                {['draft', 'blocked', 'cancelled'].includes(instr.status) ? (
+                  confirmDelete === instr.id ? (
+                    <>
+                      <span className="text-xs text-destructive font-medium">Löschen?</span>
+                      <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => { onDelete(instr.id); setConfirmDelete(null); }}>Ja</Button>
+                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setConfirmDelete(null)}>Nein</Button>
+                    </>
+                  ) : (
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                      title="Anweisung löschen (setzt Verrechnungsplan zurück)"
+                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(instr.id); }}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )
                 ) : (
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(instr.id); }}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground cursor-not-allowed opacity-40"
+                    title={`Löschen nicht möglich: Status ist „${STATUS_CFG[instr.status]?.label || instr.status}"`}
+                    disabled>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 )}
@@ -245,17 +254,23 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
                   <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onDuplicate(instr)}>
                     <Copy className="w-3 h-3 mr-1" /> Duplizieren
                   </Button>
-                  {confirmDelete === instr.id ? (
-                    <>
-                      <span className="text-xs text-destructive">Wirklich löschen?</span>
-                      <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => { onDelete(instr.id); setConfirmDelete(null); }}>Ja</Button>
-                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setConfirmDelete(null)}>Nein</Button>
-                    </>
+                  {['draft', 'blocked', 'cancelled'].includes(instr.status) ? (
+                    confirmDelete === instr.id ? (
+                      <>
+                        <span className="text-xs text-destructive">Wirklich löschen? Verknüpfung im Verrechnungsplan wird aufgehoben.</span>
+                        <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => { onDelete(instr.id); setConfirmDelete(null); }}>Ja, löschen</Button>
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setConfirmDelete(null)}>Abbrechen</Button>
+                      </>
+                    ) : (
+                      <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
+                        onClick={() => setConfirmDelete(instr.id)}>
+                        <Trash2 className="w-3 h-3 mr-1" /> Löschen
+                      </Button>
+                    )
                   ) : (
-                    <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
-                      onClick={() => setConfirmDelete(instr.id)}>
-                      <Trash2 className="w-3 h-3 mr-1" /> Löschen
-                    </Button>
+                    <span className="text-xs text-muted-foreground italic">
+                      Löschen gesperrt (Status: {STATUS_CFG[instr.status]?.label || instr.status})
+                    </span>
                   )}
                 </div>
               </div>
