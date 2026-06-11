@@ -10,7 +10,13 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { format, addMonths, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Plus, CalendarDays, Bell, Pencil } from 'lucide-react';
+import { Plus, CalendarDays, Bell, Pencil, CheckCircle2, Loader2 } from 'lucide-react';
+
+const PLAN_TYPE_TO_INVOICE_TYPE = {
+  AZ: 'advance_invoice',
+  TR: 'partial_invoice',
+  ER: 'final_invoice',
+};
 
 const STATUS_CFG = {
   open:                { label: 'Offen',           color: 'bg-gray-100 text-gray-600' },
@@ -47,6 +53,18 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
   const [addingMonth, setAddingMonth] = useState(null);
   const [editingPlanId, setEditingPlanId] = useState(null);
   const [form, setForm] = useState({});
+  const [creatingInstructionForPlanId, setCreatingInstructionForPlanId] = useState(null);
+
+  const createInstructionMutation = useMutation({
+    mutationFn: ({ _planId, ...data }) => base44.entities.BillingInstruction.create(data),
+    onSuccess: (newInstruction, variables) => {
+      // Link the plan to the new instruction
+      updateMutation.mutate({ id: variables._planId, data: { linked_billing_instruction_id: newInstruction.id } });
+      queryClient.invalidateQueries({ queryKey: ['billingInstructions'] });
+      setCreatingInstructionForPlanId(null);
+    },
+    onError: () => setCreatingInstructionForPlanId(null),
+  });
 
   const months = [0, 1, 2, 3].map(o => getMonthStr(o));
   const labels = ['Dieser Monat', 'Nächster Monat', 'Monat +2', 'Monat +3'];
@@ -106,6 +124,42 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
     } else {
       createMutation.mutate(payload);
     }
+  };
+
+  const handleCreateInstruction = (plan) => {
+    setCreatingInstructionForPlanId(plan.id);
+    const totalOrderNet = fin?.commercialBaseNet || 0;
+    const amountNet = Number(plan.planned_amount_net) || 0;
+    const vatRate = linkedOrders?.[0]?.vat_rate || 20;
+    const amountGross = amountNet * (1 + vatRate / 100);
+    const alreadyInvoicedNet = fin?.adjustedInvoicedNet || 0;
+    const prevBillingPct = totalOrderNet > 0 ? (alreadyInvoicedNet / totalOrderNet) * 100 : 0;
+    const additionalPct = totalOrderNet > 0 ? (amountNet / totalOrderNet) * 100 : 0;
+    const newBillingPct = prevBillingPct + additionalPct;
+
+    createInstructionMutation.mutate({
+      _planId: plan.id, // used in onSuccess, stripped from payload below
+      project_id: project.id,
+      confirmed_order_id: linkedOrders?.[0]?.id || '',
+      customer_name: project.customer || '',
+      project_name: project.project_name || '',
+      instruction_type: 'manual_amount',
+      invoice_type: PLAN_TYPE_TO_INVOICE_TYPE[plan.planned_invoice_type] || 'partial_invoice',
+      status: 'draft',
+      total_order_net: totalOrderNet,
+      total_order_gross: totalOrderNet * (1 + vatRate / 100),
+      already_invoiced_net: alreadyInvoicedNet,
+      open_to_invoice_net: fin?.openToInvoiceNet || 0,
+      previous_billing_percent: prevBillingPct,
+      new_billing_percent: newBillingPct,
+      additional_billing_percent: additionalPct,
+      instruction_amount_net: amountNet,
+      instruction_amount_gross: amountGross,
+      vat_rate: vatRate,
+      invoice_reason: plan.invoice_reason || '',
+      planned_invoice_date: plan.reminder_date || `${plan.planning_month}-01`,
+      requested_by_pm: project.project_manager || '',
+    });
   };
 
   const handleEdit = (plan, month) => {
@@ -190,6 +244,26 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
                       className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                       <Pencil className="w-3 h-3" />
                     </button>
+                    {/* Instruction create button / status */}
+                    {plan.linked_billing_instruction_id ? (
+                      <span className="flex items-center gap-1 text-emerald-600 text-xs font-medium">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Anweisung erstellt
+                      </span>
+                    ) : (
+                      plan.planned_amount_net > 0 && (
+                        <button
+                          title="Abrechnungsanweisung erstellen"
+                          disabled={creatingInstructionForPlanId === plan.id}
+                          onClick={() => handleCreateInstruction(plan)}
+                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium px-2 py-0.5 rounded border border-primary/30 hover:bg-primary/5 transition-colors disabled:opacity-50">
+                          {creatingInstructionForPlanId === plan.id
+                            ? <Loader2 className="w-3 h-3 animate-spin" />
+                            : <CheckCircle2 className="w-3 h-3" />}
+                          Anweisung erstellen
+                        </button>
+                      )
+                    )}
                   </div>
                 </div>
               ))}
