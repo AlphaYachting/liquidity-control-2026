@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { format, addMonths, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Plus, CalendarDays, Bell } from 'lucide-react';
+import { Plus, CalendarDays, Bell, Pencil } from 'lucide-react';
 
 const STATUS_CFG = {
   open:                { label: 'Offen',           color: 'bg-gray-100 text-gray-600' },
@@ -45,6 +45,7 @@ function getMonthLabel(ym) {
 export default function NextMonthsBillingPreview({ project, fin, linkedOrders }) {
   const queryClient = useQueryClient();
   const [addingMonth, setAddingMonth] = useState(null);
+  const [editingPlanId, setEditingPlanId] = useState(null);
   const [form, setForm] = useState({});
 
   const months = [0, 1, 2, 3].map(o => getMonthStr(o));
@@ -98,7 +99,28 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
       reminder_status: form.reminder_date ? 'open' : null,
       assigned_pm: project.project_manager || '',
     };
-    createMutation.mutate(payload);
+    if (editingPlanId) {
+      updateMutation.mutate({ id: editingPlanId, data: payload }, {
+        onSuccess: () => { setEditingPlanId(null); setAddingMonth(null); setForm({}); }
+      });
+    } else {
+      createMutation.mutate(payload);
+    }
+  };
+
+  const handleEdit = (plan, month) => {
+    setEditingPlanId(plan.id);
+    setAddingMonth(month);
+    setForm({
+      planned_invoice_type: plan.planned_invoice_type || 'TR',
+      planned_percent: plan.planned_percent || '',
+      planned_amount_net: plan.planned_amount_net || '',
+      planned_amount_gross: plan.planned_amount_gross || '',
+      invoice_reason: plan.invoice_reason || '',
+      internal_note: plan.internal_note || '',
+      reminder_date: plan.reminder_date || '',
+      reminder_reason: plan.reminder_reason || '',
+    });
   };
 
   return (
@@ -122,9 +144,9 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{labels[idx]}</span>
                   <span className="text-xs text-muted-foreground ml-2">{getMonthLabel(month)}</span>
                 </div>
-                {!isAdding && (
+                {!isAdding && !editingPlanId && (
                   <Button size="sm" variant="ghost" className="h-6 text-xs"
-                    onClick={() => { setAddingMonth(month); setForm({ planned_invoice_type: 'TR' }); }}>
+                    onClick={() => { setAddingMonth(month); setEditingPlanId(null); setForm({ planned_invoice_type: 'TR' }); }}>
                     <Plus className="w-3 h-3 mr-0.5" /> Planung
                   </Button>
                 )}
@@ -132,6 +154,7 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
 
               {/* Existing plans */}
               {monthPlans.map(plan => (
+                editingPlanId === plan.id ? null :
                 <div key={plan.id} className="flex items-center justify-between gap-2 p-2 bg-white/80 rounded-lg border text-xs">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge className={`text-xs py-0 ${TYPE_CFG[plan.planned_invoice_type]?.color || 'bg-gray-100 text-gray-600'}`}>
@@ -161,6 +184,12 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
                         ))}
                       </SelectContent>
                     </Select>
+                    <button
+                      title="Bearbeiten"
+                      onClick={() => handleEdit(plan, month)}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                      <Pencil className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -230,12 +259,12 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
                   </div>
                   <div className="flex gap-2 pt-1">
                     <Button size="sm" className="h-7 text-xs"
-                      disabled={createMutation.isPending || (!form.planned_percent && !form.planned_amount_net)}
+                      disabled={(createMutation.isPending || updateMutation.isPending) || (!form.planned_percent && !form.planned_amount_net)}
                       onClick={() => handleSave(month, planningType)}>
-                      Speichern
+                      {editingPlanId ? 'Aktualisieren' : 'Speichern'}
                     </Button>
                     <Button size="sm" variant="ghost" className="h-7 text-xs"
-                      onClick={() => { setAddingMonth(null); setForm({}); }}>
+                      onClick={() => { setAddingMonth(null); setEditingPlanId(null); setForm({}); }}>
                       Abbrechen
                     </Button>
                   </div>
