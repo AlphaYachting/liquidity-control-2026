@@ -28,7 +28,7 @@ export default function DataTable({ columns, data, onRowClick, emptyText = 'Kein
   }, [data, sortField, sortDir]);
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="rounded-xl border bg-card">
       <div className="overflow-x-auto">
         <Table style={{ minWidth: '600px' }}>
           <TableHeader>
