@@ -14,10 +14,9 @@ function getLocalMonth() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function formatH(minutes) {
-  const totalMin = Math.round(minutes);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
+function formatH(hours) {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
   return `${h}:${String(m).padStart(2, '0')} h`;
 }
 
@@ -147,8 +146,8 @@ export default function NonBillableWidget() {
         .map(([fullName, v]) => ({
           fullName,
           shortName: fullName.split(' ')[0], // Vorname
-          billable_h: parseFloat((v.billable / 60).toFixed(1)),
-          non_billable_h: parseFloat((v.nonBillable / 60).toFixed(1)),
+          billable_h: parseFloat((v.billable / 3600).toFixed(1)),
+          non_billable_h: parseFloat((v.nonBillable / 3600).toFixed(1)),
         }))
         .filter(u => u.non_billable_h > 0 || u.billable_h > 0)
         .sort((a, b) => b.non_billable_h - a.non_billable_h);
@@ -164,8 +163,8 @@ export default function NonBillableWidget() {
         const total = v.billable + v.nonBillable;
         return {
           name: MONTHS_SHORT[parseInt(m, 10) - 1],
-          billable_h: parseFloat((v.billable / 60).toFixed(1)),
-          non_billable_h: parseFloat((v.nonBillable / 60).toFixed(1)),
+          billable_h: parseFloat((v.billable / 3600).toFixed(1)),
+          non_billable_h: parseFloat((v.nonBillable / 3600).toFixed(1)),
           pct: total > 0 ? Math.round((v.nonBillable / total) * 100) : 0,
           isCurrent: month === curMonth,
         };
