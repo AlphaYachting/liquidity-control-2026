@@ -151,7 +151,11 @@ export default function NonBillableWidget() {
         }))
         .filter(u => u.non_billable_h > 0 || u.billable_h > 0)
         .sort((a, b) => b.non_billable_h - a.non_billable_h);
-      return { billable: d.billable, nonBillable: d.nonBillable, userStats };
+      return {
+        billable: d.billable / 3600,
+        nonBillable: d.nonBillable / 3600,
+        userStats,
+      };
     }
 
     // Trend-Chart letzte 4 Monate
