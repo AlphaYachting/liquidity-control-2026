@@ -10,12 +10,51 @@ async function sevdeskGet(path, apiKey) {
   return res.json();
 }
 
+// Für Teilzahlungen: Einzelrechnung mit embed=payments abrufen
+async function fetchPaidAmount(invoiceId, grossAmount, apiKey) {
+  try {
+    const data = await sevdeskGet(`/Invoice/${invoiceId}?embed=payments`, apiKey);
+    const inv = data.objects?.[0] || data.object;
+    if (!inv) return { paid: 0, open: grossAmount, _debug: { error: 'no object', keys: Object.keys(data) } };
+
+    const rawPay = parseFloat(inv.sumGrossPay || '0');
+    const rawRemaining = parseFloat(inv.sumRemaining || '0');
+    const payments = inv.payments || [];
+
+    const _debug = {
+      sumGrossPay: inv.sumGrossPay,
+      sumRemaining: inv.sumRemaining,
+      payments_count: payments.length,
+      payments_sample: payments[0],
+      all_keys: Object.keys(inv).filter(k => k.toLowerCase().includes('sum') || k.toLowerCase().includes('pay')),
+    };
+
+    if (rawPay > 0 || rawRemaining > 0) {
+      const paid = rawPay > 0 ? rawPay : grossAmount - rawRemaining;
+      const open = rawRemaining > 0 ? rawRemaining : Math.max(0, grossAmount - paid);
+      return { paid: Math.round(paid * 100) / 100, open: Math.round(open * 100) / 100, _debug };
+    }
+
+    if (payments.length > 0) {
+      const paid = payments.reduce((s, p) => s + parseFloat(p.amount || p.sumGross || '0'), 0);
+      return { paid: Math.round(paid * 100) / 100, open: Math.max(0, Math.round((grossAmount - paid) * 100) / 100), _debug };
+    }
+
+    return { paid: 0, open: grossAmount, _debug };
+  } catch(e) {
+    return { paid: 0, open: grossAmount, _debug: { error: e.message } };
+  }
+}
+
 function mapInvoiceStatus(invoice) {
   const status = invoice.status;
   if (status === '1000') return 'paid';
+  if (status === '750') return 'partially_paid'; // sevDesk: teilweise bezahlt
+  if (status === '300') return 'partially_paid'; // sevDesk: älter, ebenfalls teilbezahlt
   if (status === '50') return 'cancelled';
   if (status === '100') return 'draft';
-  return 'open'; // 200 = versendet, 300 = teilbezahlt
+  if (status === '200') return 'open'; // versendet, noch nicht fällig
+  return 'open';
 }
 
 function parseAmount(val) {
@@ -85,12 +124,27 @@ function buildRecord(inv, matchResult, existing) {
                       inv.invoiceType === 'TR' ? 'partial_invoice' :
                       'partial_invoice'; // RE, MA, unknown → partial
 
-  // sumGrossPay is often 0 even for paid invoices in older sevDesk records.
-  // If status = 1000 (paid) and sumGrossPay = 0, use grossAmount as paid amount.
   const paymentStatus = mapInvoiceStatus(inv);
+
+  // Bezahlter Betrag aus sumGrossPay (wird von sevDesk mit embed=payments befüllt)
+  // Für status=1000 (voll bezahlt) nutzen wir grossAmount als Fallback
   const rawPaidAmount = parseAmount(inv.sumGrossPay || '0');
   const paidAmount = rawPaidAmount > 0 ? rawPaidAmount :
                      (paymentStatus === 'paid' ? grossAmount : 0);
+
+  // Offener Betrag: bei paid=0, aber Status teilbezahlt → grossAmount stehen lassen
+  // sumRemaining aus der API ist die verlässlichste Quelle wenn vorhanden
+  const rawRemaining = parseAmount(inv.sumRemaining || '0');
+  let openAmount;
+  if (paymentStatus === 'paid') {
+    openAmount = 0;
+  } else if (rawRemaining > 0) {
+    openAmount = rawRemaining; // sevDesk sagt direkt was noch offen ist
+  } else if (paidAmount > 0) {
+    openAmount = Math.max(0, grossAmount - paidAmount);
+  } else {
+    openAmount = grossAmount; // Kein Zahlungsinfo → alles noch offen
+  }
 
   const confirmedOrderId = matchResult?.order?.id || existing?.confirmed_order_id || null;
   const matchStatus = matchResult ? 'auto_matched' : (existing?.match_status || 'unmatched');
@@ -108,7 +162,7 @@ function buildRecord(inv, matchResult, existing) {
     due_date: dueDate,
     payment_status: paymentStatus,
     paid_amount: paidAmount,
-    open_amount: Math.max(0, grossAmount - paidAmount),
+    open_amount: openAmount,
     payment_date: paymentStatus === 'paid' ? paymentDate : null,
     source_type: 'sevdesk',
     sevdesk_id: String(inv.id),
@@ -142,7 +196,7 @@ Deno.serve(async (req) => {
 
     // Fetch invoices from sevDesk (paginated)
     const data = await sevdeskGet(
-      `/Invoice?limit=${limit}&offset=${offset}&embed=contact&orderBy=invoiceDate&orderDirection=desc`,
+      `/Invoice?limit=${limit}&offset=${offset}&embed=contact,payments&orderBy=invoiceDate&orderDirection=desc`,
       apiKey
     );
 
@@ -180,18 +234,46 @@ Deno.serve(async (req) => {
       if (o.sevdesk_order_id) ordersBySevdeskId[String(o.sevdesk_order_id)] = o;
     }
 
+    // Debug-Modus: Zeige Rohfelder für bestimmte Rechnungsnummern
+    const debugNrs = new Set(body.debugNrs || []);
+
     let created = 0;
     let updated = 0;
     let failed = 0;
     const errors = [];
+    const debugResults = [];
 
     for (let i = 0; i < invoices.length; i++) {
       const inv = invoices[i];
       try {
         const sevdeskId = String(inv.id);
         const existing = existingMap[sevdeskId] || null;
+
+        if (debugNrs.has(inv.invoiceNumber)) {
+          debugResults.push({
+            nr: inv.invoiceNumber,
+            status: inv.status,
+            sumGross: inv.sumGross,
+            sumNet: inv.sumNet,
+            sumGrossPay: inv.sumGrossPay,
+            sumRemaining: inv.sumRemaining,
+            sumTax: inv.sumTax,
+            timeToPay: inv.timeToPay,
+          });
+        }
         const matchResult = findMatchingOrder(inv, allOrders, ordersBySevdeskId);
-        const record = buildRecord(inv, matchResult, existing);
+        let record = buildRecord(inv, matchResult, existing);
+
+        // Für Teilzahlungen: Payments separat abrufen (sevDesk liefert sumGrossPay nicht im Listen-Endpoint)
+        if (record.payment_status === 'partially_paid') {
+          const { paid, open, _debug } = await fetchPaidAmount(sevdeskId, record.gross_amount, apiKey);
+          record.paid_amount = paid;
+          record.open_amount = open;
+          if (debugNrs.has(inv.invoiceNumber)) {
+            debugResults.push({ nr: inv.invoiceNumber, fetchDebug: _debug });
+          }
+          await sleep(300);
+        }
 
         if (existing) {
           await base44.asServiceRole.entities.InvoiceRecord.update(existing.id, record);
@@ -234,7 +316,8 @@ Deno.serve(async (req) => {
       next_offset: offset + limit,
       has_more: (data.objects || []).length >= limit,
       errors: errors.slice(0, 10),
-      message: `Sync offset=${offset}: ${created} neu, ${updated} aktualisiert, ${failed} Fehler`
+      message: `Sync offset=${offset}: ${created} neu, ${updated} aktualisiert, ${failed} Fehler`,
+      ...(debugResults.length > 0 ? { debug: debugResults } : {})
     });
 
   } catch (error) {
