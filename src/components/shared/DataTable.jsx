@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
@@ -30,7 +30,7 @@ export default function DataTable({ columns, data, onRowClick, emptyText = 'Kein
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
       <div className="overflow-x-auto">
-        <Table>
+        <Table style={{ minWidth: '900px' }}>
           <TableHeader>
             <TableRow className="bg-muted/50">
               {columns.map(col => (
