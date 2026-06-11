@@ -30,7 +30,7 @@ export default function DataTable({ columns, data, onRowClick, emptyText = 'Kein
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
       <div className="overflow-x-auto">
-        <Table style={{ minWidth: '900px' }}>
+        <Table style={{ minWidth: '600px' }}>
           <TableHeader>
             <TableRow className="bg-muted/50">
               {columns.map(col => (
