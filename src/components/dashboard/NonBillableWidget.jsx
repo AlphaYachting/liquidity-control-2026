@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
-import { Clock, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Clock, AlertTriangle, TrendingUp, TrendingDown, Minus, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 
 const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
@@ -104,6 +104,18 @@ export default function NonBillableWidget() {
     queryFn: () => base44.entities.AworkTimeEntry.list('-entry_date', 5000),
     staleTime: 5 * 60 * 1000,
   });
+
+  const { data: syncLogs = [] } = useQuery({
+    queryKey: ['aworkSyncLog'],
+    queryFn: () => base44.entities.AworkSyncLog.filter({ sync_type: 'time_entries' }, '-finished_at', 1),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const lastSync = syncLogs[0] || null;
+  const syncOk = lastSync?.status === 'success';
+  const syncFailed = lastSync?.status === 'failed' || lastSync?.status === 'partial';
+  const syncAge = lastSync?.finished_at ? Math.floor((Date.now() - new Date(lastSync.finished_at).getTime()) / (1000 * 60 * 60)) : null;
+  const syncStale = syncAge !== null && syncAge > 26; // mehr als ~1 Tag alt
 
   const { monthlyChartData, curData, prevData, curMonth, prevMonth } = useMemo(() => {
     const empty = { monthlyChartData: [], curData: null, prevData: null, curMonth: '', prevMonth: '' };
@@ -224,6 +236,17 @@ export default function NonBillableWidget() {
             Nicht verrechenbare Stunden — Entwicklung
           </CardTitle>
           <div className="flex items-center gap-2">
+            {/* Sync-Status Badge */}
+            {lastSync && (
+              <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                syncFailed ? 'bg-red-50 text-red-600' :
+                syncStale ? 'bg-amber-50 text-amber-600' :
+                'bg-green-50 text-green-700'
+              }`} title={lastSync.finished_at ? `Letzter Sync: ${new Date(lastSync.finished_at).toLocaleString('de-AT')}` : ''}>
+                {syncFailed ? <XCircle className="w-3 h-3" /> : syncStale ? <RefreshCw className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                {syncFailed ? 'Sync fehlgeschlagen' : syncStale ? `Sync vor ${syncAge}h` : syncAge !== null ? `Sync vor ${syncAge}h` : 'Sync OK'}
+              </div>
+            )}
             {curPct >= 20 && (
               <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
                 <AlertTriangle className="w-3 h-3" />
