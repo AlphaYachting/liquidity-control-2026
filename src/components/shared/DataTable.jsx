@@ -67,7 +67,7 @@ export default function DataTable({ columns, data, onRowClick, emptyText = 'Kein
                   onClick={() => onRowClick?.(row)}
                 >
                   {columns.map(col => (
-                    <TableCell key={col.key} className={`text-sm ${col.cellClass || ''}`}>
+                    <TableCell key={col.key} className={`text-sm overflow-hidden ${col.cellClass || ''}`} style={col.width ? { maxWidth: col.width } : {}}>
                       {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
                     </TableCell>
                   ))}

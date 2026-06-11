@@ -303,10 +303,10 @@ export default function Projects() {
       return <BillingProgressBar billingPct={billingPct} performancePct={aworkPct} />;
     }},
     // 2. Kunde / Projekt
-    { key: 'customer', label: 'Kunde / Projekt', width: '220px', render: (v, row) => (
-      <div className="min-w-0">
-        <p className="font-medium text-sm leading-tight truncate">{v}</p>
-        <p className="text-xs text-muted-foreground leading-tight truncate mt-0.5">
+    { key: 'customer', label: 'Kunde / Projekt', width: '160px', render: (v, row) => (
+      <div style={{ maxWidth: '160px', overflow: 'hidden' }}>
+        <p className="font-medium text-sm leading-tight truncate" title={v}>{v}</p>
+        <p className="text-xs text-muted-foreground leading-tight truncate mt-0.5" title={row.project_name}>
           {(row.project_name || '').replace(/^(order confirmation|auftragsbestätigung)\s*[|]\s*/i, '').trim()}
         </p>
       </div>
