@@ -10,42 +10,34 @@ import { RefreshCw, Zap } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
 /**
- * Verteilt eine Rechnung/Forderung gleichmäßig über ihre Laufzeit auf die tägliche Map.
- * Überfällige werden auf die nächsten 5 Tage konzentriert.
+ * Trägt eine Rechnung/Forderung am Fälligkeitsdatum als Punkt-Eintrag ein.
+ * Überfällige werden auf heute gesetzt.
  */
-function distributeToDaily(dailyMap, today, endDate, item) {
+function pinToDaily(dailyMap, today, endDate, item) {
   const amount = Number(item.open_amount) > 0 ? Number(item.open_amount) : Number(item.gross_amount);
   if (!amount || amount <= 0) return;
 
-  let start = today;
-  if (item.invoice_date) {
-    const id = parseISO(item.invoice_date);
-    if (isValid(id) && id > today) start = id;
-  }
-
-  let end = addDays(start, 30);
+  let targetDate = today; // Fallback: heute
   if (item.due_date) {
     const dd = parseISO(item.due_date);
     if (isValid(dd)) {
-      end = dd > today ? dd : addDays(today, 5); // Überfällig → nächste 5 Tage
+      targetDate = dd < today ? today : dd; // Überfällig → heute
     }
+  } else if (item.invoice_date) {
+    // Kein Fälligkeitsdatum: 30 Tage nach Rechnungsdatum annehmen
+    const id = parseISO(item.invoice_date);
+    if (isValid(id)) targetDate = addDays(id, 30);
+    if (targetDate < today) targetDate = today;
   }
 
-  if (start > endDate) return;
-  if (end > endDate) end = endDate;
-
-  const days = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
-  const daily = amount / days;
-
-  for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
-    const key = format(d, 'yyyy-MM-dd');
-    if (dailyMap[key] !== undefined) dailyMap[key] += daily;
-  }
+  if (targetDate > endDate) return;
+  const key = format(targetDate, 'yyyy-MM-dd');
+  if (dailyMap[key] !== undefined) dailyMap[key] += amount;
 }
 
 function buildForecastData(invoiceRecords, receivables, billingBlocks, liveInvoices) {
   const today = startOfDay(new Date());
-  const endDate = addDays(today, 62);
+  const endDate = addDays(today, 30);
   const todayStr = format(today, 'yyyy-MM-dd');
   const endStr = format(endDate, 'yyyy-MM-dd');
 
@@ -53,7 +45,7 @@ function buildForecastData(invoiceRecords, receivables, billingBlocks, liveInvoi
   const dailyReceivables = {};
   const dailyPlanned = {};
   const dailyLive = {};
-  for (let i = 0; i <= 62; i++) {
+  for (let i = 0; i <= 30; i++) {
     const d = format(addDays(today, i), 'yyyy-MM-dd');
     dailyInvoices[d] = 0;
     dailyReceivables[d] = 0;
@@ -61,20 +53,20 @@ function buildForecastData(invoiceRecords, receivables, billingBlocks, liveInvoi
     dailyLive[d] = 0;
   }
 
-  // DB-Rechnungen (InvoiceRecord)
+  // DB-Rechnungen (InvoiceRecord) — am Fälligkeitsdatum
   const openInvoices = invoiceRecords.filter(inv =>
     inv.payment_status !== 'paid' &&
     inv.payment_status !== 'cancelled' &&
     (Number(inv.open_amount) > 0 || Number(inv.gross_amount) > 0)
   );
-  openInvoices.forEach(inv => distributeToDaily(dailyInvoices, today, endDate, inv));
+  openInvoices.forEach(inv => pinToDaily(dailyInvoices, today, endDate, inv));
 
-  // DB-Forderungen (Receivable)
+  // DB-Forderungen (Receivable) — am Fälligkeitsdatum
   const openReceivables = receivables.filter(r =>
     r.status !== 'paid' && r.status !== 'write_off' &&
     Number(r.gross_amount) > 0
   );
-  openReceivables.forEach(r => distributeToDaily(dailyReceivables, today, endDate, {
+  openReceivables.forEach(r => pinToDaily(dailyReceivables, today, endDate, {
     gross_amount: r.gross_amount,
     open_amount: r.gross_amount,
     invoice_date: r.invoice_date,
@@ -91,28 +83,23 @@ function buildForecastData(invoiceRecords, receivables, billingBlocks, liveInvoi
   );
   plannedBlocks.forEach(b => {
     const amount = Number(b.amount_gross) || Number(b.amount_net) * 1.2;
-    // Fälligkeitsdatum: planned_invoice_date oder Mitte des billing_month
     let dueDate = b.planned_invoice_date;
-    if (!dueDate && b.billing_month) {
-      dueDate = `${b.billing_month}-15`;
-    }
-    if (!dueDate) return; // kein Datum → nicht planbar
-    if (dueDate < todayStr || dueDate > endStr) return; // außerhalb Fenster
-    // Punkt-Eintrag am Fälligkeitsdatum (kein Verteilen)
+    if (!dueDate && b.billing_month) dueDate = `${b.billing_month}-15`;
+    if (!dueDate || dueDate < todayStr || dueDate > endStr) return;
     if (dailyPlanned[dueDate] !== undefined) dailyPlanned[dueDate] += amount;
   });
 
-  // Live sevDesk Rechnungen (nicht doppelt zählen mit DB — nach Invoice-Nummer deduplizieren)
+  // Live sevDesk Rechnungen — dedupliziert
   const dbInvoiceNumbers = new Set(invoiceRecords.map(i => i.invoice_number).filter(Boolean));
   const dedupedLive = (liveInvoices || []).filter(inv => !dbInvoiceNumbers.has(inv.invoice_number));
-  dedupedLive.forEach(inv => distributeToDaily(dailyLive, today, endDate, inv));
+  dedupedLive.forEach(inv => pinToDaily(dailyLive, today, endDate, inv));
 
-  // 5-Tage-Buckets
+  // 5-Tage-Buckets über 30 Tage
   const buckets = [];
   let i = 0;
-  while (i <= 60) {
+  while (i <= 30) {
     const bucketStart = addDays(today, i);
-    const bucketEnd = addDays(today, Math.min(i + 4, 62));
+    const bucketEnd = addDays(today, Math.min(i + 4, 30));
     let sumInvoices = 0, sumReceivables = 0, sumPlanned = 0, sumLive = 0;
     for (let d = new Date(bucketStart); d <= bucketEnd; d = addDays(d, 1)) {
       const key = format(d, 'yyyy-MM-dd');
@@ -183,19 +170,15 @@ export default function CashflowForecastChart({ invoiceRecords = [], receivables
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <CardTitle className="text-base font-semibold">Geldeingang-Forecast (60 Tage)</CardTitle>
+            <CardTitle className="text-base font-semibold">Geldeingang-Forecast (30 Tage)</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Rechnungen + Forderungen · 5-Tage-Index · gleichmäßig verteilt
+              Rechnungen + Forderungen · 5-Tage-Buckets · am Fälligkeitsdatum
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">Nächste 30 Tage</p>
-              <p className="text-sm font-bold text-emerald-600">{formatCurrency(next30)}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Gesamt 60 Tage</p>
-              <p className="text-sm font-semibold">{formatCurrency(totalExpected)}</p>
+              <p className="text-xs text-muted-foreground">Gesamt 30 Tage</p>
+              <p className="text-sm font-bold text-emerald-600">{formatCurrency(totalExpected)}</p>
             </div>
             <Button
               size="sm"
