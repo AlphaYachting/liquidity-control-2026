@@ -142,19 +142,34 @@ Wenn ein Feld nicht im Dokument gefunden wird, setze null.`,
       vat_rate: vat,
       document_url: fileUrl,
     });
+    // will be linked to project below after project is resolved
 
-    // 2. Create LiquidityProject
-    const project = await base44.entities.LiquidityProject.create({
-      customer: form.customer,
-      project_name: form.project_name,
-      order_number: form.order_number,
-      total_net_amount: net,
-      open_amount: net,
-      project_manager: form.responsible_project_manager,
-      status: 'active',
-      notes: form.description || form.notes,
-      source_sheet: 'AB-Upload',
-    });
+    // 2. Create or reuse LiquidityProject (avoid duplicates)
+    const existingProjects = await base44.entities.LiquidityProject.list();
+    const customerKey = (form.customer || '').toLowerCase().trim();
+    const duplicate = existingProjects.find(p =>
+      (p.customer || '').toLowerCase().trim() === customerKey &&
+      (p.project_name || '').toLowerCase().trim() === (form.project_name || '').toLowerCase().trim()
+    );
+    let project;
+    if (duplicate) {
+      project = duplicate;
+    } else {
+      project = await base44.entities.LiquidityProject.create({
+        customer: form.customer,
+        project_name: form.project_name,
+        order_number: form.order_number,
+        total_net_amount: net,
+        open_amount: net,
+        project_manager: form.responsible_project_manager,
+        status: 'active',
+        notes: form.description || form.notes,
+        source_sheet: 'AB-Upload',
+      });
+    }
+
+    // 2b. Link order to project
+    await base44.entities.ConfirmedOrder.update(order.id, { project_id: project.id });
 
     // 3. Create BillingBlocks if extracted
     const blocks = scanResult?.billing_blocks || [];
@@ -247,6 +262,10 @@ Wenn ein Feld nicht im Dokument gefunden wird, setze null.`,
               <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-800">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                 Scan erfolgreich! Bitte Daten prüfen und bei Bedarf korrigieren.
+              </div>
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>Falls bereits ein Projekt-Cockpit mit gleichem Kunden und Projektname existiert, wird dieses <strong>wiederverwendet</strong> — es wird kein Duplikat angelegt.</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

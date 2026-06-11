@@ -65,6 +65,7 @@ export function calculateProjectFinancials({ project, allOrders, allBlocks, allI
   // billing_block_id, or order_number. Unlinked invoices go to likelyUnmatchedInvoices instead.
   const linkedInvoices = allInvoices.filter(i => {
     if (i.payment_status === 'cancelled') return false;
+    if (i.invoice_type === 'correction') return false;
     if (i.project_id === projectId) return true;
     if (i.confirmed_order_id && linkedOrderIds.has(i.confirmed_order_id)) return true;
     if (i.billing_block_id && linkedBlockIds.has(i.billing_block_id)) return true;

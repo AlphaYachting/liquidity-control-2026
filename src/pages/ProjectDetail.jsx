@@ -346,17 +346,51 @@ export default function ProjectDetail() {
           icon={FolderKanban}
           actions={
           <div className="flex items-center gap-2">
-            <StatusBadge status={project.status} />
-            {project.risk_status && project.risk_status !== 'none' && <StatusBadge status={project.risk_status} />}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => setShowDeleteDialog(true)}
-            >
-              <Trash2 className="w-3.5 h-3.5 mr-1" />
-              Cockpit löschen
-            </Button>
+          <StatusBadge status={project.status} />
+          {/* Risiko editierbar */}
+          <select
+            value={project.risk_status || 'none'}
+            onChange={e => updateProjectMutation.mutate({ risk_status: e.target.value })}
+            className={`text-xs rounded-md px-2 py-1 border cursor-pointer font-medium ${
+              project.risk_status === 'critical' ? 'bg-red-100 text-red-800 border-red-300' :
+              project.risk_status === 'high' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+              project.risk_status === 'medium' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+              project.risk_status === 'low' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+              'bg-muted text-muted-foreground border-border'
+            }`}
+          >
+            <option value="none">Risiko: keines</option>
+            <option value="low">Risiko: niedrig</option>
+            <option value="medium">Risiko: mittel</option>
+            <option value="high">Risiko: hoch</option>
+            <option value="critical">Risiko: kritisch</option>
+          </select>
+          {/* Archivieren */}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-xs text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+            onClick={() => {
+              updateProjectMutation.mutate({
+                billing_relevance_status: 'archived',
+                excluded_from_project_cockpit: true,
+                archived_at: new Date().toISOString(),
+                archive_source: 'manual',
+              });
+              navigate('/projects');
+            }}
+          >
+            Archivieren
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setShowDeleteDialog(true)}
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-1" />
+            Löschen
+          </Button>
           </div>
           }
         />
@@ -585,7 +619,7 @@ export default function ProjectDetail() {
                         {hasMismatch && (
                           <div className="flex items-start gap-2 mb-2 p-2 rounded bg-amber-50 border border-amber-200 text-xs text-amber-800">
                             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                            Abweichende Projektzuordnung: Dieses Auftragspaket ist einem anderen internen Projekt zugeordnet als die Auftragsbestätigung.
+                            <span><strong>Abweichende Projektzuordnung:</strong> Dieses Auftragspaket ist einem anderen internen Projekt zugeordnet als die Auftragsbestätigung. Bitte prüfen ob ein Duplikat vorliegt.</span>
                           </div>
                         )}
 
@@ -601,11 +635,12 @@ export default function ProjectDetail() {
                               </Link>
                             )}
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <Select value={block.billing_month || ''} onValueChange={v => saveBlockMutation.mutate({ id: block.id, data: { billing_month: v } })}>
+                              <Select value={block.billing_month || '__none__'} onValueChange={v => saveBlockMutation.mutate({ id: block.id, data: { billing_month: v === '__none__' ? '' : v } })}>
                                 <SelectTrigger className="h-5 text-xs border-0 px-1 py-0 bg-transparent text-muted-foreground hover:bg-muted/50 w-auto gap-0.5 shadow-none">
                                   <SelectValue placeholder="Monat wählen" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                  <SelectItem value="__none__" className="text-xs text-muted-foreground">Monat wählen</SelectItem>
                                   {Array.from({ length: 3 }, (_, yi) => 2025 + yi).flatMap(y =>
                                     Array.from({ length: 12 }, (_, mi) => {
                                       const val = `${y}-${String(mi + 1).padStart(2, '0')}`;
@@ -615,17 +650,6 @@ export default function ProjectDetail() {
                                   )}
                                 </SelectContent>
                               </Select>
-                              <Badge className={`text-xs ${
-                                effectiveWorkStatus === 'completed' ? 'bg-emerald-100 text-emerald-700' :
-                                effectiveWorkStatus === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                                effectiveWorkStatus === 'blocked' ? 'bg-red-100 text-red-700' :
-                                'bg-gray-100 text-gray-600'
-                              }`}>
-                                {WORK_STATUS_LABELS[effectiveWorkStatus] || 'Nicht begonnen'}
-                              </Badge>
-                              <Badge className={`text-xs ${block.invoice_readiness_status === 'ready' ? 'bg-emerald-100 text-emerald-700' : block.invoice_readiness_status === 'invoiced' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
-                                {READINESS_LABELS[block.invoice_readiness_status] || '—'}
-                              </Badge>
                               {bs.is_overdue_to_invoice && <Badge className="text-xs bg-red-100 text-red-700">Überfällig</Badge>}
                             </div>
                           </div>
