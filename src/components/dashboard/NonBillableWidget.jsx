@@ -7,10 +7,10 @@ import { Clock, AlertTriangle } from 'lucide-react';
 
 const MONTHS_DE = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
-function formatH(seconds) {
-  const totalMinutes = Math.round(seconds / 60);
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
+function formatH(minutes) {
+  const totalMin = Math.round(minutes);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
   return `${h}:${String(m).padStart(2, '0')} h`;
 }
 
@@ -21,12 +21,13 @@ export default function NonBillableWidget() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { monthlyData, totalBillable, totalNonBillable, nonBillablePct, userNonBillable, currentMonth } = useMemo(() => {
-    if (!entries.length) return { monthlyData: [], totalBillable: 0, totalNonBillable: 0, nonBillablePct: 0, userNonBillable: [], currentMonth: '' };
+  const { monthlyData, totalBillable, totalNonBillable, nonBillablePct, prevNonBillable, prevNonBillablePct, userNonBillable, currentMonth, prevMonth } = useMemo(() => {
+    const empty = { monthlyData: [], totalBillable: 0, totalNonBillable: 0, nonBillablePct: 0, prevNonBillable: 0, prevNonBillablePct: 0, userNonBillable: [], currentMonth: '', prevMonth: '' };
+    if (!entries.length) return empty;
 
     const clientEntries = entries.filter(e => !e.project_name?.toLowerCase().includes('rittler - interne'));
 
-    // Monats-Aggregation
+    // Monats-Aggregation (Minuten bleiben Minuten)
     const byMonth = {};
     for (const e of clientEntries) {
       const m = e.entry_month;
@@ -37,7 +38,7 @@ export default function NonBillableWidget() {
       else byMonth[m].nonBillable += mins;
     }
 
-    // Letzte 4 Monate (inkl. aktueller)
+    // Letzte 4 Monate (inkl. aktueller) — Minuten → Stunden für Chart
     const monthlyData = Object.entries(byMonth)
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-4)
@@ -47,24 +48,36 @@ export default function NonBillableWidget() {
         return {
           name: MONTHS_DE[parseInt(m, 10) - 1],
           month,
-          billable_h: parseFloat((v.billable / 3600).toFixed(1)),
-          non_billable_h: parseFloat((v.nonBillable / 3600).toFixed(1)),
+          billable_h: parseFloat((v.billable / 60).toFixed(1)),
+          non_billable_h: parseFloat((v.nonBillable / 60).toFixed(1)),
           pct: total > 0 ? Math.round((v.nonBillable / total) * 100) : 0,
         };
       });
 
-    // KPIs aus aktuellem Monat — falls keine Daten, letzten verfügbaren Monat nehmen
+    // Aktueller Monat — falls keine Daten, letzten verfügbaren nehmen
     const todayMonth = new Date().toISOString().substring(0, 7);
     const availableMonths = Object.keys(byMonth).sort();
     const lastAvailableMonth = availableMonths[availableMonths.length - 1] || todayMonth;
     const currentMonth = byMonth[todayMonth] ? todayMonth : lastAvailableMonth;
+
+    // Vormonat berechnen
+    const [cy, cm] = currentMonth.split('-').map(Number);
+    const prevDate = new Date(cy, cm - 2, 1);
+    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+
     const currentMonthEntries = clientEntries.filter(e => e.entry_month === currentMonth);
     const totalBillable = currentMonthEntries.filter(e => e.is_billable !== false).reduce((s, e) => s + (e.duration_minutes || 0), 0);
     const totalNonBillable = currentMonthEntries.filter(e => e.is_billable === false).reduce((s, e) => s + (e.duration_minutes || 0), 0);
     const total = totalBillable + totalNonBillable;
     const nonBillablePct = total > 0 ? Math.round((totalNonBillable / total) * 100) : 0;
 
-    // Kollegen - aktueller Monat (currentMonth und currentMonthEntries bereits oben definiert)
+    // Vormonat KPIs
+    const prevData = byMonth[prevMonth] || { billable: 0, nonBillable: 0 };
+    const prevTotal = prevData.billable + prevData.nonBillable;
+    const prevNonBillable = prevData.nonBillable;
+    const prevNonBillablePct = prevTotal > 0 ? Math.round((prevNonBillable / prevTotal) * 100) : 0;
+
+    // Kollegen — aktueller Monat, sortiert nach nicht verrechenbaren Stunden absteigend
     const byUser = {};
     for (const e of currentMonthEntries) {
       const name = e.user_name || 'Unbekannt';
@@ -75,13 +88,13 @@ export default function NonBillableWidget() {
     const userNonBillable = Object.entries(byUser)
       .map(([fullName, v]) => ({
         fullName,
-        non_billable_h: parseFloat((v.nonBillable / 3600).toFixed(1)),
-          billable_h: parseFloat((v.billable / 3600).toFixed(1)),
+        non_billable_h: parseFloat((v.nonBillable / 60).toFixed(1)),
+        billable_h: parseFloat((v.billable / 60).toFixed(1)),
       }))
       .filter(u => u.non_billable_h > 0 || u.billable_h > 0)
       .sort((a, b) => b.non_billable_h - a.non_billable_h);
 
-    return { monthlyData, totalBillable, totalNonBillable, nonBillablePct, userNonBillable, currentMonth };
+    return { monthlyData, totalBillable, totalNonBillable, nonBillablePct, prevNonBillable, prevNonBillablePct, userNonBillable, currentMonth, prevMonth };
   }, [entries]);
 
   const pctColor = nonBillablePct >= 30 ? 'text-red-500' : nonBillablePct >= 15 ? 'text-amber-500' : 'text-green-600';
@@ -111,6 +124,10 @@ export default function NonBillableWidget() {
 
   const [curYear, curMonthNum] = currentMonth.split('-');
   const currentMonthLabel = `${MONTHS_DE[parseInt(curMonthNum, 10) - 1]} ${curYear}`;
+  const [prevYear, prevMonthNum] = prevMonth ? prevMonth.split('-') : ['', ''];
+  const prevMonthLabel = prevMonth ? `${MONTHS_DE[parseInt(prevMonthNum, 10) - 1]} ${prevYear}` : '';
+  const delta = nonBillablePct - prevNonBillablePct;
+  const deltaColor = delta > 3 ? 'text-red-500' : delta < -3 ? 'text-green-600' : 'text-muted-foreground';
 
   return (
     <Card>
@@ -136,6 +153,7 @@ export default function NonBillableWidget() {
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Trend (letzte Monate)</div>
 
             {/* KPI Row */}
+            <div className="text-xs text-muted-foreground font-medium mb-1">{currentMonthLabel}</div>
             <div className="grid grid-cols-3 gap-3">
               <div className="text-center">
                 <div className="text-lg font-bold text-foreground">{formatH(totalBillable)}</div>
@@ -147,9 +165,21 @@ export default function NonBillableWidget() {
               </div>
               <div className="text-center">
                 <div className={`text-2xl font-bold ${pctColor}`}>{nonBillablePct}%</div>
-                <div className="text-xs text-muted-foreground">Quote (akt. Monat)</div>
+                <div className="text-xs text-muted-foreground">Quote akt. Monat</div>
               </div>
             </div>
+            {/* Vormonatsvergleich */}
+            {prevMonthLabel && (
+              <div className="flex items-center gap-3 px-3 py-2 bg-muted/40 rounded-lg text-xs">
+                <span className="text-muted-foreground">Vormonat ({prevMonthLabel}):</span>
+                <span className="font-semibold">{formatH(prevNonBillable)} · {prevNonBillablePct}%</span>
+                {prevNonBillablePct > 0 && (
+                  <span className={`font-bold ml-auto ${deltaColor}`}>
+                    {delta > 0 ? '+' : ''}{delta} PP
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Monthly Bar Chart */}
             {monthlyData.length > 0 && (
