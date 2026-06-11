@@ -303,7 +303,7 @@ export default function Projects() {
       return <BillingProgressBar billingPct={billingPct} performancePct={aworkPct} />;
     }},
     // 2. Kunde / Projekt
-    { key: 'customer', label: 'Kunde / Projekt', render: (v, row) => (
+    { key: 'customer', label: 'Kunde / Projekt', width: '200px', render: (v, row) => (
       <div className="min-w-0">
         <p className="font-medium text-sm leading-tight truncate">{v}</p>
         <p className="text-xs text-muted-foreground leading-tight truncate mt-0.5">
