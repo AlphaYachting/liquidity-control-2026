@@ -3,15 +3,100 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
-import { Clock, AlertTriangle } from 'lucide-react';
+import { Clock, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
-const MONTHS_DE = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+
+// Aktuellen Monat lokal (nicht UTC) bestimmen
+function getLocalMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
 
 function formatH(minutes) {
   const totalMin = Math.round(minutes);
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
   return `${h}:${String(m).padStart(2, '0')} h`;
+}
+
+function monthLabel(ym) {
+  if (!ym) return '';
+  const [y, m] = ym.split('-');
+  return `${MONTHS_DE[parseInt(m, 10) - 1]} ${y}`;
+}
+
+function pctColor(pct) {
+  return pct >= 30 ? 'text-red-500' : pct >= 15 ? 'text-amber-500' : 'text-green-600';
+}
+
+function MonthKpiPanel({ label, billable, nonBillable, userStats, isCurrentMonth }) {
+  const total = billable + nonBillable;
+  const pct = total > 0 ? Math.round((nonBillable / total) * 100) : 0;
+  const color = pctColor(pct);
+
+  return (
+    <div className={`rounded-xl border p-4 space-y-4 ${isCurrentMonth ? 'border-primary/30 bg-primary/3' : 'border-border bg-muted/20'}`}>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+        {isCurrentMonth && (
+          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Live</span>
+        )}
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <div className="text-base font-bold text-foreground">{formatH(billable)}</div>
+          <div className="text-xs text-muted-foreground">Verrechenbar</div>
+        </div>
+        <div>
+          <div className={`text-base font-bold ${color}`}>{formatH(nonBillable)}</div>
+          <div className="text-xs text-muted-foreground">Nicht verr.</div>
+        </div>
+        <div>
+          <div className={`text-2xl font-bold ${color}`}>{pct}%</div>
+          <div className="text-xs text-muted-foreground">Quote</div>
+        </div>
+      </div>
+
+      {/* Kollegen-Chart */}
+      {userStats.length > 0 && (
+        <>
+          <div className="text-xs font-medium text-muted-foreground border-t pt-3">Kollegen</div>
+          <ResponsiveContainer width="100%" height={Math.max(100, userStats.length * 30)}>
+            <BarChart data={userStats} layout="vertical" barSize={14} margin={{ left: 0, right: 52, top: 0, bottom: 0 }}>
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="shortName" tick={{ fontSize: 11 }} width={80} axisLine={false} tickLine={false} />
+              <Tooltip
+                formatter={(v, key) => {
+                  const h = Math.floor(v); const m = Math.round((v - h) * 60);
+                  return [`${h}:${String(m).padStart(2, '0')} h`, key === 'non_billable_h' ? 'Nicht verr.' : 'Verrechenbar'];
+                }}
+                contentStyle={{ fontSize: 12 }}
+              />
+              <Bar dataKey="billable_h" stackId="u" fill="hsl(var(--chart-2))" />
+              <Bar dataKey="non_billable_h" stackId="u" radius={[0, 3, 3, 0]}>
+                {userStats.map((u, i) => {
+                  const ut = u.billable_h + u.non_billable_h;
+                  const p = ut > 0 ? (u.non_billable_h / ut) * 100 : 0;
+                  return <Cell key={i} fill={p >= 30 ? '#dc2626' : p >= 15 ? '#f59e0b' : '#fca5a5'} />;
+                })}
+                <LabelList
+                  dataKey="non_billable_h"
+                  position="right"
+                  formatter={v => { if (!v) return ''; const h = Math.floor(v); const m = Math.round((v - h) * 60); return `${h}:${String(m).padStart(2, '0')}`; }}
+                  style={{ fontSize: 10, fill: '#6b7280', fontWeight: 600 }}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function NonBillableWidget() {
@@ -21,83 +106,84 @@ export default function NonBillableWidget() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { monthlyData, totalBillable, totalNonBillable, nonBillablePct, prevNonBillable, prevNonBillablePct, userNonBillable, currentMonth, prevMonth } = useMemo(() => {
-    const empty = { monthlyData: [], totalBillable: 0, totalNonBillable: 0, nonBillablePct: 0, prevNonBillable: 0, prevNonBillablePct: 0, userNonBillable: [], currentMonth: '', prevMonth: '' };
+  const { monthlyChartData, curData, prevData, curMonth, prevMonth } = useMemo(() => {
+    const empty = { monthlyChartData: [], curData: null, prevData: null, curMonth: '', prevMonth: '' };
     if (!entries.length) return empty;
 
     const clientEntries = entries.filter(e => !e.project_name?.toLowerCase().includes('rittler - interne'));
 
-    // Monats-Aggregation (Minuten bleiben Minuten)
+    // Monats-Aggregation
     const byMonth = {};
     for (const e of clientEntries) {
       const m = e.entry_month;
       if (!m) continue;
-      if (!byMonth[m]) byMonth[m] = { billable: 0, nonBillable: 0 };
+      if (!byMonth[m]) byMonth[m] = { billable: 0, nonBillable: 0, users: {} };
       const mins = e.duration_minutes || 0;
-      if (e.is_billable !== false) byMonth[m].billable += mins;
+      const isBillable = e.is_billable !== false;
+      if (isBillable) byMonth[m].billable += mins;
       else byMonth[m].nonBillable += mins;
+      // User-Aggregation pro Monat
+      const name = e.user_name || 'Unbekannt';
+      if (!byMonth[m].users[name]) byMonth[m].users[name] = { billable: 0, nonBillable: 0 };
+      if (isBillable) byMonth[m].users[name].billable += mins;
+      else byMonth[m].users[name].nonBillable += mins;
     }
 
-    // Letzte 4 Monate (inkl. aktueller) — Minuten → Stunden für Chart
-    const monthlyData = Object.entries(byMonth)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-4)
-      .map(([month, v]) => {
-        const [, m] = month.split('-');
-        const total = v.billable + v.nonBillable;
-        return {
-          name: MONTHS_DE[parseInt(m, 10) - 1],
-          month,
-          billable_h: parseFloat((v.billable / 60).toFixed(1)),
-          non_billable_h: parseFloat((v.nonBillable / 60).toFixed(1)),
-          pct: total > 0 ? Math.round((v.nonBillable / total) * 100) : 0,
-        };
-      });
-
-    // Aktueller Monat — falls keine Daten, letzten verfügbaren nehmen
-    const todayMonth = new Date().toISOString().substring(0, 7);
+    // Aktueller Monat (lokal, nicht UTC!)
+    const todayMonth = getLocalMonth();
     const availableMonths = Object.keys(byMonth).sort();
-    const lastAvailableMonth = availableMonths[availableMonths.length - 1] || todayMonth;
-    const currentMonth = byMonth[todayMonth] ? todayMonth : lastAvailableMonth;
+    const lastAvailable = availableMonths[availableMonths.length - 1] || todayMonth;
+    const curMonth = byMonth[todayMonth] ? todayMonth : lastAvailable;
 
-    // Vormonat berechnen
-    const [cy, cm] = currentMonth.split('-').map(Number);
+    // Vormonat
+    const [cy, cm] = curMonth.split('-').map(Number);
     const prevDate = new Date(cy, cm - 2, 1);
     const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-    const currentMonthEntries = clientEntries.filter(e => e.entry_month === currentMonth);
-    const totalBillable = currentMonthEntries.filter(e => e.is_billable !== false).reduce((s, e) => s + (e.duration_minutes || 0), 0);
-    const totalNonBillable = currentMonthEntries.filter(e => e.is_billable === false).reduce((s, e) => s + (e.duration_minutes || 0), 0);
-    const total = totalBillable + totalNonBillable;
-    const nonBillablePct = total > 0 ? Math.round((totalNonBillable / total) * 100) : 0;
-
-    // Vormonat KPIs
-    const prevData = byMonth[prevMonth] || { billable: 0, nonBillable: 0 };
-    const prevTotal = prevData.billable + prevData.nonBillable;
-    const prevNonBillable = prevData.nonBillable;
-    const prevNonBillablePct = prevTotal > 0 ? Math.round((prevNonBillable / prevTotal) * 100) : 0;
-
-    // Kollegen — aktueller Monat, sortiert nach nicht verrechenbaren Stunden absteigend
-    const byUser = {};
-    for (const e of currentMonthEntries) {
-      const name = e.user_name || 'Unbekannt';
-      if (!byUser[name]) byUser[name] = { nonBillable: 0, billable: 0 };
-      if (e.is_billable === false) byUser[name].nonBillable += e.duration_minutes || 0;
-      else byUser[name].billable += e.duration_minutes || 0;
+    function buildMonthData(monthKey) {
+      const d = byMonth[monthKey];
+      if (!d) return null;
+      const userStats = Object.entries(d.users)
+        .map(([fullName, v]) => ({
+          fullName,
+          shortName: fullName.split(' ')[0], // Vorname
+          billable_h: parseFloat((v.billable / 60).toFixed(1)),
+          non_billable_h: parseFloat((v.nonBillable / 60).toFixed(1)),
+        }))
+        .filter(u => u.non_billable_h > 0 || u.billable_h > 0)
+        .sort((a, b) => b.non_billable_h - a.non_billable_h);
+      return { billable: d.billable, nonBillable: d.nonBillable, userStats };
     }
-    const userNonBillable = Object.entries(byUser)
-      .map(([fullName, v]) => ({
-        fullName,
-        non_billable_h: parseFloat((v.nonBillable / 60).toFixed(1)),
-        billable_h: parseFloat((v.billable / 60).toFixed(1)),
-      }))
-      .filter(u => u.non_billable_h > 0 || u.billable_h > 0)
-      .sort((a, b) => b.non_billable_h - a.non_billable_h);
 
-    return { monthlyData, totalBillable, totalNonBillable, nonBillablePct, prevNonBillable, prevNonBillablePct, userNonBillable, currentMonth, prevMonth };
+    // Trend-Chart letzte 4 Monate
+    const monthlyChartData = availableMonths
+      .slice(-4)
+      .map(month => {
+        const [, m] = month.split('-');
+        const v = byMonth[month];
+        const total = v.billable + v.nonBillable;
+        return {
+          name: MONTHS_SHORT[parseInt(m, 10) - 1],
+          billable_h: parseFloat((v.billable / 60).toFixed(1)),
+          non_billable_h: parseFloat((v.nonBillable / 60).toFixed(1)),
+          pct: total > 0 ? Math.round((v.nonBillable / total) * 100) : 0,
+          isCurrent: month === curMonth,
+        };
+      });
+
+    return {
+      monthlyChartData,
+      curData: buildMonthData(curMonth),
+      prevData: buildMonthData(prevMonth),
+      curMonth,
+      prevMonth,
+    };
   }, [entries]);
 
-  const pctColor = nonBillablePct >= 30 ? 'text-red-500' : nonBillablePct >= 15 ? 'text-amber-500' : 'text-green-600';
+  // Delta für Header-Badge
+  const curPct = curData ? (curData.billable + curData.nonBillable > 0 ? Math.round((curData.nonBillable / (curData.billable + curData.nonBillable)) * 100) : 0) : 0;
+  const prevPct = prevData ? (prevData.billable + prevData.nonBillable > 0 ? Math.round((prevData.nonBillable / (prevData.billable + prevData.nonBillable)) * 100) : 0) : 0;
+  const delta = curPct - prevPct;
 
   if (isLoading) {
     return (
@@ -122,124 +208,84 @@ export default function NonBillableWidget() {
     );
   }
 
-  const [curYear, curMonthNum] = currentMonth.split('-');
-  const currentMonthLabel = `${MONTHS_DE[parseInt(curMonthNum, 10) - 1]} ${curYear}`;
-  const [prevYear, prevMonthNum] = prevMonth ? prevMonth.split('-') : ['', ''];
-  const prevMonthLabel = prevMonth ? `${MONTHS_DE[parseInt(prevMonthNum, 10) - 1]} ${prevYear}` : '';
-  const delta = nonBillablePct - prevNonBillablePct;
-  const deltaColor = delta > 3 ? 'text-red-500' : delta < -3 ? 'text-green-600' : 'text-muted-foreground';
+  const DeltaIcon = delta > 3 ? TrendingUp : delta < -3 ? TrendingDown : Minus;
+  const deltaTextColor = delta > 3 ? 'text-red-500' : delta < -3 ? 'text-green-600' : 'text-muted-foreground';
+  const deltaBg = delta > 3 ? 'bg-red-50' : delta < -3 ? 'bg-green-50' : 'bg-muted/50';
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Clock className="w-4 h-4 text-muted-foreground" />
-            Nicht verrechenbare Stunden (Kundenprojekte)
+            Nicht verrechenbare Stunden — Entwicklung
           </CardTitle>
-          {nonBillablePct >= 20 && (
-            <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
-              <AlertTriangle className="w-3 h-3" />
-              Hoch
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {curPct >= 20 && (
+              <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
+                <AlertTriangle className="w-3 h-3" />
+                Hoch
+              </div>
+            )}
+            {prevData && (
+              <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md font-semibold ${deltaTextColor} ${deltaBg}`}>
+                <DeltaIcon className="w-3 h-3" />
+                {delta > 0 ? '+' : ''}{delta} PP ggü. Vormonat
+              </div>
+            )}
+          </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <CardContent className="space-y-6">
 
-          {/* LINKS: Monats-Trend + KPIs */}
-          <div className="space-y-4">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Trend (letzte Monate)</div>
-
-            {/* KPI Row */}
-            <div className="text-xs text-muted-foreground font-medium mb-1">{currentMonthLabel}</div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="text-center">
-                <div className="text-lg font-bold text-foreground">{formatH(totalBillable)}</div>
-                <div className="text-xs text-muted-foreground">Verrechenbar</div>
-              </div>
-              <div className="text-center">
-                <div className={`text-lg font-bold ${pctColor}`}>{formatH(totalNonBillable)}</div>
-                <div className="text-xs text-muted-foreground">Nicht verr.</div>
-              </div>
-              <div className="text-center">
-                <div className={`text-2xl font-bold ${pctColor}`}>{nonBillablePct}%</div>
-                <div className="text-xs text-muted-foreground">Quote akt. Monat</div>
-              </div>
-            </div>
-            {/* Vormonatsvergleich */}
-            {prevMonthLabel && (
-              <div className="flex items-center gap-3 px-3 py-2 bg-muted/40 rounded-lg text-xs">
-                <span className="text-muted-foreground">Vormonat ({prevMonthLabel}):</span>
-                <span className="font-semibold">{formatH(prevNonBillable)} · {prevNonBillablePct}%</span>
-                {prevNonBillablePct > 0 && (
-                  <span className={`font-bold ml-auto ${deltaColor}`}>
-                    {delta > 0 ? '+' : ''}{delta} PP
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Monthly Bar Chart */}
-            {monthlyData.length > 0 && (
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={monthlyData} barSize={28} barGap={2}>
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis hide />
-                  <Tooltip
-                    formatter={(v, name) => {
-                      const h = Math.floor(v); const m = Math.round((v - h) * 60);
-                      return [`${h}:${String(m).padStart(2,'0')} h`, name === 'billable_h' ? 'Verrechenbar' : 'Nicht verr.'];
-                    }}
-                    contentStyle={{ fontSize: 12 }}
-                  />
-                  <Bar dataKey="billable_h" stackId="a" fill="hsl(var(--chart-2))" />
-                  <Bar dataKey="non_billable_h" stackId="a" fill="#ef4444" radius={[3, 3, 0, 0]}>
-                    {monthlyData.map((entry, i) => (
-                      <Cell key={i} fill={entry.pct >= 30 ? '#dc2626' : entry.pct >= 15 ? '#f59e0b' : '#fca5a5'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+        {/* Trend-Chart */}
+        {monthlyChartData.length > 0 && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Monatstrend</div>
+            <ResponsiveContainer width="100%" height={130}>
+              <BarChart data={monthlyChartData} barSize={32} barGap={2}>
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis hide />
+                <Tooltip
+                  formatter={(v, name) => {
+                    const h = Math.floor(v); const m = Math.round((v - h) * 60);
+                    return [`${h}:${String(m).padStart(2, '0')} h`, name === 'billable_h' ? 'Verrechenbar' : 'Nicht verr.'];
+                  }}
+                  contentStyle={{ fontSize: 12 }}
+                />
+                <Bar dataKey="billable_h" stackId="a" fill="hsl(var(--chart-2))" />
+                <Bar dataKey="non_billable_h" stackId="a" radius={[3, 3, 0, 0]}>
+                  {monthlyChartData.map((entry, i) => (
+                    <Cell key={i} fill={entry.pct >= 30 ? '#dc2626' : entry.pct >= 15 ? '#f59e0b' : '#fca5a5'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
+        )}
 
-          {/* RECHTS: Kollegen aktueller Monat */}
-          <div className="space-y-3">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Kollegen – nicht verrechenbar ({currentMonthLabel})
-            </div>
-            {userNonBillable.length > 0 ? (
-              <ResponsiveContainer width="100%" height={Math.max(140, userNonBillable.length * 32)}>
-                <BarChart data={userNonBillable} layout="vertical" barSize={18} margin={{ left: 0, right: 48, top: 2, bottom: 2 }}>
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="fullName" tick={{ fontSize: 11 }} width={100} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    formatter={(v, key) => {
-                      const h = Math.floor(v); const m = Math.round((v - h) * 60);
-                      return [`${h}:${String(m).padStart(2,'0')} h`, key === 'non_billable_h' ? 'Nicht verr.' : 'Verrechenbar'];
-                    }}
-                    contentStyle={{ fontSize: 12 }}
-                  />
-                  <Bar dataKey="billable_h" stackId="u" fill="hsl(var(--chart-2))" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="non_billable_h" stackId="u" radius={[0, 3, 3, 0]}>
-                    {userNonBillable.map((u, i) => {
-                      const userTotal = u.billable_h + u.non_billable_h;
-                      const pct = userTotal > 0 ? (u.non_billable_h / userTotal) * 100 : 0;
-                      const color = pct >= 30 ? '#dc2626' : pct >= 15 ? '#f59e0b' : '#fca5a5';
-                      return <Cell key={i} fill={color} />;
-                    })}
-                    <LabelList dataKey="non_billable_h" position="right" formatter={v => { if (!v) return ''; const h = Math.floor(v); const m = Math.round((v - h) * 60); return `${h}:${String(m).padStart(2,'0')} h`; }} style={{ fontSize: 11, fill: '#6b7280', fontWeight: 600 }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="text-sm text-muted-foreground italic">Keine Daten für den aktuellen Monat.</div>
-            )}
-          </div>
-
+        {/* Vormonat vs. Aktueller Monat — nebeneinander */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {prevData && (
+            <MonthKpiPanel
+              label={monthLabel(prevMonth)}
+              billable={prevData.billable}
+              nonBillable={prevData.nonBillable}
+              userStats={prevData.userStats}
+              isCurrentMonth={false}
+            />
+          )}
+          {curData && (
+            <MonthKpiPanel
+              label={monthLabel(curMonth)}
+              billable={curData.billable}
+              nonBillable={curData.nonBillable}
+              userStats={curData.userStats}
+              isCurrentMonth={true}
+            />
+          )}
         </div>
+
       </CardContent>
     </Card>
   );
