@@ -52,9 +52,24 @@ export default function BillingLiquiditySection({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['billingInstructions'] })
   });
 
+  const { data: allBillingPlans = [] } = useQuery({
+    queryKey: ['monthlyBillingPlans', project.id],
+    queryFn: () => base44.entities.MonthlyBillingPlan.filter({ project_id: project.id }),
+  });
+
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.BillingInstruction.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['billingInstructions'] })
+    mutationFn: async (id) => {
+      // Unlink any MonthlyBillingPlan that references this instruction
+      const linkedPlans = allBillingPlans.filter(p => p.linked_billing_instruction_id === id);
+      await Promise.all(linkedPlans.map(p =>
+        base44.entities.MonthlyBillingPlan.update(p.id, { linked_billing_instruction_id: null })
+      ));
+      await base44.entities.BillingInstruction.delete(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['billingInstructions'] });
+      queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlans', project.id] });
+    }
   });
 
   const totalOrderNet = fin?.commercialBaseNet || 0;

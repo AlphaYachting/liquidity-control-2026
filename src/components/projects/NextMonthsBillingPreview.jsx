@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { format, addMonths, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Plus, CalendarDays, Bell, Pencil, CheckCircle2, Loader2 } from 'lucide-react';
+import { Plus, CalendarDays, Bell, Pencil, CheckCircle2, Loader2, Trash2 } from 'lucide-react';
 
 const PLAN_TYPE_TO_INVOICE_TYPE = {
   AZ: 'advance_invoice',
@@ -54,6 +54,24 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
   const [editingPlanId, setEditingPlanId] = useState(null);
   const [form, setForm] = useState({});
   const [creatingInstructionForPlanId, setCreatingInstructionForPlanId] = useState(null);
+  const [confirmUnlinkPlanId, setConfirmUnlinkPlanId] = useState(null);
+
+  const { data: allInstructions = [] } = useQuery({
+    queryKey: ['billingInstructions'],
+    queryFn: () => base44.entities.BillingInstruction.list(),
+  });
+
+  const deleteInstructionMutation = useMutation({
+    mutationFn: async ({ planId, instructionId }) => {
+      await base44.entities.MonthlyBillingPlan.update(planId, { linked_billing_instruction_id: null });
+      await base44.entities.BillingInstruction.delete(instructionId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlans', project.id] });
+      queryClient.invalidateQueries({ queryKey: ['billingInstructions'] });
+      setConfirmUnlinkPlanId(null);
+    },
+  });
 
   const createInstructionMutation = useMutation({
     mutationFn: ({ _planId, ...data }) => base44.entities.BillingInstruction.create(data),
@@ -245,12 +263,37 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
                       <Pencil className="w-3 h-3" />
                     </button>
                     {/* Instruction create button / status */}
-                    {plan.linked_billing_instruction_id ? (
-                      <span className="flex items-center gap-1 text-emerald-600 text-xs font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Anweisung erstellt
-                      </span>
-                    ) : (
+                    {plan.linked_billing_instruction_id ? (() => {
+                      const instr = allInstructions.find(i => i.id === plan.linked_billing_instruction_id);
+                      const isDeletable = !instr || ['draft', 'blocked', 'cancelled'].includes(instr?.status);
+                      return confirmUnlinkPlanId === plan.id ? (
+                        <span className="flex items-center gap-1">
+                          <span className="text-xs text-destructive font-medium">Löschen?</span>
+                          <button
+                            onClick={() => deleteInstructionMutation.mutate({ planId: plan.id, instructionId: plan.linked_billing_instruction_id })}
+                            className="text-xs text-white bg-destructive hover:bg-destructive/80 px-1.5 py-0.5 rounded">
+                            Ja
+                          </button>
+                          <button onClick={() => setConfirmUnlinkPlanId(null)}
+                            className="text-xs border px-1.5 py-0.5 rounded hover:bg-muted">
+                            Nein
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="text-emerald-600 text-xs font-medium">Anweisung erstellt</span>
+                          {isDeletable && (
+                            <button
+                              title="Anweisung löschen & Verknüpfung aufheben"
+                              onClick={() => setConfirmUnlinkPlanId(plan.id)}
+                              className="p-0.5 rounded hover:bg-red-50 text-muted-foreground hover:text-destructive transition-colors ml-0.5">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </span>
+                      );
+                    })() : (
                       plan.planned_amount_net > 0 && (
                         <button
                           title="Abrechnungsanweisung erstellen"
