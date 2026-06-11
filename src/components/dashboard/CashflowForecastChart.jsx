@@ -43,17 +43,21 @@ function distributeToDaily(dailyMap, today, endDate, item) {
   }
 }
 
-function buildForecastData(invoiceRecords, receivables, liveInvoices) {
+function buildForecastData(invoiceRecords, receivables, billingBlocks, liveInvoices) {
   const today = startOfDay(new Date());
   const endDate = addDays(today, 62);
+  const todayStr = format(today, 'yyyy-MM-dd');
+  const endStr = format(endDate, 'yyyy-MM-dd');
 
   const dailyInvoices = {};
   const dailyReceivables = {};
+  const dailyPlanned = {};
   const dailyLive = {};
   for (let i = 0; i <= 62; i++) {
     const d = format(addDays(today, i), 'yyyy-MM-dd');
     dailyInvoices[d] = 0;
     dailyReceivables[d] = 0;
+    dailyPlanned[d] = 0;
     dailyLive[d] = 0;
   }
 
@@ -72,10 +76,31 @@ function buildForecastData(invoiceRecords, receivables, liveInvoices) {
   );
   openReceivables.forEach(r => distributeToDaily(dailyReceivables, today, endDate, {
     gross_amount: r.gross_amount,
-    open_amount: r.gross_amount, // Receivable hat kein open_amount
+    open_amount: r.gross_amount,
     invoice_date: r.invoice_date,
     due_date: r.due_date,
   }));
+
+  // Geplante Abrechnungen (BillingBlock) — noch nicht verrechnet
+  const alreadyLinkedInvoices = new Set(invoiceRecords.map(i => i.billing_block_id).filter(Boolean));
+  const plannedBlocks = (billingBlocks || []).filter(b =>
+    b.invoice_readiness_status !== 'invoiced' &&
+    b.invoice_readiness_status !== 'paid' &&
+    !alreadyLinkedInvoices.has(b.id) &&
+    Number(b.amount_gross || b.amount_net) > 0
+  );
+  plannedBlocks.forEach(b => {
+    const amount = Number(b.amount_gross) || Number(b.amount_net) * 1.2;
+    // Fälligkeitsdatum: planned_invoice_date oder Mitte des billing_month
+    let dueDate = b.planned_invoice_date;
+    if (!dueDate && b.billing_month) {
+      dueDate = `${b.billing_month}-15`;
+    }
+    if (!dueDate) return; // kein Datum → nicht planbar
+    if (dueDate < todayStr || dueDate > endStr) return; // außerhalb Fenster
+    // Punkt-Eintrag am Fälligkeitsdatum (kein Verteilen)
+    if (dailyPlanned[dueDate] !== undefined) dailyPlanned[dueDate] += amount;
+  });
 
   // Live sevDesk Rechnungen (nicht doppelt zählen mit DB — nach Invoice-Nummer deduplizieren)
   const dbInvoiceNumbers = new Set(invoiceRecords.map(i => i.invoice_number).filter(Boolean));
@@ -88,19 +113,21 @@ function buildForecastData(invoiceRecords, receivables, liveInvoices) {
   while (i <= 60) {
     const bucketStart = addDays(today, i);
     const bucketEnd = addDays(today, Math.min(i + 4, 62));
-    let sumInvoices = 0, sumReceivables = 0, sumLive = 0;
+    let sumInvoices = 0, sumReceivables = 0, sumPlanned = 0, sumLive = 0;
     for (let d = new Date(bucketStart); d <= bucketEnd; d = addDays(d, 1)) {
       const key = format(d, 'yyyy-MM-dd');
       if (dailyInvoices[key]) sumInvoices += dailyInvoices[key];
       if (dailyReceivables[key]) sumReceivables += dailyReceivables[key];
+      if (dailyPlanned[key]) sumPlanned += dailyPlanned[key];
       if (dailyLive[key]) sumLive += dailyLive[key];
     }
     buckets.push({
       label: format(bucketStart, 'dd.MM.', { locale: de }),
       invoices: Math.round(sumInvoices),
       receivables: Math.round(sumReceivables),
+      planned: Math.round(sumPlanned),
       live: Math.round(sumLive),
-      total: Math.round(sumInvoices + sumReceivables + sumLive),
+      total: Math.round(sumInvoices + sumReceivables + sumPlanned + sumLive),
     });
     i += 5;
   }
@@ -112,7 +139,7 @@ function buildForecastData(invoiceRecords, receivables, liveInvoices) {
   });
 }
 
-export default function CashflowForecastChart({ invoiceRecords = [], receivables = [] }) {
+export default function CashflowForecastChart({ invoiceRecords = [], receivables = [], billingBlocks = [] }) {
   const [liveInvoices, setLiveInvoices] = useState(null);
   const [loadingLive, setLoadingLive] = useState(false);
   const [liveError, setLiveError] = useState(null);
@@ -131,8 +158,8 @@ export default function CashflowForecastChart({ invoiceRecords = [], receivables
   };
 
   const data = useMemo(
-    () => buildForecastData(invoiceRecords, receivables, liveInvoices || []),
-    [invoiceRecords, receivables, liveInvoices]
+    () => buildForecastData(invoiceRecords, receivables, billingBlocks, liveInvoices || []),
+    [invoiceRecords, receivables, billingBlocks, liveInvoices]
   );
 
   const totalExpected = data.reduce((s, d) => s + d.total, 0);
@@ -218,6 +245,10 @@ export default function CashflowForecastChart({ invoiceRecords = [], receivables
                   <stop offset="5%" stopColor="hsl(262, 83%, 58%)" stopOpacity={0.3} />
                   <stop offset="95%" stopColor="hsl(262, 83%, 58%)" stopOpacity={0} />
                 </linearGradient>
+                <linearGradient id="cfPlanned" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(199, 89%, 48%)" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="hsl(199, 89%, 48%)" stopOpacity={0} />
+                </linearGradient>
                 <linearGradient id="cfCum" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0.15} />
                   <stop offset="95%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0} />
@@ -233,6 +264,8 @@ export default function CashflowForecastChart({ invoiceRecords = [], receivables
                 stroke="hsl(142, 71%, 45%)" strokeWidth={1.5} fill="url(#cfInvoices)" />
               <Area type="monotone" dataKey="receivables" name="Forderungen (DB)" stackId="1"
                 stroke="hsl(38, 92%, 50%)" strokeWidth={1.5} fill="url(#cfReceivables)" />
+              <Area type="monotone" dataKey="planned" name="Geplante Abrechnung" stackId="1"
+                stroke="hsl(199, 89%, 48%)" strokeWidth={1.5} fill="url(#cfPlanned)" />
               {liveInvoices !== null && (
                 <Area type="monotone" dataKey="live" name="Live sevDesk (neu)" stackId="1"
                   stroke="hsl(262, 83%, 58%)" strokeWidth={1.5} fill="url(#cfLive)" />

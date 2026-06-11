@@ -176,7 +176,7 @@ export default function Dashboard() {
         <AgingChart receivables={receivables} />
         <ToolCostChart tools={tools} />
       </div>
-      <CashflowForecastChart invoiceRecords={invoices} receivables={receivables} />
+      <CashflowForecastChart invoiceRecords={invoices} receivables={receivables} billingBlocks={allBlocks} />
       <NonBillableWidget />
       <LiquidityTrendChart orders={allOrders} blocks={allBlocks} invoices={invoices} />
       <RiskTimeline planLines={planLines} />

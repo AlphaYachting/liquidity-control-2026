@@ -12,8 +12,10 @@
 
 import { MONTHS_2026, weightedAmount } from './liquidityUtils';
 
-const TODAY = '2026-05-21'; // current date
-const CURRENT_MONTH = '2026-05';
+// Dynamisch berechnet — kein hartkodiertes Datum
+const _now = new Date();
+const TODAY = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
+const CURRENT_MONTH = TODAY.slice(0, 7);
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
