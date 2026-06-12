@@ -58,7 +58,6 @@ export default function ProjectDetail() {
   const queryClient = useQueryClient();
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [editingPM, setEditingPM] = useState(false);
   const [pmValue, setPmValue] = useState('');
   const [showAworkPicker, setShowAworkPicker] = useState(false);
@@ -366,33 +365,23 @@ export default function ProjectDetail() {
             <option value="high">Risiko: hoch</option>
             <option value="critical">Risiko: kritisch</option>
           </select>
-          {/* Archivieren / Reaktivieren */}
-          {project.excluded_from_project_cockpit ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 text-xs text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
-              onClick={() => updateProjectMutation.mutate({
-                billing_relevance_status: 'active_billing_relevant',
-                excluded_from_project_cockpit: false,
-                archived_at: null,
-                archived_by: null,
-                archive_source: null,
-                is_active_for_billing: true,
-              })}
-            >
-              Reaktivieren
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 text-xs text-amber-700 hover:bg-amber-50 hover:text-amber-800"
-              onClick={() => setShowArchiveConfirm(true)}
-            >
-              Archivieren
-            </Button>
-          )}
+          {/* Archivieren */}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-xs text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+            onClick={() => {
+              updateProjectMutation.mutate({
+                billing_relevance_status: 'archived',
+                excluded_from_project_cockpit: true,
+                archived_at: new Date().toISOString(),
+                archive_source: 'manual',
+              });
+              navigate('/projects');
+            }}
+          >
+            Archivieren
+          </Button>
           <Button
             size="sm"
             variant="ghost"
@@ -929,34 +918,6 @@ export default function ProjectDetail() {
           })()}
         </div>
       </div>
-
-      {/* Archive Confirm Dialog */}
-      {showArchiveConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4">
-            <h3 className="font-semibold text-base">Projekt archivieren?</h3>
-            <p className="text-sm text-muted-foreground">
-              Das Projekt <strong>{project.project_name}</strong> wird aus dem Projekt-Cockpit ausgeblendet. Es kann jederzeit reaktiviert werden.
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button size="sm" variant="outline" onClick={() => setShowArchiveConfirm(false)}>Abbrechen</Button>
-              <Button size="sm" variant="default" className="bg-amber-600 hover:bg-amber-700 text-white"
-                onClick={() => {
-                  updateProjectMutation.mutate({
-                    billing_relevance_status: 'archived',
-                    excluded_from_project_cockpit: true,
-                    archived_at: new Date().toISOString(),
-                    archive_source: 'manual',
-                  });
-                  setShowArchiveConfirm(false);
-                  navigate('/projects');
-                }}>
-                Archivieren
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Delete Dialog */}
       {showDeleteDialog && (
