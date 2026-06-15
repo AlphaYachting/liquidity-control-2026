@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, FileText, Upload, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Plus, FileText, Upload, AlertTriangle, ExternalLink, Unlink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import StatusBadge from '@/components/shared/StatusBadge';
 import PaymentSourceBadge from '@/components/shared/PaymentSourceBadge';
@@ -31,6 +31,18 @@ export default function ProjectInvoiceSection({
   const [prefillBlockId, setPrefillBlockId] = useState(null);
 
   const primaryOrder = linkedOrders[0] || null;
+
+  const unlinkInvoiceMutation = useMutation({
+    mutationFn: (invoiceId) => base44.entities.InvoiceRecord.update(invoiceId, {
+      project_id: null,
+      confirmed_order_id: null,
+      billing_block_id: null,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoiceRecords-project', projectId], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['invoiceRecords'], exact: false });
+    }
+  });
 
   const saveInvoiceMutation = useMutation({
     mutationFn: ({ id, data }) => id
@@ -199,10 +211,24 @@ export default function ProjectInvoiceSection({
                         )}
                       </td>
                       <td className="py-2 pl-2">
-                        <Button variant="ghost" size="sm" className="h-6 text-xs"
-                          onClick={() => handleEdit(inv)}>
-                          Bearb.
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" className="h-6 text-xs"
+                            onClick={() => handleEdit(inv)}>
+                            Bearb.
+                          </Button>
+                          <Button
+                            variant="ghost" size="sm"
+                            className="h-6 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
+                            title="Verknüpfung mit diesem Projekt lösen"
+                            onClick={() => {
+                              if (window.confirm(`Verknüpfung von "${inv.invoice_number || 'Rechnung'}" mit diesem Projekt wirklich lösen? Die Rechnung bleibt erhalten.`)) {
+                                unlinkInvoiceMutation.mutate(inv.id);
+                              }
+                            }}
+                          >
+                            <Unlink className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
