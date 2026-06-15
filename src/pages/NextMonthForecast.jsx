@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, getMonthLabel } from '@/lib/liquidityUtils';
 import { calculateNextMonthBillable } from '@/lib/reconciliationUtils';
+import ProjectDetailSlideOver from '@/components/projects/ProjectDetailSlideOver';
 
 const WORK_STATUS_COLORS = {
   not_started: 'bg-gray-100 text-gray-600',
@@ -26,6 +27,7 @@ const READINESS_COLORS = {
 
 export default function NextMonthForecast() {
   const [filters, setFilters] = useState({ responsible: '', customer: '' });
+  const [slideOverProjectId, setSlideOverProjectId] = useState(null);
 
   const { data: blocks = [], isLoading: blocksLoading } = useQuery({
     queryKey: ['billingBlocks'], queryFn: () => base44.entities.ProjectBillingBlock.list()
@@ -275,7 +277,8 @@ export default function NextMonthForecast() {
                 const STATUS_COLORS = { draft: 'bg-gray-100 text-gray-600', ready_for_backoffice: 'bg-blue-100 text-blue-700', sent_to_backoffice: 'bg-amber-100 text-amber-700' };
                 const INVOICE_TYPE_LABELS = { advance_invoice: 'Anzahlung', partial_invoice: 'Teilrechnung', final_invoice: 'Schlussrechnung', correction: 'Korrektur', credit_note: 'Gutschrift' };
                 return (
-                  <tr key={instr.id} className="border-t hover:bg-blue-50/60">
+                  <tr key={instr.id} className="border-t hover:bg-blue-50/60 cursor-pointer"
+                    onClick={() => instr.project_id && setSlideOverProjectId(instr.project_id)}>
                     <td className="p-3"><p className="font-medium">{instr.customer_name || '—'}</p><p className="text-xs text-muted-foreground">{instr.project_name || '—'}</p></td>
                     <td className="p-3"><Badge className="text-xs bg-blue-100 text-blue-700">{INVOICE_TYPE_LABELS[instr.invoice_type] || instr.invoice_type}</Badge></td>
                     <td className="p-3 text-right font-semibold">{formatCurrency(instr.instruction_amount_net)}</td>
@@ -314,7 +317,8 @@ export default function NextMonthForecast() {
               {visibleCurPlans.map(plan => {
                 const proj = projectsById[plan.project_id];
                 return (
-                  <tr key={plan.id} className="border-t hover:bg-blue-50/60">
+                  <tr key={plan.id} className="border-t hover:bg-blue-50/60 cursor-pointer"
+                    onClick={() => plan.project_id && setSlideOverProjectId(plan.project_id)}>
                     <td className="p-3">
                       <p className="font-medium">{proj?.customer || plan.assigned_pm || '—'}</p>
                       <p className="text-xs text-muted-foreground truncate max-w-[180px]">{proj?.project_name || '—'}</p>
@@ -378,7 +382,8 @@ export default function NextMonthForecast() {
                   credit_note: 'Gutschrift',
                 };
                 return (
-                  <tr key={instr.id} className="border-t hover:bg-amber-50/80">
+                  <tr key={instr.id} className="border-t hover:bg-amber-50/80 cursor-pointer"
+                    onClick={() => instr.project_id && setSlideOverProjectId(instr.project_id)}>
                     <td className="p-3">
                       <p className="font-medium">{instr.customer_name || '—'}</p>
                       <p className="text-xs text-muted-foreground truncate max-w-[140px]">{instr.project_name || '—'}</p>
@@ -429,7 +434,8 @@ export default function NextMonthForecast() {
               {visibleNextPlans.map(plan => {
                 const proj = projectsById[plan.project_id];
                 return (
-                  <tr key={plan.id} className="border-t hover:bg-amber-50/60">
+                  <tr key={plan.id} className="border-t hover:bg-amber-50/60 cursor-pointer"
+                    onClick={() => plan.project_id && setSlideOverProjectId(plan.project_id)}>
                     <td className="p-3">
                       <p className="font-medium">{proj?.customer || plan.assigned_pm || '—'}</p>
                       <p className="text-xs text-muted-foreground truncate max-w-[180px]">{proj?.project_name || '—'}</p>
@@ -457,6 +463,11 @@ export default function NextMonthForecast() {
       )}
 
 
+      <ProjectDetailSlideOver
+        projectId={slideOverProjectId}
+        open={!!slideOverProjectId}
+        onClose={() => setSlideOverProjectId(null)}
+      />
     </div>
   );
 }
