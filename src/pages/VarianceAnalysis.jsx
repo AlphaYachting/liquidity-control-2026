@@ -10,12 +10,12 @@ import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const MONTHS_BACK = 12;
+const MONTHS_FORWARD = 12;
 
 function getMonthsList() {
   const today = new Date();
-  return Array.from({ length: MONTHS_BACK }, (_, i) => {
-    const d = new Date(today.getFullYear(), today.getMonth() - (MONTHS_BACK - 1 - i), 1);
+  return Array.from({ length: MONTHS_FORWARD }, (_, i) => {
+    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
     return format(d, 'yyyy-MM');
   });
 }
@@ -81,7 +81,7 @@ export default function VarianceAnalysis() {
     <div className="space-y-6">
       <PageHeader
         title="Abweichungsanalyse: Geplant vs. Tatsächlich"
-        subtitle={`${MONTHS_BACK} Monate · Abrechnungsplanung vs. tatsächliche Rechnungsstellung`}
+        subtitle={`12 Monate ab heute · Abrechnungsplanung vs. tatsächliche Rechnungsstellung`}
         icon={BarChart2}
         actions={
           <div className="flex gap-1 border rounded-lg p-1">
@@ -94,7 +94,7 @@ export default function VarianceAnalysis() {
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="p-4 border-l-4 border-l-blue-500">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Geplant (12 Mon.)</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">Geplant (nächste 12 Mon.)</p>
           <p className="text-2xl font-bold mt-1">{formatCurrency(totalPlanned)}</p>
         </Card>
         <Card className="p-4 border-l-4 border-l-emerald-500">
