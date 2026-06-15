@@ -12,56 +12,56 @@ const SUGGESTION_GROUPS = [
       {
         label: 'Quick-Wins — sofort verrechenbar',
         icon: Zap,
-        description: 'Welche Projekte & Pakete sind jetzt abrechnungsbereit?',
-        text: 'Analysiere alle aktiven LiquidityProject-Einträge und ProjectBillingBlock-Einträge. Finde Quick-Wins: (1) Alle ProjectBillingBlock wo awork_readiness_signal = "ready_candidate" oder "likely_ready" und invoice_readiness_status NICHT invoiced oder paid — lade dazu das zugehörige LiquidityProject via project_id. (2) Alle LiquidityProject wo notes_next_invoice einen Text enthält — das sind PM-Direktanweisungen für die nächste Rechnung. (3) Alle LiquidityProject wo expected_invoice_month = "2026-06". Zeige vollständige Liste nach Kunde alphabetisch mit Projektname, Paket, Betrag netto und konkreter Handlungsempfehlung. KPIs oben: Gesamtbetrag und Anzahl Projekte.',
+        description: 'Fortschritt, Budget & PM-Notizen kombiniert',
+        text: 'Führe ein vollständiges Quick-Win-Screening durch. Nutze DREI parallele Methoden:\n\n1. AWORK-BASIERT: Lade alle LiquidityProject (is_active_for_billing=true). Für jedes: lade AworkProjectSnapshot via awork_project_id. Berechne Abrechnungsstand% = already_invoiced_amount / total_net_amount × 100. Fortschritts-Lücke = progress_percent - Abrechnungsstand%. Quick-Win wenn Lücke > 20% und open_amount > 0.\n\n2. PM-NOTIZEN: LiquidityProject wo notes_next_invoice nicht leer — zeige Notiz und Empfehlung.\n\n3. PAKETE: ProjectBillingBlock wo awork_readiness_signal IN [ready_candidate, likely_ready] und invoice_readiness_status NOT IN [invoiced, paid].\n\nZeige alle Treffer nach Kunde alphabetisch. KPIs oben: Gesamtpotenzial €, Anzahl Projekte, sofort abrechenbar.',
       },
       {
-        label: 'PM-Notizen zur nächsten Rechnung',
+        label: 'Budget-Auslastung & Risiken',
         icon: Search,
-        description: 'Was haben die PMs für nächste Abrechnungen notiert?',
-        text: 'Lade alle LiquidityProject mit is_active_for_billing = true. Zeige alle Projekte wo das Feld notes_next_invoice einen Inhalt hat. Für jedes Projekt: Kunde, Projektname, PM-Notiz (notes_next_invoice), Auftragswert (total_net_amount), bereits abgerechnet (already_invoiced_amount), noch offen (open_amount). Sortiere nach Kunde. Diese PM-Notizen sind direkte Abrechnungsanweisungen — analysiere den Inhalt und gib je Projekt eine konkrete Empfehlung.',
+        description: 'Welche Projekte haben Budget-Probleme?',
+        text: 'Analysiere Budget-Auslastung aller aktiven Projekte. Lade alle LiquidityProject (is_active_for_billing=true), für jedes AworkProjectSnapshot via awork_project_id. Berechne: Budget-Auslastung = tracked_duration_minutes / time_budget_minutes × 100. Kategorisiere: 🔴 KRITISCH: Auslastung > 100% (Budget überschritten). ⚠️ WARNUNG: Auslastung > 80% bei progress_percent < 60%. ✅ OK: im Plan. Zeige Kunde, Projekt, Budget in Stunden, Erfasst in Stunden, Auslastung%, Fortschritt%, Bewertung. Gesamtübersicht mit Anzahl kritischer Projekte.',
       },
     ],
   },
   {
-    group: '📊 Analysen',
+    group: '📊 awork-Analysen',
     color: 'blue',
     items: [
       {
-        label: 'Abrechnungsrückstände',
+        label: 'Abrechnungsrückstände (awork)',
         icon: TrendingDown,
-        description: 'Projekte wo Fortschritt > Abrechnung',
-        text: 'Analysiere alle aktiven LiquidityProject-Einträge auf Abrechnungsrückstand. Berechne für jedes Projekt: Fortschritt% = real_progress_percent (wenn > 0) oder awork_progress_percent. Abrechnung% = already_invoiced_amount / total_net_amount * 100. Rückstand = Fortschritt% - Abrechnung%. Zeige alle Projekte wo der Rückstand > 15%, sortiert nach größtem offenen Betrag (open_amount). Inkl. risk_status, PM-Name und konkreter Empfehlung was jetzt abgerechnet werden sollte.',
+        description: 'Fortschritt deutlich vor Abrechnung',
+        text: 'Analysiere alle aktiven LiquidityProject auf Abrechnungsrückstand via awork. Für jedes Projekt: lade AworkProjectSnapshot via awork_project_id. Berechne: Fortschritt% = progress_percent aus Snapshot (bevorzugt) oder real_progress_percent aus LiquidityProject. Abrechnungsstand% = already_invoiced_amount / total_net_amount × 100. Rückstand = Fortschritt - Abrechnungsstand. Zeige alle Projekte wo Rückstand > 15%, sortiert nach größtem open_amount. Inkl. Budget-Auslastung, risk_status, PM-Name. Gesamtpotenzial am Ende.',
+      },
+      {
+        label: 'Verrechenbare Stunden je Projekt',
+        icon: BarChart3,
+        description: 'Offene billable Stunden in awork',
+        text: 'Analysiere verrechenbare offene Stunden. Lade AworkTimeEntry (is_billable=true, is_billed=false). Gruppiere nach awork_project_id / project_name. Berechne je Projekt: Summe duration_minutes (÷60 = Stunden). Lade zugehöriges LiquidityProject für Kundename und Auftragswert. Zeige: Kunde, Projekt, offene verrechenbare Stunden, bereits abgerechnete Stunden (is_billed=true), wichtigste Tätigkeitsarten (type_of_work_name). Sortiere nach meisten offenen Stunden. Gesamtstunden und Hinweis auf Abrechnungspotenzial.',
       },
       {
         label: 'Risiko & Überfällige',
         icon: AlertTriangle,
-        description: 'Kritische Projekte und offene Rechnungen',
-        text: 'Führe ein Risiko-Screening durch: (1) Lade alle InvoiceRecord mit payment_status = "overdue" — nach Kunde gruppiert, Gesamtbetrag, Fälligkeit. (2) Lade alle LiquidityProject mit risk_status = "high" oder "critical" und open_amount > 0 — mit Projektdetails. (3) Lade alle LiquidityProject mit status = "on_hold". (4) Lade alle BillingInstruction mit status = "blocked". Zeige für jeden Bereich eine klare Übersicht mit Beträgen und priorisierten Handlungsempfehlungen.',
-      },
-      {
-        label: 'Offene Rechnungen nach Kunde',
-        icon: BarChart3,
-        description: 'Welche Kunden haben noch offene Beträge?',
-        text: 'Lade alle InvoiceRecord mit payment_status IN [open, partially_paid]. Gruppiere nach customer_name und berechne je Kunde: Anzahl offene Rechnungen, Gesamtbetrag offen (open_amount), älteste Rechnung (invoice_date), nächste Fälligkeit (due_date). Sortiere nach Gesamtbetrag absteigend. Markiere alle wo due_date < 2026-06-15 als überfällig 🔴. Gesamtsumme aller offenen Beträge am Ende.',
+        description: 'Budget-Überschreitungen, blockierte Tasks, offene Rechnungen',
+        text: 'Vollständiges Risiko-Screening: (1) AworkProjectSnapshot: tracked_duration_minutes > time_budget_minutes — Budget überschritten 🔴. (2) AworkTaskSnapshot: is_blocked=true — zeige blockierte Aufgaben nach Projekt. (3) InvoiceRecord: payment_status="overdue" — nach Kunde mit Betrag. (4) LiquidityProject: risk_status IN [high, critical] mit open_amount > 0. (5) BillingInstruction: status="blocked". Für jeden Bereich: klare Übersicht + Handlungsempfehlung.',
       },
     ],
   },
   {
-    group: '📅 Planung',
+    group: '📅 Planung & Forecast',
     color: 'violet',
     items: [
       {
         label: 'Forecast nächste 3 Monate',
         icon: Calendar,
         description: 'Erwartete Einnahmen Juli–September 2026',
-        text: 'Erstelle eine Cashflow-Prognose für Juli, August und September 2026. Nutze drei Quellen: (1) InvoiceRecord mit payment_status IN [open, partially_paid] — gruppiere nach Monat des due_date, das sind erwartete Zahlungseingänge. (2) BillingInstruction mit status IN [draft, ready_for_backoffice] und planned_invoice_date in diesem Zeitraum — geplante neue Rechnungen. (3) LiquidityProject mit expected_invoice_month IN [2026-07, 2026-08, 2026-09] — PM-Erwartungen. Zeige pro Monat: erwartete Zahlungseingänge (€), geplante neue Rechnungen (€), PM-erwartete Abrechnungen (€). Gesamtprognose pro Monat und kumulativ.',
+        text: 'Cashflow-Prognose Juli–September 2026. Drei Quellen kombinieren: (1) InvoiceRecord (open/partially_paid): gruppiere open_amount nach Monat des due_date = erwartete Zahlungseingänge. (2) BillingInstruction (draft/ready_for_backoffice): nach Monat von planned_invoice_date = geplante neue Rechnungen. (3) LiquidityProject mit expected_invoice_month in 2026-07/08/09 + Quick-Win-Potenzial aus Fortschritts-Lücke. Zeige pro Monat: Zahlungseingänge, neue Rechnungen, Potenzial, Summe. Gesamtprognose kumuliert.',
       },
       {
         label: 'Nächsten Monat planen (Juli 2026)',
         icon: Calendar,
-        description: 'Was sollte im Juli abgerechnet werden?',
-        text: 'Erstelle einen Abrechnungsplan für Juli 2026. Nutze: (1) MonthlyBillingPlan mit planning_month = "2026-07" — zeige alle geplanten Positionen. (2) BillingInstruction mit planned_invoice_date zwischen 2026-07-01 und 2026-07-31. (3) ProjectBillingBlock mit billing_month = "2026-07". (4) LiquidityProject mit expected_invoice_month = "2026-07". Sortiere nach Kunde, zeige Beträge und Status. Gesamtplanvolumen und Empfehlung welche Positionen zuerst angegangen werden sollten.',
+        description: 'Vollständiger Abrechnungsplan für Juli',
+        text: 'Erstelle Abrechnungsplan für Juli 2026. Nutze: (1) MonthlyBillingPlan mit planning_month="2026-07". (2) BillingInstruction mit planned_invoice_date im Juli. (3) ProjectBillingBlock mit billing_month="2026-07". (4) LiquidityProject mit expected_invoice_month="2026-07". (5) AworkProjectSnapshot: Projekte mit hoher Fortschritts-Lücke die im Juli abgerechnet werden könnten. Sortiere nach Kunde, zeige Status und Beträge. Gesamtvolumen und Prioritätenliste.',
       },
     ],
   },
@@ -279,9 +279,10 @@ export default function CashflowAdvisor() {
                   <p className="text-xs text-muted-foreground mb-2">Weiterführende Fragen:</p>
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { label: '⚡ Quick-Wins zeigen', text: 'Zeige mir die Quick-Wins — welche Projekte kann ich sofort abrechnen?' },
-                      { label: '📊 Rückstände prüfen', text: 'Welche Projekte haben einen Abrechnungsrückstand (Fortschritt > Abrechnung)?' },
-                      { label: '⚠️ Risiken anzeigen', text: 'Zeige mir alle überfälligen Rechnungen und Risikoprojekte.' },
+                      { label: '⚡ Quick-Wins zeigen', text: 'Zeige mir die Quick-Wins basierend auf awork-Fortschritt und PM-Notizen — welche Projekte kann ich sofort abrechnen?' },
+                      { label: '⏱️ Budget-Auslastung', text: 'Zeige mir die Budget-Auslastung aller Projekte aus awork: welche haben das Budget überschritten oder sind kritisch?' },
+                      { label: '📊 Rückstände prüfen', text: 'Welche Projekte haben einen Abrechnungsrückstand? Vergleiche awork-Fortschritt mit Abrechnungsstand.' },
+                      { label: '⚠️ Risiken & Blockierte', text: 'Zeige mir Budget-Überschreitungen, blockierte Tasks in awork, überfällige Rechnungen und Hochrisiko-Projekte.' },
                     ].map((s, i) => (
                       <button
                         key={i}
