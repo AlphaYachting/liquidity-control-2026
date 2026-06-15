@@ -15,19 +15,32 @@ export const formatNumber = (value) => {
 
 export const formatPercent = (value) => `${(Number(value) || 0).toFixed(1)}%`;
 
-// Month helpers
-export const MONTHS_2026 = [
-  '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06',
-  '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'
-];
-
-export const MONTH_LABELS = {
-  '2026-01': 'Jän', '2026-02': 'Feb', '2026-03': 'Mär', '2026-04': 'Apr',
-  '2026-05': 'Mai', '2026-06': 'Jun', '2026-07': 'Jul', '2026-08': 'Aug',
-  '2026-09': 'Sep', '2026-10': 'Okt', '2026-11': 'Nov', '2026-12': 'Dez'
+// Month helpers — dynamisch: aktueller Monat + 11 Folgemonate
+const _buildForecastMonths = () => {
+  const now = new Date();
+  const months = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return months;
 };
 
-export const getMonthLabel = (m) => MONTH_LABELS[m] || m;
+export const MONTHS_2026 = _buildForecastMonths(); // Name belassen für Abwärtskompatibilität
+
+const DE_MONTH_NAMES = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+
+export const getMonthLabel = (m) => {
+  if (!m) return m;
+  const [year, month] = m.split('-');
+  const label = DE_MONTH_NAMES[parseInt(month, 10) - 1] || m;
+  // Jahreszahl anhängen wenn nicht aktuelles Jahr
+  const currentYear = new Date().getFullYear().toString();
+  return year !== currentYear ? `${label} ${year.slice(2)}` : label;
+};
+
+// Für Abwärtskompatibilität
+export const MONTH_LABELS = Object.fromEntries(MONTHS_2026.map(m => [m, getMonthLabel(m)]));
 
 // Aggregation
 export const aggregateByMonth = (lines, direction) => {

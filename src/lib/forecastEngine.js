@@ -1,8 +1,8 @@
 /**
  * forecastEngine.js
- * Stage 1 — Multi-source forecast engine for Liquidity Control 2026
+ * Dynamischer Forecast-Horizont: aktueller Monat + 11 Monate
  *
- * Builds a complete monthly projection from:
+ * Datenquellen:
  *  1. LiquidityPlanLine
  *  2. RecurringContract
  *  3. ToolCost
@@ -12,22 +12,32 @@
 
 import { MONTHS_2026, weightedAmount } from './liquidityUtils';
 
-// Dynamisch berechnet — kein hartkodiertes Datum
+// MONTHS_2026 ist jetzt dynamisch: [aktueller Monat, ..., +11 Monate]
+const FORECAST_MONTHS = MONTHS_2026;
+const CURRENT_MONTH = FORECAST_MONTHS[0];
+
+// Heutiges Datum als String YYYY-MM-DD (lokal, kein UTC-Bug)
 const _now = new Date();
 const TODAY = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
-const CURRENT_MONTH = TODAY.slice(0, 7);
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-const toMonth = (dateStr) => {
+/**
+ * Gibt den Monat (YYYY-MM) zurück, sofern er im Forecast-Horizont liegt.
+ * Vergangene Monate werden auf CURRENT_MONTH umgebogen (Fälligkeit bereits erreicht).
+ */
+const toForecastMonth = (dateStr) => {
   if (!dateStr) return null;
-  const d = dateStr.slice(0, 7); // YYYY-MM
-  return MONTHS_2026.includes(d) ? d : null;
+  const m = dateStr.slice(0, 7); // YYYY-MM
+  if (m < CURRENT_MONTH) return CURRENT_MONTH; // Vergangenheit → aktueller Monat
+  if (FORECAST_MONTHS.includes(m)) return m;
+  return null; // jenseits des 12-Monats-Horizonts → ignorieren
 };
 
-const clamp2026 = (month) => (MONTHS_2026.includes(month) ? month : null);
-
-const monthIndex = (m) => MONTHS_2026.indexOf(m);
+/**
+ * Gibt den Index des Monats im FORECAST_MONTHS-Array zurück (-1 wenn nicht enthalten).
+ */
+const monthIdx = (m) => FORECAST_MONTHS.indexOf(m);
 
 // ─── 1. Plan Lines ───────────────────────────────────────────────────────────
 
@@ -39,8 +49,15 @@ export function buildPlanLineItems(planLines, scenario) {
     if (l.status === 'cancelled') return;
     if (l.status === 'uncertain' && scenario === 'conservative') return;
 
-    const month = toMonth(l.month) || toMonth(l.payment_due_date) || toMonth(l.date);
+    // Bereits bezahlte Planzeilen nicht nochmals als Zufluss zeigen
+    if (l.status === 'paid') return;
+
+    const month = toForecastMonth(l.month) || toForecastMonth(l.payment_due_date) || toForecastMonth(l.date);
     if (!month) {
+      if (l.month || l.payment_due_date || l.date) {
+        // Hat ein Datum, liegt aber außerhalb des Horizonts → still ignorieren
+        return;
+      }
       warnings.push({ source_type: 'plan_line', id: l.id, title: l.title, issue: 'Kein Monat zugeordnet' });
       return;
     }
@@ -82,20 +99,28 @@ export function buildContractItems(contracts, scenario) {
     const prob = isUnclear ? 60 : 90;
     const title = [c.customer, c.project_name].filter(Boolean).join(' – ');
     const interval = c.billing_interval || 'monthly';
-    const startMonth = toMonth(c.start_date) || MONTHS_2026[0];
-    const endMonth = toMonth(c.due_date) || MONTHS_2026[11];
-    const startIdx = Math.max(monthIndex(startMonth), 0);
-    const endIdx = Math.min(monthIndex(endMonth), 11);
+
+    // Startmonat: frühestens CURRENT_MONTH (kein Vergangenheits-Aufholen)
+    const rawStart = c.start_date ? c.start_date.slice(0, 7) : CURRENT_MONTH;
+    const startMonth = rawStart < CURRENT_MONTH ? CURRENT_MONTH : rawStart;
+    const startIndex = Math.max(monthIdx(startMonth), 0);
+    if (startIndex < 0) return; // Vertrag komplett außerhalb des Horizonts
+
+    // Endmonat: maximal letzter Forecast-Monat
+    const rawEnd = c.due_date ? c.due_date.slice(0, 7) : FORECAST_MONTHS[11];
+    const endMonth = rawEnd > FORECAST_MONTHS[11] ? FORECAST_MONTHS[11] : rawEnd;
+    const endIndex = Math.min(monthIdx(endMonth), 11);
+    if (endIndex < 0 || endIndex < startIndex) return; // Vertrag bereits abgelaufen
 
     if (interval === 'monthly' && Number(c.monthly_fixed_price) > 0) {
-      for (let i = startIdx; i <= endIdx; i++) {
+      for (let i = startIndex; i <= endIndex; i++) {
         items.push({
           source_type: 'recurring_contract',
           source_id: c.id,
           title,
           customer_or_supplier: c.customer || '—',
           category: c.contract_type || 'other',
-          month: MONTHS_2026[i],
+          month: FORECAST_MONTHS[i],
           direction: 'inflow',
           amount: Number(c.monthly_fixed_price),
           weighted_amount: weightedAmount(c.monthly_fixed_price, prob),
@@ -106,14 +131,14 @@ export function buildContractItems(contracts, scenario) {
       }
     } else if (interval === 'quarterly' && Number(c.monthly_fixed_price) > 0) {
       const quarterlyAmount = Number(c.monthly_fixed_price) * 3;
-      for (let i = startIdx; i <= endIdx; i += 3) {
+      for (let i = startIndex; i <= endIndex; i += 3) {
         items.push({
           source_type: 'recurring_contract',
           source_id: c.id,
           title,
           customer_or_supplier: c.customer || '—',
           category: c.contract_type || 'other',
-          month: MONTHS_2026[i],
+          month: FORECAST_MONTHS[i],
           direction: 'inflow',
           amount: quarterlyAmount,
           weighted_amount: weightedAmount(quarterlyAmount, prob),
@@ -128,8 +153,8 @@ export function buildContractItems(contracts, scenario) {
         warnings.push({ source_type: 'recurring_contract', id: c.id, title, issue: 'Kein Betrag für yearly/once Vertrag' });
         return;
       }
-      const billMonth = toMonth(c.due_date) || toMonth(c.start_date) || CURRENT_MONTH;
-      if (!clamp2026(billMonth)) return;
+      const billMonth = toForecastMonth(c.due_date) || toForecastMonth(c.start_date);
+      if (!billMonth) return; // außerhalb Horizont
       items.push({
         source_type: 'recurring_contract',
         source_id: c.id,
@@ -145,16 +170,15 @@ export function buildContractItems(contracts, scenario) {
         notes: c.notes || '',
       });
     } else if (interval === 'by_effort') {
-      // by_effort contracts: warn but do not project
       warnings.push({ source_type: 'recurring_contract', id: c.id, title, issue: 'Abrechnung nach Aufwand – kein Fixbetrag planbar' });
     } else if (!c.monthly_fixed_price || c.monthly_fixed_price === 0) {
       warnings.push({ source_type: 'recurring_contract', id: c.id, title, issue: 'Kein monatlicher Fixpreis angegeben' });
     }
 
-    // One-time payment on top of recurring
+    // Einmalzahlung zusätzlich zur laufenden Rate
     if (Number(c.one_time_payment) > 0 && interval !== 'once') {
-      const billMonth = toMonth(c.start_date) || CURRENT_MONTH;
-      if (clamp2026(billMonth)) {
+      const billMonth = toForecastMonth(c.start_date);
+      if (billMonth) {
         items.push({
           source_type: 'recurring_contract',
           source_id: c.id,
@@ -186,13 +210,15 @@ export function buildToolCostItems(tools, scenario) {
     const shouldCancel = t.decision_status === 'cancel' || t.needed === false;
     if (shouldCancel && scenario !== 'best_case') return;
 
+    // Bereits bezahlte Tools nicht nochmals als Abfluss zeigen
+    if (t.payment_status === 'paid') return;
+
     const interval = t.payment_interval || 'monthly';
-    const alreadyPaid = t.payment_status === 'paid';
-    const status = alreadyPaid ? 'paid' : 'planned';
     const title = t.tool_name || '—';
 
     if (interval === 'monthly' && Number(t.monthly_cost) > 0) {
-      MONTHS_2026.forEach((month) => {
+      // Nur ab aktuellem Monat iterieren
+      FORECAST_MONTHS.forEach((month) => {
         items.push({
           source_type: 'tool_cost',
           source_id: t.id,
@@ -204,29 +230,32 @@ export function buildToolCostItems(tools, scenario) {
           amount: Number(t.monthly_cost),
           weighted_amount: Number(t.monthly_cost),
           probability_percent: 100,
-          status,
-          notes: t.info || (t.customer_recharge ? `Weiterverre.: ${t.customer_recharge}` : ''),
+          status: 'planned',
+          notes: t.info || (t.customer_recharge ? `Weiterverr.: ${t.customer_recharge}` : ''),
         });
       });
     } else if (interval === 'quarterly' && (Number(t.monthly_cost) > 0 || Number(t.annual_cost) > 0)) {
       const quarterlyAmount = Number(t.monthly_cost) > 0
         ? Number(t.monthly_cost) * 3
         : Number(t.annual_cost) / 4;
-      [0, 3, 6, 9].forEach((i) => {
-        items.push({
-          source_type: 'tool_cost',
-          source_id: t.id,
-          title,
-          customer_or_supplier: t.department || '—',
-          category: t.department || 'other',
-          month: MONTHS_2026[i],
-          direction: 'outflow',
-          amount: quarterlyAmount,
-          weighted_amount: quarterlyAmount,
-          probability_percent: 100,
-          status,
-          notes: t.info || '',
-        });
+      // Nächste 4 Quartale ab aktuellem Monat
+      [0, 3, 6, 9].forEach((offset) => {
+        if (offset < FORECAST_MONTHS.length) {
+          items.push({
+            source_type: 'tool_cost',
+            source_id: t.id,
+            title,
+            customer_or_supplier: t.department || '—',
+            category: t.department || 'other',
+            month: FORECAST_MONTHS[offset],
+            direction: 'outflow',
+            amount: quarterlyAmount,
+            weighted_amount: quarterlyAmount,
+            probability_percent: 100,
+            status: 'planned',
+            notes: t.info || '',
+          });
+        }
       });
     } else if (interval === 'yearly' || interval === 'one_time') {
       const amount = Number(t.annual_cost) || Number(t.monthly_cost) * 12 || 0;
@@ -234,8 +263,8 @@ export function buildToolCostItems(tools, scenario) {
         warnings.push({ source_type: 'tool_cost', id: t.id, title, issue: 'Kein Betrag für jährliches Tool' });
         return;
       }
-      const billMonth = toMonth(t.due_date) || CURRENT_MONTH;
-      if (!clamp2026(billMonth)) return;
+      const billMonth = toForecastMonth(t.due_date);
+      if (!billMonth) return; // außerhalb Horizont oder bereits bezahlt
       items.push({
         source_type: 'tool_cost',
         source_id: t.id,
@@ -247,14 +276,13 @@ export function buildToolCostItems(tools, scenario) {
         amount,
         weighted_amount: amount,
         probability_percent: 100,
-        status,
+        status: 'planned',
         notes: t.info || '',
       });
     } else if (interval === 'unclear') {
-      // Distribute as monthly estimate
       if (Number(t.annual_cost) > 0) {
         const monthly = Number(t.annual_cost) / 12;
-        MONTHS_2026.forEach((month) => {
+        FORECAST_MONTHS.forEach((month) => {
           items.push({
             source_type: 'tool_cost',
             source_id: t.id,
@@ -301,9 +329,8 @@ export function buildReceivableItems(receivables, scenario) {
       warnings.push({ source_type: 'receivable', id: r.id, title: `${r.customer} ${r.invoice_number || ''}`, issue: 'Kein Fälligkeitsdatum' });
     }
 
-    // Overdue → place in current month
-    let month = toMonth(r.due_date);
-    if (!month) month = CURRENT_MONTH;
+    // Überfällige und vergangene Forderungen → in aktuellen Monat falten
+    const month = toForecastMonth(r.due_date) || CURRENT_MONTH;
     const isOverdue = r.due_date && r.due_date < TODAY;
 
     items.push({
@@ -341,9 +368,10 @@ export function buildPayableItems(payables, scenario) {
     const prob = probMap[priority] || 100;
     const amount = Number(p.gross_amount) || Number(p.net_amount) || 0;
 
-    let month = toMonth(p.payment_planned_date) || toMonth(p.due_date);
-    if (!month) {
-      month = CURRENT_MONTH;
+    // Fällige oder überfällige Eingangsrechnungen → in aktuellen Monat falten
+    const month = toForecastMonth(p.payment_planned_date) || toForecastMonth(p.due_date) || CURRENT_MONTH;
+
+    if (!p.payment_planned_date && !p.due_date) {
       warnings.push({ source_type: 'payable', id: p.id, title: `${p.supplier} ${p.invoice_number || ''}`, issue: 'Kein Zahlungs- oder Fälligkeitsdatum' });
     }
 
@@ -403,7 +431,8 @@ export function buildFullForecast({
   };
 
   let balance = openingBalance;
-  const months = MONTHS_2026.map((month) => {
+
+  const months = FORECAST_MONTHS.map((month) => {
     const monthItems = allItems.filter((i) => i.month === month);
     const inflow_items = monthItems.filter((i) => i.direction === 'inflow');
     const outflow_items = monthItems.filter((i) => i.direction === 'outflow');
@@ -411,7 +440,6 @@ export function buildFullForecast({
     const inflow = inflow_items.reduce((s, i) => s + i.amount, 0);
     const weighted_inflow = inflow_items.reduce((s, i) => s + i.weighted_amount, 0);
 
-    // Fixed costs added as outflow
     const fixedOutflow = (Number(fixedMonthlyCosts) || 0) + (Number(taxObligations) || 0);
     const outflow = outflow_items.reduce((s, i) => s + i.amount, 0) + fixedOutflow;
     const weighted_outflow = outflow_items.reduce((s, i) => s + i.weighted_amount, 0) + fixedOutflow;

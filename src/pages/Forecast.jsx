@@ -99,7 +99,11 @@ export default function Forecast() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Forecast & Szenarien" subtitle="Liquiditätsplanung 2026" icon={TrendingUp} />
+      <PageHeader
+        title="Forecast & Szenarien"
+        subtitle={`Liquiditätsplanung ${months[0] ? getMonthLabel(months[0].month) : ''} – ${months[11] ? getMonthLabel(months[11].month) : ''} (12 Monate)`}
+        icon={TrendingUp}
+      />
 
       <Alert className="border-blue-200 bg-blue-50">
         <Info className="w-4 h-4 text-blue-600" />
