@@ -187,47 +187,51 @@ export default function NextMonthForecast() {
         icon={CalendarCheck}
       />
 
-      {/* KPIs aktueller Monat — NUR Billing-Anweisungen */}
+      {/* KPIs aktueller Monat — Anweisungen + Rechnungsplanung */}
       <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-4 space-y-3">
         <div className="text-xs font-semibold uppercase tracking-wide text-blue-700 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse inline-block" />
           Laufender Monat — {curMonthLabel}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <KpiCard title="Angewiesene Abrechnungen" value={formatCurrency(totalCurInstructionNet)} variant="info"
-            subtitle={`${curMonthInstructions.length} Anweisung(en) gesamt`} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard title="Abrechnungsanweisungen" value={formatCurrency(totalCurInstructionNet)} variant="info"
+            subtitle={`${curMonthInstructions.length} Anweisung(en)`} />
           <KpiCard title="Davon übermittelt" value={formatCurrency(
             curMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status))
               .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0)
           )} variant="success"
             subtitle={`${curMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status)).length} an sevDesk`} />
-          <KpiCard title="Noch ausstehend" value={formatCurrency(
-            curMonthInstructions.filter(i => ['draft','ready_for_backoffice'].includes(i.status))
-              .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0)
+          <KpiCard title="Rechnungsplanung" value={formatCurrency(totalCurPlansNet)} variant="info"
+            subtitle={`${curMonthPlans.length} geplante Abrechnungen`} />
+          <KpiCard title="Noch nicht angewiesen" value={formatCurrency(
+            curMonthPlans.filter(p => ['open','planned','in_review'].includes(p.billing_status))
+              .reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0)
           )} variant="warning"
-            subtitle={`${curMonthInstructions.filter(i => ['draft','ready_for_backoffice'].includes(i.status)).length} noch nicht übermittelt`} />
+            subtitle={`${curMonthPlans.filter(p => ['open','planned','in_review'].includes(p.billing_status)).length} Einträge offen`} />
         </div>
       </div>
 
-      {/* KPIs nächster Monat — NUR Billing-Anweisungen */}
+      {/* KPIs nächster Monat — Anweisungen + Rechnungsplanung */}
       <div className="rounded-xl border border-amber-200 bg-amber-50/30 p-4 space-y-3">
         <div className="text-xs font-semibold uppercase tracking-wide text-amber-700 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
           Nächster Monat — {nextMonthLabel}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <KpiCard title="Angewiesene Abrechnungen" value={formatCurrency(totalInstructionNet)} variant="info"
-            subtitle={`${nextMonthInstructions.length} Anweisung(en) gesamt`} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard title="Abrechnungsanweisungen" value={formatCurrency(totalInstructionNet)} variant="info"
+            subtitle={`${nextMonthInstructions.length} Anweisung(en)`} />
           <KpiCard title="Davon übermittelt" value={formatCurrency(
             nextMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status))
               .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0)
           )} variant="success"
             subtitle={`${nextMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status)).length} an sevDesk`} />
-          <KpiCard title="Noch ausstehend" value={formatCurrency(
-            nextMonthInstructions.filter(i => ['draft','ready_for_backoffice'].includes(i.status))
-              .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0)
+          <KpiCard title="Rechnungsplanung" value={formatCurrency(totalNextPlansNet)} variant="info"
+            subtitle={`${nextMonthPlans.length} geplante Abrechnungen`} />
+          <KpiCard title="Noch nicht angewiesen" value={formatCurrency(
+            nextMonthPlans.filter(p => ['open','planned','in_review'].includes(p.billing_status))
+              .reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0)
           )} variant="warning"
-            subtitle={`${nextMonthInstructions.filter(i => ['draft','ready_for_backoffice'].includes(i.status)).length} noch nicht übermittelt`} />
+            subtitle={`${nextMonthPlans.filter(p => ['open','planned','in_review'].includes(p.billing_status)).length} Einträge offen`} />
         </div>
       </div>
 
