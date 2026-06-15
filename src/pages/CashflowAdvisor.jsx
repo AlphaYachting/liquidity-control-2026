@@ -65,20 +65,28 @@ export default function CashflowAdvisor() {
 
   const SUGGESTIONS = [
     {
-      label: '📋 Diesen Monat verrechenbar',
-      text: 'Welche Projekte und Abrechnungsposten können laut aktuellem Projektstatus und Abrechnungsbereitschaft noch in diesem Monat verrechnet werden? Bitte strukturiert nach Kunde, Projekt, Teilprojekt und Betrag (Netto), sortiert nach Kunde alphabetisch.',
+      label: '⚡ Quick-Wins — sofort verrechenbar',
+      text: 'Analysiere alle aktiven Projekte und finde Quick-Wins: Welche Projekte haben Leistungspakete mit awork_readiness_signal "ready_candidate" oder "likely_ready" und sind noch nicht abgerechnet? Welche Projekte haben einen PM-Kommentar zur nächsten Rechnung (notes_next_invoice)? Welche haben excel_expected_current_month_net > 0? Bitte vollständige Liste nach Kunde alphabetisch, mit Betrag netto und konkreter Handlungsempfehlung.',
+    },
+    {
+      label: '📊 Abrechnungsrückstände',
+      text: 'Welche aktiven Projekte haben einen Abrechnungsrückstand? Das sind Projekte wo der Leistungsfortschritt (real_progress_percent oder awork_progress_percent) deutlich höher ist als der bisherige Abrechnungsstand (excel_already_invoiced_net / excel_total_order_net). Zeige alle Projekte mit einer Differenz > 15%, sortiert nach größtem offenen Betrag. Inkl. risk_status und offenen Beträgen.',
     },
     {
       label: '📅 Nächsten Monat planen',
-      text: 'Welche Projekte und Abrechnungsposten sollte ich bereits jetzt für den nächsten Monat zur Verrechnung einplanen? Bitte strukturiert nach Kunde, Projekt, Teilprojekt und Betrag (Netto), sortiert nach Kunde alphabetisch.',
+      text: 'Erstelle eine Vorschau für die Abrechnungsplanung im nächsten Monat. Nutze dafür: (1) MonthlyBillingPlan mit dem nächsten Monat, (2) BillingInstruction mit planned_invoice_date im nächsten Monat, (3) LiquidityProject mit excel_expected_next_month_net > 0. Summiere die erwarteten Beträge und liste alle Projekte nach Kunde.',
     },
     {
-      label: '⚠️ Überfällige & Risikoprojekte',
-      text: 'Gibt es überfällige Rechnungen oder Projekte mit Abrechnungsrisiko? Bitte nach Kunde und Projekt gegliedert mit Beträgen.',
+      label: '⚠️ Risiko & Überfällige Rechnungen',
+      text: 'Zeige mir alle kritischen Punkte: (1) InvoiceRecord mit payment_status "overdue" — nach Kunde gruppiert mit Gesamtbetrag und Tagen überfällig. (2) LiquidityProject mit risk_status "high" oder "critical" und noch offenem Betrag. (3) Aktive BillingInstructions die länger als 2 Wochen auf sent_to_backoffice stehen. Klare Handlungsempfehlung für jeden Punkt.',
     },
     {
-      label: '📊 Cashflow-Übersicht',
-      text: 'Wie sieht der Cashflow für die nächsten Monate aus? Zeige mir eine Übersicht der erwarteten Einnahmen nach Kunde und Projekt gegliedert.',
+      label: '🔍 Einzelprojekt analysieren',
+      text: 'Ich möchte ein spezifisches Projekt analysieren. Bitte frage mich nach dem Projektnamen oder Kunden, dann analysiere: Auftragswert, abgerechneter Betrag, offener Betrag, Zahlungsstatus aller Rechnungen, aktive Abrechnungsanweisungen, Leistungsfortschritt vs. Abrechnungsstand, und konkrete Empfehlung für nächste Schritte.',
+    },
+    {
+      label: '💰 Cashflow nächste 3 Monate',
+      text: 'Erstelle eine Cashflow-Prognose für die nächsten 3 Monate. Nutze: (1) offene InvoiceRecords mit due_date in den nächsten 90 Tagen (erwartete Zahlungseingänge), (2) BillingInstruction mit planned_invoice_date in den nächsten 3 Monaten (geplante neue Rechnungen), (3) excel_expected_current_month_net und excel_expected_next_month_net aller aktiven Projekte. Zeige pro Monat: erwartete Eingänge, geplante neue Rechnungen, Gesamtsumme.',
     },
   ];
 
