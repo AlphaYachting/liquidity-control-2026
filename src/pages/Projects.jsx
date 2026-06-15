@@ -67,6 +67,13 @@ export default function Projects() {
   const currentMonth = getCurrentMonth();
   const nextMonth = getNextMonth();
 
+  const currentMonthLabel = new Date().toLocaleString('de-DE', { month: 'long' });
+  const nextMonthLabel = (() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    return d.toLocaleString('de-DE', { month: 'long' });
+  })();
+
   const { data: projects = [], isLoading: projectsLoading } = useQuery({
     queryKey: ['projects'], queryFn: () => base44.entities.LiquidityProject.list()
   });
@@ -415,13 +422,13 @@ export default function Projects() {
         <KpiCard title="Gesamtvolumen" value={formatCurrency(totalNet)} variant="info" subtitle={`${activeCount} aktive Projekte`} />
         <KpiCard title="Offene Beträge" value={formatCurrency(totalOpen)} variant="warning" />
         <KpiCard
-          title="Geplant d. Monat"
+          title={`Geplant ${currentMonthLabel}`}
           value={formatCurrency(expectedCurrentMonth)}
           variant="success"
           subtitle={billedThisMonth > 0 ? `✓ ${formatCurrency(billedThisMonth)} übermittelt` : 'noch nicht übermittelt'}
         />
         <KpiCard
-          title="Geplant n. Monat"
+          title={`Geplant ${nextMonthLabel}`}
           value={formatCurrency(expectedNextMonth)}
           variant="info"
           subtitle={billedNextMonth > 0 ? `✓ ${formatCurrency(billedNextMonth)} übermittelt` : 'noch nicht übermittelt'}
