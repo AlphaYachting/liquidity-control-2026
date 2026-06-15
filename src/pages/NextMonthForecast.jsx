@@ -115,11 +115,13 @@ export default function NextMonthForecast() {
   if (filters.responsible) visibleCurBlocks = visibleCurBlocks.filter(b => b.responsible_person === filters.responsible);
   if (filters.customer) visibleCurBlocks = visibleCurBlocks.filter(b => (b.customer || '').toLowerCase().includes(filters.customer.toLowerCase()));
 
-  let visibleInstructions = nextMonthInstructions;
-  if (filters.customer) visibleInstructions = visibleInstructions.filter(i => (i.customer_name || '').toLowerCase().includes(filters.customer.toLowerCase()));
+  let visibleInstructions = nextMonthInstructions
+    .filter(i => !filters.customer || (i.customer_name || '').toLowerCase().includes(filters.customer.toLowerCase()))
+    .sort((a, b) => (a.customer_name || '').localeCompare(b.customer_name || '', 'de'));
 
-  let visibleCurInstructions = curMonthInstructions;
-  if (filters.customer) visibleCurInstructions = visibleCurInstructions.filter(i => (i.customer_name || '').toLowerCase().includes(filters.customer.toLowerCase()));
+  let visibleCurInstructions = curMonthInstructions
+    .filter(i => !filters.customer || (i.customer_name || '').toLowerCase().includes(filters.customer.toLowerCase()))
+    .sort((a, b) => (a.customer_name || '').localeCompare(b.customer_name || '', 'de'));
 
   const responsibleOptions = [...new Set(blocks.map(b => b.responsible_person).filter(Boolean))];
 
@@ -139,16 +141,12 @@ export default function NextMonthForecast() {
     Number(p.planned_amount_net) > 0
   );
 
-  let visibleCurPlans = curMonthPlans;
-  if (filters.customer) visibleCurPlans = visibleCurPlans.filter(p => {
-    const proj = projectsById[p.project_id];
-    return (proj?.customer || proj?.project_name || '').toLowerCase().includes(filters.customer.toLowerCase());
-  });
-  let visibleNextPlans = nextMonthPlans;
-  if (filters.customer) visibleNextPlans = visibleNextPlans.filter(p => {
-    const proj = projectsById[p.project_id];
-    return (proj?.customer || proj?.project_name || '').toLowerCase().includes(filters.customer.toLowerCase());
-  });
+  let visibleCurPlans = curMonthPlans
+    .filter(p => !filters.customer || (projectsById[p.project_id]?.customer || projectsById[p.project_id]?.project_name || '').toLowerCase().includes(filters.customer.toLowerCase()))
+    .sort((a, b) => (projectsById[a.project_id]?.customer || '').localeCompare(projectsById[b.project_id]?.customer || '', 'de'));
+  let visibleNextPlans = nextMonthPlans
+    .filter(p => !filters.customer || (projectsById[p.project_id]?.customer || projectsById[p.project_id]?.project_name || '').toLowerCase().includes(filters.customer.toLowerCase()))
+    .sort((a, b) => (projectsById[a.project_id]?.customer || '').localeCompare(projectsById[b.project_id]?.customer || '', 'de'));
 
   const totalCurPlansNet = curMonthPlans.reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0);
   const totalNextPlansNet = nextMonthPlans.reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0);
