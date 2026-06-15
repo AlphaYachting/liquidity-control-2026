@@ -411,10 +411,9 @@ export default function Projects() {
     <div className="space-y-6">
       <PageHeader title="Projekt-Cockpit" subtitle={`${filtered.length} aktive Projekte · Operativer Status, awork, Abrechnung, Zahlungen`} icon={FolderKanban} />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KpiCard title="Gesamtvolumen" value={formatCurrency(totalNet)} variant="info" />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <KpiCard title="Gesamtvolumen" value={formatCurrency(totalNet)} variant="info" subtitle={`${activeCount} aktive Projekte`} />
         <KpiCard title="Offene Beträge" value={formatCurrency(totalOpen)} variant="warning" />
-        <KpiCard title="Aktive Projekte" value={activeCount} subtitle={`von ${filtered.length} gesamt`} />
         <KpiCard
           title="Geplant d. Monat"
           value={formatCurrency(expectedCurrentMonth)}
