@@ -266,14 +266,17 @@ export default function Projects() {
     return {
       ...p,
       _invoiced: fin.adjustedInvoicedNet || 0,
-      _open: Math.max(0, fin.openToInvoiceNet ?? (p.total_net_amount || 0)),
+      _open: Math.max(0, fin.openToInvoiceNet ?? (fin.commercialBaseNet || p.total_net_amount || 0)),
       _paid: fin.paidGross || 0,
       _lastInvoiceDate: lastInvDate,
       _daysSinceInvoice: daysSince,
     };
   });
 
-  const totalNet = filteredWithLive.reduce((s, p) => s + (Number(p.total_net_amount) || 0), 0);
+  const totalNet = filteredWithLive.reduce((s, p) => {
+    const fin = projectFinancialsMap[p.id] || {};
+    return s + (fin.commercialBaseNet || Number(p.total_net_amount) || 0);
+  }, 0);
   const totalOpen = filteredWithLive
     .filter(p => p.status !== 'completed' && p.status !== 'cancelled')
     .reduce((s, p) => s + p._open, 0);
