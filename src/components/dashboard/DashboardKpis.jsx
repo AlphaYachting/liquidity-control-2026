@@ -94,8 +94,8 @@ export default function DashboardKpis({ projects, planLines, contracts, tools, r
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-      {kpis.map((k, i) => <KpiCard key={i} {...k} />)}
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+      {kpis.map((k, i) => <KpiCard key={i} {...k} compact />)}
     </div>
   );
 }
