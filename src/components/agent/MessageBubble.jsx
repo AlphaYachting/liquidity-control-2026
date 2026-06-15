@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from "@/components/ui/button";
 import { Copy, Zap, CheckCircle2, AlertCircle, Loader2, ChevronRight, Clock } from 'lucide-react';
 import { cn } from "@/lib/utils";
@@ -93,6 +94,7 @@ export default function MessageBubble({ message }) {
             ) : (
               <ReactMarkdown
                 className="text-sm prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                remarkPlugins={[remarkGfm]}
                 components={{
                   code: ({ inline, className, children, ...props }) => {
                     const match = /language-(\w+)/.exec(className || '');
@@ -118,6 +120,12 @@ export default function MessageBubble({ message }) {
                   h2: ({ children }) => <h2 className="text-base font-semibold my-2">{children}</h2>,
                   h3: ({ children }) => <h3 className="text-sm font-semibold my-2">{children}</h3>,
                   blockquote: ({ children }) => <blockquote className="border-l-2 border-border pl-3 my-2 text-muted-foreground">{children}</blockquote>,
+                  table: ({ children }) => <div className="overflow-x-auto my-3"><table className="w-full text-xs border-collapse">{children}</table></div>,
+                  thead: ({ children }) => <thead className="bg-muted">{children}</thead>,
+                  tbody: ({ children }) => <tbody>{children}</tbody>,
+                  tr: ({ children }) => <tr className="border-b border-border even:bg-muted/30">{children}</tr>,
+                  th: ({ children }) => <th className="text-left px-2 py-1.5 font-semibold text-foreground whitespace-nowrap">{children}</th>,
+                  td: ({ children }) => <td className="px-2 py-1.5 text-muted-foreground">{children}</td>,
                 }}
               >
                 {message.content}
