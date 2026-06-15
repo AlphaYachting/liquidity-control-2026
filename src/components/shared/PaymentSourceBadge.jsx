@@ -20,8 +20,8 @@ export default function PaymentSourceBadge({ sourceType, sourceFile, updatedDate
       {showDate && dateStr && (
         <span className="text-xs text-muted-foreground">Datenstand: {dateStr}</span>
       )}
-      {sourceFile && (
-        <span className="text-xs text-muted-foreground truncate max-w-[120px]" title={sourceFile}>
+      {sourceFile && !sourceFile.startsWith('{') && !sourceFile.startsWith('[') && (
+        <span className="text-xs text-muted-foreground truncate max-w-[100px]" title={sourceFile}>
           {sourceFile}
         </span>
       )}

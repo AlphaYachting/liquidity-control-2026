@@ -137,7 +137,7 @@ export default function ProjectInvoiceSection({
                   <th className="text-right pb-2 font-medium">Offen</th>
                   <th className="text-left pb-2 font-medium pl-2">Status</th>
                   <th className="text-left pb-2 font-medium pl-2">Quelle</th>
-                  <th className="pb-2"></th>
+                  <th className="pb-2 w-16"></th>
                 </tr>
               </thead>
               <tbody>
@@ -185,13 +185,18 @@ export default function ProjectInvoiceSection({
                       <td className="py-2 text-right text-emerald-600">{formatCurrency(ep.amount)}</td>
                       <td className="py-2 text-right text-amber-600">{formatCurrency(openAmt)}</td>
                       <td className="py-2 pl-2"><StatusBadge status={inv.payment_status} /></td>
-                      <td className="py-2 pl-2">
+                      <td className="py-2 pl-2 whitespace-nowrap">
                         <PaymentSourceBadge
                           sourceType={inv.source_type}
                           sourceFile={inv.source_file}
                           updatedDate={inv.updated_date}
-                          showDate
+                          showDate={false}
                         />
+                        {inv.updated_date && (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {new Date(inv.updated_date).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </div>
+                        )}
                       </td>
                       <td className="py-2 pl-2">
                         <Button variant="ghost" size="sm" className="h-6 text-xs"
