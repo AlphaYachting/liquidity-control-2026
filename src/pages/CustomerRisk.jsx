@@ -4,9 +4,9 @@ import { base44 } from '@/api/base44Client';
 import { Users, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { calculateProjectFinancials } from '@/lib/projectFinancials';
 import { useNavigate } from 'react-router-dom';
 
 export default function CustomerRisk() {
@@ -22,8 +22,21 @@ export default function CustomerRisk() {
   const { data: orders = [], isLoading: oLoading } = useQuery({
     queryKey: ['confirmedOrders'], queryFn: () => base44.entities.ConfirmedOrder.list()
   });
+  const { data: allBlocks = [], isLoading: bLoading } = useQuery({
+    queryKey: ['billingBlocks'], queryFn: () => base44.entities.ProjectBillingBlock.list()
+  });
 
-  const isLoading = pLoading || iLoading || oLoading;
+  const isLoading = pLoading || iLoading || oLoading || bLoading;
+
+  // Pre-compute financials per project using the shared helper (same as Projects page)
+  const finMap = useMemo(() => {
+    if (isLoading) return {};
+    const map = {};
+    projects.forEach(p => {
+      map[p.id] = calculateProjectFinancials({ project: p, allOrders: orders, allBlocks, allInvoices: invoices });
+    });
+    return map;
+  }, [projects, orders, allBlocks, invoices, isLoading]);
 
   const customerData = useMemo(() => {
     if (isLoading) return [];
@@ -32,49 +45,72 @@ export default function CustomerRisk() {
     const customerMap = {};
     projects.forEach(p => {
       const key = p.customer || 'Unbekannt';
-      if (!customerMap[key]) customerMap[key] = { customer: key, projects: [], totalNet: 0, invoicedNet: 0, openNet: 0, paidGross: 0, hasRisk: false };
-      customerMap[key].projects.push(p);
-      customerMap[key].totalNet += p.total_net_amount || 0;
-      customerMap[key].openNet += p.open_amount || 0;
-      if (['high', 'critical'].includes(p.risk_status)) customerMap[key].hasRisk = true;
-    });
+      if (!customerMap[key]) {
+        customerMap[key] = {
+          customer: key,
+          projects: [],
+          totalNet: 0,
+          openToInvoiceNet: 0,
+          openReceivableGross: 0,
+          paidGross: 0,
+          invoicedNet: 0,
+          overdue: 0,
+          hasRisk: false,
+          linkedInvoices: [],
+        };
+      }
+      const c = customerMap[key];
+      const fin = finMap[p.id] || {};
 
-    // Aggregate invoices per customer
-    const customerInvoiceMap = {};
-    const projectCustomerMap = {};
-    projects.forEach(p => { projectCustomerMap[p.id] = p.customer; });
+      c.projects.push(p);
+      // Use project's total_net_amount as the order volume basis
+      c.totalNet += Number(p.total_net_amount) || 0;
+      // Use calculated financials for billing accuracy
+      c.openToInvoiceNet += fin.openToInvoiceNet ?? 0;
+      c.openReceivableGross += fin.openReceivableGross ?? 0;
+      c.paidGross += fin.paidGross ?? 0;
+      c.invoicedNet += fin.adjustedInvoicedNet ?? 0;
 
-    const orderProjectMap = {};
-    orders.forEach(o => { if (o.id && o.project_id) orderProjectMap[o.id] = o.project_id; });
+      // Overdue: sum open_amount of invoices with status overdue or partially_paid past due
+      const today = new Date().toISOString().slice(0, 10);
+      (fin.linkedInvoices || []).forEach(inv => {
+        if (inv.is_credit_note || inv.payment_status === 'cancelled' || inv.payment_status === 'paid') return;
+        const isOverdue = inv.payment_status === 'overdue' ||
+          (inv.due_date && inv.due_date < today && ['open', 'partially_paid'].includes(inv.payment_status));
+        if (isOverdue) {
+          c.overdue += Number(inv.open_amount) || Number(inv.gross_amount) || 0;
+        }
+        // Collect for invoice list display
+        if (!c.linkedInvoices.find(i => i.id === inv.id)) {
+          c.linkedInvoices.push(inv);
+        }
+      });
 
-    invoices.forEach(inv => {
-      const pid = inv.project_id || orderProjectMap[inv.confirmed_order_id];
-      const cust = pid ? projectCustomerMap[pid] : null;
-      if (!cust) return;
-      if (!customerInvoiceMap[cust]) customerInvoiceMap[cust] = { total: 0, paid: 0, open: 0, overdue: 0, invoiceList: [] };
-      const gross = inv.gross_amount || 0;
-      customerInvoiceMap[cust].total += gross;
-      if (inv.payment_status === 'paid') customerInvoiceMap[cust].paid += gross;
-      else customerInvoiceMap[cust].open += inv.open_amount || gross;
-      if (inv.payment_status === 'overdue') customerInvoiceMap[cust].overdue += inv.open_amount || gross;
-      customerInvoiceMap[cust].invoiceList.push(inv);
+      if (['high', 'critical'].includes(p.risk_status)) c.hasRisk = true;
     });
 
     return Object.values(customerMap)
       .map(c => ({
         ...c,
-        invoiceSummary: customerInvoiceMap[c.customer] || { total: 0, paid: 0, open: 0, overdue: 0, invoiceList: [] },
         activeProjects: c.projects.filter(p => p.status === 'active').length,
+        // filter archived/not-billing-relevant projects for active count only
+        billingRelevantProjects: c.projects.filter(p =>
+          !['archived', 'not_billing_relevant'].includes(p.billing_relevance_status) &&
+          !p.excluded_from_project_cockpit
+        ).length,
       }))
+      .filter(c => c.billingRelevantProjects > 0 || c.totalNet > 0)
       .sort((a, b) => b.totalNet - a.totalNet);
-  }, [projects, invoices, orders, isLoading]);
+  }, [projects, finMap, isLoading]);
 
   const totalExposure = customerData.reduce((s, c) => s + c.totalNet, 0);
-  const riskCustomers = customerData.filter(c => c.hasRisk || c.invoiceSummary.overdue > 0).length;
+  const riskCustomers = customerData.filter(c => c.hasRisk || c.overdue > 0).length;
 
   const getRiskBadge = (c) => {
-    if (c.hasRisk || c.invoiceSummary.overdue > 0) return { label: 'Risiko', cls: 'bg-red-100 text-red-700 border-red-200' };
-    if (c.activeProjects > 2 && c.invoiceSummary.open > 10000) return { label: 'Klumpen', cls: 'bg-amber-100 text-amber-700 border-amber-200' };
+    if (c.hasRisk && c.overdue > 0) return { label: 'Risiko + Überfällig', cls: 'bg-red-100 text-red-700 border-red-200' };
+    if (c.hasRisk) return { label: 'Risikoprojekt', cls: 'bg-orange-100 text-orange-700 border-orange-200' };
+    if (c.overdue > 0) return { label: 'Überfällig', cls: 'bg-red-100 text-red-700 border-red-200' };
+    if (c.billingRelevantProjects > 2 && c.openReceivableGross > 20000) return { label: 'Klumpenrisiko', cls: 'bg-amber-100 text-amber-700 border-amber-200' };
     return null;
   };
 
@@ -84,7 +120,7 @@ export default function CustomerRisk() {
     <div className="space-y-6">
       <PageHeader
         title="Kundenrisiko-Aggregation"
-        subtitle={`${customerData.length} Kunden · Gesamtexposure ${formatCurrency(totalExposure)} · ${riskCustomers} mit Risikoflag`}
+        subtitle={`${customerData.length} Kunden · Gesamtvolumen ${formatCurrency(totalExposure)} · ${riskCustomers} mit Risikoflag`}
         icon={Users}
       />
 
@@ -110,76 +146,132 @@ export default function CustomerRisk() {
                         {riskBadge.label}
                       </span>
                     )}
-                    <span className="text-xs text-muted-foreground">{c.activeProjects} aktive Projekte · {exposurePct}% Exposure</span>
+                    <span className="text-xs text-muted-foreground">
+                      {c.activeProjects} aktive · {c.projects.length} Projekte gesamt · {exposurePct}% Exposure
+                    </span>
                   </div>
-
-                  {/* Exposure bar */}
                   <div className="mt-2 w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-primary rounded-full" style={{ width: `${exposurePct}%` }} />
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, exposurePct)}%` }} />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 flex-shrink-0 text-right">
+                <div className="grid grid-cols-4 gap-4 flex-shrink-0 text-right">
                   <div>
-                    <p className="text-xs text-muted-foreground">Gesamt</p>
+                    <p className="text-xs text-muted-foreground">Volumen netto</p>
                     <p className="text-sm font-semibold">{formatCurrency(c.totalNet)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Offen</p>
-                    <p className={`text-sm font-semibold ${c.openNet > 0 ? 'text-amber-600' : ''}`}>{formatCurrency(c.openNet)}</p>
+                    <p className="text-xs text-muted-foreground">Noch zu verr.</p>
+                    <p className={`text-sm font-semibold ${c.openToInvoiceNet > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      {formatCurrency(Math.max(0, c.openToInvoiceNet))}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Offen (Forder.)</p>
+                    <p className={`text-sm font-semibold ${c.openReceivableGross > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                      {formatCurrency(c.openReceivableGross)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Überfällig</p>
-                    <p className={`text-sm font-semibold ${c.invoiceSummary.overdue > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>{formatCurrency(c.invoiceSummary.overdue)}</p>
+                    <p className={`text-sm font-semibold ${c.overdue > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                      {c.overdue > 0 ? formatCurrency(c.overdue) : '—'}
+                    </p>
                   </div>
                 </div>
               </button>
 
               {isOpen && (
-                <div className="border-t px-4 pb-4 pt-3 space-y-3 bg-muted/20">
+                <div className="border-t px-4 pb-4 pt-3 space-y-4 bg-muted/20">
+                  {/* Summary KPIs */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="bg-card rounded-lg p-3">
-                      <p className="text-xs text-muted-foreground">Projekte gesamt</p>
-                      <p className="font-bold">{c.projects.length}</p>
+                      <p className="text-xs text-muted-foreground">Verrechnet netto</p>
+                      <p className="font-bold">{formatCurrency(c.invoicedNet)}</p>
                     </div>
                     <div className="bg-card rounded-lg p-3">
-                      <p className="text-xs text-muted-foreground">Rechnungen total</p>
-                      <p className="font-bold">{formatCurrency(c.invoiceSummary.total)}</p>
+                      <p className="text-xs text-muted-foreground">Bezahlt brutto</p>
+                      <p className="font-bold text-emerald-600">{formatCurrency(c.paidGross)}</p>
                     </div>
                     <div className="bg-card rounded-lg p-3">
-                      <p className="text-xs text-muted-foreground">Bezahlt</p>
-                      <p className="font-bold text-emerald-600">{formatCurrency(c.invoiceSummary.paid)}</p>
+                      <p className="text-xs text-muted-foreground">Offene Forderungen</p>
+                      <p className={`font-bold ${c.openReceivableGross > 0 ? 'text-amber-600' : ''}`}>{formatCurrency(c.openReceivableGross)}</p>
                     </div>
                     <div className="bg-card rounded-lg p-3">
-                      <p className="text-xs text-muted-foreground">Offen (Rechnungen)</p>
-                      <p className={`font-bold ${c.invoiceSummary.open > 0 ? 'text-amber-600' : ''}`}>{formatCurrency(c.invoiceSummary.open)}</p>
+                      <p className="text-xs text-muted-foreground">Noch zu verrechnen</p>
+                      <p className={`font-bold ${c.openToInvoiceNet > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                        {formatCurrency(Math.max(0, c.openToInvoiceNet))}
+                      </p>
                     </div>
                   </div>
 
+                  {/* Project list */}
                   <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Projekte</p>
                     {c.projects.map(p => {
+                      const fin = finMap[p.id] || {};
                       const cleanName = (p.project_name || '').replace(/^(order confirmation|auftragsbestätigung)\s*[|]\s*/i, '').trim();
+                      const isArchived = ['archived', 'not_billing_relevant'].includes(p.billing_relevance_status);
                       return (
                         <div
                           key={p.id}
-                          className="flex items-center justify-between gap-2 bg-card rounded-lg px-3 py-2 cursor-pointer hover:shadow-sm transition-shadow"
+                          className={`flex items-center justify-between gap-2 bg-card rounded-lg px-3 py-2 cursor-pointer hover:shadow-sm transition-shadow ${isArchived ? 'opacity-50' : ''}`}
                           onClick={() => navigate(`/projects/${p.id}`)}
                         >
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium truncate">{cleanName || p.customer}</p>
-                            <p className="text-xs text-muted-foreground">{p.status} · {p.project_manager || '–'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {p.status} · {p.project_manager || '–'}
+                              {isArchived && ' · archiviert'}
+                            </p>
                           </div>
-                          <div className="flex items-center gap-3 flex-shrink-0">
+                          <div className="flex items-center gap-4 flex-shrink-0 text-right">
                             {['high', 'critical'].includes(p.risk_status) && (
                               <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
                             )}
-                            <span className="text-sm font-semibold">{formatCurrency(p.total_net_amount)}</span>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Volumen</p>
+                              <p className="text-sm font-semibold">{formatCurrency(p.total_net_amount)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Noch offen</p>
+                              <p className={`text-sm font-semibold ${(fin.openToInvoiceNet || 0) > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                {formatCurrency(Math.max(0, fin.openToInvoiceNet || 0))}
+                              </p>
+                            </div>
                             <span className="text-xs text-muted-foreground">→</span>
                           </div>
                         </div>
                       );
                     })}
                   </div>
+
+                  {/* Overdue invoices */}
+                  {c.overdue > 0 && (() => {
+                    const today = new Date().toISOString().slice(0, 10);
+                    const overdueInvs = c.linkedInvoices.filter(inv => {
+                      if (inv.is_credit_note || inv.payment_status === 'cancelled' || inv.payment_status === 'paid') return false;
+                      return inv.payment_status === 'overdue' ||
+                        (inv.due_date && inv.due_date < today && ['open', 'partially_paid'].includes(inv.payment_status));
+                    });
+                    if (!overdueInvs.length) return null;
+                    return (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium text-red-600 uppercase tracking-wide">Überfällige Rechnungen</p>
+                        {overdueInvs.map(inv => (
+                          <div key={inv.id} className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                            <div>
+                              <p className="text-sm font-medium">{inv.invoice_number || '—'}</p>
+                              <p className="text-xs text-muted-foreground">Fällig: {inv.due_date || '—'}</p>
+                            </div>
+                            <p className="text-sm font-semibold text-red-600">
+                              {formatCurrency(inv.open_amount || inv.gross_amount)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </Card>
