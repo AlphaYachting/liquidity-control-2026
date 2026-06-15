@@ -194,13 +194,6 @@ export default function NextMonthForecast() {
           Laufender Monat — {curMonthLabel}
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiCard title="Abrechnungsanweisungen" value={formatCurrency(totalCurInstructionNet)} variant="info"
-            subtitle={`${curMonthInstructions.length} Anweisung(en)`} />
-          <KpiCard title="Davon übermittelt" value={formatCurrency(
-            curMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status))
-              .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0)
-          )} variant="success"
-            subtitle={`${curMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status)).length} an sevDesk`} />
           <KpiCard title="Rechnungsplanung" value={formatCurrency(totalCurPlansNet)} variant="info"
             subtitle={`${curMonthPlans.length} geplante Abrechnungen`} />
           <KpiCard title="Noch nicht angewiesen" value={formatCurrency(
@@ -208,6 +201,13 @@ export default function NextMonthForecast() {
               .reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0)
           )} variant="warning"
             subtitle={`${curMonthPlans.filter(p => ['open','planned','in_review'].includes(p.billing_status)).length} Einträge offen`} />
+          <KpiCard title="Abrechnungsanweisungen" value={formatCurrency(totalCurInstructionNet)} variant="info"
+            subtitle={`${curMonthInstructions.length} Anweisung(en)`} />
+          <KpiCard title="Davon übermittelt" value={formatCurrency(
+            curMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status))
+              .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0)
+          )} variant="success"
+            subtitle={`${curMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status)).length} an sevDesk`} />
         </div>
       </div>
 
@@ -218,13 +218,6 @@ export default function NextMonthForecast() {
           Nächster Monat — {nextMonthLabel}
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiCard title="Abrechnungsanweisungen" value={formatCurrency(totalInstructionNet)} variant="info"
-            subtitle={`${nextMonthInstructions.length} Anweisung(en)`} />
-          <KpiCard title="Davon übermittelt" value={formatCurrency(
-            nextMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status))
-              .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0)
-          )} variant="success"
-            subtitle={`${nextMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status)).length} an sevDesk`} />
           <KpiCard title="Rechnungsplanung" value={formatCurrency(totalNextPlansNet)} variant="info"
             subtitle={`${nextMonthPlans.length} geplante Abrechnungen`} />
           <KpiCard title="Noch nicht angewiesen" value={formatCurrency(
@@ -232,6 +225,13 @@ export default function NextMonthForecast() {
               .reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0)
           )} variant="warning"
             subtitle={`${nextMonthPlans.filter(p => ['open','planned','in_review'].includes(p.billing_status)).length} Einträge offen`} />
+          <KpiCard title="Abrechnungsanweisungen" value={formatCurrency(totalInstructionNet)} variant="info"
+            subtitle={`${nextMonthInstructions.length} Anweisung(en)`} />
+          <KpiCard title="Davon übermittelt" value={formatCurrency(
+            nextMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status))
+              .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0)
+          )} variant="success"
+            subtitle={`${nextMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status)).length} an sevDesk`} />
         </div>
       </div>
 
@@ -343,48 +343,7 @@ export default function NextMonthForecast() {
         </div>
       )}
 
-      {/* AKTUELLER MONAT: Pakete */}
-      {visibleCurBlocks.length > 0 && (
-        <div className="rounded-xl border border-blue-200 bg-card overflow-hidden">
-          <div className="px-4 py-2.5 bg-blue-50 flex items-center gap-2">
-            <span className="font-semibold text-sm text-blue-800">Abrechnungspakete — {curMonthLabel}</span>
-            <span className="text-xs text-muted-foreground ml-auto">{visibleCurBlocks.length} Paket(e) · {formatCurrency(totalCurBlockNet)} netto</span>
-          </div>
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40">
-              <tr>
-                <th className="text-left p-3 font-medium text-muted-foreground">Kunde / Projekt</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Paket</th>
-                <th className="text-right p-3 font-medium text-muted-foreground">Betrag</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Arbeit</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Bereit</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">PM</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Hinweis</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleCurBlocks.map(block => {
-                const order = ordersById[block.confirmed_order_id];
-                let hint = '';
-                if (block.work_status === 'blocked') hint = 'Arbeit blockiert';
-                else if (block.invoice_readiness_status === 'ready' || block.work_status === 'completed') hint = '✓ Bereit';
-                else hint = 'In Arbeit';
-                return (
-                  <tr key={block.id} className="border-t hover:bg-blue-50/40">
-                    <td className="p-3"><p className="font-medium">{block.customer || order?.customer || '—'}</p><p className="text-xs text-muted-foreground truncate max-w-[140px]">{block.project_name || order?.project_name || '—'}</p></td>
-                    <td className="p-3 font-medium">{block.title}</td>
-                    <td className="p-3 text-right font-semibold">{formatCurrency(block.amount_net)}</td>
-                    <td className="p-3"><Badge className={`text-xs ${WORK_STATUS_COLORS[block.work_status] || ''}`}>{block.work_status?.replace(/_/g, ' ') || '—'}</Badge></td>
-                    <td className="p-3"><Badge className={`text-xs ${READINESS_COLORS[block.invoice_readiness_status] || ''}`}>{block.invoice_readiness_status?.replace(/_/g, ' ') || '—'}</Badge></td>
-                    <td className="p-3 text-muted-foreground">{block.responsible_person || '—'}</td>
-                    <td className="p-3 text-xs text-muted-foreground">{hint}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+
 
       {/* NÄCHSTER MONAT: Instructions */}
       {visibleInstructions.length > 0 && (
@@ -499,70 +458,7 @@ export default function NextMonthForecast() {
         </div>
       )}
 
-      {/* NÄCHSTER MONAT: Pakete */}
-      <div className="rounded-xl border bg-card overflow-hidden">
-        <div className="px-4 py-2.5 bg-muted/30 flex items-center gap-2">
-          <span className="font-semibold text-sm">Abrechnungspakete — {nextMonthLabel}</span>
-          <span className="text-xs text-muted-foreground ml-auto">{visibleBlocks.length} Paket(e)</span>
-        </div>
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40">
-            <tr>
-              <th className="text-left p-3 font-medium text-muted-foreground">Kunde / Projekt</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Paket</th>
-              <th className="text-right p-3 font-medium text-muted-foreground">Betrag</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Arbeit</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Bereit</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">PM</th>
-              <th className="text-right p-3 font-medium text-muted-foreground">Bereits verr.</th>
-              <th className="text-right p-3 font-medium text-muted-foreground">Noch offen</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Hinweis</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleBlocks.length === 0 ? (
-              <tr><td colSpan={9} className="text-center py-8 text-muted-foreground text-sm">Keine weiteren Pakete für {nextMonthLabel}</td></tr>
-            ) : (
-              visibleBlocks.map(block => {
-                const order = ordersById[block.confirmed_order_id];
-                const bs = block._status;
-                let hint = '';
-                if (block.work_status === 'blocked') hint = 'Arbeit blockiert';
-                else if (block.invoice_readiness_status === 'not_ready' && block.work_status !== 'completed') hint = 'Arbeit noch nicht fertig';
-                else if (block.invoice_readiness_status === 'ready' || block.work_status === 'completed') hint = '✓ Bereit zur Verrechnung';
-                return (
-                  <tr key={block.id} className="border-t hover:bg-muted/30">
-                    <td className="p-3">
-                      <p className="font-medium">{block.customer || order?.customer || '—'}</p>
-                      <p className="text-xs text-muted-foreground truncate max-w-[140px]">{block.project_name || order?.project_name || '—'}</p>
-                    </td>
-                    <td className="p-3 font-medium">{block.title}</td>
-                    <td className="p-3 text-right font-semibold">{formatCurrency(block.amount_net)}</td>
-                    <td className="p-3">
-                      <Badge className={`text-xs ${WORK_STATUS_COLORS[block.work_status] || ''}`}>
-                        {block.work_status?.replace(/_/g, ' ') || '—'}
-                      </Badge>
-                    </td>
-                    <td className="p-3">
-                      <Badge className={`text-xs ${READINESS_COLORS[block.invoice_readiness_status] || ''}`}>
-                        {block.invoice_readiness_status?.replace(/_/g, ' ') || '—'}
-                      </Badge>
-                    </td>
-                    <td className="p-3 text-muted-foreground">{block.responsible_person || '—'}</td>
-                    <td className="p-3 text-right text-muted-foreground">{formatCurrency(bs.invoiced_against_block)}</td>
-                    <td className="p-3 text-right">
-                      <span className={bs.remaining_to_invoice > 0 ? 'text-amber-600 font-medium' : 'text-emerald-600'}>
-                        {formatCurrency(bs.remaining_to_invoice)}
-                      </span>
-                    </td>
-                    <td className="p-3 text-xs text-muted-foreground">{hint}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+
     </div>
   );
 }
