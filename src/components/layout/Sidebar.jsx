@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban },
-  { path: '/next-month-forecast', label: 'Nächster Monat', icon: CalendarCheck },
+  { path: '/next-month-forecast', label: 'Abrechnungsforecast', icon: CalendarCheck },
   { path: '/customer-risk', label: 'Kundenrisiko', icon: Users },
   { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock },
   { path: '/confirmed-orders', label: 'Auftragsabwicklung', icon: ClipboardList, description: 'Aufträge erfassen, Dokumente prüfen' },
