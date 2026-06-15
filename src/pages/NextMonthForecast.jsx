@@ -39,8 +39,14 @@ export default function NextMonthForecast() {
   const { data: instructions = [], isLoading: instructionsLoading } = useQuery({
     queryKey: ['billingInstructions'], queryFn: () => base44.entities.BillingInstruction.list()
   });
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'], queryFn: () => base44.entities.LiquidityProject.list()
+  });
+  const { data: billingPlans = [], isLoading: plansLoading } = useQuery({
+    queryKey: ['monthlyBillingPlansAll'], queryFn: () => base44.entities.MonthlyBillingPlan.list()
+  });
 
-  const isLoading = blocksLoading || invoicesLoading || instructionsLoading;
+  const isLoading = blocksLoading || invoicesLoading || instructionsLoading || plansLoading;
 
   // Determine next month string (YYYY-MM)
   const now = new Date();
@@ -116,6 +122,50 @@ export default function NextMonthForecast() {
   if (filters.customer) visibleCurInstructions = visibleCurInstructions.filter(i => (i.customer_name || '').toLowerCase().includes(filters.customer.toLowerCase()));
 
   const responsibleOptions = [...new Set(blocks.map(b => b.responsible_person).filter(Boolean))];
+
+  // MonthlyBillingPlans (Rechnungsplanung) für aktuellen und nächsten Monat
+  // Nur aktive Pläne (nicht invoiced/on_hold/postponed), die einen geplanten Betrag haben
+  const PLAN_ACTIVE_STATUSES = ['open','planned','in_review','ready_for_invoice','sent_to_backoffice'];
+  const projectsById = Object.fromEntries(projects.map(p => [p.id, p]));
+
+  const curMonthPlans = billingPlans.filter(p =>
+    p.planning_month === curMonthStr &&
+    PLAN_ACTIVE_STATUSES.includes(p.billing_status) &&
+    Number(p.planned_amount_net) > 0
+  );
+  const nextMonthPlans = billingPlans.filter(p =>
+    p.planning_month === nextMonthStr &&
+    PLAN_ACTIVE_STATUSES.includes(p.billing_status) &&
+    Number(p.planned_amount_net) > 0
+  );
+
+  let visibleCurPlans = curMonthPlans;
+  if (filters.customer) visibleCurPlans = visibleCurPlans.filter(p => {
+    const proj = projectsById[p.project_id];
+    return (proj?.customer || proj?.project_name || '').toLowerCase().includes(filters.customer.toLowerCase());
+  });
+  let visibleNextPlans = nextMonthPlans;
+  if (filters.customer) visibleNextPlans = visibleNextPlans.filter(p => {
+    const proj = projectsById[p.project_id];
+    return (proj?.customer || proj?.project_name || '').toLowerCase().includes(filters.customer.toLowerCase());
+  });
+
+  const totalCurPlansNet = curMonthPlans.reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0);
+  const totalNextPlansNet = nextMonthPlans.reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0);
+
+  const PLAN_STATUS_LABELS = {
+    open: 'offen', planned: 'geplant', in_review: 'in Prüfung',
+    ready_for_invoice: 'bereit', sent_to_backoffice: 'in Verrechnung',
+    invoiced: 'verrechnet', postponed: 'verschoben', on_hold: 'on hold',
+  };
+  const PLAN_STATUS_COLORS = {
+    open: 'bg-slate-100 text-slate-600', planned: 'bg-blue-100 text-blue-700',
+    in_review: 'bg-amber-100 text-amber-700', ready_for_invoice: 'bg-emerald-100 text-emerald-700',
+    sent_to_backoffice: 'bg-orange-100 text-orange-700',
+  };
+  const INVOICE_TYPE_LABELS = {
+    AZ: 'Anzahlung', TR: 'Teilrechnung', ER: 'Schlussrechnung',
+  };
 
   const nextMonthLabel = getMonthLabel(result.next_month_str) || result.next_month_str;
   const curMonthLabel = getMonthLabel(curMonthStr) || curMonthStr;
@@ -238,6 +288,57 @@ export default function NextMonthForecast() {
         </div>
       )}
 
+      {/* AKTUELLER MONAT: Rechnungsplanung (MonthlyBillingPlan) */}
+      {visibleCurPlans.length > 0 && (
+        <div className="rounded-xl border border-blue-300 bg-blue-50/20 overflow-hidden">
+          <div className="px-4 py-2.5 bg-blue-100/40 flex items-center gap-2">
+            <FileText className="w-4 h-4 text-blue-600" />
+            <span className="font-semibold text-sm text-blue-800">Rechnungsplanung — {curMonthLabel}</span>
+            <span className="text-xs text-blue-600 ml-auto">{visibleCurPlans.length} Eintrag/Einträge · {formatCurrency(totalCurPlansNet)} netto</span>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-blue-50/60">
+              <tr>
+                <th className="text-left p-3 font-medium text-muted-foreground">Kunde / Projekt</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Typ</th>
+                <th className="text-right p-3 font-medium text-muted-foreground">%</th>
+                <th className="text-right p-3 font-medium text-muted-foreground">Netto</th>
+                <th className="text-right p-3 font-medium text-muted-foreground">Brutto</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Grund</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleCurPlans.map(plan => {
+                const proj = projectsById[plan.project_id];
+                return (
+                  <tr key={plan.id} className="border-t hover:bg-blue-50/60">
+                    <td className="p-3">
+                      <p className="font-medium">{proj?.customer || plan.assigned_pm || '—'}</p>
+                      <p className="text-xs text-muted-foreground truncate max-w-[180px]">{proj?.project_name || '—'}</p>
+                    </td>
+                    <td className="p-3">
+                      <Badge className="text-xs bg-blue-100 text-blue-700">
+                        {INVOICE_TYPE_LABELS[plan.planned_invoice_type] || plan.planned_invoice_type || '—'}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-right text-muted-foreground">{plan.planned_percent > 0 ? `${Math.round(plan.planned_percent)}%` : '—'}</td>
+                    <td className="p-3 text-right font-semibold">{formatCurrency(plan.planned_amount_net)}</td>
+                    <td className="p-3 text-right text-muted-foreground">{formatCurrency(plan.planned_amount_gross)}</td>
+                    <td className="p-3">
+                      <Badge className={`text-xs ${PLAN_STATUS_COLORS[plan.billing_status] || 'bg-slate-100 text-slate-600'}`}>
+                        {PLAN_STATUS_LABELS[plan.billing_status] || plan.billing_status}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-xs text-muted-foreground max-w-[180px] truncate">{plan.invoice_reason || plan.internal_note || '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* AKTUELLER MONAT: Pakete */}
       {visibleCurBlocks.length > 0 && (
         <div className="rounded-xl border border-blue-200 bg-card overflow-hidden">
@@ -335,6 +436,57 @@ export default function NextMonthForecast() {
                     </td>
                     <td className="p-3 text-sm">{instr.planned_invoice_date || '—'}</td>
                     <td className="p-3 text-xs text-muted-foreground max-w-[200px] truncate">{instr.invoice_instruction_text || instr.invoice_reason || '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* NÄCHSTER MONAT: Rechnungsplanung (MonthlyBillingPlan) */}
+      {visibleNextPlans.length > 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50/20 overflow-hidden">
+          <div className="px-4 py-2.5 bg-amber-100/40 flex items-center gap-2">
+            <FileText className="w-4 h-4 text-amber-600" />
+            <span className="font-semibold text-sm text-amber-800">Rechnungsplanung — {nextMonthLabel}</span>
+            <span className="text-xs text-amber-600 ml-auto">{visibleNextPlans.length} Eintrag/Einträge · {formatCurrency(totalNextPlansNet)} netto</span>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-amber-50/60">
+              <tr>
+                <th className="text-left p-3 font-medium text-muted-foreground">Kunde / Projekt</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Typ</th>
+                <th className="text-right p-3 font-medium text-muted-foreground">%</th>
+                <th className="text-right p-3 font-medium text-muted-foreground">Netto</th>
+                <th className="text-right p-3 font-medium text-muted-foreground">Brutto</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Grund</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleNextPlans.map(plan => {
+                const proj = projectsById[plan.project_id];
+                return (
+                  <tr key={plan.id} className="border-t hover:bg-amber-50/60">
+                    <td className="p-3">
+                      <p className="font-medium">{proj?.customer || plan.assigned_pm || '—'}</p>
+                      <p className="text-xs text-muted-foreground truncate max-w-[180px]">{proj?.project_name || '—'}</p>
+                    </td>
+                    <td className="p-3">
+                      <Badge className="text-xs bg-amber-100 text-amber-700">
+                        {INVOICE_TYPE_LABELS[plan.planned_invoice_type] || plan.planned_invoice_type || '—'}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-right text-muted-foreground">{plan.planned_percent > 0 ? `${Math.round(plan.planned_percent)}%` : '—'}</td>
+                    <td className="p-3 text-right font-semibold">{formatCurrency(plan.planned_amount_net)}</td>
+                    <td className="p-3 text-right text-muted-foreground">{formatCurrency(plan.planned_amount_gross)}</td>
+                    <td className="p-3">
+                      <Badge className={`text-xs ${PLAN_STATUS_COLORS[plan.billing_status] || 'bg-slate-100 text-slate-600'}`}>
+                        {PLAN_STATUS_LABELS[plan.billing_status] || plan.billing_status}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-xs text-muted-foreground max-w-[180px] truncate">{plan.invoice_reason || plan.internal_note || '—'}</td>
                   </tr>
                 );
               })}
