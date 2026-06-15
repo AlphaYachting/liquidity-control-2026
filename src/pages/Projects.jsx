@@ -42,6 +42,7 @@ const BILLING_STATUS_COLORS = {
 };
 
 const INVOICE_TYPE_SHORT = { advance_invoice:'AZ', partial_invoice:'TR', final_invoice:'ER', correction:'KO', credit_note:'GS' };
+const SUBMITTED_STATUSES = ['sent_to_backoffice', 'invoice_created', 'paid'];
 
 function getCurrentMonth() {
   const d = new Date();
@@ -125,23 +126,38 @@ export default function Projects() {
     return map;
   }, [billingPlans]);
 
-  // Expected billing current month from plans + instructions + blocks
-  const expectedCurrentMonth = useMemo(() => {
+  // Helper: planned amount for a given month from billing plans
+  const getPlannedForMonth = (month) => {
     let total = 0;
-    // From MonthlyBillingPlan
-    billingPlans.filter(p => p.planning_month === currentMonth && !['invoiced','postponed','on_hold'].includes(p.billing_status))
+    billingPlans
+      .filter(p => p.planning_month === month && !['invoiced','postponed','on_hold'].includes(p.billing_status))
       .forEach(p => total += Number(p.planned_amount_net) || 0);
-    // From BillingInstructions planned for current month
+    // From BillingInstructions planned for that month (not already in a plan)
     billingInstructions.filter(i => {
       if (['invoiced','paid','cancelled'].includes(i.status)) return false;
-      return i.planned_invoice_date?.startsWith(currentMonth);
+      return i.planned_invoice_date?.startsWith(month);
     }).forEach(i => {
-      // Avoid double-counting if already in plans
       const alreadyInPlan = billingPlans.some(p => p.linked_billing_instruction_id === i.id);
       if (!alreadyInPlan) total += Number(i.instruction_amount_net) || 0;
     });
     return total;
-  }, [billingPlans, billingInstructions, currentMonth]);
+  };
+
+  const expectedCurrentMonth = useMemo(() => getPlannedForMonth(currentMonth), [billingPlans, billingInstructions, currentMonth]);
+  const expectedNextMonth = useMemo(() => getPlannedForMonth(nextMonth), [billingPlans, billingInstructions, nextMonth]);
+
+  // Abgerechnet = BillingInstructions die tatsächlich an sevDesk übermittelt wurden
+  // (status: sent_to_backoffice, invoice_created, paid) für akt. oder nächsten Monat
+  const billedThisMonth = useMemo(() => {
+    return billingInstructions
+      .filter(i => SUBMITTED_STATUSES.includes(i.status) && i.planned_invoice_date?.startsWith(currentMonth))
+      .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0);
+  }, [billingInstructions, currentMonth]);
+  const billedNextMonth = useMemo(() => {
+    return billingInstructions
+      .filter(i => SUBMITTED_STATUSES.includes(i.status) && i.planned_invoice_date?.startsWith(nextMonth))
+      .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0);
+  }, [billingInstructions, nextMonth]);
 
   // Per-project financials using shared helper — allBlocks now passed correctly
   const projectFinancialsMap = useMemo(() => {
@@ -395,11 +411,28 @@ export default function Projects() {
     <div className="space-y-6">
       <PageHeader title="Projekt-Cockpit" subtitle={`${filtered.length} aktive Projekte · Operativer Status, awork, Abrechnung, Zahlungen`} icon={FolderKanban} />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KpiCard title="Gesamtvolumen" value={formatCurrency(totalNet)} variant="info" />
         <KpiCard title="Offene Beträge" value={formatCurrency(totalOpen)} variant="warning" />
         <KpiCard title="Aktive Projekte" value={activeCount} subtitle={`von ${filtered.length} gesamt`} />
-        <KpiCard title="Geplant dieser Monat" value={formatCurrency(expectedCurrentMonth)} variant="success" subtitle="aus Planung + Anweisungen" />
+        <KpiCard
+          title="Geplant d. Monat"
+          value={formatCurrency(expectedCurrentMonth)}
+          variant="success"
+          subtitle={billedThisMonth > 0 ? `✓ ${formatCurrency(billedThisMonth)} übermittelt` : 'noch nicht übermittelt'}
+        />
+        <KpiCard
+          title="Geplant n. Monat"
+          value={formatCurrency(expectedNextMonth)}
+          variant="info"
+          subtitle={billedNextMonth > 0 ? `✓ ${formatCurrency(billedNextMonth)} übermittelt` : 'noch nicht übermittelt'}
+        />
+        <KpiCard
+          title="Übermittelt gesamt"
+          value={formatCurrency(billedThisMonth + billedNextMonth)}
+          subtitle={`${billingInstructions.filter(i => SUBMITTED_STATUSES.includes(i.status)).length} Anweisungen`}
+          variant={billedThisMonth + billedNextMonth > 0 ? 'success' : undefined}
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
