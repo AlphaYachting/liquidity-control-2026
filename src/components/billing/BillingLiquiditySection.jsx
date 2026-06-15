@@ -79,12 +79,13 @@ export default function BillingLiquiditySection({
     : 20;
   const totalOrderGross = totalOrderNet * (1 + effectiveVatRate / 100);
   const alreadyInvoicedNet = fin?.adjustedInvoicedNet || 0;
+  const alreadyPaidNet = fin?.paidNet || 0;
   const alreadyPaidGross = fin?.paidGross || 0;
   const openToInvoiceNet = fin?.openToInvoiceNet || 0;
   const openReceivableGross = fin?.openReceivableGross || 0;
 
   const billingPct = totalOrderNet > 0 ? (alreadyInvoicedNet / totalOrderNet) * 100 : 0;
-  const paymentPct = totalOrderGross > 0 ? (alreadyPaidGross / totalOrderGross) * 100 : 0;
+  const paymentPct = totalOrderNet > 0 ? (alreadyPaidNet / totalOrderNet) * 100 : 0;
 
   const aworkProgress = aworkTaskStats?.progress_percent ?? project?.awork_progress_percent ?? null;
   // Weighted average: blocks WITHOUT awork data count as 0%, not ignored
@@ -104,7 +105,7 @@ export default function BillingLiquiditySection({
   const kpis = [
     { label: 'Auftragswert netto', value: formatCurrency(totalOrderNet), sub: null, color: '' },
     { label: 'Abgerechnet netto', value: formatCurrency(alreadyInvoicedNet), sub: `${Math.round(billingPct)}%`, color: 'text-emerald-600' },
-    { label: 'Bezahlt brutto', value: formatCurrency(alreadyPaidGross), sub: `${Math.round(paymentPct)}%`, color: 'text-emerald-600' },
+    { label: 'Bezahlt netto', value: formatCurrency(alreadyPaidNet), sub: `${Math.round(paymentPct)}%`, color: 'text-emerald-600' },
     { label: 'Noch offen abrechenbar', value: formatCurrency(openToInvoiceNet), sub: null, color: openToInvoiceNet > 0 ? 'text-amber-600' : 'text-emerald-600' },
     { label: 'Offene Forderung', value: formatCurrency(openReceivableGross), sub: null, color: openReceivableGross > 0 ? 'text-red-600' : 'text-emerald-600' },
     { label: 'Nächster Schritt bereit', value: nextSuggestedAmount > 0 ? formatCurrency(nextSuggestedAmount) : '—', sub: 'aus Paketen', color: nextSuggestedAmount > 0 ? 'text-primary' : '' },

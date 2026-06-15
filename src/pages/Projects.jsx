@@ -54,8 +54,12 @@ function getNextMonth() {
 }
 
 export default function Projects() {
-  const [filters, setFilters] = useState({});
-  const [sortOverride, setSortOverride] = useState(null); // null | 'erwartung_desc'
+  const [filters, setFilters] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('projects_filters') || '{}'); } catch { return {}; }
+  });
+  const [sortOverride, setSortOverride] = useState(() => {
+    return sessionStorage.getItem('projects_sortOverride') || null;
+  });
   const [showArchived, setShowArchived] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -407,11 +411,25 @@ export default function Projects() {
             { key: 'status', label: 'Projektstatus', options: STATUS_OPTIONS },
           ]}
           values={filters}
-          onChange={(k, v) => setFilters(f => ({ ...f, [k]: v }))}
-          onReset={() => { setFilters({}); setSortOverride(null); }}
+          onChange={(k, v) => setFilters(f => {
+            const next = { ...f, [k]: v };
+            sessionStorage.setItem('projects_filters', JSON.stringify(next));
+            return next;
+          })}
+          onReset={() => {
+            setFilters({});
+            setSortOverride(null);
+            sessionStorage.removeItem('projects_filters');
+            sessionStorage.removeItem('projects_sortOverride');
+          }}
         />
         <button
-          onClick={() => setSortOverride(s => s === 'erwartung_desc' ? null : 'erwartung_desc')}
+          onClick={() => setSortOverride(s => {
+            const next = s === 'erwartung_desc' ? null : 'erwartung_desc';
+            if (next) sessionStorage.setItem('projects_sortOverride', next);
+            else sessionStorage.removeItem('projects_sortOverride');
+            return next;
+          })}
           className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5 ${sortOverride === 'erwartung_desc' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
         >
           Sortieren: Erwartung ↓

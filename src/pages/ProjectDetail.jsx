@@ -365,23 +365,40 @@ export default function ProjectDetail() {
             <option value="high">Risiko: hoch</option>
             <option value="critical">Risiko: kritisch</option>
           </select>
-          {/* Archivieren */}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 text-xs text-amber-700 hover:bg-amber-50 hover:text-amber-800"
-            onClick={() => {
-              updateProjectMutation.mutate({
-                billing_relevance_status: 'archived',
-                excluded_from_project_cockpit: true,
-                archived_at: new Date().toISOString(),
-                archive_source: 'manual',
-              });
-              navigate('/projects');
-            }}
-          >
-            Archivieren
-          </Button>
+          {/* Archivieren / Reaktivieren */}
+          {project.billing_relevance_status === 'archived' || project.excluded_from_project_cockpit ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-xs text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+              onClick={() => updateProjectMutation.mutate({
+                billing_relevance_status: 'active_billing_relevant',
+                excluded_from_project_cockpit: false,
+                archived_at: null,
+                archive_source: null,
+                archived_by: null,
+              })}
+            >
+              Reaktivieren
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-xs text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+              onClick={() => {
+                updateProjectMutation.mutate({
+                  billing_relevance_status: 'archived',
+                  excluded_from_project_cockpit: true,
+                  archived_at: new Date().toISOString(),
+                  archive_source: 'manual',
+                });
+                navigate('/projects');
+              }}
+            >
+              Archivieren
+            </Button>
+          )}
           <Button
             size="sm"
             variant="ghost"

@@ -120,6 +120,15 @@ export function calculateProjectFinancials({ project, allOrders, allBlocks, allI
 
   // paid with fallback
   const paidGross = realInvoices.reduce((s, i) => s + getEffectivePaid(i).amount, 0);
+  // paidNet: for each invoice, if paid, use net_amount; partial: proportional share
+  const paidNet = realInvoices.reduce((s, i) => {
+    const net = Number(i.net_amount) || 0;
+    const gross = Number(i.gross_amount) || 1;
+    const { amount: paidGrossAmt } = getEffectivePaid(i);
+    if (paidGrossAmt <= 0) return s;
+    // Proportional: paidNet = net * (paidGross / gross)
+    return s + net * (paidGrossAmt / gross);
+  }, 0);
   const openReceivableGross = Math.max(0, invoicedGross - paidGross);
   const openToInvoiceNet = commercialBaseNet - adjustedInvoicedNet;
 
@@ -204,6 +213,7 @@ export function calculateProjectFinancials({ project, allOrders, allBlocks, allI
     creditNoteNet,
     adjustedInvoicedNet,
     paidGross,
+    paidNet,
     openReceivableGross,
     openToInvoiceNet,
 
