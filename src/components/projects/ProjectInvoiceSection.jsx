@@ -192,6 +192,11 @@ export default function ProjectInvoiceSection({
                           )}
                           {inv.is_credit_note && <Badge className="text-xs bg-purple-100 text-purple-700">Gutschrift</Badge>}
                         </div>
+                        {inv.notes && (
+                          <p className="text-xs text-muted-foreground mt-1 italic max-w-[260px]" title={inv.notes}>
+                            „{inv.notes.length > 80 ? inv.notes.substring(0, 80) + '…' : inv.notes}"
+                          </p>
+                        )}
                       </td>
                       <td className="py-2 text-right font-semibold">{formatCurrency(inv.net_amount)}</td>
                       <td className="py-2 text-right text-emerald-600">{formatCurrency(ep.amount)}</td>
