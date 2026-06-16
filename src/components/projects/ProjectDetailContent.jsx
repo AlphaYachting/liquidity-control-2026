@@ -707,13 +707,24 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
                           </div>
                           <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary flex-shrink-0 ml-2" />
                         </Link>
-                        {o.document_url && (
-                          <button onClick={() => setPdfViewer({ url: o.document_url, title: `AB: ${o.project_name || o.order_number}` })}
-                            className="flex items-center gap-1.5 text-xs text-primary hover:underline pl-0.5">
-                            <FileText className="w-3 h-3 flex-shrink-0" />
-                            AB-Dokument anzeigen
-                          </button>
-                        )}
+                        <div className="flex items-center gap-3 pl-0.5">
+                          {o.document_url && (
+                            <button onClick={() => setPdfViewer({ url: o.document_url, title: `AB: ${o.project_name || o.order_number}` })}
+                              className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+                              <FileText className="w-3 h-3 flex-shrink-0" />
+                              AB-Dokument
+                            </button>
+                          )}
+                          {o.sevdesk_order_id && (
+                            <a
+                              href={`https://my.sevdesk.de/#/vg/edit/type/AB/id/${o.sevdesk_order_id}`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+                              <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                              In sevDesk öffnen
+                            </a>
+                          )}
+                        </div>
                       </div>
                     ))
                   )}
@@ -722,46 +733,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
             );
           })()}
 
-          {(() => {
-            const invoiceDocs = projectInvoices.filter(inv => inv.source_file || inv.sevdesk_invoice_url || inv.sevdesk_id);
-            if (invoiceDocs.length === 0) return null;
-            return (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Verknüpfte Rechnungen ({invoiceDocs.length})</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {invoiceDocs.map((inv, i) => {
-                    const fileUrl = inv.source_file || inv.sevdesk_invoice_url;
-                    const sevdeskUrl = inv.sevdesk_id ? `https://my.sevdesk.de/#/fi/edit/type/RE/id/${inv.sevdesk_id}` : null;
-                    return (
-                      <div key={i} className="flex items-center gap-2 p-2 rounded-lg border hover:bg-muted/30 text-xs">
-                        <FileText className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate font-medium">{inv.invoice_number || '—'}</p>
-                          {inv.invoice_date && <p className="text-muted-foreground">{inv.invoice_date}</p>}
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          {fileUrl && (
-                            <button onClick={() => setPdfViewer({ url: fileUrl, title: `Rechnung ${inv.invoice_number || '—'}` })}
-                              className="p-1 rounded hover:bg-muted text-primary">
-                              <FileText className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {sevdeskUrl && (
-                            <a href={sevdeskUrl} target="_blank" rel="noopener noreferrer"
-                              className="p-1 rounded hover:bg-muted text-primary flex items-center">
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            );
-          })()}
+
         </div>
       </div>
 
