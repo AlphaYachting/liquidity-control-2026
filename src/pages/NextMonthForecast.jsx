@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { CalendarCheck, FileText } from 'lucide-react';
+import { CalendarCheck, FileText, CheckCircle2, Circle } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import { Badge } from '@/components/ui/badge';
@@ -131,6 +131,12 @@ export default function NextMonthForecast() {
   // Nur aktive Pläne (nicht invoiced/on_hold/postponed), die einen geplanten Betrag haben
   const PLAN_ACTIVE_STATUSES = ['open','planned','in_review','ready_for_invoice','sent_to_backoffice'];
   const projectsById = Object.fromEntries(projects.map(p => [p.id, p]));
+  const instructionsByProjectId = {};
+  instructions.forEach(i => {
+    if (!i.project_id) return;
+    if (!instructionsByProjectId[i.project_id]) instructionsByProjectId[i.project_id] = [];
+    instructionsByProjectId[i.project_id].push(i);
+  });
 
   const curMonthPlans = billingPlans.filter(p =>
     p.planning_month === curMonthStr &&
@@ -310,12 +316,17 @@ export default function NextMonthForecast() {
                 <th className="text-right p-3 font-medium text-muted-foreground">Netto</th>
                 <th className="text-right p-3 font-medium text-muted-foreground">Brutto</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Anweisung</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Datum</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Grund</th>
               </tr>
             </thead>
             <tbody>
               {visibleCurPlans.map(plan => {
                 const proj = projectsById[plan.project_id];
+                const hasInstruction = !!plan.linked_billing_instruction_id;
+                const linkedInstr = hasInstruction ? instructions.find(i => i.id === plan.linked_billing_instruction_id) : null;
+                const instrDate = linkedInstr?.planned_invoice_date || null;
                 return (
                   <tr key={plan.id} className="border-t hover:bg-blue-50/60 cursor-pointer"
                     onClick={() => plan.project_id && setSlideOverProjectId(plan.project_id)}>
@@ -336,6 +347,12 @@ export default function NextMonthForecast() {
                         {PLAN_STATUS_LABELS[plan.billing_status] || plan.billing_status}
                       </Badge>
                     </td>
+                    <td className="p-3">
+                      {hasInstruction
+                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500" title="Abrechnungsanweisung erstellt" />
+                        : <Circle className="w-4 h-4 text-slate-300" title="Keine Anweisung" />}
+                    </td>
+                    <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{instrDate || '—'}</td>
                     <td className="p-3 text-xs text-muted-foreground max-w-[180px] truncate">{plan.invoice_reason || plan.internal_note || '—'}</td>
                   </tr>
                 );
@@ -427,12 +444,17 @@ export default function NextMonthForecast() {
                 <th className="text-right p-3 font-medium text-muted-foreground">Netto</th>
                 <th className="text-right p-3 font-medium text-muted-foreground">Brutto</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Anweisung</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Datum</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Grund</th>
               </tr>
             </thead>
             <tbody>
               {visibleNextPlans.map(plan => {
                 const proj = projectsById[plan.project_id];
+                const hasInstruction = !!plan.linked_billing_instruction_id;
+                const linkedInstr = hasInstruction ? instructions.find(i => i.id === plan.linked_billing_instruction_id) : null;
+                const instrDate = linkedInstr?.planned_invoice_date || null;
                 return (
                   <tr key={plan.id} className="border-t hover:bg-amber-50/60 cursor-pointer"
                     onClick={() => plan.project_id && setSlideOverProjectId(plan.project_id)}>
@@ -453,6 +475,12 @@ export default function NextMonthForecast() {
                         {PLAN_STATUS_LABELS[plan.billing_status] || plan.billing_status}
                       </Badge>
                     </td>
+                    <td className="p-3">
+                      {hasInstruction
+                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500" title="Abrechnungsanweisung erstellt" />
+                        : <Circle className="w-4 h-4 text-slate-300" title="Keine Anweisung" />}
+                    </td>
+                    <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{instrDate || '—'}</td>
                     <td className="p-3 text-xs text-muted-foreground max-w-[180px] truncate">{plan.invoice_reason || plan.internal_note || '—'}</td>
                   </tr>
                 );
