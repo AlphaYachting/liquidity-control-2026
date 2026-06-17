@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Shield, Bell } from 'lucide-react';
+import { Shield, Bell, Sparkles } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import DataTable from '@/components/shared/DataTable';
@@ -10,9 +10,11 @@ import { formatCurrency, calcOverdueDays } from '@/lib/liquidityUtils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import ExtractMaintenanceContractsDialog from '@/components/maintenance/ExtractMaintenanceContractsDialog';
 
 export default function Maintenance() {
   const queryClient = useQueryClient();
+  const [showExtract, setShowExtract] = useState(false);
   const { data: contracts = [], isLoading } = useQuery({
     queryKey: ['contracts'],
     queryFn: () => base44.entities.RecurringContract.list(),
@@ -61,7 +63,15 @@ export default function Maintenance() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Wartungsverträge 2026" subtitle={`${contracts.length} Verträge`} icon={Shield} />
+      <PageHeader title="Wartungsverträge 2026" subtitle={`${contracts.length} Verträge`} icon={Shield}
+        actions={
+          <Button variant="outline" className="gap-2" onClick={() => setShowExtract(true)}>
+            <Sparkles className="w-4 h-4 text-purple-500" />
+            Aus sevDesk extrahieren
+          </Button>
+        }
+      />
+      <ExtractMaintenanceContractsDialog open={showExtract} onClose={() => setShowExtract(false)} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard title="Jahresvolumen" value={formatCurrency(annual)} variant="info" />
