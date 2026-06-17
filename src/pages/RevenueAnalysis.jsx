@@ -45,12 +45,13 @@ export default function RevenueAnalysis() {
   const [error, setError] = useState(null);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [expandedMonth, setExpandedMonth] = useState(null);
+  const [year, setYear] = useState(new Date().getFullYear());
 
   const runAnalysis = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await base44.functions.invoke('categorizeInvoices', {});
+      const res = await base44.functions.invoke('categorizeInvoices', { year });
       setData(res.data);
     } catch (e) {
       setError(e.message || 'Fehler bei der Analyse');
@@ -96,10 +97,19 @@ export default function RevenueAnalysis() {
         subtitle="KI-gestützte Kategorisierung aller Rechnungen nach Leistungsbereichen"
         icon={BarChart2}
         actions={
-          <Button onClick={runAnalysis} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'KI analysiert…' : data ? 'Neu analysieren' : 'Analyse starten'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <select
+              value={year}
+              onChange={e => setYear(Number(e.target.value))}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <Button onClick={runAnalysis} disabled={loading} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'KI analysiert…' : data ? 'Neu analysieren' : 'Analyse starten'}
+            </Button>
+          </div>
         }
       />
 
@@ -287,7 +297,7 @@ export default function RevenueAnalysis() {
           </div>
 
           <p className="text-xs text-muted-foreground text-right">
-            {data.total_invoices} Rechnungen analysiert · KI-Kategorisierung kann Fehler enthalten
+            {data.total_invoices} Rechnungen analysiert (Jahr {data.year}) · Stornorechnungen & Gutschriften ausgeschlossen · KI-Kategorisierung kann Fehler enthalten
           </p>
         </>
       )}
