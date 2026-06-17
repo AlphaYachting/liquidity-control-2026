@@ -107,6 +107,13 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlans', project.id] })
   });
 
+  const deletePlanMutation = useMutation({
+    mutationFn: (planId) => base44.entities.MonthlyBillingPlan.delete(planId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlans', project.id] }),
+  });
+
+  const [confirmDeletePlanId, setConfirmDeletePlanId] = useState(null);
+
   const totalOrderNet = fin?.commercialBaseNet || 0;
   const vatRate = linkedOrders?.[0]?.vat_rate || 20;
 
@@ -263,6 +270,29 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
                       className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                       <Pencil className="w-3 h-3" />
                     </button>
+                    {!plan.linked_billing_instruction_id && (
+                      confirmDeletePlanId === plan.id ? (
+                        <span className="flex items-center gap-1">
+                          <span className="text-xs text-destructive font-medium">Löschen?</span>
+                          <button
+                            onClick={() => { deletePlanMutation.mutate(plan.id); setConfirmDeletePlanId(null); }}
+                            className="text-xs text-white bg-destructive hover:bg-destructive/80 px-1.5 py-0.5 rounded">
+                            Ja
+                          </button>
+                          <button onClick={() => setConfirmDeletePlanId(null)}
+                            className="text-xs border px-1.5 py-0.5 rounded hover:bg-muted">
+                            Nein
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          title="Planung löschen"
+                          onClick={() => setConfirmDeletePlanId(plan.id)}
+                          className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-destructive transition-colors">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )
+                    )}
                     {/* Instruction create button / status */}
                     {plan.linked_billing_instruction_id ? (() => {
                       const instr = allInstructions.find(i => i.id === plan.linked_billing_instruction_id);
