@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Shield, Bell, Sparkles } from 'lucide-react';
+import { Shield, Bell, Sparkles, Plus } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import DataTable from '@/components/shared/DataTable';
@@ -70,16 +70,28 @@ export default function Maintenance() {
     <div className="space-y-6">
       <PageHeader title="Wartungsverträge 2026" subtitle={`${contracts.length} Verträge`} icon={Shield}
         actions={
-          <Button variant="outline" className="gap-2" onClick={() => setShowExtract(true)}>
-            <Sparkles className="w-4 h-4 text-purple-500" />
-            Aus sevDesk extrahieren
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setEditingContract({ customer: '', project_name: '', status: 'active', billing_interval: 'yearly', contract_type: 'maintenance', annual_amount: 0, monthly_fixed_price: 0 })}>
+              <Plus className="w-4 h-4" />
+              Neuer Vertrag
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => setShowExtract(true)}>
+              <Sparkles className="w-4 h-4 text-purple-500" />
+              Aus sevDesk extrahieren
+            </Button>
+          </div>
         }
       />
       <ExtractMaintenanceContractsDialog open={showExtract} onClose={() => setShowExtract(false)} />
       <EditContractDialog
         contract={editingContract}
-        onSave={(form) => updateMutation.mutate({ id: form.id, data: form })}
+        onSave={(form) => {
+          if (form.id) {
+            updateMutation.mutate({ id: form.id, data: form });
+          } else {
+            base44.entities.RecurringContract.create(form).then(() => queryClient.invalidateQueries({ queryKey: ['contracts'] }));
+          }
+        }}
         onClose={() => setEditingContract(null)}
       />
 
