@@ -11,10 +11,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import ExtractMaintenanceContractsDialog from '@/components/maintenance/ExtractMaintenanceContractsDialog';
+import EditContractDialog from '@/components/maintenance/EditContractDialog';
 
 export default function Maintenance() {
   const queryClient = useQueryClient();
   const [showExtract, setShowExtract] = useState(false);
+  const [editingContract, setEditingContract] = useState(null);
   const { data: contracts = [], isLoading } = useQuery({
     queryKey: ['contracts'],
     queryFn: () => base44.entities.RecurringContract.list(),
@@ -52,6 +54,9 @@ export default function Maintenance() {
     { key: 'notes', label: 'Notizen', render: (v) => v ? <span className="text-xs text-muted-foreground truncate max-w-[120px] block">{v}</span> : '—' },
     { key: 'id', label: 'Aktionen', sortable: false, render: (v, row) => (
       <div className="flex gap-1">
+        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); setEditingContract(row); }}>
+          Bearbeiten
+        </Button>
         <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: v, data: { status: 'active', notes: (row.notes || '') + '\nAls verrechnet markiert ' + new Date().toLocaleDateString('de-AT') } }); }}>
           ✓ Verrechnet
         </Button>
@@ -72,6 +77,11 @@ export default function Maintenance() {
         }
       />
       <ExtractMaintenanceContractsDialog open={showExtract} onClose={() => setShowExtract(false)} />
+      <EditContractDialog
+        contract={editingContract}
+        onSave={(form) => updateMutation.mutate({ id: form.id, data: form })}
+        onClose={() => setEditingContract(null)}
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard title="Jahresvolumen" value={formatCurrency(annual)} variant="info" />
