@@ -11,6 +11,7 @@ import { formatCurrency } from '@/lib/liquidityUtils';
 import { format, addMonths, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Plus, CalendarDays, Bell, Pencil, CheckCircle2, Loader2, Trash2 } from 'lucide-react';
+import GenerateBillingReasonButton from '@/components/billing/GenerateBillingReasonButton';
 
 const PLAN_TYPE_TO_INVOICE_TYPE = {
   AZ: 'advance_invoice',
@@ -355,10 +356,25 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
                       )}
                     </p>
                   )}
-                  <Textarea value={form.invoice_reason || ''}
-                    onChange={e => setForm(f => ({ ...f, invoice_reason: e.target.value }))}
-                    placeholder="Abrechnungsgrund (Warum kann abgerechnet werden?)"
-                    className="text-xs resize-none h-14" />
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-muted-foreground">Abrechnungsgrund</label>
+                      <GenerateBillingReasonButton
+                        project={project}
+                        confirmedOrderId={linkedOrders?.[0]?.id}
+                        plannedAmountNet={Number(form.planned_amount_net) || 0}
+                        plannedPercent={Number(form.planned_percent) || 0}
+                        plannedInvoiceType={form.planned_invoice_type || 'TR'}
+                        planningMonth={month}
+                        onResult={text => setForm(f => ({ ...f, invoice_reason: text }))}
+                        disabled={!form.planned_amount_net && !form.planned_percent}
+                      />
+                    </div>
+                    <Textarea value={form.invoice_reason || ''}
+                      onChange={e => setForm(f => ({ ...f, invoice_reason: e.target.value }))}
+                      placeholder="Abrechnungsgrund (Warum kann abgerechnet werden?) — oder KI generieren lassen"
+                      className="text-xs resize-none h-20" />
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-xs text-muted-foreground flex items-center gap-1"><Bell className="w-3 h-3" /> Erinnerungsdatum</label>
