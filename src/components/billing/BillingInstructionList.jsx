@@ -96,7 +96,13 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
       } else {
         toast.success(data?.message || 'Entwurf angelegt');
       }
-      if (onUpdate) onUpdate(instrId, { status: 'invoice_created', invoice_created_at: new Date().toISOString() });
+      // Wichtig: onUpdate aufrufen damit React Query Cache sofort invalidiert wird
+      if (onUpdate) await onUpdate(instrId, {
+        status: 'invoice_created',
+        invoice_created_at: new Date().toISOString(),
+        sevdesk_invoice_id: data?.sevdesk_invoice_id || null,
+        sevdesk_invoice_url: data?.sevdesk_url || null,
+      });
     } catch (e) {
       toast.error('Fehler beim Anlegen des Rechnungsentwurfs', { description: e?.response?.data?.error || e.message });
     } finally {
@@ -116,6 +122,13 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
         toast.info('Rechnungsentwurf wird in sevDesk angelegt…');
         const res = await base44.functions.invoke('createSevdeskInvoiceDraft', { billing_instruction_id: instr.id });
         const data = res.data;
+        // Status auf invoice_created setzen + sevDesk-IDs speichern → Cache invalidieren
+        await onUpdate(instr.id, {
+          status: 'invoice_created',
+          invoice_created_at: new Date().toISOString(),
+          sevdesk_invoice_id: data?.sevdesk_invoice_id || null,
+          sevdesk_invoice_url: data?.sevdesk_url || null,
+        });
         if (data?.sevdesk_url) {
           toast.success('Rechnungsentwurf angelegt & Status auf „Rechnung erstellt" gesetzt', {
             description: `${instr.customer_name || ''} · ${formatCurrency(instr.instruction_amount_net)} netto`,

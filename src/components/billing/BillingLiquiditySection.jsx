@@ -48,8 +48,22 @@ export default function BillingLiquiditySection({
   const projectInstructions = allInstructions.filter(i => i.project_id === project.id);
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.BillingInstruction.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['billingInstructions'] })
+    mutationFn: async ({ id, data }) => {
+      await base44.entities.BillingInstruction.update(id, data);
+      // Wenn Status auf invoice_created geht → verknüpften MonthlyBillingPlan auf 'invoiced' setzen
+      if (data.status === 'invoice_created' || data.status === 'paid') {
+        const linkedPlan = allBillingPlans.find(p => p.linked_billing_instruction_id === id);
+        if (linkedPlan) {
+          const newPlanStatus = data.status === 'paid' ? 'invoiced' : 'invoiced';
+          await base44.entities.MonthlyBillingPlan.update(linkedPlan.id, { billing_status: newPlanStatus });
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['billingInstructions'] });
+      queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlans', project.id] });
+      queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlansAll'] });
+    }
   });
 
   const { data: allBillingPlans = [] } = useQuery({
