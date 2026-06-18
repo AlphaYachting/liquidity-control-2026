@@ -106,17 +106,37 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
 
   async function handleAdvance(instr, nextStatus) {
     setAdvancingId(instr.id);
-    const extra = {};
-    if (nextStatus === 'sent_to_backoffice') extra.sent_to_backoffice_at = new Date().toISOString();
-    if (nextStatus === 'invoice_created') extra.invoice_created_at = new Date().toISOString();
     try {
+      // Wenn "An Backoffice senden" → sofort Rechnungsentwurf in sevDesk anlegen
+      // Die Funktion setzt Status automatisch auf invoice_created + speichert sevdesk_invoice_id
+      if (nextStatus === 'sent_to_backoffice') {
+        // Zuerst Status auf sent_to_backoffice setzen (Audit-Trail)
+        await onUpdate(instr.id, { status: 'sent_to_backoffice', sent_to_backoffice_at: new Date().toISOString() });
+        // Dann sofort Rechnungsentwurf in sevDesk anlegen
+        toast.info('Rechnungsentwurf wird in sevDesk angelegt…');
+        const res = await base44.functions.invoke('createSevdeskInvoiceDraft', { billing_instruction_id: instr.id });
+        const data = res.data;
+        if (data?.sevdesk_url) {
+          toast.success('Rechnungsentwurf angelegt & Status auf „Rechnung erstellt" gesetzt', {
+            description: `${instr.customer_name || ''} · ${formatCurrency(instr.instruction_amount_net)} netto`,
+            action: { label: 'In sevDesk öffnen', onClick: () => window.open(data.sevdesk_url, '_blank') }
+          });
+        } else {
+          toast.success('An Backoffice gesendet', { description: data?.message || '' });
+        }
+        return;
+      }
+
+      // Alle anderen Statuswechsel normal
+      const extra = {};
+      if (nextStatus === 'invoice_created') extra.invoice_created_at = new Date().toISOString();
       await onUpdate(instr.id, { status: nextStatus, ...extra });
       const label = STATUS_CFG[nextStatus]?.label || nextStatus;
       toast.success(`Status geändert: ${label}`, {
         description: `${instr.customer_name || ''} · ${formatCurrency(instr.instruction_amount_net)} netto`
       });
     } catch (e) {
-      toast.error('Statusänderung fehlgeschlagen', { description: e.message });
+      toast.error('Fehler', { description: e?.response?.data?.error || e.message });
     } finally {
       setAdvancingId(null);
     }

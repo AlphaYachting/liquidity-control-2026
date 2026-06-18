@@ -50,10 +50,13 @@ export default function InvoiceReady() {
   const [creatingDraft, setCreatingDraft] = useState(null);
   const [editingInstr, setEditingInstr] = useState(null);
 
-  async function handleCreateSevdeskDraft(instrId) {
-    setCreatingDraft(instrId);
+  async function handleSendToBackoffice(instr) {
+    setCreatingDraft(instr.id);
     try {
-      const res = await base44.functions.invoke('createSevdeskInvoiceDraft', { billing_instruction_id: instrId });
+      // 1. Status auf sent_to_backoffice setzen (Audit-Trail)
+      await updateMutation.mutateAsync({ id: instr.id, data: { status: 'sent_to_backoffice', sent_to_backoffice_at: new Date().toISOString() } });
+      // 2. Rechnungsentwurf in sevDesk automatisch anlegen
+      const res = await base44.functions.invoke('createSevdeskInvoiceDraft', { billing_instruction_id: instr.id });
       const data = res.data;
       if (data?.sevdesk_url) {
         window.open(data.sevdesk_url, '_blank');
@@ -228,12 +231,16 @@ export default function InvoiceReady() {
                         )}
                       </div>
 
-                      <Select value={instr.status} onValueChange={v => updateMutation.mutate({
-                        id: instr.id, data: { status: v,
-                          ...(v === 'sent_to_backoffice' ? { sent_to_backoffice_at: new Date().toISOString() } : {}),
-                          ...(v === 'invoice_created' ? { invoice_created_at: new Date().toISOString() } : {}),
+                      <Select value={instr.status} onValueChange={async v => {
+                        if (v === 'sent_to_backoffice' && !instr.sevdesk_invoice_id) {
+                          await handleSendToBackoffice(instr);
+                        } else {
+                          updateMutation.mutate({ id: instr.id, data: { status: v,
+                            ...(v === 'sent_to_backoffice' ? { sent_to_backoffice_at: new Date().toISOString() } : {}),
+                            ...(v === 'invoice_created' ? { invoice_created_at: new Date().toISOString() } : {}),
+                          }});
                         }
-                      })}>
+                      }}>
                         <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Object.entries(STATUS_CFG).map(([v, { label }]) => (
@@ -320,35 +327,27 @@ export default function InvoiceReady() {
                           <ExternalLink className="w-3 h-3 mr-1" /> Im Cockpit öffnen
                         </Button>
                         {instr.status === 'ready_for_backoffice' && (
-                          <Button size="sm" className="h-7 text-xs"
-                            onClick={() => updateMutation.mutate({ id: instr.id, data: { status: 'sent_to_backoffice', sent_to_backoffice_at: new Date().toISOString() } })}>
-                            ✓ Als gesendet markieren
+                          <Button size="sm" className="h-7 text-xs gap-1"
+                            disabled={creatingDraft === instr.id}
+                            onClick={() => handleSendToBackoffice(instr)}>
+                            {creatingDraft === instr.id
+                              ? <><Loader2 className="w-3 h-3 animate-spin" /> Entwurf wird angelegt…</>
+                              : <>📤 An Backoffice senden + sevDesk Entwurf</>
+                            }
                           </Button>
                         )}
-                        {instr.status === 'sent_to_backoffice' && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs border-purple-300 text-purple-700"
-                            onClick={() => updateMutation.mutate({ id: instr.id, data: { status: 'invoice_created', invoice_created_at: new Date().toISOString() } })}>
-                            ✓ Rechnung erstellt
+                        {instr.sevdesk_invoice_id && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                            onClick={() => window.open(instr.sevdesk_invoice_url || `https://my.sevdesk.de/#/fi/${instr.sevdesk_invoice_id}`, '_blank')}>
+                            <ExternalLink className="w-3 h-3 mr-1" /> In sevDesk öffnen
                           </Button>
                         )}
-                        {/* sevDesk Rechnungsentwurf — immer sichtbar */}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
-                          disabled={creatingDraft === instr.id}
-                          onClick={() => instr.sevdesk_invoice_id
-                            ? window.open(instr.sevdesk_invoice_url || `https://my.sevdesk.de/#/fi/${instr.sevdesk_invoice_id}`, '_blank')
-                            : handleCreateSevdeskDraft(instr.id)
-                          }
-                        >
-                          {creatingDraft === instr.id
-                            ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Wird angelegt…</>
-                            : instr.sevdesk_invoice_id
-                              ? <><ExternalLink className="w-3 h-3 mr-1" /> In sevDesk öffnen</>
-                              : <><FileText className="w-3 h-3 mr-1" /> Rechnungsentwurf erzeugen</>
-                          }
-                        </Button>
+                        {instr.status === 'invoice_created' && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-teal-300 text-teal-700"
+                            onClick={() => updateMutation.mutate({ id: instr.id, data: { status: 'paid' } })}>
+                            ✓ Als bezahlt markieren
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
