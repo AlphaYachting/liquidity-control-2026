@@ -55,8 +55,12 @@ export default function Forecast() {
   const { data: tools = [], isLoading: l3 } = useQuery({ queryKey: ['tools'], queryFn: () => base44.entities.ToolCost.list() });
   const { data: receivables = [], isLoading: l4 } = useQuery({ queryKey: ['receivables'], queryFn: () => base44.entities.Receivable.list() });
   const { data: payables = [], isLoading: l5 } = useQuery({ queryKey: ['payables'], queryFn: () => base44.entities.Payable.list() });
+  const { data: invoiceRecords = [], isLoading: l6 } = useQuery({
+    queryKey: ['invoiceRecords-forecast'],
+    queryFn: () => base44.entities.InvoiceRecord.list(),
+  });
 
-  const isLoading = l1 || l2 || l3 || l4 || l5;
+  const isLoading = l1 || l2 || l3 || l4 || l5 || l6;
 
   const update = (k, v) => setParams(p => ({ ...p, [k]: v }));
 
@@ -68,12 +72,13 @@ export default function Forecast() {
       tools,
       receivables,
       payables,
+      invoiceRecords,
       scenario,
       openingBalance: Number(params.opening_cash_balance) || 0,
       fixedMonthlyCosts: Number(params.fixed_monthly_costs) || 0,
       taxObligations: Number(params.tax_obligations) || 0,
     });
-  }, [planLines, contracts, tools, receivables, payables, scenario, params, isLoading]);
+  }, [planLines, contracts, tools, receivables, payables, invoiceRecords, scenario, params, isLoading]);
 
   const chartData = months.map(m => ({
     label: getMonthLabel(m.month),
@@ -108,8 +113,8 @@ export default function Forecast() {
       <Alert className="border-blue-200 bg-blue-50">
         <Info className="w-4 h-4 text-blue-600" />
         <AlertDescription className="text-blue-800 text-xs">
-          Forecast berechnet aus: <strong>Planzeilen</strong>, <strong>laufenden Verträgen</strong>, <strong>offenen Forderungen</strong>, <strong>Eingangsrechnungen</strong> und <strong>Toolkosten</strong>.
-          Alle Beträge sind wahrscheinlichkeitsgewichtet.
+          Forecast berechnet aus: <strong>Planzeilen</strong>, <strong>laufenden Verträgen</strong>, <strong>offenen Forderungen</strong>, <strong>tatsächlichen Ausgangsrechnungen (InvoiceRecord)</strong>, <strong>Eingangsrechnungen</strong> und <strong>Toolkosten</strong>.
+          Bereits in der Forderungsliste erfasste Rechnungen werden nicht doppelt gezählt. Alle Beträge sind wahrscheinlichkeitsgewichtet.
         </AlertDescription>
       </Alert>
 

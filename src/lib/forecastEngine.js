@@ -6,8 +6,9 @@
  *  1. LiquidityPlanLine
  *  2. RecurringContract
  *  3. ToolCost
- *  4. Receivable
+ *  4. Receivable  (manuelle Forderungsliste)
  *  5. Payable
+ *  6. InvoiceRecord (tatsächliche Rechnungen aus sevDesk/manuell)
  */
 
 import { MONTHS_2026, weightedAmount } from './liquidityUtils';
@@ -394,6 +395,80 @@ export function buildPayableItems(payables, scenario) {
   return { items, warnings };
 }
 
+// ─── 6. InvoiceRecord (echte Rechnungen aus sevDesk / manuell) ───────────────
+
+/**
+ * Bringt tatsächliche offene Ausgangsrechnungen (InvoiceRecord) in den Forecast.
+ * Rechnungen die bereits in Receivable erfasst sind (matched) werden übersprungen
+ * um Doppelzählung zu vermeiden.
+ */
+export function buildInvoiceRecordItems(invoiceRecords, receivables, scenario) {
+  const items = [];
+  const warnings = [];
+
+  // Set der sevdesk_ids die bereits als Receivable erfasst sind → kein Doppelt-Zählen
+  const matchedInvoiceNumbers = new Set(
+    receivables
+      .filter(r => r.invoice_number)
+      .map(r => r.invoice_number.trim())
+  );
+
+  invoiceRecords.forEach((inv) => {
+    // Bereits bezahlt, storniert oder Gutschriften → raus
+    if (inv.payment_status === 'paid' || inv.payment_status === 'cancelled') return;
+    if (inv.is_credit_note) return;
+    // Entwürfe (noch nicht versendet) → im konservativen/realistischen Szenario ignorieren
+    if (inv.payment_status === 'draft' && scenario !== 'best_case') return;
+
+    // Vermeide Doppelzählung mit Receivable-Einträgen
+    if (inv.invoice_number && matchedInvoiceNumbers.has(inv.invoice_number.trim())) return;
+
+    const amount = Number(inv.open_amount) > 0
+      ? Number(inv.open_amount)
+      : Number(inv.net_amount) || 0;
+    if (amount <= 0) return;
+
+    const risk = inv.payment_status === 'overdue' ? 'high'
+               : inv.payment_status === 'partially_paid' ? 'medium'
+               : 'low';
+
+    // Szenarien-Filter: überfällige und unsichere Rechnungen bei konservativ weglassen
+    if (scenario === 'conservative' && risk !== 'low') return;
+
+    const probMap = { low: 90, medium: 75, high: 50, unclear: 60 };
+    const prob = probMap[risk] || 80;
+
+    const month = toForecastMonth(inv.due_date) || toForecastMonth(inv.invoice_date) || CURRENT_MONTH;
+    const isOverdue = inv.due_date && inv.due_date < TODAY;
+
+    if (!inv.due_date && !inv.invoice_date) {
+      warnings.push({
+        source_type: 'invoice_record',
+        id: inv.id,
+        title: `${inv.customer_name} ${inv.invoice_number || ''}`,
+        issue: 'Kein Fälligkeitsdatum auf Rechnung',
+      });
+    }
+
+    items.push({
+      source_type: 'invoice_record',
+      source_id: inv.id,
+      title: [inv.invoice_number, inv.customer_name].filter(Boolean).join(' – '),
+      customer_or_supplier: inv.customer_name || '—',
+      category: 'invoice',
+      month,
+      direction: 'inflow',
+      amount,
+      weighted_amount: weightedAmount(amount, prob),
+      probability_percent: prob,
+      status: isOverdue ? 'overdue' : (inv.payment_status || 'open'),
+      notes: inv.notes || (isOverdue ? `Überfällig seit ${inv.due_date}` : ''),
+    });
+  });
+
+  return { items, warnings };
+}
+
 // ─── Main Engine ─────────────────────────────────────────────────────────────
 
 export function buildFullForecast({
@@ -402,6 +477,7 @@ export function buildFullForecast({
   tools = [],
   receivables = [],
   payables = [],
+  invoiceRecords = [],
   scenario = 'realistic',
   openingBalance = 0,
   fixedMonthlyCosts = 0,
@@ -420,6 +496,7 @@ export function buildFullForecast({
   push(buildToolCostItems(tools, scenario));
   push(buildReceivableItems(receivables, scenario));
   push(buildPayableItems(payables, scenario));
+  push(buildInvoiceRecordItems(invoiceRecords, receivables, scenario));
 
   // Source summary counts
   const sourceSummary = {
@@ -428,6 +505,7 @@ export function buildFullForecast({
     tool_costs: allItems.filter(i => i.source_type === 'tool_cost').length,
     receivables: allItems.filter(i => i.source_type === 'receivable').length,
     payables: allItems.filter(i => i.source_type === 'payable').length,
+    invoice_records: allItems.filter(i => i.source_type === 'invoice_record').length,
   };
 
   let balance = openingBalance;
@@ -452,6 +530,7 @@ export function buildFullForecast({
       plan_lines_in: inflow_items.filter(i => i.source_type === 'plan_line').reduce((s, i) => s + i.weighted_amount, 0),
       contracts_in: inflow_items.filter(i => i.source_type === 'recurring_contract').reduce((s, i) => s + i.weighted_amount, 0),
       receivables_in: inflow_items.filter(i => i.source_type === 'receivable').reduce((s, i) => s + i.weighted_amount, 0),
+      invoice_records_in: inflow_items.filter(i => i.source_type === 'invoice_record').reduce((s, i) => s + i.weighted_amount, 0),
       tool_costs_out: outflow_items.filter(i => i.source_type === 'tool_cost').reduce((s, i) => s + i.weighted_amount, 0),
       payables_out: outflow_items.filter(i => i.source_type === 'payable').reduce((s, i) => s + i.weighted_amount, 0),
       plan_lines_out: outflow_items.filter(i => i.source_type === 'plan_line').reduce((s, i) => s + i.weighted_amount, 0),

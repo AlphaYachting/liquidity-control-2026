@@ -9,6 +9,7 @@ const SOURCE_LABELS = {
   tool_cost: 'Tool',
   receivable: 'Forderung',
   payable: 'Verbindlichkeit',
+  invoice_record: 'Rechnung',
 };
 
 const SOURCE_COLORS = {
@@ -17,6 +18,7 @@ const SOURCE_COLORS = {
   tool_cost: 'bg-purple-100 text-purple-700',
   receivable: 'bg-amber-100 text-amber-700',
   payable: 'bg-red-100 text-red-700',
+  invoice_record: 'bg-indigo-100 text-indigo-700',
 };
 
 const STATUS_COLORS = {
