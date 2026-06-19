@@ -46,9 +46,14 @@ const customTooltip = ({ active, payload, label }) => {
 };
 
 export default function Forecast() {
-  const [scenario, setScenario] = useState('realistic');
+  const [scenario, setScenario] = useState(() => localStorage.getItem('forecast_scenario') || 'realistic');
   const [openMonth, setOpenMonth] = useState(null);
-  const [params, setParams] = useState({ opening_cash_balance: 50000, fixed_monthly_costs: 25000, tax_obligations: 5000 });
+  const [params, setParams] = useState(() => {
+    try {
+      const saved = localStorage.getItem('forecast_params');
+      return saved ? JSON.parse(saved) : { opening_cash_balance: 50000, fixed_monthly_costs: 25000, tax_obligations: 5000 };
+    } catch { return { opening_cash_balance: 50000, fixed_monthly_costs: 25000, tax_obligations: 5000 }; }
+  });
 
   const { data: planLines = [], isLoading: l1 } = useQuery({ queryKey: ['planLines'], queryFn: () => base44.entities.LiquidityPlanLine.list() });
   const { data: contracts = [], isLoading: l2 } = useQuery({ queryKey: ['contracts'], queryFn: () => base44.entities.RecurringContract.list() });
@@ -62,7 +67,16 @@ export default function Forecast() {
 
   const isLoading = l1 || l2 || l3 || l4 || l5 || l6;
 
-  const update = (k, v) => setParams(p => ({ ...p, [k]: v }));
+  const update = (k, v) => setParams(p => {
+    const next = { ...p, [k]: v };
+    localStorage.setItem('forecast_params', JSON.stringify(next));
+    return next;
+  });
+
+  const handleScenarioChange = (s) => {
+    setScenario(s);
+    localStorage.setItem('forecast_scenario', s);
+  };
 
   const { months, warnings, sourceSummary } = useMemo(() => {
     if (isLoading) return { months: [], warnings: [], sourceSummary: {} };
@@ -118,7 +132,7 @@ export default function Forecast() {
         </AlertDescription>
       </Alert>
 
-      <Tabs value={scenario} onValueChange={setScenario}>
+      <Tabs value={scenario} onValueChange={handleScenarioChange}>
         <TabsList>
           <TabsTrigger value="conservative">Konservativ</TabsTrigger>
           <TabsTrigger value="realistic">Realistisch</TabsTrigger>
