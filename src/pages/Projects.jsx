@@ -36,7 +36,7 @@ const BILLING_STATUS_COLORS = {
   in_review: 'bg-amber-100 text-amber-700',
   ready_for_invoice: 'bg-emerald-100 text-emerald-700',
   sent_to_backoffice: 'bg-orange-100 text-orange-700',
-  invoiced: 'bg-purple-100 text-purple-700',
+  invoiced: 'bg-emerald-100 text-emerald-700',
   postponed: 'bg-gray-100 text-gray-500',
   on_hold: 'bg-red-100 text-red-600',
 };

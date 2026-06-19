@@ -282,7 +282,7 @@ export default function NextMonthForecast() {
             </thead>
             <tbody>
               {visibleCurInstructions.map(instr => {
-                const STATUS_COLORS = { draft: 'bg-gray-100 text-gray-600', ready_for_backoffice: 'bg-blue-100 text-blue-700', sent_to_backoffice: 'bg-amber-100 text-amber-700', invoice_created: 'bg-purple-100 text-purple-700', paid: 'bg-teal-100 text-teal-700' };
+                const STATUS_COLORS = { draft: 'bg-gray-100 text-gray-600', ready_for_backoffice: 'bg-blue-100 text-blue-700', sent_to_backoffice: 'bg-amber-100 text-amber-700', invoice_created: 'bg-emerald-100 text-emerald-700', paid: 'bg-emerald-600 text-white' };
                 const INVOICE_TYPE_LABELS = { advance_invoice: 'Anzahlung', partial_invoice: 'Teilrechnung', final_invoice: 'Schlussrechnung', correction: 'Korrektur', credit_note: 'Gutschrift' };
                 return (
                   <tr key={instr.id} className="border-t hover:bg-blue-50/60 cursor-pointer"
@@ -290,7 +290,7 @@ export default function NextMonthForecast() {
                     <td className="p-3"><p className="font-medium">{instr.customer_name || '—'}</p><p className="text-xs text-muted-foreground">{instr.project_name || '—'}</p></td>
                     <td className="p-3"><Badge className="text-xs bg-blue-100 text-blue-700">{INVOICE_TYPE_LABELS[instr.invoice_type] || instr.invoice_type}</Badge></td>
                     <td className="p-3 text-right font-semibold">{formatCurrency(instr.instruction_amount_net)}</td>
-                    <td className="p-3"><Badge className={`text-xs ${STATUS_COLORS[instr.status] || 'bg-gray-100 text-gray-600'}`}>{{ draft:'Entwurf', ready_for_backoffice:'Bereit', sent_to_backoffice:'Gesendet', invoice_created:'Rechnung erstellt', paid:'Bezahlt' }[instr.status] || instr.status}</Badge></td>
+                    <td className="p-3"><Badge className={`text-xs ${STATUS_COLORS[instr.status] || 'bg-gray-100 text-gray-600'}`}>{{ draft:'Entwurf', ready_for_backoffice:'Bereit', sent_to_backoffice:'Gesendet', invoice_created:'✓ Rechnung erstellt', paid:'✓ Bezahlt' }[instr.status] || instr.status}</Badge></td>
                     <td className="p-3 text-sm">{instr.planned_invoice_date || '—'}</td>
                     <td className="p-3 text-xs text-muted-foreground max-w-[200px] truncate">{instr.invoice_instruction_text || instr.invoice_reason || '—'}</td>
                   </tr>
@@ -392,8 +392,8 @@ export default function NextMonthForecast() {
                   draft: 'bg-gray-100 text-gray-600',
                   ready_for_backoffice: 'bg-blue-100 text-blue-700',
                   sent_to_backoffice: 'bg-amber-100 text-amber-700',
-                  invoice_created: 'bg-purple-100 text-purple-700',
-                  paid: 'bg-teal-100 text-teal-700',
+                  invoice_created: 'bg-emerald-100 text-emerald-700',
+                  paid: 'bg-emerald-600 text-white',
                 };
                 const INVOICE_TYPE_LABELS = {
                   advance_invoice: 'Anzahlung',
@@ -418,7 +418,7 @@ export default function NextMonthForecast() {
                     <td className="p-3 text-right text-muted-foreground">{formatCurrency(instr.instruction_amount_gross)}</td>
                     <td className="p-3">
                       <Badge className={`text-xs ${STATUS_COLORS[instr.status] || 'bg-gray-100 text-gray-600'}`}>
-                        {{ draft:'Entwurf', ready_for_backoffice:'Bereit', sent_to_backoffice:'Gesendet', invoice_created:'Rechnung erstellt', paid:'Bezahlt' }[instr.status] || instr.status}
+                        {{ draft:'Entwurf', ready_for_backoffice:'Bereit', sent_to_backoffice:'Gesendet', invoice_created:'✓ Rechnung erstellt', paid:'✓ Bezahlt' }[instr.status] || instr.status}
                       </Badge>
                     </td>
                     <td className="p-3 text-sm">{instr.planned_invoice_date || '—'}</td>

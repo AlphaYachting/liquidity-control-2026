@@ -17,8 +17,8 @@ const STATUS_CFG = {
   draft:                { label: 'Entwurf',                color: 'bg-gray-100 text-gray-600',     icon: CircleDot },
   ready_for_backoffice: { label: 'Bereit',                 color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
   sent_to_backoffice:   { label: 'An Backoffice gesendet', color: 'bg-blue-100 text-blue-700',     icon: Send },
-  invoice_created:      { label: 'Rechnung erstellt',      color: 'bg-purple-100 text-purple-700', icon: FileText },
-  paid:                 { label: 'Bezahlt',                color: 'bg-teal-100 text-teal-700',     icon: CheckCircle2 },
+  invoice_created:      { label: 'Rechnung erstellt',      color: 'bg-emerald-100 text-emerald-700', icon: FileText },
+  paid:                 { label: 'Bezahlt',                color: 'bg-emerald-600 text-white',      icon: CheckCircle2 },
   blocked:              { label: 'Blockiert',              color: 'bg-red-100 text-red-700',       icon: AlertCircle },
   cancelled:            { label: 'Storniert',              color: 'bg-gray-200 text-gray-500',     icon: CircleDot },
 };
@@ -183,8 +183,8 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
               <div className="flex items-center gap-2 flex-shrink-0">
                 <StatusIcon className={`w-4 h-4 flex-shrink-0 ${
                   instr.status === 'sent_to_backoffice' ? 'text-blue-500' :
-                  instr.status === 'invoice_created' ? 'text-purple-500' :
-                  instr.status === 'paid' ? 'text-teal-500' :
+                  instr.status === 'invoice_created' ? 'text-emerald-600' :
+                  instr.status === 'paid' ? 'text-emerald-700' :
                   instr.status === 'ready_for_backoffice' ? 'text-emerald-500' :
                   instr.status === 'blocked' ? 'text-red-500' : 'text-gray-400'
                 }`} />
