@@ -43,7 +43,7 @@ const BACKOFFICE_USERS = ['Anna', 'Birgit', 'Christine', 'Maria'];
 const NEXT_ACTION = {
   draft:                { label: '✓ Bereit melden',        nextStatus: 'ready_for_backoffice', variant: 'default',  color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
   ready_for_backoffice: { label: '📤 An Backoffice senden', nextStatus: 'sent_to_backoffice',  variant: 'outline', color: 'border-blue-400 text-blue-700 hover:bg-blue-50' },
-  sent_to_backoffice:   { label: '✓ Rechnung bestätigen',  nextStatus: 'invoice_created',     variant: 'outline', color: 'border-purple-400 text-purple-700 hover:bg-purple-50' },
+  sent_to_backoffice:   { label: '✓ Rechnung bestätigen',  nextStatus: 'invoice_created',     variant: 'outline', color: 'border-emerald-500 text-emerald-700 hover:bg-emerald-50' },
   invoice_created:      null,
   paid:                 null,
   blocked:              { label: '✓ Bereit melden',        nextStatus: 'ready_for_backoffice', variant: 'default',  color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
