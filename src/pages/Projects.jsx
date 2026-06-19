@@ -16,10 +16,11 @@ import BillingProgressBar from '@/components/projects/BillingProgressBar';
 const PM_OPTIONS = ['Anna', 'Lara', 'Mathias', 'Pascal', 'Sebastian'].map(v => ({ value: v, label: v }));
 const STATUS_OPTIONS = ['active', 'completed', 'on_hold', 'cancelled', 'unclear'].map(v => ({ value: v, label: v }));
 const RISK_OPTIONS = ['none', 'low', 'medium', 'high', 'critical'].map(v => ({ value: v, label: v }));
-// Simplified billing status options — in_review and ready_for_invoice excluded from filter
 const BILLING_STATUS_OPTIONS = [
   { value: 'open', label: 'offen' },
   { value: 'planned', label: 'geplant' },
+  { value: 'in_review', label: 'in Prüfung' },
+  { value: 'ready_for_invoice', label: 'bereit' },
   { value: 'sent_to_backoffice', label: 'in Verrechnung' },
   { value: 'invoiced', label: 'verrechnet' },
   { value: 'on_hold', label: 'on hold' },
@@ -189,7 +190,7 @@ export default function Projects() {
     const map = {};
     projects.forEach(p => {
       const plans = (plansByProject[p.id] || []).filter(pl =>
-        pl.planning_month === currentMonth && !['invoiced','postponed','on_hold'].includes(pl.billing_status)
+        pl.planning_month === currentMonth && !['invoiced','postponed','on_hold'].includes(pl.billing_status) && (Number(pl.planned_amount_net) || 0) > 0
       );
       map[p.id] = plans.reduce((s, pl) => s + (Number(pl.planned_amount_net) || 0), 0);
     });
@@ -291,11 +292,15 @@ export default function Projects() {
       updatePlanMutation.mutate({ id: curPlan.id, data: { [field]: !curPlan[field] } });
     } else {
       // Create a minimal plan record just to store the check
+      // IMPORTANT: no planned_amount_net here so 0€ doesn't appear in cockpit
+      // We use a special marker billing_status 'open' but planned_amount_net stays undefined
       createPlanMutation.mutate({
         project_id: project.id,
         planning_month: field === 'current_month_checked' ? currentMonth : nextMonth,
         planning_type: field === 'current_month_checked' ? 'current_month' : 'next_month',
         billing_status: 'open',
+        planned_amount_net: null,
+        planned_amount_gross: null,
         [field]: true,
         assigned_pm: project.project_manager || '',
       });
@@ -355,13 +360,9 @@ export default function Projects() {
         </div>
       );
     }},
-    // 4. Gesamt netto
-    { key: 'total_net_amount', label: 'Gesamt netto', render: (v) => <span className="text-sm font-medium">{formatCurrency(v)}</span>, cellClass: 'text-right' },
-    // 5. Noch zu verrechnen
-    { key: '_open', label: 'Offen', render: (v) => <span className={Number(v) > 0 ? 'text-amber-600 font-semibold' : 'text-emerald-600'}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
-    // 7. Erwartung dieser Monat (renamed + uses currentMonth)
+    // 4. Erwartung dieser Monat
     { key: '_curPlan', label: 'Erwartung d. Monat', width: '130px', render: (_, row) => {
-      const plans = (plansByProject[row.id] || []).filter(p => p.planning_month === currentMonth && !['invoiced','postponed'].includes(p.billing_status));
+      const plans = (plansByProject[row.id] || []).filter(p => p.planning_month === currentMonth && !['invoiced','postponed'].includes(p.billing_status) && (Number(p.planned_amount_net) || 0) > 0);
       const risk = row.risk_status;
       const amtColor = risk === 'critical' ? 'text-red-800 font-bold'
         : risk === 'high' ? 'text-red-600 font-semibold'
@@ -381,9 +382,7 @@ export default function Projects() {
         </div>
       );
     }},
-    // 8. Risiko
-    { key: 'risk_status', label: 'Risiko', width: '80px', render: (v) => <StatusBadge status={v} /> },
-    // 9. Verrechnungsstatus
+    // 5. Verrechnungsstatus (vor Gesamtbetrag)
     { key: '_billing_status', label: 'Verr.-Status', width: '120px', render: (_, row) => {
       const plans = plansByProject[row.id] || [];
       const activePlan = plans.find(p => p.planning_month === currentMonth)
@@ -409,9 +408,15 @@ export default function Projects() {
         </select>
       );
     }},
-    // 10. PM
+    // 6. Gesamt netto
+    { key: 'total_net_amount', label: 'Gesamt netto', render: (v) => <span className="text-sm font-medium">{formatCurrency(v)}</span>, cellClass: 'text-right' },
+    // 7. Noch zu verrechnen
+    { key: '_open', label: 'Offen', render: (v) => <span className={Number(v) > 0 ? 'text-amber-600 font-semibold' : 'text-emerald-600'}>{formatCurrency(v)}</span>, cellClass: 'text-right' },
+    // 8. Risiko
+    { key: 'risk_status', label: 'Risiko', width: '80px', render: (v) => <StatusBadge status={v} /> },
+    // 9. PM
     { key: 'project_manager', label: 'PM', width: '70px', render: v => <span className="text-xs">{v || '—'}</span> },
-    // 11. Projektstatus (rightmost)
+    // 10. Projektstatus
     { key: 'status', label: 'Status', width: '90px', render: (v) => <StatusBadge status={v} /> },
   ];
 

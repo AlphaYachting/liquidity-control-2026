@@ -58,8 +58,10 @@ export default function BillingHistoryTimeline({ projectInvoices = [], commercia
             : null;
           const types = [...new Set(data.invoices.map(i => INVOICE_TYPE_SHORT[i.invoice_type] || '?'))];
 
+          const reasons = data.invoices.map(i => i.notes).filter(Boolean);
+
           return (
-            <div key={month} className="flex-shrink-0 border rounded-lg p-3 min-w-[110px] bg-muted/20 space-y-1.5 text-center">
+            <div key={month} className="flex-shrink-0 border rounded-lg p-3 min-w-[130px] bg-muted/20 space-y-1.5 text-center">
               <p className="text-xs font-semibold text-muted-foreground">
                 {format(parseISO(month + '-01'), 'MMM yy', { locale: de })}
               </p>
@@ -81,7 +83,13 @@ export default function BillingHistoryTimeline({ projectInvoices = [], commercia
                   vor {daysAgo}d
                 </p>
               )}
-
+              {reasons.length > 0 && (
+                <div className="pt-1 border-t border-border/50 text-left space-y-0.5">
+                  {reasons.map((r, i) => (
+                    <p key={i} className="text-xs text-muted-foreground italic leading-tight">{r}</p>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

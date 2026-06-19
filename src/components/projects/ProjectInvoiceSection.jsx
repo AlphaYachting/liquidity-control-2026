@@ -146,7 +146,7 @@ export default function ProjectInvoiceSection({
                   <th className="text-left pb-2 font-medium">Rechnung</th>
                   <th className="text-right pb-2 font-medium">Netto</th>
                   <th className="text-right pb-2 font-medium">Bezahlt brutto</th>
-                  <th className="text-right pb-2 font-medium">Offen</th>
+                  <th className="text-right pb-2 font-medium">Offen netto</th>
                   <th className="text-left pb-2 font-medium pl-2">Status</th>
                   <th className="text-left pb-2 font-medium pl-2">Quelle</th>
                   <th className="pb-2 w-16"></th>
@@ -155,7 +155,9 @@ export default function ProjectInvoiceSection({
               <tbody>
                 {projectInvoices.map(inv => {
                   const ep = getEffectivePaid(inv);
-                  const openAmt = Math.max(0, (Number(inv.gross_amount) || 0) - ep.amount);
+                  const vatFactor = (Number(inv.net_amount) || 0) > 0 ? (Number(inv.gross_amount) || 0) / Number(inv.net_amount) : 1.2;
+                  const paidNet = vatFactor > 0 ? ep.amount / vatFactor : 0;
+                  const openAmtNet = Math.max(0, (Number(inv.net_amount) || 0) - paidNet);
                   const fileUrl = inv.source_file;
                   const sevdeskUrl = inv.sevdesk_id
                     ? `https://my.sevdesk.de/#/fi/edit/type/RE/id/${inv.sevdesk_id}`
@@ -200,7 +202,7 @@ export default function ProjectInvoiceSection({
                       </td>
                       <td className="py-2 text-right font-semibold">{formatCurrency(inv.net_amount)}</td>
                       <td className="py-2 text-right text-emerald-600">{formatCurrency(ep.amount)}</td>
-                      <td className="py-2 text-right text-amber-600">{formatCurrency(openAmt)}</td>
+                      <td className="py-2 text-right text-amber-600">{formatCurrency(openAmtNet)}</td>
                       <td className="py-2 pl-2"><StatusBadge status={inv.payment_status} /></td>
                       <td className="py-2 pl-2 whitespace-nowrap">
                         <PaymentSourceBadge
