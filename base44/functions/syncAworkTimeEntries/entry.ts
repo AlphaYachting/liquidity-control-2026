@@ -69,12 +69,31 @@ Deno.serve(async (req) => {
   }
 
   // Einträge aufteilen in neue und zu aktualisierende
+  // Existierende als Map für schnellen Zugriff
+  const existingDataMap = {};
+  for (const e of existingEntries) {
+    if (e.awork_entry_id) existingDataMap[e.awork_entry_id] = e;
+  }
+
   const toCreate = [];
   const toUpdate = [];
 
   for (const e of allEntries) {
     const entryDate = (e.startDateLocal || '').split('T')[0];
     const entryMonth = entryDate ? entryDate.substring(0, 7) : '';
+    const isBillable = e.isBillable !== false;
+    const isBilled = e.isBilled === true;
+    const durationMins = typeof e.duration === 'number' ? e.duration : 0;
+
+    const existing = existingDataMap[e.id];
+
+    // Update nur wenn sich relevante Felder geändert haben
+    if (existing) {
+      const changed = existing.is_billable !== isBillable ||
+                      existing.is_billed !== isBilled ||
+                      existing.duration_minutes !== durationMins;
+      if (!changed) continue; // Keine Änderung — überspringen
+    }
 
     const record = {
       awork_entry_id: e.id,
@@ -88,18 +107,17 @@ Deno.serve(async (req) => {
       type_of_work_name: e.typeOfWork?.name || '',
       task_id: e.taskId || '',
       task_name: e.task?.name || '',
-      duration_minutes: typeof e.duration === 'number' ? e.duration : 0,
-      is_billable: e.isBillable !== false,
-      is_billed: e.isBilled === true,
+      duration_minutes: durationMins,
+      is_billable: isBillable,
+      is_billed: isBilled,
       entry_date: entryDate || null,
       entry_month: entryMonth,
       note: e.note || '',
       last_synced_at: syncedAt
     };
 
-    const existingId = existingMap[e.id];
-    if (existingId) {
-      toUpdate.push({ id: existingId, data: record });
+    if (existing) {
+      toUpdate.push({ id: existing.id, data: record });
     } else {
       toCreate.push(record);
     }
@@ -119,8 +137,8 @@ Deno.serve(async (req) => {
     });
   } catch (_) { /* Log-Fehler darf Sync nicht blockieren */ }
 
-  // Neue Einträge in Batches von 50 erstellen
-  const BATCH_SIZE = 50;
+  // Neue Einträge in Batches von 20 erstellen
+  const BATCH_SIZE = 20;
   for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
     const batch = toCreate.slice(i, i + BATCH_SIZE);
     try {
@@ -130,21 +148,22 @@ Deno.serve(async (req) => {
       console.error(`bulkCreate batch ${i}-${i + BATCH_SIZE} failed:`, err.message);
       failed += batch.length;
     }
-    if (i + BATCH_SIZE < toCreate.length) await sleep(200);
+    if (i + BATCH_SIZE < toCreate.length) await sleep(400);
   }
 
-  // Updates in Batches von 20
-  const UPDATE_BATCH = 20;
+  // Updates sequenziell in kleinen Batches um Rate Limits zu vermeiden
+  const UPDATE_BATCH = 5;
   for (let i = 0; i < toUpdate.length; i += UPDATE_BATCH) {
     const batch = toUpdate.slice(i, i + UPDATE_BATCH);
-    await Promise.allSettled(
-      batch.map(({ id, data }) =>
-        base44.asServiceRole.entities.AworkTimeEntry.update(id, data)
-          .then(() => { updated++; })
-          .catch(() => { failed++; })
-      )
-    );
-    if (i + UPDATE_BATCH < toUpdate.length) await sleep(200);
+    for (const { id, data } of batch) {
+      try {
+        await base44.asServiceRole.entities.AworkTimeEntry.update(id, data);
+        updated++;
+      } catch (_) {
+        failed++;
+      }
+    }
+    if (i + UPDATE_BATCH < toUpdate.length) await sleep(800);
   }
 
   // Sync-Log abschließen
