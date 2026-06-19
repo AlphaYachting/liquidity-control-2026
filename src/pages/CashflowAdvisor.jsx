@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { BrainCircuit, Send, Plus, Trash2, ChevronRight, Zap, TrendingDown, Calendar, AlertTriangle, Search, BarChart3 } from 'lucide-react';
+import { BrainCircuit, Send, Plus, Trash2, ChevronRight, Zap, TrendingDown, Calendar, AlertTriangle, Search, BarChart3, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MessageBubble from '@/components/agent/MessageBubble';
 
@@ -74,8 +74,33 @@ export default function CashflowAdvisor() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [activeGroup, setActiveGroup] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const recognitionRef = useRef(null);
+
+  const startRecording = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    const rec = new SpeechRecognition();
+    rec.lang = 'de-AT';
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      setInput(prev => prev ? prev + ' ' + transcript : transcript);
+    };
+    rec.onend = () => setIsRecording(false);
+    rec.onerror = () => setIsRecording(false);
+    recognitionRef.current = rec;
+    rec.start();
+    setIsRecording(true);
+  };
+
+  const stopRecording = () => {
+    recognitionRef.current?.stop();
+    setIsRecording(false);
+  };
 
   useEffect(() => { loadConversations(); }, []);
 
@@ -327,10 +352,22 @@ export default function CashflowAdvisor() {
                 }}
                 disabled={!input.trim() || sending}
                 size="icon"
-                className="flex-1 rounded-xl"
+                className="rounded-xl"
               >
                 <Send className="w-4 h-4" />
               </Button>
+              {(window.SpeechRecognition || window.webkitSpeechRecognition) && (
+                <Button
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={sending}
+                  size="icon"
+                  variant={isRecording ? 'destructive' : 'outline'}
+                  className="rounded-xl"
+                  title={isRecording ? 'Aufnahme stoppen' : 'Diktat starten'}
+                >
+                  {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </Button>
+              )}
             </div>
           </div>
           <p className="text-[11px] text-muted-foreground mt-1 text-center max-w-3xl mx-auto">
