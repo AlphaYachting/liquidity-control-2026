@@ -121,7 +121,7 @@ export default function NonBillableWidget() {
     const empty = { monthlyChartData: [], curData: null, prevData: null, curMonth: '', prevMonth: '' };
     if (!entries.length) return empty;
 
-    const clientEntries = entries.filter(e => !e.project_name?.toLowerCase().includes('rittler - interne'));
+    const clientEntries = entries;
 
     // Monats-Aggregation
     const byMonth = {};
