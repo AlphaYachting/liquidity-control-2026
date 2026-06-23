@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
 
   // awork API mit korrektem datetime Filter — max 500 Einträge (5 Seiten) pro Aufruf
   const pageSize = 100;
-  const maxPages = 5;
+  const maxPages = 20;
   let allEntries = [];
   let page = 1;
 
@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
     const entryMonth = entryDate ? entryDate.substring(0, 7) : '';
     const isBillable = e.isBillable !== false;
     const isBilled = e.isBilled === true;
+    // awork API liefert duration in Sekunden — als Sekunden speichern (Feld heißt zwar duration_minutes, enthält aber Sekunden für historische Kompatibilität)
     const durationMins = typeof e.duration === 'number' ? e.duration : 0;
 
     const existing = existingDataMap[e.id];
