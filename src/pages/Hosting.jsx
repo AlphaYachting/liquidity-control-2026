@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Server, Plus } from 'lucide-react';
+import { Server, Plus, Sparkles } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import DataTable from '@/components/shared/DataTable';
@@ -11,12 +11,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import EditContractDialog from '@/components/maintenance/EditContractDialog';
+import ExtractHostingContractsDialog from '@/components/hosting/ExtractHostingContractsDialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export default function Hosting() {
   const queryClient = useQueryClient();
   const [editingContract, setEditingContract] = useState(null);
   const [activeTab, setActiveTab] = useState('hosting');
+  const [showExtract, setShowExtract] = useState(false);
 
   const { data: allContracts = [], isLoading } = useQuery({
     queryKey: ['hosting-contracts'],
@@ -76,13 +78,20 @@ export default function Hosting() {
         subtitle={`${allContracts.length} Einträge gesamt`}
         icon={Server}
         actions={
-          <Button variant="outline" className="gap-2" onClick={() => setEditingContract(newContractDefaults(activeTab))}>
-            <Plus className="w-4 h-4" />
-            Neuer Eintrag
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setEditingContract(newContractDefaults(activeTab))}>
+              <Plus className="w-4 h-4" />
+              Neuer Eintrag
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => setShowExtract(true)}>
+              <Sparkles className="w-4 h-4 text-purple-500" />
+              Aus sevDesk extrahieren
+            </Button>
+          </div>
         }
       />
 
+      <ExtractHostingContractsDialog open={showExtract} onClose={() => setShowExtract(false)} />
       <EditContractDialog
         contract={editingContract}
         onSave={(form) => {
