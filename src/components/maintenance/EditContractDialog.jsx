@@ -22,7 +22,7 @@ const STATUSES = [
   { value: 'unclear', label: 'Unklar' },
 ];
 
-export default function EditContractDialog({ contract, onSave, onClose }) {
+export default function EditContractDialog({ contract, onSave, onClose, title }) {
   const [form, setForm] = useState({});
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function EditContractDialog({ contract, onSave, onClose }) {
     <Dialog open={!!contract} onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Wartungsvertrag bearbeiten</DialogTitle>
+          <DialogTitle>{title || 'Vertrag bearbeiten'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
