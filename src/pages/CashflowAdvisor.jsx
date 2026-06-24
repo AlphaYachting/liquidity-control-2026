@@ -84,21 +84,43 @@ export default function CashflowAdvisor() {
     if (!SpeechRecognition) return;
     const rec = new SpeechRecognition();
     rec.lang = 'de-AT';
-    rec.continuous = false;
-    rec.interimResults = false;
+    rec.continuous = true;
+    rec.interimResults = true;
+    let finalTranscript = '';
     rec.onresult = (e) => {
-      const transcript = e.results[0][0].transcript;
-      setInput(prev => prev ? prev + ' ' + transcript : transcript);
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          finalTranscript += e.results[i][0].transcript + ' ';
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+      setInput(finalTranscript + interim);
     };
-    rec.onend = () => setIsRecording(false);
-    rec.onerror = () => setIsRecording(false);
+    rec.onend = () => {
+      // Bei continuous=true: automatisch neu starten solange isRecording aktiv
+      if (recognitionRef.current?._shouldRestart) {
+        try { rec.start(); } catch {}
+      } else {
+        setIsRecording(false);
+      }
+    };
+    rec.onerror = (e) => {
+      if (e.error === 'no-speech') return; // Kurze Pause — ignorieren, läuft weiter
+      setIsRecording(false);
+    };
+    rec._shouldRestart = true;
     recognitionRef.current = rec;
     rec.start();
     setIsRecording(true);
   };
 
   const stopRecording = () => {
-    recognitionRef.current?.stop();
+    if (recognitionRef.current) {
+      recognitionRef.current._shouldRestart = false;
+      recognitionRef.current.stop();
+    }
     setIsRecording(false);
   };
 
