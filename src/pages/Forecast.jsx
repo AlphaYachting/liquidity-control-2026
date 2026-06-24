@@ -177,9 +177,18 @@ export default function Forecast() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Parameter</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div><Label className="text-xs">Eröffnungssaldo</Label><Input type="number" value={params.opening_cash_balance} onChange={e => update('opening_cash_balance', e.target.value)} /></div>
-            <div><Label className="text-xs">Fixe mtl. Kosten (Gehälter etc.)</Label><Input type="number" value={params.fixed_monthly_costs} onChange={e => update('fixed_monthly_costs', e.target.value)} /></div>
-            <div><Label className="text-xs">Steuer/SV-Pflichten mtl.</Label><Input type="number" value={params.tax_obligations} onChange={e => update('tax_obligations', e.target.value)} /></div>
+            <div>
+              <Label className="text-xs">Eröffnungssaldo</Label>
+              <Input key={`ob-${params.opening_cash_balance}`} type="number" defaultValue={params.opening_cash_balance} onBlur={e => update('opening_cash_balance', Number(e.target.value))} />
+            </div>
+            <div>
+              <Label className="text-xs">Fixe mtl. Kosten (Gehälter etc.)</Label>
+              <Input key={`fc-${params.fixed_monthly_costs}`} type="number" defaultValue={params.fixed_monthly_costs} onBlur={e => update('fixed_monthly_costs', Number(e.target.value))} />
+            </div>
+            <div>
+              <Label className="text-xs">Steuer/SV-Pflichten mtl.</Label>
+              <Input key={`tx-${params.tax_obligations}`} type="number" defaultValue={params.tax_obligations} onBlur={e => update('tax_obligations', Number(e.target.value))} />
+            </div>
             <div className="pt-2 border-t space-y-1 text-xs text-muted-foreground">
               <p><strong>Konservativ:</strong> Nur bestätigte Zuflüsse, keine unsicheren Forderungen</p>
               <p><strong>Realistisch:</strong> Alle aktiven Quellen mit Wahrscheinlichkeitswichtung</p>

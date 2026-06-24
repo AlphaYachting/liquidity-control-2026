@@ -130,8 +130,10 @@ export function buildContractItems(contracts, scenario) {
           notes: c.notes || '',
         });
       }
-    } else if (interval === 'quarterly' && Number(c.monthly_fixed_price) > 0) {
-      const quarterlyAmount = Number(c.monthly_fixed_price) * 3;
+    } else if (interval === 'quarterly' && (Number(c.monthly_fixed_price) > 0 || Number(c.annual_amount) > 0)) {
+      const quarterlyAmount = Number(c.monthly_fixed_price) > 0
+        ? Number(c.monthly_fixed_price) * 3
+        : Number(c.annual_amount) / 4;
       for (let i = startIndex; i <= endIndex; i += 3) {
         items.push({
           source_type: 'recurring_contract',
@@ -406,11 +408,11 @@ export function buildInvoiceRecordItems(invoiceRecords, receivables, scenario) {
   const items = [];
   const warnings = [];
 
-  // Set der sevdesk_ids die bereits als Receivable erfasst sind → kein Doppelt-Zählen
+  // Bereits als Receivable erfasste Rechnungsnummern → kein Doppelt-Zählen
   const matchedInvoiceNumbers = new Set(
     receivables
       .filter(r => r.invoice_number)
-      .map(r => r.invoice_number.trim())
+      .map(r => r.invoice_number.trim().toLowerCase())
   );
 
   invoiceRecords.forEach((inv) => {
@@ -420,8 +422,9 @@ export function buildInvoiceRecordItems(invoiceRecords, receivables, scenario) {
     // Entwürfe (noch nicht versendet) → im konservativen/realistischen Szenario ignorieren
     if (inv.payment_status === 'draft' && scenario !== 'best_case') return;
 
-    // Vermeide Doppelzählung mit Receivable-Einträgen
-    if (inv.invoice_number && matchedInvoiceNumbers.has(inv.invoice_number.trim())) return;
+    // Vermeide Doppelzählung: Rechnungsnummer case-insensitive abgleichen
+    const invNum = inv.invoice_number ? inv.invoice_number.trim().toLowerCase() : null;
+    if (invNum && matchedInvoiceNumbers.has(invNum)) return;
 
     const amount = Number(inv.open_amount) > 0
       ? Number(inv.open_amount)
@@ -518,9 +521,26 @@ export function buildFullForecast({
     const inflow = inflow_items.reduce((s, i) => s + i.amount, 0);
     const weighted_inflow = inflow_items.reduce((s, i) => s + i.weighted_amount, 0);
 
-    const fixedOutflow = (Number(fixedMonthlyCosts) || 0) + (Number(taxObligations) || 0);
-    const outflow = outflow_items.reduce((s, i) => s + i.amount, 0) + fixedOutflow;
-    const weighted_outflow = outflow_items.reduce((s, i) => s + i.weighted_amount, 0) + fixedOutflow;
+    const fixedCosts = Number(fixedMonthlyCosts) || 0;
+    const taxObl = Number(taxObligations) || 0;
+    const fixedOutflow = fixedCosts + taxObl;
+
+    // Fixed costs als eigene Items damit sie im DrillDown sichtbar sind
+    const fixedItems = [];
+    if (fixedCosts > 0) fixedItems.push({
+      source_type: 'plan_line', source_id: 'fixed_costs', title: 'Fixkosten (Gehälter etc.)',
+      customer_or_supplier: '—', category: 'manual', month, direction: 'outflow',
+      amount: fixedCosts, weighted_amount: fixedCosts, probability_percent: 100, status: 'planned', notes: 'Manueller Parameter',
+    });
+    if (taxObl > 0) fixedItems.push({
+      source_type: 'plan_line', source_id: 'tax_obligations', title: 'Steuer / SV-Pflichten',
+      customer_or_supplier: '—', category: 'manual', month, direction: 'outflow',
+      amount: taxObl, weighted_amount: taxObl, probability_percent: 100, status: 'planned', notes: 'Manueller Parameter',
+    });
+    const all_outflow_items = [...outflow_items, ...fixedItems];
+
+    const outflow = all_outflow_items.reduce((s, i) => s + i.amount, 0);
+    const weighted_outflow = all_outflow_items.reduce((s, i) => s + i.weighted_amount, 0);
 
     const net_cashflow = inflow - outflow;
     const weighted_net = weighted_inflow - weighted_outflow;
@@ -531,9 +551,9 @@ export function buildFullForecast({
       contracts_in: inflow_items.filter(i => i.source_type === 'recurring_contract').reduce((s, i) => s + i.weighted_amount, 0),
       receivables_in: inflow_items.filter(i => i.source_type === 'receivable').reduce((s, i) => s + i.weighted_amount, 0),
       invoice_records_in: inflow_items.filter(i => i.source_type === 'invoice_record').reduce((s, i) => s + i.weighted_amount, 0),
-      tool_costs_out: outflow_items.filter(i => i.source_type === 'tool_cost').reduce((s, i) => s + i.weighted_amount, 0),
-      payables_out: outflow_items.filter(i => i.source_type === 'payable').reduce((s, i) => s + i.weighted_amount, 0),
-      plan_lines_out: outflow_items.filter(i => i.source_type === 'plan_line').reduce((s, i) => s + i.weighted_amount, 0),
+      tool_costs_out: all_outflow_items.filter(i => i.source_type === 'tool_cost').reduce((s, i) => s + i.weighted_amount, 0),
+      payables_out: all_outflow_items.filter(i => i.source_type === 'payable').reduce((s, i) => s + i.weighted_amount, 0),
+      plan_lines_out: all_outflow_items.filter(i => i.source_type === 'plan_line').reduce((s, i) => s + i.weighted_amount, 0),
     };
 
     const risk_flags = [];
@@ -552,7 +572,7 @@ export function buildFullForecast({
       closing: balance,
       gap: balance < 0 ? balance : 0,
       inflow_items,
-      outflow_items,
+      outflow_items: all_outflow_items,
       source_breakdown: sourceBreakdown,
       risk_flags,
     };
