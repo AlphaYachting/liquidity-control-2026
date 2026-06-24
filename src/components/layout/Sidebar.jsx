@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, FolderKanban, Megaphone, Shield, Wrench,
+  LayoutDashboard, FolderKanban, Megaphone, Shield, Wrench, Server,
   CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
@@ -20,6 +20,7 @@ const navItems = [
   { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
   { path: '/online-marketing', label: 'Online-Marketing', icon: Megaphone },
   { path: '/maintenance', label: 'Wartungsverträge', icon: Shield },
+  { path: '/hosting', label: 'Hosting & Domains', icon: Server },
   { path: '/production', label: 'Produktion & Support', icon: Wrench },
   { path: '/tools', label: 'Toolkosten', icon: CreditCard },
   { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },

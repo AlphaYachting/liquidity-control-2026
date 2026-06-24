@@ -40,6 +40,7 @@ import MasterDataImport from '@/pages/MasterDataImport';
 import BillingDataReset from '@/pages/BillingDataReset';
 import OperationalReset from '@/pages/OperationalReset';
 import SevdeskReimport from '@/pages/SevdeskReimport';
+import Hosting from '@/pages/Hosting';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -77,6 +78,7 @@ const AuthenticatedApp = () => {
         <Route path="/invoice-ready" element={<InvoiceReady />} />
         <Route path="/online-marketing" element={<OnlineMarketing />} />
         <Route path="/maintenance" element={<Maintenance />} />
+        <Route path="/hosting" element={<Hosting />} />
         <Route path="/production" element={<Production />} />
         <Route path="/tools" element={<Tools />} />
         <Route path="/receivables" element={<Receivables />} />
