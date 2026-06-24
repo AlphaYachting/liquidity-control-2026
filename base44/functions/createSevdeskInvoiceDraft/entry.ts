@@ -21,6 +21,25 @@ async function sevdeskGet(path, apiKey) {
   return res.json();
 }
 
+// Sucht SevUser-ID anhand eines Namens (Vorname oder Nachname reicht)
+async function findSevUserId(name, apiKey) {
+  if (!name) return null;
+  try {
+    const firstName = name.trim().split(' ')[0];
+    const resp = await sevdeskGet(`/SevUser?limit=25`, apiKey);
+    const users = resp.objects || [];
+    // Suche nach Vorname-Match (case-insensitive)
+    const match = users.find(u => {
+      const full = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
+      return full.includes(firstName.toLowerCase());
+    });
+    return match ? String(match.id) : (users[0] ? String(users[0].id) : null);
+  } catch {
+    return null;
+  }
+}
+
+// sevDesk invoiceType mapping
 const INVOICE_TYPE_MAP = {
   advance_invoice: 'AN',
   partial_invoice: 'RE',
@@ -47,7 +66,7 @@ Deno.serve(async (req) => {
     if (!apiKey) return Response.json({ error: 'SEVDESK_API_KEY not set' }, { status: 500 });
 
     const body = await req.json();
-    const { billing_instruction_id } = body;
+    const { billing_instruction_id, set_status_invoice_created = false } = body;
     if (!billing_instruction_id) return Response.json({ error: 'billing_instruction_id required' }, { status: 400 });
 
     // 1. Abrechnungsanweisung laden
@@ -55,7 +74,7 @@ Deno.serve(async (req) => {
     const instr = instructions?.[0];
     if (!instr) return Response.json({ error: 'BillingInstruction not found' }, { status: 404 });
 
-    // 2. Kontakt-ID aus verknüpftem ConfirmedOrder
+    // 2. Kontakt-ID + Order-ID aus verknüpftem ConfirmedOrder
     let sevdeskContactId = null;
     let sevdeskOrderId = null;
 
@@ -70,7 +89,7 @@ Deno.serve(async (req) => {
     if (!sevdeskContactId && instr.customer_name) {
       const searchName = encodeURIComponent(instr.customer_name.substring(0, 40));
       const contactData = await sevdeskGet(`/Contact?name=${searchName}&limit=5&depth=0`, apiKey);
-      const contacts = (contactData.objects || []);
+      const contacts = contactData.objects || [];
       if (contacts.length > 0) sevdeskContactId = String(contacts[0].id);
     }
 
@@ -81,40 +100,53 @@ Deno.serve(async (req) => {
       }, { status: 422 });
     }
 
-    // 4. SevUser (Mitarbeiter) laden — sevDesk erfordert contactPerson als SevUser
-    let contactPersonId = null;
-    const userResp = await sevdeskGet(`/SevUser?limit=1`, apiKey);
-    const sevUsers = userResp.objects || [];
-    if (sevUsers.length > 0) contactPersonId = String(sevUsers[0].id);
+    // 4. Kontaktperson (SevUser) dynamisch nach PM-Name suchen
+    const pmName = instr.requested_by_pm || '';
+    const contactPersonId = await findSevUserId(pmName, apiKey);
 
-    // 5. Rechnungstext
+    // 5. Texte aufbauen
     const invoiceTypeLabel = INVOICE_TYPE_HEADER[instr.invoice_type] || 'Teilrechnung';
     const projectLabel = instr.project_name || '';
-    const headerText = `${invoiceTypeLabel}${projectLabel ? ': ' + projectLabel : ''}`;
-    const footText = instr.invoice_instruction_text || `${invoiceTypeLabel} gemäß Auftragsbestätigung.`;
-    const headText = `Sehr geehrte Damen und Herren,\n\nbeiliegend erhalten Sie unsere ${invoiceTypeLabel}${projectLabel ? ' für das Projekt "' + projectLabel + '"' : ''}.`;
+    const vatRate = instr.vat_rate ?? 20;
+    const amountNet = instr.instruction_amount_net ?? 0;
+    const additionalPct = instr.additional_billing_percent > 0 ? ` (${Math.round(instr.additional_billing_percent)}%)` : '';
 
-    // 6. Datum
-    const today = new Date().toISOString().split('T')[0] + ' 00:00:00';
+    // Header: "Teilrechnung: Projektname (20%)"
+    const headerText = `${invoiceTypeLabel}${projectLabel ? ': ' + projectLabel : ''}${additionalPct}`;
+
+    // Positionstext: Abrechnungsgrund oder Fallback
+    const positionText = instr.invoice_reason || `${invoiceTypeLabel} gemäß Auftragsbestätigung${additionalPct}.`;
+
+    // Fußzeile: invoice_instruction_text oder Standard
+    const footText = instr.invoice_instruction_text
+      || `Bei Fragen zu dieser Rechnung stehen wir Ihnen gerne zur Verfügung.`;
+
+    // Kopfzeile
+    const headText = `Sehr geehrte Damen und Herren,\n\nbeiliegend erhalten Sie unsere ${invoiceTypeLabel}${projectLabel ? ' für das Projekt „' + projectLabel + '"' : ''}${additionalPct}.`;
+
+    // 6. Datum (Zahlungsziel 14 Tage)
+    const todayDate = new Date().toISOString().split('T')[0];
+    const todayForSevdesk = todayDate + ' 00:00:00';
 
     // 7. Rechnungsentwurf anlegen via Factory
     const invoicePayload = {
       objectName: 'Invoice',
       mapAll: true,
       contact: { id: sevdeskContactId, objectName: 'Contact' },
-      contactPerson: { id: contactPersonId, objectName: 'SevUser' },
-      invoiceDate: today,
+      ...(contactPersonId ? { contactPerson: { id: contactPersonId, objectName: 'SevUser' } } : {}),
+      invoiceDate: todayForSevdesk,
       header: headerText,
       headText: headText,
       footText: footText,
+      timeToPay: '14',
       invoiceType: INVOICE_TYPE_MAP[instr.invoice_type] || 'RE',
       status: '100', // Entwurf
-      taxRate: String(instr.vat_rate ?? 20),
-      taxText: `${instr.vat_rate ?? 20}% MwSt.`,
+      taxRate: String(vatRate),
+      taxText: `${vatRate}% MwSt.`,
       taxType: 'default',
       currency: 'EUR',
       showNet: '1',
-      ...(sevdeskOrderId ? { order: { id: sevdeskOrderId, objectName: 'Order' } } : {}),
+      ...(sevdeskOrderId ? { origin: { id: sevdeskOrderId, objectName: 'Order' } } : {}),
     };
 
     const invoiceResult = await sevdeskPost('/Invoice/Factory/saveInvoice', apiKey, {
@@ -125,11 +157,11 @@ Deno.serve(async (req) => {
           mapAll: true,
           part: null,
           quantity: '1',
-          price: String(instr.instruction_amount_net ?? 0),
+          price: String(amountNet),
           name: headerText,
-          text: footText,
+          text: positionText,
           unity: { id: '1', objectName: 'Unity' },
-          taxRate: String(instr.vat_rate ?? 20),
+          taxRate: String(vatRate),
         }
       ],
       invoicePosDelete: null,
@@ -141,20 +173,24 @@ Deno.serve(async (req) => {
     const sevdeskInvoiceId = createdInvoice?.id ? String(createdInvoice.id) : null;
     const sevdeskUrl = sevdeskInvoiceId ? `https://my.sevdesk.de/#/fi/${sevdeskInvoiceId}` : null;
 
-    // 8. Status + Verlinkung in BillingInstruction speichern
+    // 8. sevDesk-IDs speichern. Status nur auf invoice_created setzen wenn explizit angefordert.
     if (sevdeskInvoiceId) {
-      await base44.asServiceRole.entities.BillingInstruction.update(billing_instruction_id, {
-        status: 'invoice_created',
-        invoice_created_at: new Date().toISOString(),
+      const updateData = {
         sevdesk_invoice_id: sevdeskInvoiceId,
         sevdesk_invoice_url: sevdeskUrl,
-      });
+      };
+      if (set_status_invoice_created) {
+        updateData.status = 'invoice_created';
+        updateData.invoice_created_at = new Date().toISOString();
+      }
+      await base44.asServiceRole.entities.BillingInstruction.update(billing_instruction_id, updateData);
     }
 
     return Response.json({
       success: true,
       sevdesk_invoice_id: sevdeskInvoiceId,
       sevdesk_url: sevdeskUrl,
+      contact_person_id: contactPersonId,
       message: `Rechnungsentwurf erfolgreich in sevDesk angelegt (ID: ${sevdeskInvoiceId})`
     });
 

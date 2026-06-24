@@ -98,6 +98,11 @@ function findMatchingOrder(invoice, confirmedOrders, ordersBySevdeskId) {
   return bestScore >= 40 ? { order: best, confidence: bestScore, method: 'fuzzy' } : null;
 }
 
+// Skip draft and cancelled invoices from matching to avoid re-linking
+function shouldSkipMatching(inv) {
+  return inv.status === '100' || inv.status === '50'; // draft or cancelled
+}
+
 function buildRecord(inv, matchResult, existing) {
   const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
 
@@ -261,8 +266,11 @@ Deno.serve(async (req) => {
             timeToPay: inv.timeToPay,
           });
         }
-        const matchResult = findMatchingOrder(inv, allOrders, ordersBySevdeskId);
-        let record = buildRecord(inv, matchResult, existing);
+        // Skip matching for drafts (100) and cancelled (50) — never re-link them
+        const matchResult = shouldSkipMatching(inv) ? null : findMatchingOrder(inv, allOrders, ordersBySevdeskId);
+        // If already manually matched, don't overwrite with auto-match
+        const effectiveMatch = (existing?.match_status === 'manually_matched') ? null : matchResult;
+        let record = buildRecord(inv, effectiveMatch, existing);
 
         // Für Teilzahlungen: Payments separat abrufen (sevDesk liefert sumGrossPay nicht im Listen-Endpoint)
         if (record.payment_status === 'partially_paid') {

@@ -85,7 +85,7 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
   async function handleCreateSevdeskDraft(instrId) {
     setCreatingDraft(instrId);
     try {
-      const res = await base44.functions.invoke('createSevdeskInvoiceDraft', { billing_instruction_id: instrId });
+      const res = await base44.functions.invoke('createSevdeskInvoiceDraft', { billing_instruction_id: instrId, set_status_invoice_created: true });
       const data = res.data;
       if (data?.sevdesk_url) {
         toast.success('Rechnungsentwurf in sevDesk angelegt', {
@@ -116,26 +116,33 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
       // Wenn "An Backoffice senden" → sofort Rechnungsentwurf in sevDesk anlegen
       // Die Funktion setzt Status automatisch auf invoice_created + speichert sevdesk_invoice_id
       if (nextStatus === 'sent_to_backoffice') {
-        // Zuerst Status auf sent_to_backoffice setzen (Audit-Trail)
+        // Status auf sent_to_backoffice setzen (Backoffice sieht die Anweisung)
         await onUpdate(instr.id, { status: 'sent_to_backoffice', sent_to_backoffice_at: new Date().toISOString() });
-        // Dann sofort Rechnungsentwurf in sevDesk anlegen
+        // Rechnungsentwurf in sevDesk anlegen — Status bleibt auf sent_to_backoffice
+        // (invoice_created wird manuell gesetzt, wenn die Rechnung tatsächlich versendet wurde)
         toast.info('Rechnungsentwurf wird in sevDesk angelegt…');
-        const res = await base44.functions.invoke('createSevdeskInvoiceDraft', { billing_instruction_id: instr.id });
-        const data = res.data;
-        // Status auf invoice_created setzen + sevDesk-IDs speichern → Cache invalidieren
-        await onUpdate(instr.id, {
-          status: 'invoice_created',
-          invoice_created_at: new Date().toISOString(),
-          sevdesk_invoice_id: data?.sevdesk_invoice_id || null,
-          sevdesk_invoice_url: data?.sevdesk_url || null,
-        });
-        if (data?.sevdesk_url) {
-          toast.success('Rechnungsentwurf angelegt & Status auf „Rechnung erstellt" gesetzt', {
-            description: `${instr.customer_name || ''} · ${formatCurrency(instr.instruction_amount_net)} netto`,
-            action: { label: 'In sevDesk öffnen', onClick: () => window.open(data.sevdesk_url, '_blank') }
-          });
-        } else {
-          toast.success('An Backoffice gesendet', { description: data?.message || '' });
+        try {
+          const res = await base44.functions.invoke('createSevdeskInvoiceDraft', { billing_instruction_id: instr.id });
+          const data = res.data;
+          // Nur sevDesk-IDs speichern, Status NICHT auf invoice_created setzen
+          if (data?.sevdesk_invoice_id) {
+            await onUpdate(instr.id, {
+              sevdesk_invoice_id: data.sevdesk_invoice_id,
+              sevdesk_invoice_url: data.sevdesk_url || null,
+            });
+          }
+          if (data?.sevdesk_url) {
+            toast.success('An Backoffice gesendet & Entwurf in sevDesk angelegt', {
+              description: `${instr.customer_name || ''} · ${formatCurrency(instr.instruction_amount_net)} netto`,
+              action: { label: 'In sevDesk öffnen', onClick: () => window.open(data.sevdesk_url, '_blank') }
+            });
+            window.open(data.sevdesk_url, '_blank');
+          } else {
+            toast.success('An Backoffice gesendet', { description: data?.message || '' });
+          }
+        } catch (e) {
+          // Auch wenn sevDesk-Erstellung fehlschlägt, bleibt Status auf sent_to_backoffice
+          toast.warning('An Backoffice gesendet, aber sevDesk-Entwurf fehlgeschlagen', { description: e?.response?.data?.error || e.message });
         }
         return;
       }
