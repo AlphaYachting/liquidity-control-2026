@@ -8,43 +8,42 @@ import { formatCurrency, MONTHS_2026, MONTH_LABELS } from '@/lib/liquidityUtils'
 
 const TODAY_MONTH = new Date().toISOString().slice(0, 7);
 
-function buildTrendData(orders = [], blocks = [], invoices = []) {
+function buildTrendData(orders = [], blocks = [], invoices = [], contracts = []) {
   const invoicedByMonth = {};
   const plannedByMonth = {};
-  const openByMonth = {};
   MONTHS_2026.forEach(m => {
     invoicedByMonth[m] = 0;
     plannedByMonth[m] = 0;
-    openByMonth[m] = 0;
   });
 
-  // Bereits verrechnet: aus InvoiceRecords nach invoice_date
-  invoices.forEach(inv => {
-    if (inv.payment_status === 'cancelled' || inv.is_credit_note) return;
+  // 1. Bereits verrechnet: aus InvoiceRecords nach invoice_date (nur bezahlte + offene, keine Gutschriften)
+  const paidInvoices = invoices.filter(inv => inv.payment_status !== 'cancelled' && !inv.is_credit_note);
+  paidInvoices.forEach(inv => {
     const m = (inv.invoice_date || '').slice(0, 7);
     if (invoicedByMonth[m] !== undefined) {
       invoicedByMonth[m] += Number(inv.net_amount) || 0;
     }
   });
 
-  // Geplant & offen: aus BillingBlocks nach billing_month
+  // 2. Geplant: BillingBlocks die noch nicht verrechnet sind, nach billing_month
+  const linkedBlockIds = new Set(invoices.map(i => i.billing_block_id).filter(Boolean));
   blocks.forEach(b => {
     if (b.invoice_readiness_status === 'invoiced' || b.invoice_readiness_status === 'paid') return;
+    if (linkedBlockIds.has(b.id)) return; // bereits über InvoiceRecord abgedeckt
     const m = b.billing_month;
     if (!m || plannedByMonth[m] === undefined) return;
     const prob = (b.probability_percent ?? 90) / 100;
     plannedByMonth[m] += (Number(b.amount_net) || 0) * prob;
   });
 
-  // Offen (nicht verrechnet): aus ConfirmedOrders nach confirmation_date
-  // → offener Betrag wird dem Auftragsmonat zugeordnet als "potenzielle Liquidität"
-  orders.forEach(o => {
-    if (o.status === 'cancelled') return;
-    const m = (o.confirmation_date || o.signed_date || '').slice(0, 7);
-    if (!m || openByMonth[m] === undefined) return;
-    const net = Number(o.total_net_amount) || 0;
-    // Bereits verrechnete Anteile abziehen (approximiert via already_invoiced_amount auf Projekt)
-    openByMonth[m] += net;
+  // 3. Geplant: Aktive monatliche Verträge → in jeden zukünftigen Monat
+  const activeContracts = contracts.filter(c => c.status === 'active' && c.billing_interval === 'monthly' && Number(c.monthly_fixed_price) > 0);
+  MONTHS_2026.forEach(m => {
+    if (m >= TODAY_MONTH) {
+      activeContracts.forEach(c => {
+        plannedByMonth[m] += Number(c.monthly_fixed_price) || 0;
+      });
+    }
   });
 
   // Kumulative Linien aufbauen
@@ -54,8 +53,6 @@ function buildTrendData(orders = [], blocks = [], invoices = []) {
   return MONTHS_2026.map(m => {
     cumInvoiced += invoicedByMonth[m];
     cumPlanned += plannedByMonth[m];
-    const isPast = m < TODAY_MONTH;
-    const isCurrent = m === TODAY_MONTH;
 
     return {
       month: m,
@@ -64,8 +61,6 @@ function buildTrendData(orders = [], blocks = [], invoices = []) {
       planned: Math.round(plannedByMonth[m]),
       cumInvoiced: Math.round(cumInvoiced),
       cumPlanned: Math.round(cumPlanned),
-      isPast,
-      isCurrent,
     };
   });
 }
@@ -85,8 +80,8 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-export default function LiquidityTrendChart({ orders = [], blocks = [], invoices = [] }) {
-  const data = useMemo(() => buildTrendData(orders, blocks, invoices), [orders, blocks, invoices]);
+export default function LiquidityTrendChart({ orders = [], blocks = [], invoices = [], contracts = [] }) {
+  const data = useMemo(() => buildTrendData(orders, blocks, invoices, contracts), [orders, blocks, invoices, contracts]);
 
   const hasData = data.some(d => d.invoiced > 0 || d.planned > 0);
   const maxVal = Math.max(...data.map(d => Math.max(d.cumInvoiced, d.cumPlanned)), 1);
@@ -98,7 +93,7 @@ export default function LiquidityTrendChart({ orders = [], blocks = [], invoices
           Prognose Liquiditätstrend 2026
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Kumulierte Netto-Einnahmen: bereits verrechnet vs. geplant (gewichtet)
+          Kumuliert: verrechnet (InvoiceRecords) vs. geplant (Pakete + Monatsverträge)
         </p>
       </CardHeader>
       <CardContent>

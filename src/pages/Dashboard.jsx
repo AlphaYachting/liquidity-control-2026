@@ -169,7 +169,7 @@ export default function Dashboard() {
       <PageHeader title="Dashboard" subtitle="Liquiditätsübersicht 2026" icon={LayoutDashboard} />
       <DashboardKpis projects={projects} planLines={planLines} contracts={contracts} tools={tools} receivables={receivables} payables={payables} invoices={invoices} liveInvoiced={liveInvoiced} liveOpen={liveOpen} liveReceivablesData={liveReceivablesData} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CashflowChart planLines={planLines} blocks={allBlocks} contracts={contracts} payables={payables} instructions={billingInstructions} />
+        <CashflowChart planLines={planLines} blocks={allBlocks} contracts={contracts} payables={payables} instructions={billingInstructions} invoiceRecords={invoices} />
         <PipelineChart projects={projects} contracts={contracts} planLines={planLines} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -178,7 +178,7 @@ export default function Dashboard() {
       </div>
       <CashflowForecastChart invoiceRecords={invoices} billingBlocks={allBlocks} />
       <NonBillableWidget />
-      <LiquidityTrendChart orders={allOrders} blocks={allBlocks} invoices={invoices} />
+      <LiquidityTrendChart orders={allOrders} blocks={allBlocks} invoices={invoices} contracts={contracts} />
       <RiskTimeline planLines={planLines} />
     </div>
   );

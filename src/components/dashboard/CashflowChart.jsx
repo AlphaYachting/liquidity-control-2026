@@ -8,7 +8,7 @@ const MONTHS = MONTHS_2026;
 // Build monthly cashflow from real data sources.
 // Priority: BillingInstructions (confirmed PM intent, with real date) > ProjectBillingBlocks (planned) > RecurringContracts
 // Blocks that already have an active instruction are NOT counted again to avoid double-counting.
-function buildCashflowData({ blocks = [], contracts = [], planLines = [], payables = [], instructions = [] }) {
+function buildCashflowData({ blocks = [], contracts = [], planLines = [], payables = [], instructions = [], invoiceRecords = [] }) {
   const inflows = {};
   const outflows = {};
   MONTHS.forEach(m => { inflows[m] = 0; outflows[m] = 0; });
@@ -72,6 +72,17 @@ function buildCashflowData({ blocks = [], contracts = [], planLines = [], payabl
     }
   });
 
+  // InvoiceRecords: offene Rechnungen nach Fälligkeitsmonat (nicht doppelt mit Blocks)
+  const coveredByBlock = new Set(invoiceRecords.map(i => i.billing_block_id).filter(Boolean));
+  invoiceRecords
+    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note)
+    .forEach(inv => {
+      const m = (inv.due_date || inv.invoice_date || '').slice(0, 7);
+      if (!m || inflows[m] === undefined) return;
+      const amount = Number(inv.open_amount) > 0 ? Number(inv.open_amount) : Number(inv.net_amount) || 0;
+      if (amount > 0) inflows[m] += amount * 0.9; // 90% Wahrscheinlichkeit
+    });
+
   // Plan lines (explicit overrides / manual entries)
   planLines.forEach(l => {
     if (l.status === 'cancelled') return;
@@ -106,8 +117,8 @@ function buildCashflowData({ blocks = [], contracts = [], planLines = [], payabl
   });
 }
 
-export default function CashflowChart({ planLines = [], blocks = [], contracts = [], payables = [], instructions = [] }) {
-  const data = buildCashflowData({ blocks, contracts, planLines, payables, instructions });
+export default function CashflowChart({ planLines = [], blocks = [], contracts = [], payables = [], instructions = [], invoiceRecords = [] }) {
+  const data = buildCashflowData({ blocks, contracts, planLines, payables, instructions, invoiceRecords });
   const hasData = data.some(d => d.inflows > 0 || d.outflows > 0);
 
   const customTooltip = ({ active, payload, label }) => {
