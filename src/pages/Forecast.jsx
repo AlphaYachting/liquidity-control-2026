@@ -142,7 +142,7 @@ export default function Forecast() {
       <Alert className="border-blue-200 bg-blue-50">
         <Info className="w-4 h-4 text-blue-600" />
         <AlertDescription className="text-blue-800 text-xs">
-          Forecast-Quellen (Priorität): <strong>1. Offene Rechnungen (InvoiceRecord)</strong> → <strong>2. Geplante Abrechnungen (BillingInstruction: bereit/übermittelt)</strong> → <strong>3. Ungeplanter Restbetrag (Auftrag – Rechnungen – Anweisungen)</strong> → <strong>4. Verträge, Forderungen, Planzeilen, Kosten</strong>. Keine Doppelzählungen zwischen den Quellen.
+          Zuflüsse ab <strong>Juni 2026</strong>: echte offene Rechnungen (sevDesk) → freigegebene Abrechnungsanweisungen → ungeplante Auftragsreste → laufende Verträge. Abflüsse: Toolkosten + Verbindlichkeiten + manuell eingegebene Fixkosten. Nur Ist-Daten, keine Schätzungen.
         </AlertDescription>
       </Alert>
 
