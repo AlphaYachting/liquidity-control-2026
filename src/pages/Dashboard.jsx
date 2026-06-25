@@ -173,7 +173,7 @@ export default function Dashboard() {
         <PipelineChart projects={projects} contracts={contracts} planLines={planLines} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AgingChart receivables={receivables} />
+        <AgingChart receivables={receivables} invoiceRecords={invoices} />
         <ToolCostChart tools={tools} />
       </div>
       <CashflowForecastChart invoiceRecords={invoices} billingBlocks={allBlocks} />

@@ -2,8 +2,6 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { calcOverdueDays, getAgingBucket, AGING_LABELS, formatCurrency } from '@/lib/liquidityUtils';
-import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
 
 const BUCKET_COLORS = {
   'not_due': 'hsl(142, 71%, 45%)',
@@ -13,11 +11,7 @@ const BUCKET_COLORS = {
   '90_plus': 'hsl(0, 62%, 30%)',
 };
 
-export default function AgingChart({ receivables }) {
-  const { data: invoiceRecords = [] } = useQuery({
-    queryKey: ['invoices'],
-    queryFn: () => base44.entities.InvoiceRecord.list('-invoice_date', 500),
-  });
+export default function AgingChart({ receivables, invoiceRecords = [] }) {
 
   const buckets = { not_due: 0, '1_30': 0, '31_60': 0, '61_90': 0, '90_plus': 0 };
 
@@ -31,9 +25,9 @@ export default function AgingChart({ receivables }) {
   // Bereits gematchte Rechnungsnummern aus Receivables → nicht doppelt zählen
   const receivableNrs = new Set(receivables.map(r => r.invoice_number).filter(Boolean).map(n => n.toLowerCase()));
 
-  // InvoiceRecords (sevDesk-Rechnungen) — noch offene, nicht stornierte
+  // InvoiceRecords (sevDesk-Rechnungen) — noch offene, nicht stornierte, keine Entwürfe
   invoiceRecords
-    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && !i.is_credit_note)
+    .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note)
     .filter(i => !i.invoice_number || !receivableNrs.has(i.invoice_number.toLowerCase()))
     .forEach(i => {
       const dueDate = i.due_date || i.invoice_date;
