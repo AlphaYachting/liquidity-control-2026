@@ -10,6 +10,7 @@ const SOURCE_LABELS = {
   receivable: 'Forderung',
   payable: 'Verbindlichkeit',
   invoice_record: 'Rechnung',
+  billing_plan: 'Rechnungsplan',
 };
 
 const SOURCE_COLORS = {
@@ -19,6 +20,7 @@ const SOURCE_COLORS = {
   receivable: 'bg-amber-100 text-amber-700',
   payable: 'bg-red-100 text-red-700',
   invoice_record: 'bg-indigo-100 text-indigo-700',
+  billing_plan: 'bg-violet-100 text-violet-700',
 };
 
 const STATUS_COLORS = {

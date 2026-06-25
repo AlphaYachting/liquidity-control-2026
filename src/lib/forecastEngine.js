@@ -472,6 +472,78 @@ export function buildInvoiceRecordItems(invoiceRecords, receivables, scenario) {
   return { items, warnings };
 }
 
+// ─── 7. MonthlyBillingPlan (PM-Rechnungsplanung) ─────────────────────────────
+
+/**
+ * Bringt MonthlyBillingPlan-Einträge in den Forecast.
+ * BillingInstructions die bereits einen InvoiceRecord haben (invoice_created/paid)
+ * werden übersprungen um Doppelzählung mit InvoiceRecord-Quelle zu vermeiden.
+ * Auch MonthlyBillingPlans die bereits eine linked_billing_instruction_id haben
+ * werden übersprungen — die Instruction ist die verlässlichere Quelle.
+ */
+export function buildBillingPlanItems(billingPlans, billingInstructions, scenario) {
+  const items = [];
+  const warnings = [];
+
+  // Instruktionen die bereits als InvoiceRecord verbucht sind → nicht nochmals zählen
+  const invoicedInstructionIds = new Set(
+    billingInstructions
+      .filter(i => i.status === 'invoice_created' || i.status === 'paid')
+      .map(i => i.id)
+  );
+
+  // Aktive Plan-Statuses (keine abgeschlossenen/verschobenen)
+  const ACTIVE_STATUSES = ['open', 'planned', 'in_review', 'ready_for_invoice', 'sent_to_backoffice'];
+
+  billingPlans.forEach((p) => {
+    if (!ACTIVE_STATUSES.includes(p.billing_status)) return;
+    const amount = Number(p.planned_amount_net) || 0;
+    if (amount <= 0) return;
+
+    // Hat dieser Plan bereits eine verknüpfte Instruction?
+    if (p.linked_billing_instruction_id) {
+      // Wenn die Instruction bereits invoice_created/paid ist → InvoiceRecord übernimmt
+      if (invoicedInstructionIds.has(p.linked_billing_instruction_id)) return;
+      // Sonst: Instruction ist die Quelle → Plan überspringen (Instruction zählt via BillingInstruction-Quelle oder InvoiceRecord)
+      return;
+    }
+
+    const month = toForecastMonth(p.planning_month);
+    if (!month) return; // außerhalb Horizont
+
+    // Wahrscheinlichkeit nach Status
+    const probMap = {
+      open: 60,
+      planned: 75,
+      in_review: 80,
+      ready_for_invoice: 90,
+      sent_to_backoffice: 95,
+    };
+    const prob = scenario === 'conservative'
+      ? Math.min(probMap[p.billing_status] || 70, 70)
+      : scenario === 'best_case'
+      ? 95
+      : probMap[p.billing_status] || 70;
+
+    items.push({
+      source_type: 'billing_plan',
+      source_id: p.id,
+      title: `Rechnungsplanung ${p.planning_month}`,
+      customer_or_supplier: '—',
+      category: 'billing_plan',
+      month,
+      direction: 'inflow',
+      amount,
+      weighted_amount: weightedAmount(amount, prob),
+      probability_percent: prob,
+      status: p.billing_status || 'planned',
+      notes: p.invoice_reason || p.internal_note || '',
+    });
+  });
+
+  return { items, warnings };
+}
+
 // ─── Main Engine ─────────────────────────────────────────────────────────────
 
 export function buildFullForecast({
@@ -481,6 +553,8 @@ export function buildFullForecast({
   receivables = [],
   payables = [],
   invoiceRecords = [],
+  billingPlans = [],
+  billingInstructions = [],
   scenario = 'realistic',
   openingBalance = 0,
   fixedMonthlyCosts = 0,
@@ -500,6 +574,7 @@ export function buildFullForecast({
   push(buildReceivableItems(receivables, scenario));
   push(buildPayableItems(payables, scenario));
   push(buildInvoiceRecordItems(invoiceRecords, receivables, scenario));
+  push(buildBillingPlanItems(billingPlans, billingInstructions, scenario));
 
   // Source summary counts
   const sourceSummary = {
@@ -509,6 +584,7 @@ export function buildFullForecast({
     receivables: allItems.filter(i => i.source_type === 'receivable').length,
     payables: allItems.filter(i => i.source_type === 'payable').length,
     invoice_records: allItems.filter(i => i.source_type === 'invoice_record').length,
+    billing_plans: allItems.filter(i => i.source_type === 'billing_plan').length,
   };
 
   let balance = openingBalance;
@@ -551,6 +627,7 @@ export function buildFullForecast({
       contracts_in: inflow_items.filter(i => i.source_type === 'recurring_contract').reduce((s, i) => s + i.weighted_amount, 0),
       receivables_in: inflow_items.filter(i => i.source_type === 'receivable').reduce((s, i) => s + i.weighted_amount, 0),
       invoice_records_in: inflow_items.filter(i => i.source_type === 'invoice_record').reduce((s, i) => s + i.weighted_amount, 0),
+      billing_plans_in: inflow_items.filter(i => i.source_type === 'billing_plan').reduce((s, i) => s + i.weighted_amount, 0),
       tool_costs_out: all_outflow_items.filter(i => i.source_type === 'tool_cost').reduce((s, i) => s + i.weighted_amount, 0),
       payables_out: all_outflow_items.filter(i => i.source_type === 'payable').reduce((s, i) => s + i.weighted_amount, 0),
       plan_lines_out: all_outflow_items.filter(i => i.source_type === 'plan_line').reduce((s, i) => s + i.weighted_amount, 0),
