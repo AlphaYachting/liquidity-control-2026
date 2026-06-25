@@ -22,29 +22,26 @@ function buildForecastData(invoiceRecords, billingBlocks, liveInvoices) {
     dailyMap[d] = { invoices: 0, planned: 0, live: 0, overdue: 0 };
   }
 
-  // DB-Rechnungen: offen/überfällig — am Fälligkeitsdatum oder heute (wenn überfällig)
+  // DB-Rechnungen: offen/überfällig — am Fälligkeitsdatum (nur wenn vorhanden)
   const openInvoices = invoiceRecords.filter(inv =>
     inv.payment_status !== 'paid' &&
     inv.payment_status !== 'cancelled' &&
+    inv.payment_status !== 'draft' &&
+    !inv.is_credit_note &&
+    inv.due_date && // Rechnungen ohne Fälligkeitsdatum ignorieren
     (Number(inv.open_amount) > 0 || Number(inv.gross_amount) > 0)
   );
   openInvoices.forEach(inv => {
     const amount = Number(inv.open_amount) > 0 ? Number(inv.open_amount) : Number(inv.gross_amount);
     if (!amount) return;
-    let key = todayStr; // Fallback
-    if (inv.due_date) {
-      const dd = parseISO(inv.due_date);
-      if (isValid(dd)) {
-        const isOverdue = isBefore(dd, today);
-        key = isOverdue ? todayStr : format(dd, 'yyyy-MM-dd');
-        if (key > endStr) return; // außerhalb 30 Tage
-        if (dailyMap[key]) {
-          isOverdue ? (dailyMap[key].overdue += amount) : (dailyMap[key].invoices += amount);
-          return;
-        }
-      }
+    const dd = parseISO(inv.due_date);
+    if (!isValid(dd)) return;
+    const isOverdue = isBefore(dd, today);
+    const key = isOverdue ? todayStr : format(dd, 'yyyy-MM-dd');
+    if (key > endStr) return; // außerhalb 30 Tage
+    if (dailyMap[key]) {
+      isOverdue ? (dailyMap[key].overdue += amount) : (dailyMap[key].invoices += amount);
     }
-    if (dailyMap[key]) dailyMap[key].invoices += amount;
   });
 
   // Geplante Abrechnungen (BillingBlock)
