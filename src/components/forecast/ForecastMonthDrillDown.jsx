@@ -58,12 +58,12 @@ function ItemRow({ item }) {
         {showProb && (
           <span className="text-xs text-muted-foreground">{pct}%</span>
         )}
-        <div className="text-right min-w-[90px]">
+        <div className="text-right min-w-[100px]">
           <p className={`font-semibold text-sm ${isOutflow ? 'text-red-600' : 'text-emerald-700'}`}>
-            {isOutflow ? '−' : '+'}{formatCurrency(item.amount)}
+            {isOutflow ? '−' : '+'}{formatCurrency(item.weighted_amount)}
           </p>
           {showProb && (
-            <p className="text-xs text-muted-foreground">{formatCurrency(item.weighted_amount)} gewichtet</p>
+            <p className="text-xs text-muted-foreground">Brutto: {formatCurrency(item.amount)}</p>
           )}
         </div>
       </div>
@@ -87,7 +87,7 @@ export default function ForecastMonthDrillDown({ monthData, isOpen, onToggle }) 
           {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </div>
 
-        <div className="font-semibold text-sm w-10">{getMonthLabel(month)}</div>
+        <div className="font-semibold text-sm w-14 flex-shrink-0">{getMonthLabel(month)}</div>
 
         <div className="flex items-center gap-1 text-emerald-700 text-sm min-w-[90px]">
           <ArrowUpRight className="w-3 h-3" />
@@ -123,7 +123,7 @@ export default function ForecastMonthDrillDown({ monthData, isOpen, onToggle }) 
           {inflow_items.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-emerald-700 px-3 mb-1">
-                Zuflüsse ({inflow_items.length}) — {formatCurrency(weighted_inflow)}
+                Zuflüsse ({inflow_items.length}) — gewichtet {formatCurrency(weighted_inflow)}
               </p>
               {inflow_items.map((item, i) => <ItemRow key={i} item={item} />)}
             </div>
@@ -131,7 +131,7 @@ export default function ForecastMonthDrillDown({ monthData, isOpen, onToggle }) 
           {outflow_items.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-red-700 px-3 mb-1">
-                Abflüsse ({outflow_items.length}) — {formatCurrency(weighted_outflow)}
+                Abflüsse ({outflow_items.length}) — gewichtet {formatCurrency(weighted_outflow)}
               </p>
               {outflow_items.map((item, i) => <ItemRow key={i} item={item} />)}
             </div>
