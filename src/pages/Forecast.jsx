@@ -64,13 +64,13 @@ export default function Forecast() {
     queryKey: ['invoiceRecords-forecast'],
     queryFn: () => base44.entities.InvoiceRecord.list(),
   });
-  const { data: billingPlans = [], isLoading: l7 } = useQuery({
-    queryKey: ['monthlyBillingPlansAll'],
-    queryFn: () => base44.entities.MonthlyBillingPlan.list(),
+  const { data: orders = [], isLoading: l7 } = useQuery({
+    queryKey: ['confirmedOrders'],
+    queryFn: () => base44.entities.ConfirmedOrder.list(),
   });
-  const { data: billingInstructions = [], isLoading: l8 } = useQuery({
-    queryKey: ['billingInstructions'],
-    queryFn: () => base44.entities.BillingInstruction.list(),
+  const { data: projects = [], isLoading: l8 } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => base44.entities.LiquidityProject.list(),
   });
 
   const isLoading = l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8;
@@ -95,14 +95,14 @@ export default function Forecast() {
       receivables,
       payables,
       invoiceRecords,
-      billingPlans,
-      billingInstructions,
+      orders,
+      projects,
       scenario,
       openingBalance: Number(params.opening_cash_balance) || 0,
       fixedMonthlyCosts: Number(params.fixed_monthly_costs) || 0,
       taxObligations: Number(params.tax_obligations) || 0,
     });
-  }, [planLines, contracts, tools, receivables, payables, invoiceRecords, billingPlans, billingInstructions, scenario, params, isLoading]);
+  }, [planLines, contracts, tools, receivables, payables, invoiceRecords, orders, projects, scenario, params, isLoading]);
 
   const chartData = months.map(m => ({
     label: getMonthLabel(m.month),
@@ -137,8 +137,8 @@ export default function Forecast() {
       <Alert className="border-blue-200 bg-blue-50">
         <Info className="w-4 h-4 text-blue-600" />
         <AlertDescription className="text-blue-800 text-xs">
-          Forecast berechnet aus: <strong>Rechnungsplanung (PM)</strong>, <strong>Planzeilen</strong>, <strong>laufenden Verträgen</strong>, <strong>offenen Forderungen</strong>, <strong>tatsächlichen Ausgangsrechnungen</strong>, <strong>Eingangsrechnungen</strong> und <strong>Toolkosten</strong>.
-          Rechnungsplanung ohne verknüpfte Anweisung fließt wahrscheinlichkeitsgewichtet ein. Keine Doppelzählungen.
+          Forecast berechnet aus: <strong>offenen Aufträgen (ConfirmedOrder)</strong>, <strong>echten Rechnungen (InvoiceRecord)</strong>, <strong>laufenden Verträgen</strong>, <strong>offenen Forderungen</strong>, <strong>Planzeilen</strong>, <strong>Verbindlichkeiten</strong> und <strong>Toolkosten</strong>.
+          Auftragsbeträge minus bereits gestellte Rechnungen = offene Pipeline. Keine Doppelzählungen.
         </AlertDescription>
       </Alert>
 

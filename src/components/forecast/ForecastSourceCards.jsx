@@ -7,7 +7,7 @@ const SOURCES = [
   { key_in: 'contracts_in',    key_out: null,               label: 'Verträge',        icon: '📣', colorIn: 'text-emerald-600', colorOut: null },
   { key_in: 'receivables_in',  key_out: null,               label: 'Forderungen',     icon: '⚠️', colorIn: 'text-amber-600',   colorOut: null },
   { key_in: 'invoice_records_in', key_out: null,            label: 'Rechnungen (echt)', icon: '🧾', colorIn: 'text-indigo-600',  colorOut: null },
-  { key_in: 'billing_plans_in',  key_out: null,            label: 'Rechnungsplanung', icon: '📅', colorIn: 'text-violet-600',  colorOut: null },
+  { key_in: 'open_orders_in',    key_out: null,            label: 'Offene Aufträge',  icon: '📦', colorIn: 'text-violet-600',  colorOut: null },
   { key_in: null,              key_out: 'tool_costs_out',   label: 'Toolkosten',      icon: '💳', colorIn: null,               colorOut: 'text-purple-600' },
   { key_in: null,              key_out: 'payables_out',     label: 'Verbindlichkeiten', icon: '📄', colorIn: null,             colorOut: 'text-red-600' },
 ];

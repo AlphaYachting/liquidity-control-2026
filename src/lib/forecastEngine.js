@@ -472,73 +472,77 @@ export function buildInvoiceRecordItems(invoiceRecords, receivables, scenario) {
   return { items, warnings };
 }
 
-// ─── 7. MonthlyBillingPlan (PM-Rechnungsplanung) ─────────────────────────────
+// ─── 7. ConfirmedOrder offene Beträge (noch nicht verrechnet) ────────────────
 
 /**
- * Bringt MonthlyBillingPlan-Einträge in den Forecast.
- * BillingInstructions die bereits einen InvoiceRecord haben (invoice_created/paid)
- * werden übersprungen um Doppelzählung mit InvoiceRecord-Quelle zu vermeiden.
- * Auch MonthlyBillingPlans die bereits eine linked_billing_instruction_id haben
- * werden übersprungen — die Instruction ist die verlässlichere Quelle.
+ * Bringt noch nicht verrechnete Auftragsbeträge (ConfirmedOrder - InvoiceRecord) in den Forecast.
+ * Das ist die echte Projektpipeline: bestätigte Aufträge minus bereits gestellte Rechnungen.
+ *
+ * Für die Monatsverteilung wird expected_invoice_date / expected_invoice_month des verknüpften
+ * LiquidityProject genutzt (sofern vorhanden), sonst CURRENT_MONTH als konservativer Fallback.
  */
-export function buildBillingPlanItems(billingPlans, billingInstructions, scenario) {
+export function buildOpenOrderItems(orders, invoiceRecords, projects, scenario) {
   const items = [];
   const warnings = [];
 
-  // Instruktionen die bereits als InvoiceRecord verbucht sind → nicht nochmals zählen
-  const invoicedInstructionIds = new Set(
-    billingInstructions
-      .filter(i => i.status === 'invoice_created' || i.status === 'paid')
-      .map(i => i.id)
-  );
+  // Bereits verrechnete Nettobeträge pro ConfirmedOrder
+  const invoicedByOrderId = {};
+  invoiceRecords.forEach(inv => {
+    if (!inv.confirmed_order_id) return;
+    if (inv.payment_status === 'cancelled' || inv.is_credit_note) return;
+    invoicedByOrderId[inv.confirmed_order_id] = (invoicedByOrderId[inv.confirmed_order_id] || 0) + (Number(inv.net_amount) || 0);
+  });
 
-  // Aktive Plan-Statuses (keine abgeschlossenen/verschobenen)
-  const ACTIVE_STATUSES = ['open', 'planned', 'in_review', 'ready_for_invoice', 'sent_to_backoffice'];
+  // Projektzuordnung für Erwartungsmonat
+  const projectById = {};
+  projects.forEach(p => { projectById[p.id] = p; });
 
-  billingPlans.forEach((p) => {
-    if (!ACTIVE_STATUSES.includes(p.billing_status)) return;
-    const amount = Number(p.planned_amount_net) || 0;
-    if (amount <= 0) return;
+  orders.forEach((o) => {
+    if (o.status === 'cancelled' || o.status === 'completed') return;
 
-    // Hat dieser Plan bereits eine verknüpfte Instruction?
-    if (p.linked_billing_instruction_id) {
-      // Wenn die Instruction bereits invoice_created/paid ist → InvoiceRecord übernimmt
-      if (invoicedInstructionIds.has(p.linked_billing_instruction_id)) return;
-      // Sonst: Instruction ist die Quelle → Plan überspringen (Instruction zählt via BillingInstruction-Quelle oder InvoiceRecord)
-      return;
-    }
+    const totalNet = Number(o.total_net_amount) || 0;
+    if (totalNet <= 0) return;
 
-    const month = toForecastMonth(p.planning_month);
-    if (!month) return; // außerhalb Horizont
+    const invoiced = invoicedByOrderId[o.id] || 0;
+    const openNet = totalNet - invoiced;
+    if (openNet <= 1) return; // vollständig verrechnet
 
-    // Wahrscheinlichkeit nach Status
-    const probMap = {
-      open: 60,
-      planned: 75,
-      in_review: 80,
-      ready_for_invoice: 90,
-      sent_to_backoffice: 95,
-    };
-    const prob = scenario === 'conservative'
-      ? Math.min(probMap[p.billing_status] || 70, 70)
-      : scenario === 'best_case'
-      ? 95
-      : probMap[p.billing_status] || 70;
+    // Erwartungsmonat: aus verknüpftem Projekt oder Auftrag selbst
+    const proj = o.project_id ? projectById[o.project_id] : null;
+    const expectedMonth = proj?.expected_invoice_date?.slice(0, 7)
+      || proj?.expected_invoice_month
+      || null;
+    const month = toForecastMonth(expectedMonth) || CURRENT_MONTH;
+
+    // Wahrscheinlichkeit: best_case=80%, realistic=65%, conservative=50%
+    // (Aufträge sind noch nicht fakturiert → inhärent unsicher bzgl. Timing)
+    const prob = scenario === 'best_case' ? 80 : scenario === 'conservative' ? 50 : 65;
+
+    const title = [o.customer, o.project_name].filter(Boolean).join(' – ');
 
     items.push({
-      source_type: 'billing_plan',
-      source_id: p.id,
-      title: `Rechnungsplanung ${p.planning_month}`,
-      customer_or_supplier: '—',
-      category: 'billing_plan',
+      source_type: 'open_order',
+      source_id: o.id,
+      title,
+      customer_or_supplier: o.customer || '—',
+      category: 'open_order',
       month,
       direction: 'inflow',
-      amount,
-      weighted_amount: weightedAmount(amount, prob),
+      amount: openNet,
+      weighted_amount: weightedAmount(openNet, prob),
       probability_percent: prob,
-      status: p.billing_status || 'planned',
-      notes: p.invoice_reason || p.internal_note || '',
+      status: 'planned',
+      notes: expectedMonth ? `Erwartet: ${expectedMonth}` : 'Kein Zielmonat gesetzt',
     });
+
+    if (!expectedMonth) {
+      warnings.push({
+        source_type: 'open_order',
+        id: o.id,
+        title,
+        issue: 'Kein erwartetes Rechnungsdatum — fällt auf aktuellen Monat',
+      });
+    }
   });
 
   return { items, warnings };
@@ -553,8 +557,8 @@ export function buildFullForecast({
   receivables = [],
   payables = [],
   invoiceRecords = [],
-  billingPlans = [],
-  billingInstructions = [],
+  orders = [],
+  projects = [],
   scenario = 'realistic',
   openingBalance = 0,
   fixedMonthlyCosts = 0,
@@ -574,7 +578,7 @@ export function buildFullForecast({
   push(buildReceivableItems(receivables, scenario));
   push(buildPayableItems(payables, scenario));
   push(buildInvoiceRecordItems(invoiceRecords, receivables, scenario));
-  push(buildBillingPlanItems(billingPlans, billingInstructions, scenario));
+  push(buildOpenOrderItems(orders, invoiceRecords, projects, scenario));
 
   // Source summary counts
   const sourceSummary = {
@@ -584,7 +588,7 @@ export function buildFullForecast({
     receivables: allItems.filter(i => i.source_type === 'receivable').length,
     payables: allItems.filter(i => i.source_type === 'payable').length,
     invoice_records: allItems.filter(i => i.source_type === 'invoice_record').length,
-    billing_plans: allItems.filter(i => i.source_type === 'billing_plan').length,
+    open_orders: allItems.filter(i => i.source_type === 'open_order').length,
   };
 
   let balance = openingBalance;
@@ -627,7 +631,7 @@ export function buildFullForecast({
       contracts_in: inflow_items.filter(i => i.source_type === 'recurring_contract').reduce((s, i) => s + i.weighted_amount, 0),
       receivables_in: inflow_items.filter(i => i.source_type === 'receivable').reduce((s, i) => s + i.weighted_amount, 0),
       invoice_records_in: inflow_items.filter(i => i.source_type === 'invoice_record').reduce((s, i) => s + i.weighted_amount, 0),
-      billing_plans_in: inflow_items.filter(i => i.source_type === 'billing_plan').reduce((s, i) => s + i.weighted_amount, 0),
+      open_orders_in: inflow_items.filter(i => i.source_type === 'open_order').reduce((s, i) => s + i.weighted_amount, 0),
       tool_costs_out: all_outflow_items.filter(i => i.source_type === 'tool_cost').reduce((s, i) => s + i.weighted_amount, 0),
       payables_out: all_outflow_items.filter(i => i.source_type === 'payable').reduce((s, i) => s + i.weighted_amount, 0),
       plan_lines_out: all_outflow_items.filter(i => i.source_type === 'plan_line').reduce((s, i) => s + i.weighted_amount, 0),
