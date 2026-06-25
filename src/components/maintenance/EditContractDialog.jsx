@@ -57,6 +57,11 @@ export default function EditContractDialog({ contract, onSave, onClose, title })
             </div>
           </div>
 
+          <div className="space-y-1.5">
+            <Label>Domain</Label>
+            <Input placeholder="z.B. example.com" value={form.domain || ''} onChange={e => set('domain', e.target.value)} />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Status</Label>

@@ -50,7 +50,8 @@ export default function Hosting() {
   const columns = [
     { key: 'status', label: 'Status', render: (v) => <StatusBadge status={v} /> },
     { key: 'customer', label: 'Kunde' },
-    { key: 'project_name', label: activeTab === 'hosting' ? 'Hosting-Paket / Server' : 'Domain' },
+    { key: 'project_name', label: activeTab === 'hosting' ? 'Hosting-Paket / Server' : 'Bezeichnung' },
+    { key: 'domain', label: 'Domain', render: (v) => v ? <span className="font-mono text-xs">{v}</span> : '—' },
     { key: 'billing_interval', label: 'Intervall' },
     { key: 'annual_amount', label: 'Jahresbetrag', render: (v) => formatCurrency(v), cellClass: 'text-right font-medium' },
     { key: 'monthly_fixed_price', label: 'Monatlich', render: (v) => v > 0 ? formatCurrency(v) : '—', cellClass: 'text-right' },

@@ -19,6 +19,10 @@
     "project_name": {
       "type": "string"
     },
+    "domain": {
+      "type": "string",
+      "description": "Domain-Name z.B. example.com"
+    },
     "project_manager": {
       "type": "string"
     },
