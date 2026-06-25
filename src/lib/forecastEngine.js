@@ -164,7 +164,12 @@ function buildOpenOrderItems(orders, invoiceRecords, billingInstructions, projec
 
     const proj = o.project_id ? projectById[o.project_id] : null;
     const expectedMonth = proj?.expected_invoice_date?.slice(0,7) || proj?.expected_invoice_month || null;
-    const month = toMonth(expectedMonth) || CURRENT_MONTH;
+
+    // Kein Zieldatum = nicht planbar → nicht in den Forecast
+    if (!expectedMonth) return;
+
+    const month = toMonth(expectedMonth);
+    if (!month) return; // außerhalb des 12-Monats-Horizonts
 
     // Ungeplante Auftragsreste haben höhere Unsicherheit
     const probMap = { best_case: 55, realistic: 35, conservative: 20 };
