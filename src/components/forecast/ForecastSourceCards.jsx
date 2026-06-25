@@ -3,13 +3,13 @@ import { Card } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/liquidityUtils';
 
 const SOURCES = [
-  { key_in: 'plan_lines_in',   key_out: 'plan_lines_out',  label: 'Planzeilen',      icon: '📋', colorIn: 'text-blue-600',    colorOut: 'text-blue-400' },
-  { key_in: 'contracts_in',    key_out: null,               label: 'Verträge',        icon: '📣', colorIn: 'text-emerald-600', colorOut: null },
-  { key_in: 'receivables_in',  key_out: null,               label: 'Forderungen',     icon: '⚠️', colorIn: 'text-amber-600',   colorOut: null },
-  { key_in: 'invoice_records_in', key_out: null,            label: 'Rechnungen (echt)', icon: '🧾', colorIn: 'text-indigo-600',  colorOut: null },
-  { key_in: 'open_orders_in',    key_out: null,            label: 'Offene Aufträge',  icon: '📦', colorIn: 'text-violet-600',  colorOut: null },
-  { key_in: null,              key_out: 'tool_costs_out',   label: 'Toolkosten',      icon: '💳', colorIn: null,               colorOut: 'text-purple-600' },
-  { key_in: null,              key_out: 'payables_out',     label: 'Verbindlichkeiten', icon: '📄', colorIn: null,             colorOut: 'text-red-600' },
+  { key_in: 'invoice_records_in',      key_out: null,             label: 'Offene Rechnungen', icon: '🧾', colorIn: 'text-indigo-600',  colorOut: null },
+  { key_in: 'billing_instructions_in', key_out: null,             label: 'Abrechnungen geplant', icon: '📤', colorIn: 'text-sky-600', colorOut: null },
+  { key_in: 'open_orders_in',          key_out: null,             label: 'Restaufträge',      icon: '📦', colorIn: 'text-violet-600',  colorOut: null },
+  { key_in: 'contracts_in',            key_out: null,             label: 'Verträge',          icon: '📣', colorIn: 'text-emerald-600', colorOut: null },
+  { key_in: 'receivables_in',          key_out: null,             label: 'Forderungen',       icon: '⚠️', colorIn: 'text-amber-600',   colorOut: null },
+  { key_in: null,                       key_out: 'tool_costs_out', label: 'Toolkosten',        icon: '💳', colorIn: null,               colorOut: 'text-purple-600' },
+  { key_in: null,                       key_out: 'payables_out',   label: 'Verbindlichkeiten', icon: '📄', colorIn: null,               colorOut: 'text-red-600' },
 ];
 
 export default function ForecastSourceCards({ months }) {
@@ -21,7 +21,7 @@ export default function ForecastSourceCards({ months }) {
   }, {});
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
       {SOURCES.map((s) => {
         const inAmount = s.key_in ? (totals[s.key_in] || 0) : 0;
         const outAmount = s.key_out ? (totals[s.key_out] || 0) : 0;

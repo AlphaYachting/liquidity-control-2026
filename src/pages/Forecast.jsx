@@ -72,8 +72,12 @@ export default function Forecast() {
     queryKey: ['projects'],
     queryFn: () => base44.entities.LiquidityProject.list(),
   });
+  const { data: billingInstructions = [], isLoading: l9 } = useQuery({
+    queryKey: ['billingInstructions-forecast'],
+    queryFn: () => base44.entities.BillingInstruction.list(),
+  });
 
-  const isLoading = l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8;
+  const isLoading = l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || l9;
 
   const update = (k, v) => setParams(p => {
     const next = { ...p, [k]: v };
@@ -95,6 +99,7 @@ export default function Forecast() {
       receivables,
       payables,
       invoiceRecords,
+      billingInstructions,
       orders,
       projects,
       scenario,
@@ -102,7 +107,7 @@ export default function Forecast() {
       fixedMonthlyCosts: Number(params.fixed_monthly_costs) || 0,
       taxObligations: Number(params.tax_obligations) || 0,
     });
-  }, [planLines, contracts, tools, receivables, payables, invoiceRecords, orders, projects, scenario, params, isLoading]);
+  }, [planLines, contracts, tools, receivables, payables, invoiceRecords, billingInstructions, orders, projects, scenario, params, isLoading]);
 
   const chartData = months.map(m => ({
     label: getMonthLabel(m.month),
@@ -137,8 +142,7 @@ export default function Forecast() {
       <Alert className="border-blue-200 bg-blue-50">
         <Info className="w-4 h-4 text-blue-600" />
         <AlertDescription className="text-blue-800 text-xs">
-          Forecast berechnet aus: <strong>offenen Aufträgen (ConfirmedOrder)</strong>, <strong>echten Rechnungen (InvoiceRecord)</strong>, <strong>laufenden Verträgen</strong>, <strong>offenen Forderungen</strong>, <strong>Planzeilen</strong>, <strong>Verbindlichkeiten</strong> und <strong>Toolkosten</strong>.
-          Auftragsbeträge minus bereits gestellte Rechnungen = offene Pipeline. Keine Doppelzählungen.
+          Forecast-Quellen (Priorität): <strong>1. Offene Rechnungen (InvoiceRecord)</strong> → <strong>2. Geplante Abrechnungen (BillingInstruction: bereit/übermittelt)</strong> → <strong>3. Ungeplanter Restbetrag (Auftrag – Rechnungen – Anweisungen)</strong> → <strong>4. Verträge, Forderungen, Planzeilen, Kosten</strong>. Keine Doppelzählungen zwischen den Quellen.
         </AlertDescription>
       </Alert>
 
