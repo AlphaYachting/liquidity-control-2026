@@ -99,6 +99,10 @@ export default function VarianceAnalysis() {
       });
       const planned = plannedBIs.reduce((s, bi) => s + (Number(bi.instruction_amount_net) || 0), 0);
 
+      // ── DAVON ABGERECHNET: geplante BIs, die bereits Rechnung/bezahlt sind ──
+      const realizedBIs = plannedBIs.filter(bi => ['invoice_created', 'paid'].includes(bi.status));
+      const realized = realizedBIs.reduce((s, bi) => s + (Number(bi.instruction_amount_net) || 0), 0);
+
       // ── VERRECHNET: echte Rechnungen (InvoiceRecord) mit invoice_date in diesem Monat ──
       const actualInvoices = filteredInvoices.filter(inv => {
         if (!inv.invoice_date || inv.is_credit_note) return false;
@@ -114,16 +118,19 @@ export default function VarianceAnalysis() {
       return {
         month, label,
         planned,                 // Gesamter Plan aus BillingInstructions
+        realized,                // Davon bereits abgerechnet (geplante BIs mit Rechnung/bezahlt)
         actual,                  // Tatsächlich verrechnet (InvoiceRecords)
         variance,
         variancePct,
         plannedCount: plannedBIs.length,
+        realizedCount: realizedBIs.length,
         actualCount: actualInvoices.length,
       };
     });
   }, [filteredBIs, filteredInvoices, months, isLoading]);
 
   const totalPlanned = monthlyData.reduce((s, m) => s + m.planned, 0);
+  const totalRealized = monthlyData.reduce((s, m) => s + m.realized, 0);
   const totalActual = monthlyData.reduce((s, m) => s + m.actual, 0);
   const overallVariance = totalActual - totalPlanned;
   const overallPct = totalPlanned > 0 ? Math.round((overallVariance / totalPlanned) * 100) : null;
@@ -226,6 +233,7 @@ export default function VarianceAnalysis() {
               <tr className="bg-muted/50 border-b">
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Monat</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Geplant (BI)</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Davon abgerechnet</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Verrechnet (Ist)</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Abweichung</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">% Plan</th>
@@ -249,6 +257,11 @@ export default function VarianceAnalysis() {
                         : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-4 py-3 text-right">
+                      {m.realized > 0
+                        ? <div><span className="font-medium text-emerald-700">{formatCurrency(m.realized)}</span><br /><span className="text-xs text-muted-foreground">{m.planned > 0 ? Math.round((m.realized / m.planned) * 100) : 0}% des Plans</span></div>
+                        : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right">
                       {m.actual > 0
                         ? <div><span className="text-emerald-700 font-medium">{formatCurrency(m.actual)}</span><br /><span className="text-xs text-muted-foreground">{m.actualCount} Rechnungen</span></div>
                         : <span className="text-muted-foreground">—</span>}
@@ -267,6 +280,7 @@ export default function VarianceAnalysis() {
               <tr className="bg-muted/50 font-semibold border-t-2">
                 <td className="px-4 py-3">Gesamt</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(totalPlanned)}</td>
+                <td className="px-4 py-3 text-right text-emerald-700">{formatCurrency(totalRealized)}</td>
                 <td className="px-4 py-3 text-right text-emerald-700">{formatCurrency(totalActual)}</td>
                 <td className={`px-4 py-3 text-right ${overallVariance >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                   {overallVariance >= 0 ? '+' : ''}{formatCurrency(overallVariance)}
