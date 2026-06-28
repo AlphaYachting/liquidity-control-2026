@@ -90,23 +90,14 @@ export default function VarianceAnalysis() {
     if (isLoading) return [];
 
     return months.map(month => {
-      // ── GEPLANT: BillingInstructions mit planned_invoice_date in diesem Monat ──
-      // Nur aktive (nicht bereits fakturiert/bezahlt/storniert)
+      // ── GEPLANT: ALLE BillingInstructions mit planned_invoice_date in diesem Monat ──
+      // Unabhängig vom Status (außer storniert) — der gesamte ursprüngliche Plan zählt.
       const plannedBIs = filteredBIs.filter(bi => {
-        if (['invoice_created', 'paid', 'cancelled'].includes(bi.status)) return false;
+        if (bi.status === 'cancelled') return false;
         const d = bi.planned_invoice_date;
         return d && d.startsWith(month);
       });
-      // Bereits als invoice_created/paid laufende BIs mit diesem Monat zählen als verrechnet
-      const invoicedBIs = filteredBIs.filter(bi => {
-        if (!['invoice_created', 'paid'].includes(bi.status)) return false;
-        const d = bi.planned_invoice_date;
-        return d && d.startsWith(month);
-      });
-
       const planned = plannedBIs.reduce((s, bi) => s + (Number(bi.instruction_amount_net) || 0), 0);
-      // Aus BillingInstructions bereits erstellte Rechnungen als Referenz
-      const plannedThenInvoiced = invoicedBIs.reduce((s, bi) => s + (Number(bi.instruction_amount_net) || 0), 0);
 
       // ── VERRECHNET: echte Rechnungen (InvoiceRecord) mit invoice_date in diesem Monat ──
       const actualInvoices = filteredInvoices.filter(inv => {
@@ -116,20 +107,17 @@ export default function VarianceAnalysis() {
       });
       const actual = actualInvoices.reduce((s, inv) => s + (Number(inv.net_amount) || 0), 0);
 
-      // Gesamtplan (geplant + was bereits invoiciert wurde aus diesem Monat)
-      const totalPlan = planned + plannedThenInvoiced;
-
-      const variance = actual - totalPlan;
-      const variancePct = totalPlan > 0 ? Math.round((variance / totalPlan) * 100) : null;
+      const variance = actual - planned;
+      const variancePct = planned > 0 ? Math.round((variance / planned) * 100) : null;
 
       const label = format(parseISO(`${month}-01`), 'MMM yy', { locale: de });
       return {
         month, label,
-        planned: totalPlan,      // Plan aus BillingInstructions
+        planned,                 // Gesamter Plan aus BillingInstructions
         actual,                  // Tatsächlich verrechnet (InvoiceRecords)
         variance,
         variancePct,
-        plannedCount: plannedBIs.length + invoicedBIs.length,
+        plannedCount: plannedBIs.length,
         actualCount: actualInvoices.length,
       };
     });
@@ -177,7 +165,7 @@ export default function VarianceAnalysis() {
       <Alert className="border-blue-200 bg-blue-50">
         <Info className="w-4 h-4 text-blue-600" />
         <AlertDescription className="text-blue-800 text-xs">
-          <strong>Plan</strong> = BillingInstructions mit geplantem Rechnungsdatum in diesem Monat (inkl. bereits erstellter Rechnungen aus dem Plan).{' '}
+          <strong>Plan</strong> = alle für diesen Monat geplanten Abrechnungen (BillingInstructions mit geplantem Rechnungsdatum, ohne stornierte).{' '}
           <strong>Verrechnet</strong> = echte Rechnungen aus sevDesk (InvoiceRecords) mit Rechnungsdatum in diesem Monat.{' '}
           Diese Quellen entsprechen exakt dem Projektcockpit und dem Abrechnungsforecast.
         </AlertDescription>
