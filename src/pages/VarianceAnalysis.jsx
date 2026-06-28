@@ -116,17 +116,6 @@ export default function VarianceAnalysis() {
       });
       const actual = actualInvoices.reduce((s, inv) => s + (Number(inv.net_amount) || 0), 0);
 
-      // ── BEZAHLT: Rechnungen mit payment_date in diesem Monat ──
-      const paidInvoices = filteredInvoices.filter(inv => {
-        if (!inv.payment_date || inv.is_credit_note) return false;
-        return inv.payment_date.startsWith(month);
-      });
-      const paid = paidInvoices.reduce((s, inv) => {
-        // Bezahlt-Betrag: paid_amount wenn gesetzt, sonst gross bei Status paid
-        const amt = Number(inv.paid_amount) > 0 ? Number(inv.paid_amount) : Number(inv.gross_amount) || 0;
-        return s + amt;
-      }, 0);
-
       // Gesamtplan (geplant + was bereits invoiciert wurde aus diesem Monat)
       const totalPlan = planned + plannedThenInvoiced;
 
@@ -138,19 +127,16 @@ export default function VarianceAnalysis() {
         month, label,
         planned: totalPlan,      // Plan aus BillingInstructions
         actual,                  // Tatsächlich verrechnet (InvoiceRecords)
-        paid,                    // Bezahlt (InvoiceRecords)
         variance,
         variancePct,
         plannedCount: plannedBIs.length + invoicedBIs.length,
         actualCount: actualInvoices.length,
-        paidCount: paidInvoices.length,
       };
     });
   }, [filteredBIs, filteredInvoices, months, isLoading]);
 
   const totalPlanned = monthlyData.reduce((s, m) => s + m.planned, 0);
   const totalActual = monthlyData.reduce((s, m) => s + m.actual, 0);
-  const totalPaid = monthlyData.reduce((s, m) => s + m.paid, 0);
   const overallVariance = totalActual - totalPlanned;
   const overallPct = totalPlanned > 0 ? Math.round((overallVariance / totalPlanned) * 100) : null;
 
@@ -158,7 +144,6 @@ export default function VarianceAnalysis() {
     name: m.label,
     Geplant: Math.round(m.planned),
     'Verrechnet (Ist)': Math.round(m.actual),
-    Bezahlt: Math.round(m.paid),
   }));
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-64" /></div>;
@@ -194,7 +179,6 @@ export default function VarianceAnalysis() {
         <AlertDescription className="text-blue-800 text-xs">
           <strong>Plan</strong> = BillingInstructions mit geplantem Rechnungsdatum in diesem Monat (inkl. bereits erstellter Rechnungen aus dem Plan).{' '}
           <strong>Verrechnet</strong> = echte Rechnungen aus sevDesk (InvoiceRecords) mit Rechnungsdatum in diesem Monat.{' '}
-          <strong>Bezahlt</strong> = Eingangszahlungen (Brutto) nach Zahlungsdatum.{' '}
           Diese Quellen entsprechen exakt dem Projektcockpit und dem Abrechnungsforecast.
         </AlertDescription>
       </Alert>
@@ -219,10 +203,10 @@ export default function VarianceAnalysis() {
           </div>
           {overallPct !== null && <p className="text-xs text-muted-foreground">{overallPct >= 0 ? '+' : ''}{overallPct}% vs. Plan</p>}
         </Card>
-        <Card className="p-4 border-l-4 border-l-violet-500">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Bezahlt (Brutto)</p>
-          <p className="text-2xl font-bold mt-1 text-violet-700">{formatCurrency(totalPaid)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Erreichungsgrad: {totalPlanned > 0 ? `${Math.round((totalActual / totalPlanned) * 100)}%` : '—'}</p>
+        <Card className="p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">Ø Erreichungsgrad</p>
+          <p className="text-2xl font-bold mt-1">{totalPlanned > 0 ? `${Math.round((totalActual / totalPlanned) * 100)}%` : '—'}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Verrechnet / Plan</p>
         </Card>
       </div>
 
@@ -244,7 +228,6 @@ export default function VarianceAnalysis() {
               <Legend />
               <Bar dataKey="Geplant" fill="hsl(var(--chart-1))" opacity={0.65} radius={[3, 3, 0, 0]} />
               <Bar dataKey="Verrechnet (Ist)" fill="hsl(var(--chart-2))" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="Bezahlt" fill="hsl(var(--chart-5))" opacity={0.7} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -256,7 +239,6 @@ export default function VarianceAnalysis() {
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Monat</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Geplant (BI)</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Verrechnet (Ist)</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Bezahlt</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Abweichung</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">% Plan</th>
               </tr>
@@ -283,9 +265,6 @@ export default function VarianceAnalysis() {
                         ? <div><span className="text-emerald-700 font-medium">{formatCurrency(m.actual)}</span><br /><span className="text-xs text-muted-foreground">{m.actualCount} Rechnungen</span></div>
                         : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      {m.paid > 0 ? formatCurrency(m.paid) : <span className="text-muted-foreground">—</span>}
-                    </td>
                     <td className={`px-4 py-3 text-right font-medium ${varColor}`}>
                       {m.planned === 0 && m.actual === 0 ? '—' : `${m.variance >= 0 ? '+' : ''}${formatCurrency(m.variance)}`}
                     </td>
@@ -301,7 +280,6 @@ export default function VarianceAnalysis() {
                 <td className="px-4 py-3">Gesamt</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(totalPlanned)}</td>
                 <td className="px-4 py-3 text-right text-emerald-700">{formatCurrency(totalActual)}</td>
-                <td className="px-4 py-3 text-right">{formatCurrency(totalPaid)}</td>
                 <td className={`px-4 py-3 text-right ${overallVariance >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                   {overallVariance >= 0 ? '+' : ''}{formatCurrency(overallVariance)}
                 </td>
