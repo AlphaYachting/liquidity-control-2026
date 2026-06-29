@@ -101,8 +101,8 @@ export default function AworkCostIndex() {
       if (!pid) return;
       if (!map[pid]) map[pid] = { byUser: {} };
       const user = e.user_name || 'Unbekannt';
-      // duration_minutes enthält laut awork-API Sekunden (trotz Feldname) → ÷3600
-      map[pid].byUser[user] = (map[pid].byUser[user] || 0) + (e.duration_minutes || 0) / 3600;
+      // duration_minutes ist in Minuten → ÷60 = Stunden
+      map[pid].byUser[user] = (map[pid].byUser[user] || 0) + (e.duration_minutes || 0) / 60;
     });
     return map;
   }, [timeEntries]);
@@ -137,16 +137,12 @@ export default function AworkCostIndex() {
     return deduped
       .filter(s => isActiveStatus(s))
       .map(s => {
-        // DB-Felder sollten Minuten enthalten (Sync: Sekunden÷60).
-        // Alte Einträge (vor Fix) können aber noch Sekunden enthalten → Heuristik:
-        // Wenn tracked_duration_minutes > 50000 und kein raw_payload-Parsing möglich,
-        // dann wahrscheinlich Sekunden → ÷3600 statt ÷60.
-        // raw_payload (jetzt ohne HTML) überschreibt den Fallback immer korrekt.
+        // DB-Felder sind in Minuten (Sync: Sekunden÷60) → ÷60 = Stunden.
+        // raw_payload (Sekunden aus awork-API) überschreibt den DB-Wert falls vorhanden.
         const rawTracked = s.tracked_duration_minutes ?? 0;
         const rawBudget = s.time_budget_minutes ?? 0;
-        // Heuristik: >50000 "Minuten" wären >833h — unrealistisch für ein einzelnes Projekt → Sekunden
-        let trackedH = rawTracked > 50000 ? rawTracked / 3600 : rawTracked / 60;
-        let budgetH = rawBudget > 50000 ? rawBudget / 3600 : rawBudget / 60;
+        let trackedH = rawTracked / 60;
+        let budgetH = rawBudget / 60;
         try {
           if (s.raw_payload) {
             const raw = typeof s.raw_payload === 'string' ? JSON.parse(s.raw_payload) : s.raw_payload;
