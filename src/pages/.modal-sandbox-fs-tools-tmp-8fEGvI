@@ -140,7 +140,7 @@ export default function VarianceAnalysis() {
     <div className="space-y-6">
       <PageHeader
         title="Abweichungsanalyse"
-        subtitle="Abrechnungsplan (BillingInstructions) vs. tatsächliche Rechnungsstellung (sevDesk)"
+        subtitle="PM-Abrechnungsplanung vs. tatsächlich ausgestellte Rechnungen (sevDesk)"
         icon={BarChart2}
         actions={
           <div className="flex items-center gap-3">
