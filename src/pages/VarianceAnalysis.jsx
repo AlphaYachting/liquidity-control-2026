@@ -23,13 +23,14 @@ function getMonthsList() {
 }
 
 /**
- * "Geplant" = die Abrechnungsplanung der Projektmanager (MonthlyBillingPlan)
- *   pro planning_month — also der Umsatz, den die PMs für den jeweiligen Monat
- *   zur Verrechnung eingeplant hatten (ohne stornierte/on_hold).
+ * Reiner Plan-Soll/Ist aus dem Projektcockpit (MonthlyBillingPlan) — KEINE sevDesk-Rechnungen.
  *
- * "Verrechnet (Ist)" = InvoiceRecords (echte Rechnungen aus sevDesk) mit invoice_date in diesem Monat.
+ * "Geplant" = der Umsatz, den die PMs für den jeweiligen planning_month zur Verrechnung
+ *   eingeplant hatten (alle Planungspositionen außer stornierte).
  *
- * Beispiel: Im Juni 40.778 € geplant, aber nur 18–19.000 € tatsächlich abgerechnet.
+ * "Abgerechnet" = davon die Positionen, die tatsächlich abgerechnet wurden (billing_status = invoiced).
+ *
+ * Beispiel: Im Juni 40.778 € geplant, davon 18–19.000 € tatsächlich abgerechnet.
  */
 
 export default function VarianceAnalysis() {
@@ -40,16 +41,12 @@ export default function VarianceAnalysis() {
     queryKey: ['monthlyBillingPlans-variance'],
     queryFn: () => base44.entities.MonthlyBillingPlan.list('-planning_month', 2000),
   });
-  const { data: invoices = [], isLoading: l2 } = useQuery({
-    queryKey: ['invoiceRecords'],
-    queryFn: () => base44.entities.InvoiceRecord.list(),
-  });
   const { data: projects = [], isLoading: l3 } = useQuery({
     queryKey: ['projects'],
     queryFn: () => base44.entities.LiquidityProject.list(),
   });
 
-  const isLoading = l1 || l2 || l3;
+  const isLoading = l1 || l3;
   const months = useMemo(() => getMonthsList(), []);
 
   // PM-Liste aus Projekten
@@ -74,64 +71,45 @@ export default function VarianceAnalysis() {
     });
   }, [billingPlans, filterPM, projectPMMap]);
 
-  // Gefilterte Invoices nach PM (über project_id)
-  const filteredInvoices = useMemo(() => {
-    if (!filterPM) return invoices;
-    return invoices.filter(inv => {
-      const pm = inv.project_id ? projectPMMap[inv.project_id] : '';
-      return pm === filterPM;
-    });
-  }, [invoices, filterPM, projectPMMap]);
-
   const monthlyData = useMemo(() => {
     if (isLoading) return [];
 
     return months.map(month => {
       // ── GEPLANT: PM-Abrechnungsplanung (MonthlyBillingPlan) für diesen planning_month ──
       // Das ist der Umsatz, den die PMs für den Monat zur Verrechnung eingeplant hatten.
-      const plannedItems = filteredPlans.filter(p => p.planning_month === month);
+      const plannedItems = filteredPlans.filter(p => p.planning_month === month && p.billing_status !== 'cancelled');
       const planned = plannedItems.reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0);
 
-      // ── DAVON ABGERECHNET: geplante Positionen, die bereits fakturiert wurden ──
+      // ── DAVON ABGERECHNET: geplante Positionen, die tatsächlich abgerechnet wurden ──
       const realizedItems = plannedItems.filter(p => p.billing_status === 'invoiced');
       const realized = realizedItems.reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0);
 
-      // ── VERRECHNET: echte Rechnungen (InvoiceRecord) mit invoice_date in diesem Monat ──
-      const actualInvoices = filteredInvoices.filter(inv => {
-        if (!inv.invoice_date || inv.is_credit_note) return false;
-        if (['cancelled', 'draft'].includes(inv.payment_status)) return false;
-        return inv.invoice_date.startsWith(month);
-      });
-      const actual = actualInvoices.reduce((s, inv) => s + (Number(inv.net_amount) || 0), 0);
-
-      const variance = actual - planned;
-      const variancePct = planned > 0 ? Math.round((variance / planned) * 100) : null;
+      // Abweichung = realisierte Planung gegenüber geplanter Planung
+      const variance = realized - planned;
+      const variancePct = planned > 0 ? Math.round((realized / planned) * 100) : null;
 
       const label = format(parseISO(`${month}-01`), 'MMM yy', { locale: de });
       return {
         month, label,
-        planned,                 // PM-Abrechnungsplanung (MonthlyBillingPlan)
-        realized,                // Davon bereits fakturiert
-        actual,                  // Tatsächlich verrechnet (InvoiceRecords)
+        planned,                 // PM-Abrechnungsplanung (Soll)
+        realized,                // Davon tatsächlich abgerechnet (Ist)
         variance,
         variancePct,
         plannedCount: plannedItems.length,
         realizedCount: realizedItems.length,
-        actualCount: actualInvoices.length,
       };
     });
-  }, [filteredPlans, filteredInvoices, months, isLoading]);
+  }, [filteredPlans, months, isLoading]);
 
   const totalPlanned = monthlyData.reduce((s, m) => s + m.planned, 0);
   const totalRealized = monthlyData.reduce((s, m) => s + m.realized, 0);
-  const totalActual = monthlyData.reduce((s, m) => s + m.actual, 0);
-  const overallVariance = totalActual - totalPlanned;
-  const overallPct = totalPlanned > 0 ? Math.round((overallVariance / totalPlanned) * 100) : null;
+  const overallVariance = totalRealized - totalPlanned;
+  const overallPct = totalPlanned > 0 ? Math.round((totalRealized / totalPlanned) * 100) : null;
 
   const chartData = monthlyData.map(m => ({
     name: m.label,
     Geplant: Math.round(m.planned),
-    'Verrechnet (Ist)': Math.round(m.actual),
+    Abgerechnet: Math.round(m.realized),
   }));
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-64" /></div>;
@@ -140,7 +118,7 @@ export default function VarianceAnalysis() {
     <div className="space-y-6">
       <PageHeader
         title="Abweichungsanalyse"
-        subtitle="Abrechnungsplan (BillingInstructions) vs. tatsächliche Rechnungsstellung (sevDesk)"
+        subtitle="Plan-Soll/Ist aus dem Projektcockpit: geplante vs. tatsächlich abgerechnete Planung"
         icon={BarChart2}
         actions={
           <div className="flex items-center gap-3">
@@ -165,23 +143,23 @@ export default function VarianceAnalysis() {
       <Alert className="border-blue-200 bg-blue-50">
         <Info className="w-4 h-4 text-blue-600" />
         <AlertDescription className="text-blue-800 text-xs">
-          <strong>Plan</strong> = alle für diesen Monat geplanten Abrechnungen (BillingInstructions mit geplantem Rechnungsdatum, ohne stornierte).{' '}
-          <strong>Verrechnet</strong> = echte Rechnungen aus sevDesk (InvoiceRecords) mit Rechnungsdatum in diesem Monat.{' '}
-          Diese Quellen entsprechen exakt dem Projektcockpit und dem Abrechnungsforecast.
+          <strong>Geplant</strong> = was die Projektmanager im Projektcockpit für diesen Monat zur Verrechnung eingeplant haben.{' '}
+          <strong>Abgerechnet</strong> = davon die Positionen, die tatsächlich abgerechnet wurden.{' '}
+          Es geht ausschließlich um den Planvergleich — echte sevDesk-Rechnungen sind hier nicht relevant.
         </AlertDescription>
       </Alert>
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="p-4 border-l-4 border-l-blue-500">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Plan (12 Mon.)</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">Geplant (12 Mon.)</p>
           <p className="text-2xl font-bold mt-1">{formatCurrency(totalPlanned)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">aus BillingInstructions</p>
+          <p className="text-xs text-muted-foreground mt-0.5">PM-Planung im Cockpit</p>
         </Card>
         <Card className="p-4 border-l-4 border-l-emerald-500">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Verrechnet (Ist)</p>
-          <p className="text-2xl font-bold mt-1 text-emerald-700">{formatCurrency(totalActual)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">echte Rechnungen (Netto)</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">Abgerechnet (Ist)</p>
+          <p className="text-2xl font-bold mt-1 text-emerald-700">{formatCurrency(totalRealized)}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">davon realisiert (Netto)</p>
         </Card>
         <Card className={`p-4 border-l-4 ${overallVariance >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'}`}>
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Abweichung</p>
@@ -193,8 +171,8 @@ export default function VarianceAnalysis() {
         </Card>
         <Card className="p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Ø Erreichungsgrad</p>
-          <p className="text-2xl font-bold mt-1">{totalPlanned > 0 ? `${Math.round((totalActual / totalPlanned) * 100)}%` : '—'}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Verrechnet / Plan</p>
+          <p className="text-2xl font-bold mt-1">{totalPlanned > 0 ? `${Math.round((totalRealized / totalPlanned) * 100)}%` : '—'}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Abgerechnet / Geplant</p>
         </Card>
       </div>
 
@@ -215,7 +193,7 @@ export default function VarianceAnalysis() {
               <Tooltip formatter={(v) => formatCurrency(v)} />
               <Legend />
               <Bar dataKey="Geplant" fill="hsl(var(--chart-1))" opacity={0.65} radius={[3, 3, 0, 0]} />
-              <Bar dataKey="Verrechnet (Ist)" fill="hsl(var(--chart-2))" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="Abgerechnet" fill="hsl(var(--chart-2))" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -225,9 +203,8 @@ export default function VarianceAnalysis() {
             <thead>
               <tr className="bg-muted/50 border-b">
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Monat</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Geplant (BI)</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Davon abgerechnet</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Verrechnet (Ist)</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Geplant (Soll)</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Abgerechnet (Ist)</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Abweichung</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">% Plan</th>
               </tr>
@@ -246,7 +223,7 @@ export default function VarianceAnalysis() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       {m.planned > 0
-                        ? <div><span className="font-medium">{formatCurrency(m.planned)}</span><br /><span className="text-xs text-muted-foreground">{m.plannedCount} Anweis.</span></div>
+                        ? <div><span className="font-medium">{formatCurrency(m.planned)}</span><br /><span className="text-xs text-muted-foreground">{m.plannedCount} Positionen</span></div>
                         : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -254,13 +231,8 @@ export default function VarianceAnalysis() {
                         ? <div><span className="font-medium text-emerald-700">{formatCurrency(m.realized)}</span><br /><span className="text-xs text-muted-foreground">{m.planned > 0 ? Math.round((m.realized / m.planned) * 100) : 0}% des Plans</span></div>
                         : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      {m.actual > 0
-                        ? <div><span className="text-emerald-700 font-medium">{formatCurrency(m.actual)}</span><br /><span className="text-xs text-muted-foreground">{m.actualCount} Rechnungen</span></div>
-                        : <span className="text-muted-foreground">—</span>}
-                    </td>
                     <td className={`px-4 py-3 text-right font-medium ${varColor}`}>
-                      {m.planned === 0 && m.actual === 0 ? '—' : `${m.variance >= 0 ? '+' : ''}${formatCurrency(m.variance)}`}
+                      {m.planned === 0 && m.realized === 0 ? '—' : `${m.variance >= 0 ? '+' : ''}${formatCurrency(m.variance)}`}
                     </td>
                     <td className={`px-4 py-3 text-right font-medium ${varColor}`}>
                       {m.variancePct !== null ? `${m.variancePct >= 0 ? '+' : ''}${m.variancePct}%` : '—'}
@@ -274,7 +246,6 @@ export default function VarianceAnalysis() {
                 <td className="px-4 py-3">Gesamt</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(totalPlanned)}</td>
                 <td className="px-4 py-3 text-right text-emerald-700">{formatCurrency(totalRealized)}</td>
-                <td className="px-4 py-3 text-right text-emerald-700">{formatCurrency(totalActual)}</td>
                 <td className={`px-4 py-3 text-right ${overallVariance >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                   {overallVariance >= 0 ? '+' : ''}{formatCurrency(overallVariance)}
                 </td>
