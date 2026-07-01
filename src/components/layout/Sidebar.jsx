@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
+import { useUnlinkedOrdersCount } from '@/hooks/useUnlinkedOrdersCount';
 
 const navSections = [
   {
@@ -65,6 +66,7 @@ export default function Sidebar() {
   const location = useLocation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const unlinkedCount = useUnlinkedOrdersCount();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -76,6 +78,7 @@ export default function Sidebar() {
   const renderNavLink = (item) => {
     const Icon = item.icon;
     const active = isActive(item.path);
+    const badgeCount = item.path === '/confirmed-orders' ? unlinkedCount : 0;
     return (
       <Link
         key={item.path}
@@ -90,7 +93,16 @@ export default function Sidebar() {
         title={collapsed ? item.label : undefined}
       >
         <Icon className="w-4 h-4 flex-shrink-0" />
-        {!collapsed && <span className="truncate">{item.label}</span>}
+        {!collapsed && <span className="truncate flex-1">{item.label}</span>}
+        {badgeCount > 0 && (
+          collapsed ? (
+            <span className="absolute ml-6 -mt-4 w-2 h-2 rounded-full bg-amber-500" />
+          ) : (
+            <span className="flex-shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[11px] font-semibold flex items-center justify-center">
+              {badgeCount}
+            </span>
+          )
+        )}
       </Link>
     );
   };

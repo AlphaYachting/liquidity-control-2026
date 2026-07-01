@@ -59,8 +59,8 @@ export default function ConfirmedOrders() {
   }, [enriched, search]);
 
   const sorted = useMemo(() => {
-    if (!sortField) return filtered;
-    return [...filtered].sort((a, b) => {
+    const isUnlinked = (o) => !o.project_id && o.status !== 'cancelled';
+    const base = [...filtered].sort((a, b) => {
       let av, bv;
       if (sortField === 'customer') {
         av = (a.customer || '').toLowerCase();
@@ -74,7 +74,11 @@ export default function ConfirmedOrders() {
       }
       return 0;
     });
+    // Nicht verknüpfte Auftragsbestätigungen immer ganz nach oben
+    return base.sort((a, b) => (isUnlinked(b) ? 1 : 0) - (isUnlinked(a) ? 1 : 0));
   }, [filtered, sortField, sortDir]);
+
+  const unlinkedCount = enriched.filter(o => !o.project_id && o.status !== 'cancelled').length;
 
   const totalOrderValue = enriched.reduce((s, o) => s + o.recon.total_order_net, 0);
   const totalInvoiced = enriched.reduce((s, o) => s + o.recon.adjusted_invoiced_net, 0);
@@ -103,6 +107,16 @@ export default function ConfirmedOrders() {
           </Button>
         }
       />
+
+      {unlinkedCount > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <p className="text-sm text-amber-800 flex-1">
+            <span className="font-semibold">{unlinkedCount}</span>{' '}
+            {unlinkedCount === 1 ? 'neue Auftragsbestätigung ist' : 'neue Auftragsbestätigungen sind'} noch keinem Projekt-Cockpit zugeordnet.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard title="Gesamt Auftragsvolumen" value={formatCurrency(totalOrderValue)} variant="info" />
@@ -160,12 +174,21 @@ export default function ConfirmedOrders() {
               sorted.map(order => (
                 <tr
                   key={order.id}
-                  className="border-t hover:bg-muted/30 cursor-pointer transition-colors"
+                  className={`border-t hover:bg-muted/30 cursor-pointer transition-colors ${
+                    !order.project_id && order.status !== 'cancelled' ? 'bg-amber-50/60' : ''
+                  }`}
                   onClick={() => navigate(`/confirmed-orders/${order.id}`)}
                 >
                   <td className="p-3 font-medium">{order.customer}</td>
                   <td className="p-3">
-                    <p>{order.project_name}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p>{order.project_name}</p>
+                      {!order.project_id && order.status !== 'cancelled' && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold px-2 py-0.5">
+                          <AlertTriangle className="w-3 h-3" /> Kein Cockpit
+                        </span>
+                      )}
+                    </div>
                     {order.order_number && <p className="text-xs text-muted-foreground">{order.order_number}</p>}
                   </td>
                   <td className="p-3 text-right font-semibold">{formatCurrency(order.recon.total_order_net)}</td>
