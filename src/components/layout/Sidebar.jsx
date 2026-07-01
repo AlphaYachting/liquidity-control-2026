@@ -8,6 +8,7 @@ import {
   CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/AuthContext';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -31,6 +32,9 @@ const navItems = [
   { path: '/variance-analysis', label: 'Abweichungsanalyse', icon: BarChart2 },
   { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
   { path: '/cashflow-advisor', label: 'Cashflow Berater', icon: BrainCircuit },
+];
+
+const adminNavItems = [
   { path: '/billing-reset', label: 'Verrechnungsdaten Reset', icon: RefreshCw },
   { path: '/operational-reset', label: 'Operational Reset', icon: Trash2 },
   { path: '/sevdesk-reimport', label: 'sevDesk Re-Import', icon: RotateCcw },
@@ -44,12 +48,36 @@ const navItems = [
 
 export default function Sidebar() {
   const location = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
+  };
+
+  const renderNavLink = (item) => {
+    const Icon = item.icon;
+    const active = isActive(item.path);
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        onClick={() => setMobileOpen(false)}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200
+          ${active
+            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md shadow-sidebar-primary/20'
+            : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent'
+          }
+          ${collapsed ? 'justify-center' : ''}`}
+        title={collapsed ? item.label : undefined}
+      >
+        <Icon className="w-4 h-4 flex-shrink-0" />
+        {!collapsed && <span className="truncate">{item.label}</span>}
+      </Link>
+    );
   };
 
   const navContent = (
@@ -85,27 +113,22 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.path);
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200
-                ${active
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md shadow-sidebar-primary/20'
-                  : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent'
-                }
-                ${collapsed ? 'justify-center' : ''}`}
-              title={collapsed ? item.label : undefined}
-            >
-              <Icon className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && <span className="truncate">{item.label}</span>}
-            </Link>
-          );
-        })}
+        {navItems.map(renderNavLink)}
+
+        {isAdmin && (
+          <>
+            <div className={`pt-4 pb-1 ${collapsed ? 'px-0' : 'px-3'}`}>
+              {collapsed ? (
+                <div className="h-px bg-sidebar-border/60 mx-2" />
+              ) : (
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                  Administration
+                </p>
+              )}
+            </div>
+            {adminNavItems.map(renderNavLink)}
+          </>
+        )}
       </nav>
 
       {!collapsed && (

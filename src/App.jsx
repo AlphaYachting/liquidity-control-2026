@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 import AppLayout from '@/components/layout/AppLayout';
+import AdminRoute from '@/components/layout/AdminRoute';
 import Dashboard from '@/pages/Dashboard';
 import Projects from '@/pages/Projects';
 import OnlineMarketing from '@/pages/OnlineMarketing';
@@ -85,12 +86,12 @@ const AuthenticatedApp = () => {
         <Route path="/payables" element={<Payables />} />
         <Route path="/forecast" element={<Forecast />} />
         <Route path="/seftest" element={<SefTest />} />
-        <Route path="/import" element={<ImportCenter />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/awork-settings" element={<AworkSettings />} />
-        <Route path="/awork-mapping" element={<AworkMappingReview />} />
+        <Route path="/import" element={<AdminRoute><ImportCenter /></AdminRoute>} />
+        <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
+        <Route path="/awork-settings" element={<AdminRoute><AworkSettings /></AdminRoute>} />
+        <Route path="/awork-mapping" element={<AdminRoute><AworkMappingReview /></AdminRoute>} />
         <Route path="/payment-consistency" element={<PaymentConsistencyCheck />} />
-        <Route path="/sevdesk-settings" element={<SevdeskSettings />} />
+        <Route path="/sevdesk-settings" element={<AdminRoute><SevdeskSettings /></AdminRoute>} />
         <Route path="/cashflow-advisor" element={<CashflowAdvisor />} />
         <Route path="/revenue-analysis" element={<RevenueAnalysis />} />
         <Route path="/awork-cost-index" element={<AworkCostIndex />} />
@@ -98,10 +99,10 @@ const AuthenticatedApp = () => {
         <Route path="/weekly-cashflow" element={<WeeklyCashflow />} />
         <Route path="/customer-risk" element={<CustomerRisk />} />
         <Route path="/variance-analysis" element={<VarianceAnalysis />} />
-        <Route path="/master-import" element={<MasterDataImport />} />
-        <Route path="/billing-reset" element={<BillingDataReset />} />
-        <Route path="/operational-reset" element={<OperationalReset />} />
-        <Route path="/sevdesk-reimport" element={<SevdeskReimport />} />
+        <Route path="/master-import" element={<AdminRoute><MasterDataImport /></AdminRoute>} />
+        <Route path="/billing-reset" element={<AdminRoute><BillingDataReset /></AdminRoute>} />
+        <Route path="/operational-reset" element={<AdminRoute><OperationalReset /></AdminRoute>} />
+        <Route path="/sevdesk-reimport" element={<AdminRoute><SevdeskReimport /></AdminRoute>} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
