@@ -1,0 +1,22 @@
+{
+  "name": "BankBalanceSnapshot",
+  "type": "object",
+  "properties": {
+    "balance_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Stichtag des Bankbestands (Wochenanfang)"
+    },
+    "amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Bankanfangsbestand zu diesem Datum (EUR)"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "balance_date"
+  ]
+}

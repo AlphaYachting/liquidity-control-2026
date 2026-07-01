@@ -42,6 +42,15 @@ import BillingDataReset from '@/pages/BillingDataReset';
 import OperationalReset from '@/pages/OperationalReset';
 import SevdeskReimport from '@/pages/SevdeskReimport';
 import Hosting from '@/pages/Hosting';
+import RestructuringLayout from '@/components/restructuring/RestructuringLayout';
+import RestructuringCockpit from '@/pages/RestructuringCockpit';
+import Restructuring13Week from '@/pages/Restructuring13Week';
+import RestructuringForecast from '@/pages/RestructuringForecast';
+import RestructuringAging from '@/pages/RestructuringAging';
+import RestructuringBacklog from '@/pages/RestructuringBacklog';
+import RestructuringWip from '@/pages/RestructuringWip';
+import RestructuringCoverage from '@/pages/RestructuringCoverage';
+import RestructuringSetup from '@/pages/RestructuringSetup';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -103,6 +112,16 @@ const AuthenticatedApp = () => {
         <Route path="/billing-reset" element={<AdminRoute><BillingDataReset /></AdminRoute>} />
         <Route path="/operational-reset" element={<AdminRoute><OperationalReset /></AdminRoute>} />
         <Route path="/sevdesk-reimport" element={<AdminRoute><SevdeskReimport /></AdminRoute>} />
+        <Route path="/restructuring" element={<AdminRoute><RestructuringLayout /></AdminRoute>}>
+          <Route index element={<RestructuringCockpit />} />
+          <Route path="liquidity" element={<Restructuring13Week />} />
+          <Route path="forecast" element={<RestructuringForecast />} />
+          <Route path="aging" element={<RestructuringAging />} />
+          <Route path="backlog" element={<RestructuringBacklog />} />
+          <Route path="wip" element={<RestructuringWip />} />
+          <Route path="coverage" element={<RestructuringCoverage />} />
+          <Route path="setup" element={<RestructuringSetup />} />
+        </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

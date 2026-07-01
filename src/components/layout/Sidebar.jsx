@@ -5,7 +5,7 @@ import {
   CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
-  CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw
+  CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
@@ -50,6 +50,7 @@ const navSections = [
 ];
 
 const adminNavItems = [
+  { path: '/restructuring', label: 'Sanierungs-Reporting', icon: Scale },
   { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
   { path: '/billing-reset', label: 'Verrechnungsdaten Reset', icon: RefreshCw },
   { path: '/operational-reset', label: 'Operational Reset', icon: Trash2 },

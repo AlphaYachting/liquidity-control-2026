@@ -1,0 +1,25 @@
+{
+  "name": "RestructuringSetting",
+  "type": "object",
+  "properties": {
+    "insolvency_opening_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Stichtag Insolvenzer\u00f6ffnung \u2014 f\u00fcr Alt-/Neuforderungs-Split"
+    },
+    "wip_blended_hourly_rate": {
+      "type": "number",
+      "default": 0,
+      "description": "Einheitlicher Mischsatz f\u00fcr WIP-Bewertung (EUR/Stunde)"
+    },
+    "planning_horizon_months": {
+      "type": "number",
+      "default": 12,
+      "description": "Forecast-Zeitraum in Monaten (12\u201324)"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": []
+}

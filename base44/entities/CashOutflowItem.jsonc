@@ -1,0 +1,53 @@
+{
+  "name": "CashOutflowItem",
+  "type": "object",
+  "properties": {
+    "category": {
+      "type": "string",
+      "enum": [
+        "personal",
+        "miete",
+        "tools_saas",
+        "steuern_sva",
+        "lieferanten",
+        "sonstiges"
+      ],
+      "default": "sonstiges",
+      "description": "Auszahlungskategorie"
+    },
+    "label": {
+      "type": "string",
+      "description": "Bezeichnung des Postens"
+    },
+    "amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Betrag pro Monat (EUR)"
+    },
+    "due_day_of_month": {
+      "type": "number",
+      "default": 1,
+      "description": "F\u00e4lligkeitstag im Monat (1\u201328) f\u00fcr die Wochenverteilung"
+    },
+    "start_month": {
+      "type": "string",
+      "description": "YYYY-MM ab wann der Posten l\u00e4uft (leer = ab sofort)"
+    },
+    "end_month": {
+      "type": "string",
+      "description": "YYYY-MM bis wann der Posten l\u00e4uft (leer = unbefristet)"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "category",
+    "label",
+    "amount"
+  ]
+}
