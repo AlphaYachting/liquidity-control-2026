@@ -74,7 +74,7 @@ const AuthenticatedApp = () => {
         <Route path="/projects/:projectId" element={<ProjectDetail />} />
         <Route path="/confirmed-orders" element={<ConfirmedOrders />} />
         <Route path="/confirmed-orders/:orderId" element={<ConfirmedOrderDetail />} />
-        <Route path="/invoice-matching" element={<InvoiceMatchingReview />} />
+        <Route path="/invoice-matching" element={<AdminRoute><InvoiceMatchingReview /></AdminRoute>} />
         <Route path="/next-month-forecast" element={<NextMonthForecast />} />
         <Route path="/invoice-ready" element={<InvoiceReady />} />
         <Route path="/online-marketing" element={<OnlineMarketing />} />

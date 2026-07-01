@@ -13,6 +13,14 @@ import { formatCurrency } from '@/lib/liquidityUtils';
 import { calculateOrderReconciliation } from '@/lib/reconciliationUtils';
 import NewOrderUploadModal from '@/components/orders/NewOrderUploadModal';
 
+// Referenzdatum einer Auftragsbestätigung (für Jahr & Sortierung).
+const orderRefDate = (o) => o.confirmation_date || o.signed_date || o.created_date || null;
+// Nur Auftragsbestätigungen ab 2026 sind für Hinweis & Badge relevant.
+const isFrom2026OrLater = (o) => {
+  const d = orderRefDate(o);
+  return d ? new Date(d).getFullYear() >= 2026 : false;
+};
+
 export default function ConfirmedOrders() {
   const navigate = useNavigate();
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -59,7 +67,7 @@ export default function ConfirmedOrders() {
   }, [enriched, search]);
 
   const sorted = useMemo(() => {
-    const isUnlinked = (o) => !o.project_id && o.status !== 'cancelled';
+    const isUnlinked = (o) => !o.project_id && o.status !== 'cancelled' && isFrom2026OrLater(o);
     const base = [...filtered].sort((a, b) => {
       let av, bv;
       if (sortField === 'customer') {
@@ -72,13 +80,15 @@ export default function ConfirmedOrders() {
         bv = b.recon.total_open_to_invoice;
         return sortDir === 'asc' ? av - bv : bv - av;
       }
-      return 0;
+      // Standard: neueste Auftragsbestätigungen zuerst
+      const ad = orderRefDate(a), bd = orderRefDate(b);
+      return new Date(bd || 0) - new Date(ad || 0);
     });
-    // Nicht verknüpfte Auftragsbestätigungen immer ganz nach oben
+    // Nicht verknüpfte AB (aus 2026) immer ganz nach oben
     return base.sort((a, b) => (isUnlinked(b) ? 1 : 0) - (isUnlinked(a) ? 1 : 0));
   }, [filtered, sortField, sortDir]);
 
-  const unlinkedCount = enriched.filter(o => !o.project_id && o.status !== 'cancelled').length;
+  const unlinkedCount = enriched.filter(o => !o.project_id && o.status !== 'cancelled' && isFrom2026OrLater(o)).length;
 
   const totalOrderValue = enriched.reduce((s, o) => s + o.recon.total_order_net, 0);
   const totalInvoiced = enriched.reduce((s, o) => s + o.recon.adjusted_invoiced_net, 0);
@@ -175,7 +185,7 @@ export default function ConfirmedOrders() {
                 <tr
                   key={order.id}
                   className={`border-t hover:bg-muted/30 cursor-pointer transition-colors ${
-                    !order.project_id && order.status !== 'cancelled' ? 'bg-amber-50/60' : ''
+                    !order.project_id && order.status !== 'cancelled' && isFrom2026OrLater(order) ? 'bg-amber-50/60' : ''
                   }`}
                   onClick={() => navigate(`/confirmed-orders/${order.id}`)}
                 >
@@ -183,7 +193,7 @@ export default function ConfirmedOrders() {
                   <td className="p-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p>{order.project_name}</p>
-                      {!order.project_id && order.status !== 'cancelled' && (
+                      {!order.project_id && order.status !== 'cancelled' && isFrom2026OrLater(order) && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold px-2 py-0.5">
                           <AlertTriangle className="w-3 h-3" /> Kein Cockpit
                         </span>

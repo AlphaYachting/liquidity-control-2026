@@ -37,7 +37,6 @@ const navSections = [
     title: 'Einnahmen & Ausgaben',
     items: [
       { path: '/confirmed-orders', label: 'Auftragsabwicklung', icon: ClipboardList },
-      { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
       { path: '/online-marketing', label: 'Online-Marketing', icon: Megaphone },
       { path: '/maintenance', label: 'Wartungsverträge', icon: Shield },
       { path: '/hosting', label: 'Hosting & Domains', icon: Server },
@@ -51,6 +50,7 @@ const navSections = [
 ];
 
 const adminNavItems = [
+  { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
   { path: '/billing-reset', label: 'Verrechnungsdaten Reset', icon: RefreshCw },
   { path: '/operational-reset', label: 'Operational Reset', icon: Trash2 },
   { path: '/sevdesk-reimport', label: 'sevDesk Re-Import', icon: RotateCcw },
