@@ -24,6 +24,15 @@ const navSections = [
     ],
   },
   {
+    title: 'Cashflow',
+    items: [
+      { path: '/cashflow-advisor', label: 'Cashflow Berater', icon: BrainCircuit },
+      { path: '/weekly-cashflow', label: 'Wöchentl. Cashflow', icon: CalendarDays },
+      { path: '/variance-analysis', label: 'Abweichungsanalyse', icon: BarChart2 },
+      { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
+    ],
+  },
+  {
     title: 'Einnahmen & Ausgaben',
     items: [
       { path: '/confirmed-orders', label: 'Auftragsabwicklung', icon: ClipboardList },
@@ -36,15 +45,6 @@ const navSections = [
       { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
       { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
       { path: '/revenue-analysis', label: 'Umsatzbewertung', icon: PieChart },
-    ],
-  },
-  {
-    title: 'Cashflow',
-    items: [
-      { path: '/weekly-cashflow', label: 'Wöchentl. Cashflow', icon: CalendarDays },
-      { path: '/variance-analysis', label: 'Abweichungsanalyse', icon: BarChart2 },
-      { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
-      { path: '/cashflow-advisor', label: 'Cashflow Berater', icon: BrainCircuit },
     ],
   },
 ];
