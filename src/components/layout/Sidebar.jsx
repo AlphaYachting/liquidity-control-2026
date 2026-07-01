@@ -10,28 +10,43 @@ import {
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 
-const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban },
-  { path: '/next-month-forecast', label: 'Abrechnungsforecast', icon: CalendarCheck },
-  { path: '/invoice-ready', label: 'Abrechnungsanweisungen', icon: CheckSquare },
-  { path: '/customer-risk', label: 'Kundenrisiko', icon: Users },
-  { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock },
-  { path: '/confirmed-orders', label: 'Auftragsabwicklung', icon: ClipboardList, description: 'Aufträge erfassen, Dokumente prüfen' },
-  { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
-  { path: '/online-marketing', label: 'Online-Marketing', icon: Megaphone },
-  { path: '/maintenance', label: 'Wartungsverträge', icon: Shield },
-  { path: '/hosting', label: 'Hosting & Domains', icon: Server },
-  { path: '/production', label: 'Produktion & Support', icon: Wrench },
-  { path: '/tools', label: 'Toolkosten', icon: CreditCard },
-  { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
-  { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
-  { path: '/revenue-analysis', label: 'Umsatzbewertung', icon: PieChart },
-  { path: '/escalation-alerts', label: 'Eskalations-Alerts', icon: AlertTriangle },
-  { path: '/weekly-cashflow', label: 'Wöchentl. Cashflow', icon: CalendarDays },
-  { path: '/variance-analysis', label: 'Abweichungsanalyse', icon: BarChart2 },
-  { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
-  { path: '/cashflow-advisor', label: 'Cashflow Berater', icon: BrainCircuit },
+const navSections = [
+  {
+    title: null,
+    items: [
+      { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+      { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban },
+      { path: '/next-month-forecast', label: 'Abrechnungsforecast', icon: CalendarCheck },
+      { path: '/invoice-ready', label: 'Abrechnungsanweisungen', icon: CheckSquare },
+      { path: '/customer-risk', label: 'Kundenrisiko', icon: Users },
+      { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock },
+    ],
+  },
+  {
+    title: 'Auftragsabwicklung',
+    items: [
+      { path: '/confirmed-orders', label: 'Auftragsabwicklung', icon: ClipboardList },
+      { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
+      { path: '/online-marketing', label: 'Online-Marketing', icon: Megaphone },
+      { path: '/maintenance', label: 'Wartungsverträge', icon: Shield },
+      { path: '/hosting', label: 'Hosting & Domains', icon: Server },
+      { path: '/production', label: 'Produktion & Support', icon: Wrench },
+      { path: '/tools', label: 'Toolkosten', icon: CreditCard },
+      { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
+      { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
+      { path: '/revenue-analysis', label: 'Umsatzbewertung', icon: PieChart },
+      { path: '/escalation-alerts', label: 'Eskalations-Alerts', icon: AlertTriangle },
+    ],
+  },
+  {
+    title: 'Cashflow',
+    items: [
+      { path: '/weekly-cashflow', label: 'Wöchentl. Cashflow', icon: CalendarDays },
+      { path: '/variance-analysis', label: 'Abweichungsanalyse', icon: BarChart2 },
+      { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
+      { path: '/cashflow-advisor', label: 'Cashflow Berater', icon: BrainCircuit },
+    ],
+  },
 ];
 
 const adminNavItems = [
@@ -80,6 +95,18 @@ export default function Sidebar() {
     );
   };
 
+  const renderSectionHeader = (title) => (
+    <div className={`pt-4 pb-1 ${collapsed ? 'px-0' : 'px-3'}`}>
+      {collapsed ? (
+        <div className="h-px bg-sidebar-border/60 mx-2" />
+      ) : (
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+          {title}
+        </p>
+      )}
+    </div>
+  );
+
   const navContent = (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
@@ -113,19 +140,16 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {navItems.map(renderNavLink)}
+        {navSections.map((section, idx) => (
+          <React.Fragment key={idx}>
+            {section.title && renderSectionHeader(section.title)}
+            {section.items.map(renderNavLink)}
+          </React.Fragment>
+        ))}
 
         {isAdmin && (
           <>
-            <div className={`pt-4 pb-1 ${collapsed ? 'px-0' : 'px-3'}`}>
-              {collapsed ? (
-                <div className="h-px bg-sidebar-border/60 mx-2" />
-              ) : (
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
-                  Administration
-                </p>
-              )}
-            </div>
+            {renderSectionHeader('Administration')}
             {adminNavItems.map(renderNavLink)}
           </>
         )}
