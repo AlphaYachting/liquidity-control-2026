@@ -111,7 +111,8 @@ export default function CashflowForecastChart({ invoiceRecords = [], billingBloc
     [invoiceRecords, billingBlocks, liveInvoices]
   );
 
-  const totalOpen = data.reduce((s, d) => s + d.invoices + d.overdue, 0);
+  const totalOverdue = data.reduce((s, d) => s + d.overdue, 0);
+  const totalDueInWindow = data.reduce((s, d) => s + d.invoices, 0);
   const hasData = data.some(d => d.total > 0);
 
   // Nur jeden 5. Tag als Achsenbeschriftung zeigen
@@ -140,14 +141,20 @@ export default function CashflowForecastChart({ invoiceRecords = [], billingBloc
           <div>
             <CardTitle className="text-base font-semibold">Offene Rechnungen nach Fälligkeitsdatum (30 Tage)</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Tagesgenau · nur Rechnungen aus DB · überfällige werden heute gezeigt
+              Tagesgenau · nur Rechnungen aus DB · überfällige separat am „Heute"-Tag
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">Offen (30 Tage)</p>
-              <p className="text-sm font-bold text-emerald-600">{formatCurrency(totalOpen)}</p>
+              <p className="text-xs text-muted-foreground">Fällig in 30 Tagen</p>
+              <p className="text-sm font-bold text-emerald-600">{formatCurrency(totalDueInWindow)}</p>
             </div>
+            {totalOverdue > 0 && (
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Bereits überfällig</p>
+                <p className="text-sm font-bold text-red-600">{formatCurrency(totalOverdue)}</p>
+              </div>
+            )}
             <Button size="sm" variant="outline" className="text-xs h-8 gap-1" onClick={handleFetchLive} disabled={loadingLive}>
               {loadingLive ? <><RefreshCw className="w-3 h-3 animate-spin" /> Lade…</> : <><Zap className="w-3 h-3" /> Live sevDesk</>}
             </Button>
