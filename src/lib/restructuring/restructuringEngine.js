@@ -20,16 +20,27 @@ const num = (v) => Number(v) || 0;
 const isCancelled = (i) => i?.payment_status === 'cancelled' || i?.status === 'cancelled';
 
 // ── Offene Forderungen (Debitoren) ────────────────────────────────────────
+// Nur echte, versendete Forderungen: keine Entwürfe (draft), keine Gutschriften,
+// keine Korrekturen, keine stornierten oder bereits bezahlten Rechnungen.
+// paid_amount hat Vorrang; bei fehlendem paid_amount gilt Status als Wahrheit.
 export function getOpenReceivables(invoices = []) {
   return invoices
-    .filter((i) => !isCancelled(i) && !i.is_credit_note && i.invoice_type !== 'correction')
+    .filter((i) =>
+      !isCancelled(i) &&
+      !i.is_credit_note &&
+      i.invoice_type !== 'correction' &&
+      i.payment_status !== 'draft' &&   // Entwürfe sind noch keine Forderung
+      i.payment_status !== 'paid'       // bezahlte raus (Fallback greift unten zusätzlich)
+    )
     .map((i) => {
       const gross = num(i.gross_amount);
-      const paid = num(i.paid_amount) || (i.payment_status === 'paid' ? gross : 0);
-      const open = Math.max(0, gross - paid);
+      // open_amount aus sevDesk hat Vorrang, dann paid-Berechnung
+      const openField = num(i.open_amount);
+      const paid = num(i.paid_amount);
+      let open = openField > 0 ? openField : Math.max(0, gross - paid);
       return { ...i, _open: open };
     })
-    .filter((i) => i._open > 0.01 && i.payment_status !== 'paid');
+    .filter((i) => i._open > 0.01);
 }
 
 export function effectiveDueDate(inv) {
@@ -112,21 +123,59 @@ export function buildRecurring(contracts = []) {
   return { rows, monthlyTotal, annualTotal };
 }
 
-// ── Auftragsbestand (Restwert bestätigter Aufträge) ───────────────────────
+// ── Auftragsbestand (offene, noch abzuarbeitende Leistung) ────────────────
+// Zeigt, was aus bestätigten Aufträgen NOCH nicht abgerechnet ist.
+// Korrekturen ggü. Rohdaten:
+//  1. Nur Status 'confirmed' (nicht 'completed', nicht 'draft').
+//  2. Duplikate (gleicher Kunde + gleiche Summe) werden zusammengeführt.
+//  3. Abgerechneter Anteil: primär über confirmed_order_id, sonst als Fallback
+//     über Kundenname (viele Rechnungen tragen keine Auftragszuordnung).
+const normName = (s) => (s || '').toLowerCase().replace(/gmbh|ges\.?m\.?b\.?h\.?|ag|kg|co\.?|&|\s+/g, '').trim();
+
 export function buildOrderBacklog(orders = [], projects = [], invoices = []) {
   const projById = new Map(projects.map((p) => [p.id, p]));
+
+  // Abgerechnete Netto-Beträge je Auftrag und je Kunde sammeln
   const invByOrder = new Map();
+  const invByCustomer = new Map();
   invoices.forEach((i) => {
-    if (isCancelled(i) || i.is_credit_note) return;
+    if (isCancelled(i) || i.payment_status === 'draft') return;
+    const net = num(i.net_amount); // Gutschriften/Korrekturen sind hier negativ und reduzieren korrekt
     if (i.confirmed_order_id) {
-      invByOrder.set(i.confirmed_order_id, (invByOrder.get(i.confirmed_order_id) || 0) + num(i.net_amount));
+      invByOrder.set(i.confirmed_order_id, (invByOrder.get(i.confirmed_order_id) || 0) + net);
     }
+    const ck = normName(i.customer_name);
+    if (ck) invByCustomer.set(ck, (invByCustomer.get(ck) || 0) + net);
   });
-  const rows = orders
-    .filter((o) => o.status === 'confirmed' || o.status === 'draft')
+
+  const confirmed = orders.filter((o) => o.status === 'confirmed');
+
+  // Deduplizieren: gleicher Kunde + gleiche Auftragssumme = ein Auftrag
+  const seen = new Set();
+  const deduped = [];
+  confirmed.forEach((o) => {
+    const key = normName(o.customer) + '|' + Math.round(num(o.total_net_amount));
+    if (seen.has(key)) return;
+    seen.add(key);
+    deduped.push(o);
+  });
+
+  // Fallback-Kundenzuordnung nur einmal je Kunde verteilen (nicht pro Auftrag doppelt abziehen)
+  const customerBudgetUsed = new Set();
+
+  const rows = deduped
     .map((o) => {
       const total = num(o.total_net_amount);
-      const invoiced = invByOrder.get(o.id) || 0;
+      let invoiced = invByOrder.get(o.id) || 0;
+      // Fallback: kein per-Auftrag-Wert vorhanden → Kundenrechnungen heranziehen (gedeckelt auf Auftragssumme)
+      if (invoiced <= 0.01) {
+        const ck = normName(o.customer);
+        if (ck && !customerBudgetUsed.has(ck)) {
+          const custInvoiced = Math.max(0, invByCustomer.get(ck) || 0);
+          invoiced = Math.min(total, custInvoiced);
+          customerBudgetUsed.add(ck);
+        }
+      }
       const remaining = Math.max(0, total - invoiced);
       const proj = o.project_id ? projById.get(o.project_id) : null;
       const expDate = proj?.expected_invoice_date || null;
@@ -216,13 +265,27 @@ export function buildRevenueForecast({ contracts = [], orders = [], projects = [
   }
   const currentMonth = monthKey(now);
 
+  // Auftragsbestand realistisch verteilen statt in einen Monat werfen:
+  //  - Auftrag mit bekanntem, zukünftigem Erwartungsmonat → voll in diesem Monat
+  //  - Auftrag ohne Termin → Restwert gleichmäßig über die nächsten `spread` Monate
+  //    (offene Projekte werden über mehrere Monate abgearbeitet/abgerechnet)
+  const spread = Math.min(6, horizonMonths);
+  const backlogByMonth = {};
+  months.forEach((mk) => { backlogByMonth[mk] = 0; });
+  backlog.rows.forEach((o) => {
+    if (o.expected_month && o.expected_month >= currentMonth && backlogByMonth[o.expected_month] !== undefined) {
+      backlogByMonth[o.expected_month] += o.remaining;
+    } else {
+      const per = o.remaining / spread;
+      for (let k = 0; k < spread; k++) {
+        if (months[k] !== undefined) backlogByMonth[months[k]] += per;
+      }
+    }
+  });
+
   const rows = months.map((mk) => {
     const recurringSecured = recurring.monthlyTotal;
-    // Auftragsbestand: Restwert im erwarteten Monat, sonst im aktuellen Monat (überfällig)
-    const backlogSecured = backlog.rows.reduce((s, o) => {
-      const target = o.expected_month && o.expected_month >= currentMonth ? o.expected_month : currentMonth;
-      return target === mk ? s + o.remaining : s;
-    }, 0);
+    const backlogSecured = backlogByMonth[mk] || 0;
     return {
       month: mk,
       recurring: recurringSecured,
