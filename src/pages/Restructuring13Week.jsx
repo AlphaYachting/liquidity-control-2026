@@ -24,13 +24,16 @@ export default function Restructuring13Week() {
     { key: 'week', label: 'Woche', render: (r) => `KW ${r.index + 1}` },
     { key: 'range', label: 'Zeitraum', render: weekRange },
     { key: 'opening', label: 'Anfangsbestand', align: 'right', render: (r) => fmtEUR(r.opening) },
-    { key: 'inflow', label: 'Einzahlungen', align: 'right', render: (r) => fmtEUR(r.inflow) },
+    { key: 'receivables_in', label: 'Debitoren', align: 'right', render: (r) => fmtEUR(r.receivables_in) },
+    { key: 'recurring_in', label: 'Retainer/Hosting', align: 'right', render: (r) => fmtEUR(r.recurring_in) },
+    { key: 'backlog_in', label: 'Auftragsbestand', align: 'right', render: (r) => fmtEUR(r.backlog_in) },
+    { key: 'inflow', label: 'Einzahlungen', align: 'right', render: (r) => fmtEUR(r.inflow), className: 'font-semibold' },
     { key: 'outflow', label: 'Auszahlungen', align: 'right', render: (r) => fmtEUR(r.outflow) },
     { key: 'closing', label: 'Endbestand', align: 'right', render: (r) => fmtEUR(r.closing), className: 'font-bold' },
   ];
 
   const exportRows = result.rows.map((r) => [
-    `KW ${r.index + 1}`, weekRange(r), r.opening.toFixed(2), r.inflow.toFixed(2), r.outflow.toFixed(2), r.closing.toFixed(2),
+    `KW ${r.index + 1}`, weekRange(r), r.opening.toFixed(2), r.receivables_in.toFixed(2), r.recurring_in.toFixed(2), r.backlog_in.toFixed(2), r.inflow.toFixed(2), r.outflow.toFixed(2), r.closing.toFixed(2),
   ]);
   const exportCols = columns.map((c) => c.label);
 
@@ -52,11 +55,24 @@ export default function Restructuring13Week() {
         </div>
       )}
 
+      {result.projection && (
+        <div className="text-[11px] text-muted-foreground rounded-lg border border-border bg-muted/30 p-3 space-y-1">
+          <p className="font-semibold text-foreground">Hochrechnungs-Basis der Einzahlungen</p>
+          <p>• <b>Debitoren:</b> offene Forderungen nach Fälligkeitsdatum (überfällige in KW 1).</p>
+          <p>• <b>Retainer/Hosting:</b> {fmtEUR(result.projection.recurringMonthly)} / Monat aus aktiven Verträgen, jeweils zum Monatsersten.</p>
+          <p>
+            • <b>Auftragsbestand:</b> {fmtEUR(result.projection.backlogTotal)} offener Leistungswert,
+            davon {fmtEUR(result.projection.backlogUndated)} ohne Termin gleichmäßig über 13 Wochen
+            ({fmtEUR(result.projection.undatedPerWeek)} / Woche), {fmtEUR(result.projection.backlogDated)} zum jeweiligen Erwartungsmonat.
+          </p>
+        </div>
+      )}
+
       <ReportCard
         title="13-Wochen-Liquiditätsvorschau (rollierend)"
         sourceNote={SOURCE}
         onExportPDF={() => exportPDF('13-Wochen-Vorschau', exportCols, exportRows, {
-          sourceNote: SOURCE, numericCols: [2, 3, 4, 5],
+          sourceNote: SOURCE, numericCols: [2, 3, 4, 5, 6, 7, 8],
           summaryLines: [`Anfangsbestand: ${fmtEUR(result.openingBalance)}`, `Tiefster Endbestand: ${fmtEUR(lowest)}`],
         })}
         onExportExcel={() => exportExcel('13-Wochen-Vorschau', exportCols, exportRows, SOURCE)}

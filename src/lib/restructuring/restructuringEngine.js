@@ -324,6 +324,22 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
   const backlog = buildOrderBacklog(orders, projects, invoices);
   const openRec = getOpenReceivables(invoices).map((i) => ({ ...i, _due: effectiveDueDate(i) }));
 
+  // Auftragsbestand als wöchentliche Hochrechnung über den Vorschauzeitraum:
+  // Der offene Auftragsbestand wird abgearbeitet und über die Wochen abgerechnet.
+  //  - Auftrag mit bekanntem, zukünftigem Erwartungsmonat → in der Woche mit dem 1. dieses Monats
+  //  - Auftrag ohne Termin → Restwert gleichmäßig auf alle 13 Wochen verteilt (lineare Abarbeitung)
+  const currentMonth = monthKey(now);
+  const backlogDatedByMonth = {};
+  let backlogUndated = 0;
+  backlog.rows.forEach((o) => {
+    if (o.expected_month && o.expected_month >= currentMonth) {
+      backlogDatedByMonth[o.expected_month] = (backlogDatedByMonth[o.expected_month] || 0) + o.remaining;
+    } else {
+      backlogUndated += o.remaining;
+    }
+  });
+  const undatedPerWeek = backlogUndated / weeks;
+
   const weekBoundaries = [];
   for (let w = 0; w < weeks; w++) {
     const s = new Date(weekStart0);
@@ -348,11 +364,13 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
     }
     if (containsFirst.length > 0) recurringIn = recurring.monthlyTotal;
 
-    // Geplante Projektverrechnungen aus Auftragsbestand: Restwert im erwarteten Monat, in Woche die den 1. enthält
-    let backlogIn = 0;
+    // Hochrechnung Auftragsbestand:
+    //  a) undatierte Aufträge → jede Woche ein gleichmäßiger Anteil (lineare Abarbeitung)
+    //  b) datierte Aufträge → voll in der Woche, die den 1. des Erwartungsmonats enthält
+    let backlogIn = undatedPerWeek;
     if (containsFirst.length > 0) {
       const mk = monthKey(wb.start);
-      backlogIn = backlog.rows.reduce((s, o) => (o.expected_month === mk ? s + o.remaining : s), 0);
+      backlogIn += backlogDatedByMonth[mk] || 0;
     }
 
     const inflow = recIn + recurringIn + backlogIn;
@@ -381,7 +399,19 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
     };
   });
 
-  return { rows, openingBalance, openingSnap };
+  return {
+    rows,
+    openingBalance,
+    openingSnap,
+    // Metadaten zur Hochrechnung — für Transparenz in der UI
+    projection: {
+      backlogTotal: backlog.total,
+      backlogUndated,
+      backlogDated: backlog.total - backlogUndated,
+      undatedPerWeek,
+      recurringMonthly: recurring.monthlyTotal,
+    },
+  };
 }
 
 // ── Deckungsgrundlage (operativer Überschuss, monatlich + kumuliert) ──────
