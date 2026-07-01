@@ -3,6 +3,17 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { calcOverdueDays, getAgingBucket, AGING_LABELS, formatCurrency } from '@/lib/liquidityUtils';
 
+// Effektives Fälligkeitsdatum: due_date, sonst invoice_date + 30 Tage (konsistent mit KPIs)
+const effectiveDueDate = (item) => {
+  if (item.due_date) return item.due_date;
+  if (item.invoice_date) {
+    const d = new Date(item.invoice_date);
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  }
+  return null;
+};
+
 const BUCKET_COLORS = {
   'not_due': 'hsl(142, 71%, 45%)',
   '1_30': 'hsl(38, 92%, 50%)',
@@ -30,7 +41,7 @@ export default function AgingChart({ receivables, invoiceRecords = [] }) {
     .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled' && i.payment_status !== 'draft' && !i.is_credit_note)
     .filter(i => !i.invoice_number || !receivableNrs.has(i.invoice_number.toLowerCase()))
     .forEach(i => {
-      const dueDate = i.due_date || i.invoice_date;
+      const dueDate = effectiveDueDate(i);
       const days = calcOverdueDays(dueDate);
       const bucket = getAgingBucket(days);
       const amount = Number(i.open_amount) > 0 ? Number(i.open_amount) : Number(i.gross_amount) || 0;

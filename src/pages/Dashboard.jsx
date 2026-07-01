@@ -167,7 +167,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <PageHeader title="Dashboard" subtitle="Liquiditätsübersicht 2026" icon={LayoutDashboard} />
-      <DashboardKpis projects={projects} planLines={planLines} contracts={contracts} tools={tools} receivables={receivables} payables={payables} invoices={invoices} liveInvoiced={liveInvoiced} liveOpen={liveOpen} liveReceivablesData={liveReceivablesData} />
+      <DashboardKpis projects={projects} planLines={planLines} contracts={contracts} tools={tools} receivables={receivables} payables={payables} invoices={invoices} blocks={allBlocks} instructions={billingInstructions} liveInvoiced={liveInvoiced} liveOpen={liveOpen} liveReceivablesData={liveReceivablesData} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CashflowChart planLines={planLines} blocks={allBlocks} contracts={contracts} payables={payables} instructions={billingInstructions} invoiceRecords={invoices} />
         <PipelineChart projects={projects} contracts={contracts} planLines={planLines} />
@@ -179,7 +179,7 @@ export default function Dashboard() {
       <CashflowForecastChart invoiceRecords={invoices} billingBlocks={allBlocks} />
       <NonBillableWidget />
       <LiquidityTrendChart orders={allOrders} blocks={allBlocks} invoices={invoices} contracts={contracts} />
-      <RiskTimeline planLines={planLines} />
+      <RiskTimeline invoices={invoices} blocks={allBlocks} contracts={contracts} />
     </div>
   );
 }

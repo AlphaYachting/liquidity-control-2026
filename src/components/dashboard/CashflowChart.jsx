@@ -1,9 +1,13 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend } from 'recharts';
-import { formatCurrency, MONTHS_2026, MONTH_LABELS } from '@/lib/liquidityUtils';
+import { formatCurrency } from '@/lib/liquidityUtils';
 
-const MONTHS = MONTHS_2026;
+// Festes Kalenderjahr 2026 (Jän–Dez) — konsistent mit Liquiditätstrend & Timeline.
+const YEAR = 2026;
+const MONTHS = Array.from({ length: 12 }, (_, i) => `${YEAR}-${String(i + 1).padStart(2, '0')}`);
+const DE_MONTH_NAMES = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const MONTH_LABELS = Object.fromEntries(MONTHS.map((m, i) => [m, DE_MONTH_NAMES[i]]));
 
 // Build monthly cashflow from real data sources.
 // Priority: BillingInstructions (confirmed PM intent, with real date) > ProjectBillingBlocks (planned) > RecurringContracts
@@ -137,9 +141,9 @@ export default function CashflowChart({ planLines = [], blocks = [], contracts =
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">Monatlicher Cashflow 2026</CardTitle>
-        {!hasData && (
-          <p className="text-xs text-muted-foreground">Basiert auf Abrechnungspaketen (geplant)</p>
-        )}
+        <p className="text-xs text-muted-foreground">
+          Kalenderjahr 2026 · Zuflüsse (Anweisungen, Pakete, Verträge, offene Rechnungen) − Abflüsse
+        </p>
       </CardHeader>
       <CardContent>
         {!hasData ? (

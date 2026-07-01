@@ -3,19 +3,38 @@ import { TrendingUp, Receipt, AlertTriangle, CreditCard, FileText, Clock, Dollar
 import KpiCard from '@/components/shared/KpiCard';
 import { formatCurrency, calcOverdueDays } from '@/lib/liquidityUtils';
 
-export default function DashboardKpis({ projects, planLines, contracts, tools, receivables, payables, invoices = [], liveInvoiced, liveOpen, liveReceivablesData }) {
-  const totalPlanned = planLines.filter(l => l.direction === 'inflow').reduce((s, l) => s + (Number(l.amount_net) || 0), 0);
-  const alreadyInvoiced = liveInvoiced ?? projects.reduce((s, p) => s + (Number(p.already_invoiced_amount) || 0), 0);
+export default function DashboardKpis({ projects, planLines, contracts, tools, receivables, payables, invoices = [], blocks = [], instructions = [], liveInvoiced, liveOpen, liveReceivablesData }) {
   const openProject = liveOpen ?? projects.reduce((s, p) => s + (Number(p.open_amount) || 0), 0);
+
+  // Bereits verrechnet 2026 — strikt Kalenderjahr 2026 aus InvoiceRecords (netto, ohne Storno/Gutschrift)
+  const alreadyInvoiced = invoices
+    .filter(i => (i.invoice_date || '').startsWith('2026') && i.payment_status !== 'cancelled' && !i.is_credit_note)
+    .reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
 
   const today = new Date();
   const in30 = new Date(today); in30.setDate(in30.getDate() + 30);
-  const in90 = new Date(today); in90.setDate(in90.getDate() + 90);
 
-  const next30 = planLines.filter(l => l.direction === 'inflow' && l.date && new Date(l.date) <= in30 && new Date(l.date) >= today)
-    .reduce((s, l) => s + (Number(l.amount_net) || 0), 0);
-  const next90 = planLines.filter(l => l.direction === 'inflow' && l.date && new Date(l.date) <= in90 && new Date(l.date) >= today)
-    .reduce((s, l) => s + (Number(l.amount_net) || 0), 0);
+  // Erwartete Verrechnung nächste 30 Tage — aus echten Datenquellen:
+  // 1. Aktive Abrechnungsanweisungen (BillingInstruction) mit geplantem Rechnungsdatum im Fenster
+  // 2. Offene Abrechnungspakete (BillingBlock) mit planned_invoice_date / billing_month im Fenster
+  const ACTIVE_INSTR = new Set(['draft', 'ready_for_backoffice', 'sent_to_backoffice']);
+  const blockDate = (b) => b.planned_invoice_date || (b.billing_month ? `${b.billing_month}-15` : null);
+  const inWindow = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    return d >= today && d <= in30;
+  };
+
+  const next30FromInstr = instructions
+    .filter(i => ACTIVE_INSTR.has(i.status) && inWindow(i.planned_invoice_date))
+    .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0);
+
+  const coveredByInstr = new Set(instructions.map(i => i.billing_block_id).filter(Boolean));
+  const next30FromBlocks = blocks
+    .filter(b => !['invoiced', 'paid'].includes(b.invoice_readiness_status) && !coveredByInstr.has(b.id) && inWindow(blockDate(b)))
+    .reduce((s, b) => s + (Number(b.amount_net) || 0) * ((b.probability_percent ?? 90) / 100), 0);
+
+  const next30 = next30FromInstr + next30FromBlocks;
 
   // Effektives Fälligkeitsdatum: due_date, sonst invoice_date + 30 Tage als Fallback
   const effectiveDueDate = (item) => {

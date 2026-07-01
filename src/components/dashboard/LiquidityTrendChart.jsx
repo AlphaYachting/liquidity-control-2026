@@ -4,28 +4,34 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Legend
 } from 'recharts';
-import { formatCurrency, MONTHS_2026, MONTH_LABELS } from '@/lib/liquidityUtils';
+import { formatCurrency } from '@/lib/liquidityUtils';
 
+// Fixe Kalenderjahr-Monate 2026 (Jän–Dez) — der Trend bezieht sich strikt auf das Planungsjahr 2026,
+// unabhängig vom aktuellen Monat, damit Vorjahresrechnungen (2024/2025) NICHT vermischt werden.
+const YEAR = 2026;
+const CAL_MONTHS = Array.from({ length: 12 }, (_, i) => `${YEAR}-${String(i + 1).padStart(2, '0')}`);
+const DE_MONTH_NAMES = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const CAL_LABELS = Object.fromEntries(CAL_MONTHS.map((m, i) => [m, DE_MONTH_NAMES[i]]));
 const TODAY_MONTH = new Date().toISOString().slice(0, 7);
 
 function buildTrendData(orders = [], blocks = [], invoices = [], contracts = []) {
   const invoicedByMonth = {};
   const plannedByMonth = {};
-  MONTHS_2026.forEach(m => {
+  CAL_MONTHS.forEach(m => {
     invoicedByMonth[m] = 0;
     plannedByMonth[m] = 0;
   });
 
-  // 1. Bereits verrechnet: aus InvoiceRecords nach invoice_date (nur bezahlte + offene, keine Gutschriften)
-  const paidInvoices = invoices.filter(inv => inv.payment_status !== 'cancelled' && !inv.is_credit_note);
-  paidInvoices.forEach(inv => {
+  // 1. Bereits verrechnet: InvoiceRecords aus 2026 nach invoice_date (keine stornierten, keine Gutschriften)
+  const realInvoices = invoices.filter(inv => inv.payment_status !== 'cancelled' && !inv.is_credit_note);
+  realInvoices.forEach(inv => {
     const m = (inv.invoice_date || '').slice(0, 7);
     if (invoicedByMonth[m] !== undefined) {
       invoicedByMonth[m] += Number(inv.net_amount) || 0;
     }
   });
 
-  // 2. Geplant: BillingBlocks die noch nicht verrechnet sind, nach billing_month
+  // 2. Geplant: offene BillingBlocks aus 2026 nach billing_month (nicht über Rechnung abgedeckt)
   const linkedBlockIds = new Set(invoices.map(i => i.billing_block_id).filter(Boolean));
   blocks.forEach(b => {
     if (b.invoice_readiness_status === 'invoiced' || b.invoice_readiness_status === 'paid') return;
@@ -36,9 +42,9 @@ function buildTrendData(orders = [], blocks = [], invoices = [], contracts = [])
     plannedByMonth[m] += (Number(b.amount_net) || 0) * prob;
   });
 
-  // 3. Geplant: Aktive monatliche Verträge → in jeden zukünftigen Monat
+  // 3. Geplant: Aktive monatliche Verträge → nur in laufende/künftige Monate von 2026
   const activeContracts = contracts.filter(c => c.status === 'active' && c.billing_interval === 'monthly' && Number(c.monthly_fixed_price) > 0);
-  MONTHS_2026.forEach(m => {
+  CAL_MONTHS.forEach(m => {
     if (m >= TODAY_MONTH) {
       activeContracts.forEach(c => {
         plannedByMonth[m] += Number(c.monthly_fixed_price) || 0;
@@ -46,21 +52,22 @@ function buildTrendData(orders = [], blocks = [], invoices = [], contracts = [])
     }
   });
 
-  // Kumulative Linien aufbauen
+  // Kumulative Linien: "Geplant" baut auf dem bereits Verrechneten auf (Ist + noch geplant),
+  // damit die geplante Linie nie unter der Ist-Linie verläuft.
   let cumInvoiced = 0;
-  let cumPlanned = 0;
+  let cumPlannedExtra = 0;
 
-  return MONTHS_2026.map(m => {
+  return CAL_MONTHS.map(m => {
     cumInvoiced += invoicedByMonth[m];
-    cumPlanned += plannedByMonth[m];
+    cumPlannedExtra += plannedByMonth[m];
 
     return {
       month: m,
-      label: MONTH_LABELS[m] || m,
+      label: CAL_LABELS[m] || m,
       invoiced: Math.round(invoicedByMonth[m]),
       planned: Math.round(plannedByMonth[m]),
       cumInvoiced: Math.round(cumInvoiced),
-      cumPlanned: Math.round(cumPlanned),
+      cumPlanned: Math.round(cumInvoiced + cumPlannedExtra),
     };
   });
 }
@@ -93,7 +100,7 @@ export default function LiquidityTrendChart({ orders = [], blocks = [], invoices
           Prognose Liquiditätstrend 2026
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Kumuliert: verrechnet (InvoiceRecords) vs. geplant (Pakete + Monatsverträge)
+          Kalenderjahr 2026 · kumuliert: Ist-verrechnet vs. Ist + geplant (Pakete + Monatsverträge)
         </p>
       </CardHeader>
       <CardContent>
@@ -118,7 +125,7 @@ export default function LiquidityTrendChart({ orders = [], blocks = [], invoices
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <ReferenceLine
-                x={MONTH_LABELS[TODAY_MONTH] || TODAY_MONTH}
+                x={CAL_LABELS[TODAY_MONTH] || undefined}
                 stroke="hsl(var(--muted-foreground))"
                 strokeDasharray="4 4"
                 label={{ value: 'Heute', position: 'top', fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
