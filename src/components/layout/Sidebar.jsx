@@ -20,10 +20,11 @@ const navSections = [
       { path: '/invoice-ready', label: 'Abrechnungsanweisungen', icon: CheckSquare },
       { path: '/customer-risk', label: 'Kundenrisiko', icon: Users },
       { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock },
+      { path: '/escalation-alerts', label: 'Eskalations-Alerts', icon: AlertTriangle },
     ],
   },
   {
-    title: 'Auftragsabwicklung',
+    title: 'Einnahmen & Ausgaben',
     items: [
       { path: '/confirmed-orders', label: 'Auftragsabwicklung', icon: ClipboardList },
       { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
@@ -35,7 +36,6 @@ const navSections = [
       { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
       { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
       { path: '/revenue-analysis', label: 'Umsatzbewertung', icon: PieChart },
-      { path: '/escalation-alerts', label: 'Eskalations-Alerts', icon: AlertTriangle },
     ],
   },
   {
