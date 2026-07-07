@@ -89,6 +89,11 @@
       "type": "string",
       "format": "date"
     },
+    "is_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "true = Rechnung wurde in sevDesk versendet/festgeschrieben (nicht mehr Entwurf). Nur versendete, nicht stornierte Rechnungen fliessen in die Liquiditaetsuebersicht."
+    },
     "source_type": {
       "type": "string",
       "enum": [

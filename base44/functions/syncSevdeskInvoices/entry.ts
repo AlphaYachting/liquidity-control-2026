@@ -131,6 +131,10 @@ function buildRecord(inv, matchResult, existing) {
 
   const paymentStatus = mapInvoiceStatus(inv);
 
+  // is_sent: sevDesk-Status 100 = Entwurf (nicht versendet), alles andere = versendet/festgeschrieben.
+  // Nur versendete, nicht stornierte Rechnungen fliessen in die Liquiditaetsuebersicht.
+  const isSent = inv.status !== '100';
+
   // Bezahlter Betrag aus sumGrossPay (wird von sevDesk mit embed=payments befüllt)
   // Für status=1000 (voll bezahlt) nutzen wir grossAmount als Fallback
   const rawPaidAmount = parseAmount(inv.sumGrossPay || '0');
@@ -169,6 +173,7 @@ function buildRecord(inv, matchResult, existing) {
     paid_amount: paidAmount,
     open_amount: openAmount,
     payment_date: paymentStatus === 'paid' ? paymentDate : null,
+    is_sent: isSent,
     source_type: 'sevdesk',
     sevdesk_id: String(inv.id),
     confirmed_order_id: confirmedOrderId,

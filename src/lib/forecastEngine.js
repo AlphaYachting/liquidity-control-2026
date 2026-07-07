@@ -17,6 +17,7 @@
  */
 
 import { MONTHS_2026, weightedAmount } from './liquidityUtils';
+import { isLiquidityRelevantInvoice } from './invoiceLiquidityFilter';
 
 // MONTHS_2026 = [aktueller Monat, ..., +11 Monate] (dynamisch aus liquidityUtils)
 const FORECAST_MONTHS = MONTHS_2026;
@@ -52,10 +53,9 @@ function buildInvoiceItems(invoiceRecords, scenario) {
   const items = [];
 
   invoiceRecords.forEach(inv => {
-    if (['paid', 'cancelled'].includes(inv.payment_status)) return;
-    if (inv.is_credit_note) return;
-    // Entwürfe nur im Best-Case
-    if (inv.payment_status === 'draft' && scenario !== 'best_case') return;
+    // Nur versendete, nicht stornierte Rechnungen (keine Entwürfe, keine Gutschriften)
+    if (!isLiquidityRelevantInvoice(inv)) return;
+    if (inv.payment_status === 'paid') return; // bereits bezahlt → kein offener Zufluss mehr
 
     const amount = Number(inv.open_amount) > 0 ? Number(inv.open_amount) : Number(inv.gross_amount) || Number(inv.net_amount) || 0;
     if (amount <= 0) return;

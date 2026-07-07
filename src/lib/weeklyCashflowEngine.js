@@ -18,6 +18,7 @@
 
 import { addDays, startOfWeek, format, isWithinInterval, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { isLiquidityRelevantInvoice } from './invoiceLiquidityFilter';
 
 const WEEKS_AHEAD = 8;
 
@@ -77,10 +78,11 @@ export function buildWeeklyCashflow({ invoices = [], payables = [], blocks = [],
   const todayStr = `${_t.getFullYear()}-${String(_t.getMonth() + 1).padStart(2, '0')}-${String(_t.getDate()).padStart(2, '0')}`;
   const weeks = getWeeks();
 
+  // Nur versendete, nicht stornierte Rechnungen (keine Entwürfe/Gutschriften), noch offen
   const openInvoices = invoices.filter(inv =>
     inv.due_date &&
-    !['paid', 'cancelled'].includes(inv.payment_status) &&
-    !inv.is_credit_note
+    inv.payment_status !== 'paid' &&
+    isLiquidityRelevantInvoice(inv)
   );
 
   const activeContracts = contracts.filter(c => ['active', 'pending'].includes(c.status));
