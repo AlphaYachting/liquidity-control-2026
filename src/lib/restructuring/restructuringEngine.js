@@ -1,4 +1,5 @@
 import { monthKey } from './restructuringFormat';
+import { isInvoiceSent } from '../invoiceLiquidityFilter';
 
 /**
  * Zentrale Berechnungs-Engine für das Sanierungs-Reporting.
@@ -30,6 +31,7 @@ export function getOpenReceivables(invoices = []) {
       !i.is_credit_note &&
       i.invoice_type !== 'correction' &&
       i.payment_status !== 'draft' &&   // Entwürfe sind noch keine Forderung
+      isInvoiceSent(i) &&               // nur tatsächlich versendete Rechnungen
       i.payment_status !== 'paid'       // bezahlte raus (Fallback greift unten zusätzlich)
     )
     .map((i) => {
@@ -139,7 +141,7 @@ export function buildOrderBacklog(orders = [], projects = [], invoices = []) {
   const invByOrder = new Map();
   const invByCustomer = new Map();
   invoices.forEach((i) => {
-    if (isCancelled(i) || i.payment_status === 'draft') return;
+    if (isCancelled(i) || i.payment_status === 'draft' || !isInvoiceSent(i)) return;
     const net = num(i.net_amount); // Gutschriften/Korrekturen sind hier negativ und reduzieren korrekt
     if (i.confirmed_order_id) {
       invByOrder.set(i.confirmed_order_id, (invByOrder.get(i.confirmed_order_id) || 0) + net);
