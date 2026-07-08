@@ -31,8 +31,11 @@ Deno.serve(async (req) => {
 
     // Lookup: sevDesk-ID → interne Record-ID (für Verknüpfung zur Ursprungsrechnung)
     const recordIdBySevdeskId = {};
+    // Lookup: interne Record-ID → vollständiger Datensatz (für Zuordnungsvererbung)
+    const recordById = {};
     for (const r of invoices) {
       if (r.sevdesk_id) recordIdBySevdeskId[r.sevdesk_id] = r.id;
+      recordById[r.id] = r;
     }
 
     const candidates = [];
@@ -49,10 +52,20 @@ Deno.serve(async (req) => {
       const originSevdeskId = String(inv.origin?.id || '');
       const originalInvoiceId = recordIdBySevdeskId[originSevdeskId] || r.original_invoice_id || null;
 
+      // Zuordnung von der Ursprungsrechnung erben, damit die Gutschrift im selben
+      // Projekt/Auftrag erscheint und den Nettoeffekt korrekt auf 0 bringt.
+      const origin = originalInvoiceId ? recordById[originalInvoiceId] : null;
+      const inheritProjectId = origin?.project_id || r.project_id || null;
+      const inheritOrderId = origin?.confirmed_order_id || r.confirmed_order_id || null;
+      const inheritBlockId = origin?.billing_block_id || r.billing_block_id || null;
+
       const needsUpdate =
         r.invoice_type !== 'correction' ||
         r.is_credit_note !== true ||
-        (originalInvoiceId && r.original_invoice_id !== originalInvoiceId);
+        (originalInvoiceId && r.original_invoice_id !== originalInvoiceId) ||
+        (inheritProjectId && r.project_id !== inheritProjectId) ||
+        (inheritOrderId && r.confirmed_order_id !== inheritOrderId) ||
+        (inheritBlockId && r.billing_block_id !== inheritBlockId);
 
       if (!needsUpdate) continue;
 
@@ -61,8 +74,8 @@ Deno.serve(async (req) => {
         invoice_number: r.invoice_number,
         customer_name: r.customer_name,
         net_amount: r.net_amount,
-        before: { invoice_type: r.invoice_type, is_credit_note: r.is_credit_note, original_invoice_id: r.original_invoice_id },
-        after: { invoice_type: 'correction', is_credit_note: true, original_invoice_id: originalInvoiceId },
+        before: { invoice_type: r.invoice_type, is_credit_note: r.is_credit_note, original_invoice_id: r.original_invoice_id, project_id: r.project_id, confirmed_order_id: r.confirmed_order_id, billing_block_id: r.billing_block_id },
+        after: { invoice_type: 'correction', is_credit_note: true, original_invoice_id: originalInvoiceId, project_id: inheritProjectId, confirmed_order_id: inheritOrderId, billing_block_id: inheritBlockId },
         origin_sevdesk_id: originSevdeskId,
         origin_linked: !!recordIdBySevdeskId[originSevdeskId],
       });
@@ -75,6 +88,9 @@ Deno.serve(async (req) => {
           invoice_type: 'correction',
           is_credit_note: true,
           original_invoice_id: c.after.original_invoice_id,
+          project_id: c.after.project_id,
+          confirmed_order_id: c.after.confirmed_order_id,
+          billing_block_id: c.after.billing_block_id,
         });
         updated++;
       }

@@ -103,7 +103,7 @@ function shouldSkipMatching(inv) {
   return inv.status === '100' || inv.status === '50'; // draft or cancelled
 }
 
-function buildRecord(inv, matchResult, existing, recordIdBySevdeskId = {}) {
+function buildRecord(inv, matchResult, existing, recordIdBySevdeskId = {}, recordById = {}) {
   const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
 
   let dueDate = null;
@@ -164,7 +164,9 @@ function buildRecord(inv, matchResult, existing, recordIdBySevdeskId = {}) {
     openAmount = grossAmount; // Kein Zahlungsinfo → alles noch offen
   }
 
-  const confirmedOrderId = matchResult?.order?.id || existing?.confirmed_order_id || null;
+  let confirmedOrderId = matchResult?.order?.id || existing?.confirmed_order_id || null;
+  let projectId = existing?.project_id || null;
+  let billingBlockId = existing?.billing_block_id || null;
   const matchStatus = matchResult ? 'auto_matched' : (existing?.match_status || 'unmatched');
   const matchConfidence = matchResult?.confidence || existing?.match_confidence || 0;
 
@@ -177,9 +179,19 @@ function buildRecord(inv, matchResult, existing, recordIdBySevdeskId = {}) {
     if (correctionOriginSevdeskId && recordIdBySevdeskId[correctionOriginSevdeskId]) {
       originalInvoiceId = recordIdBySevdeskId[correctionOriginSevdeskId];
     }
+    // Zuordnung von der Ursprungsrechnung erben, damit die Gutschrift im selben
+    // Projekt/Auftrag erscheint und den Nettoeffekt korrekt auf 0 bringt.
+    const origin = originalInvoiceId ? recordById[originalInvoiceId] : null;
+    if (origin) {
+      confirmedOrderId = origin.confirmed_order_id || confirmedOrderId;
+      projectId = origin.project_id || projectId;
+      billingBlockId = origin.billing_block_id || billingBlockId;
+    }
   }
 
   return {
+    project_id: projectId,
+    billing_block_id: billingBlockId,
     invoice_number: inv.invoiceNumber || '',
     invoice_date: invoiceDate,
     customer_name: inv.contact?.name || inv.contactName || '',
@@ -255,11 +267,13 @@ Deno.serve(async (req) => {
 
     const existingMap = {};
     const recordIdBySevdeskId = {};
+    const recordById = {};
     for (const r of existingInvoices) {
       if (r.sevdesk_id) {
         existingMap[r.sevdesk_id] = r;
         recordIdBySevdeskId[r.sevdesk_id] = r.id;
       }
+      recordById[r.id] = r;
     }
 
     const ordersBySevdeskId = {};
@@ -301,7 +315,7 @@ Deno.serve(async (req) => {
         const matchResult = shouldSkipMatching(inv) ? null : findMatchingOrder(inv, allOrders, ordersBySevdeskId);
         // If already manually matched, don't overwrite with auto-match
         const effectiveMatch = (existing?.match_status === 'manually_matched') ? null : matchResult;
-        let record = buildRecord(inv, effectiveMatch, existing, recordIdBySevdeskId);
+        let record = buildRecord(inv, effectiveMatch, existing, recordIdBySevdeskId, recordById);
 
         // Für Teilzahlungen: Payments separat abrufen (sevDesk liefert sumGrossPay nicht im Listen-Endpoint)
         if (record.payment_status === 'partially_paid') {
