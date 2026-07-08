@@ -132,8 +132,9 @@ export default function Dashboard() {
       });
 
       const invoicedNet = linkedInvoices.filter(i => !i.is_credit_note).reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+      // Gutschriften sind in der DB bereits negativ gespeichert → addieren neutralisiert korrekt.
       const creditNoteNet = linkedInvoices.filter(i => i.is_credit_note).reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
-      const adjustedInvoicedNet = invoicedNet - creditNoteNet;
+      const adjustedInvoicedNet = invoicedNet + creditNoteNet;
 
       const ordersTotalNet = linkedOrders.reduce((s, o) => s + (Number(o.total_net_amount) || 0), 0);
       const blocksTotalNet = linkedBlocks.reduce((s, b) => s + (Number(b.amount_net) || 0), 0);

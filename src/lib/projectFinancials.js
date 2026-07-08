@@ -117,8 +117,11 @@ export function calculateProjectFinancials({ project, allOrders, allBlocks, allI
 
   const invoicedNet = realInvoices.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
   const invoicedGross = realInvoices.reduce((s, i) => s + (Number(i.gross_amount) || 0), 0);
+  // Gutschriften/Korrekturen sind in der DB bereits mit NEGATIVEM Betrag gespeichert
+  // (Storno-Gegenrechnung). creditNoteNet ist also selbst negativ (z.B. -966).
+  // adjustedInvoicedNet = echte Rechnungen + Gutschriften(negativ) → neutralisiert korrekt.
   const creditNoteNet = creditNotes.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
-  const adjustedInvoicedNet = invoicedNet - creditNoteNet;
+  const adjustedInvoicedNet = invoicedNet + creditNoteNet;
 
   // paid with fallback
   const paidGross = realInvoices.reduce((s, i) => s + getEffectivePaid(i).amount, 0);
