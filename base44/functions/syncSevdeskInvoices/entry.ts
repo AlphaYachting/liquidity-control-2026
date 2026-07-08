@@ -103,7 +103,7 @@ function shouldSkipMatching(inv) {
   return inv.status === '100' || inv.status === '50'; // draft or cancelled
 }
 
-function buildRecord(inv, matchResult, existing) {
+function buildRecord(inv, matchResult, existing, recordIdBySevdeskId = {}) {
   const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
 
   let dueDate = null;
@@ -124,7 +124,7 @@ function buildRecord(inv, matchResult, existing) {
   // sevDesk invoiceType mapping:
   // AN = Anzahlung/Advance, TR = Teilrechnung/Partial, SR = Schlussrechnung/Final
   // RE = Dauerrechnung/Recurring → partial_invoice (no project link expected)
-  const invoiceType = inv.invoiceType === 'AN' ? 'advance_invoice' :
+  let invoiceType = inv.invoiceType === 'AN' ? 'advance_invoice' :
                       inv.invoiceType === 'SR' ? 'final_invoice' :
                       inv.invoiceType === 'TR' ? 'partial_invoice' :
                       'partial_invoice'; // RE, MA, unknown → partial
@@ -134,6 +134,15 @@ function buildRecord(inv, matchResult, existing) {
   // is_sent: sevDesk-Status 100 = Entwurf (nicht versendet), alles andere = versendet/festgeschrieben.
   // Nur versendete, nicht stornierte Rechnungen fliessen in die Liquiditaetsuebersicht.
   const isSent = inv.status !== '100';
+
+  // Storno-/Korrektur-Erkennung:
+  // sevDesk erstellt bei einer Stornierung eine Gegenrechnung mit negativem Betrag,
+  // deren origin.objectName === 'Invoice' auf die Ursprungsrechnung zeigt.
+  // Diese Belege sind buchhalterisch Gutschriften und müssen als solche markiert werden,
+  // damit sie den Auftragsbestand nicht fälschlich als abgerechnet erscheinen lassen.
+  const originIsInvoice = inv.origin?.objectName === 'Invoice';
+  const isCorrection = originIsInvoice && netAmount < 0;
+  const correctionOriginSevdeskId = isCorrection ? String(inv.origin?.id || '') : null;
 
   // Bezahlter Betrag aus sumGrossPay (wird von sevDesk mit embed=payments befüllt)
   // Für status=1000 (voll bezahlt) nutzen wir grossAmount als Fallback
@@ -159,11 +168,24 @@ function buildRecord(inv, matchResult, existing) {
   const matchStatus = matchResult ? 'auto_matched' : (existing?.match_status || 'unmatched');
   const matchConfidence = matchResult?.confidence || existing?.match_confidence || 0;
 
+  // Korrektur/Storno-Belege als Gutschrift klassifizieren und mit Ursprung verknüpfen
+  let isCreditNote = false;
+  let originalInvoiceId = existing?.original_invoice_id || null;
+  if (isCorrection) {
+    invoiceType = 'correction';
+    isCreditNote = true;
+    if (correctionOriginSevdeskId && recordIdBySevdeskId[correctionOriginSevdeskId]) {
+      originalInvoiceId = recordIdBySevdeskId[correctionOriginSevdeskId];
+    }
+  }
+
   return {
     invoice_number: inv.invoiceNumber || '',
     invoice_date: invoiceDate,
     customer_name: inv.contact?.name || inv.contactName || '',
     invoice_type: invoiceType,
+    is_credit_note: isCreditNote,
+    original_invoice_id: originalInvoiceId,
     net_amount: netAmount,
     gross_amount: grossAmount,
     vat_amount: vatAmount,
@@ -232,8 +254,12 @@ Deno.serve(async (req) => {
     ]);
 
     const existingMap = {};
+    const recordIdBySevdeskId = {};
     for (const r of existingInvoices) {
-      if (r.sevdesk_id) existingMap[r.sevdesk_id] = r;
+      if (r.sevdesk_id) {
+        existingMap[r.sevdesk_id] = r;
+        recordIdBySevdeskId[r.sevdesk_id] = r.id;
+      }
     }
 
     const ordersBySevdeskId = {};
@@ -275,7 +301,7 @@ Deno.serve(async (req) => {
         const matchResult = shouldSkipMatching(inv) ? null : findMatchingOrder(inv, allOrders, ordersBySevdeskId);
         // If already manually matched, don't overwrite with auto-match
         const effectiveMatch = (existing?.match_status === 'manually_matched') ? null : matchResult;
-        let record = buildRecord(inv, effectiveMatch, existing);
+        let record = buildRecord(inv, effectiveMatch, existing, recordIdBySevdeskId);
 
         // Für Teilzahlungen: Payments separat abrufen (sevDesk liefert sumGrossPay nicht im Listen-Endpoint)
         if (record.payment_status === 'partially_paid') {
