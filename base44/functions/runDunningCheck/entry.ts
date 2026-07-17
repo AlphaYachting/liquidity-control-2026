@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.DunningRecord.create({
           ...recordBase,
           sevdesk_reminder_id: reminderId,
-          sevdesk_reminder_url: `https://my.sevdesk.de/#/fi/${reminderId}`,
+          sevdesk_reminder_url: `https://my.sevdesk.de/fi/edit/type/MA/id/${reminderId}`,
           status: 'draft_created',
         });
         created++;
