@@ -24,6 +24,10 @@ export default function DunningSection() {
 
   const decideMutation = useMutation({
     mutationFn: async ({ id, status }) => {
+      if (status === 'rejected') {
+        // Ablehnung löscht den Entwurf auch in sevDesk
+        return base44.functions.invoke('rejectDunningDraft', { dunning_record_id: id });
+      }
       const me = await base44.auth.me();
       return base44.entities.DunningRecord.update(id, {
         status,
