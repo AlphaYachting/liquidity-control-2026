@@ -12,7 +12,7 @@ const LEVEL_STYLE = {
 
 const STATUS_LABEL = {
   draft_created: { label: 'Entwurf — wartet auf Freigabe', cls: 'bg-blue-100 text-blue-700' },
-  approved: { label: '✓ Freigegeben', cls: 'bg-emerald-100 text-emerald-700' },
+  approved: { label: '✓ Versendet', cls: 'bg-emerald-100 text-emerald-700' },
   rejected: { label: 'Abgelehnt', cls: 'bg-gray-100 text-gray-600' },
   error: { label: 'Fehler', cls: 'bg-red-100 text-red-700' },
 };
@@ -62,8 +62,12 @@ export default function DunningTable({ records, isLoading, onDecide }) {
                     {r.status === 'draft_created' && (
                       <>
                         <Button size="sm" variant="outline" className="h-7 px-2 text-emerald-700"
-                          onClick={() => onDecide(r.id, 'approved')}>
-                          <Check className="w-3 h-3" /> Freigeben
+                          onClick={() => {
+                            if (window.confirm(`${r.level_label} zu Rechnung ${r.invoice_number} jetzt per E-Mail an ${r.customer_name} versenden?`)) {
+                              onDecide(r.id, 'approved');
+                            }
+                          }}>
+                          <Check className="w-3 h-3" /> Versenden
                         </Button>
                         <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground"
                           onClick={() => onDecide(r.id, 'rejected')}>

@@ -28,12 +28,8 @@ export default function DunningSection() {
         // Ablehnung löscht den Entwurf auch in sevDesk
         return base44.functions.invoke('rejectDunningDraft', { dunning_record_id: id });
       }
-      const me = await base44.auth.me();
-      return base44.entities.DunningRecord.update(id, {
-        status,
-        approved_by: me?.email || '',
-        approved_at: new Date().toISOString(),
-      });
+      // Freigabe versendet die Mahnung direkt per E-Mail aus sevDesk
+      return base44.functions.invoke('approveDunningDraft', { dunning_record_id: id });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dunningRecords'] }),
   });
@@ -61,8 +57,14 @@ export default function DunningSection() {
       <p className="text-xs text-muted-foreground">
         Täglicher Lauf um 06:00 Uhr. Basis: Erstversanddatum der Rechnung — nach 14 Tagen Zahlungserinnerung,
         nach 21 Tagen 1. Mahnung (inkl. Anrufeskalation), nach 28 Tagen 2. Mahnung.
-        Entwürfe werden in sevDesk angelegt, versendet wird erst nach deiner Freigabe.
+        Entwürfe werden in sevDesk angelegt — „Versenden" schickt die Mahnung direkt per E-Mail an den Kunden.
       </p>
+
+      {decideMutation.isError && (
+        <p className="text-xs text-red-600">
+          Fehler: {decideMutation.error?.response?.data?.error || decideMutation.error?.message}
+        </p>
+      )}
 
       {runMutation.isError && (
         <p className="text-xs text-red-600">Fehler beim Mahnlauf: {runMutation.error?.response?.data?.error || runMutation.error?.message}</p>
