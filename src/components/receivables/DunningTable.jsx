@@ -1,7 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, ExternalLink, Phone } from 'lucide-react';
+import { Check, X, ExternalLink } from 'lucide-react';
 import { formatCurrency } from '@/lib/liquidityUtils';
 
 const LEVEL_STYLE = {
@@ -33,7 +33,6 @@ export default function DunningTable({ records, isLoading, onDecide }) {
             <th className="py-2 pr-3">Erstversand</th>
             <th className="py-2 pr-3">Tage</th>
             <th className="py-2 pr-3">Status</th>
-            <th className="py-2 pr-3">Eskalation</th>
             <th className="py-2">Aktion</th>
           </tr>
         </thead>
@@ -41,7 +40,8 @@ export default function DunningTable({ records, isLoading, onDecide }) {
           {records.map(r => {
             const st = STATUS_LABEL[r.status] || STATUS_LABEL.draft_created;
             return (
-              <tr key={r.id} className="border-b last:border-0">
+              <tr key={r.id} className={`border-b last:border-0 ${r.call_escalation ? 'bg-red-50' : ''}`}
+                title={r.call_escalation ? 'Anrufeskalation' : undefined}>
                 <td className="py-2 pr-3">
                   <Badge className={LEVEL_STYLE[r.dunning_level] || LEVEL_STYLE[1]}>{r.level_label}</Badge>
                 </td>
@@ -51,13 +51,6 @@ export default function DunningTable({ records, isLoading, onDecide }) {
                 <td className="py-2 pr-3">{r.reference_date}</td>
                 <td className="py-2 pr-3">{r.overdue_days_at_creation}</td>
                 <td className="py-2 pr-3"><Badge className={st.cls}>{st.label}</Badge></td>
-                <td className="py-2 pr-3">
-                  {r.call_escalation ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600">
-                      <Phone className="w-3 h-3" /> Anrufeskalation
-                    </span>
-                  ) : '—'}
-                </td>
                 <td className="py-2">
                   <div className="flex items-center gap-1">
                     {r.sevdesk_reminder_url && (

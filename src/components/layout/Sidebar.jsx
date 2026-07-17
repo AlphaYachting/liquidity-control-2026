@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 import { useUnlinkedOrdersCount } from '@/hooks/useUnlinkedOrdersCount';
+import { usePendingDunningCount } from '@/hooks/usePendingDunningCount';
 
 const navSections = [
   {
@@ -68,6 +69,7 @@ export default function Sidebar() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const unlinkedCount = useUnlinkedOrdersCount();
+  const pendingDunningCount = usePendingDunningCount();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -79,7 +81,8 @@ export default function Sidebar() {
   const renderNavLink = (item) => {
     const Icon = item.icon;
     const active = isActive(item.path);
-    const badgeCount = item.path === '/confirmed-orders' ? unlinkedCount : 0;
+    const badgeCount = item.path === '/confirmed-orders' ? unlinkedCount
+      : item.path === '/receivables' ? pendingDunningCount : 0;
     return (
       <Link
         key={item.path}
