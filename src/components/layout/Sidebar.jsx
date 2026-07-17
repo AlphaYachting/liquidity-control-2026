@@ -37,13 +37,13 @@ const navSections = [
   {
     title: 'Einnahmen & Ausgaben',
     items: [
+      { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
       { path: '/confirmed-orders', label: 'Auftragsabwicklung', icon: ClipboardList },
       { path: '/online-marketing', label: 'Online-Marketing', icon: Megaphone },
       { path: '/maintenance', label: 'Wartungsverträge', icon: Shield },
       { path: '/hosting', label: 'Hosting & Domains', icon: Server },
       { path: '/production', label: 'Produktion & Support', icon: Wrench },
       { path: '/tools', label: 'Toolkosten', icon: CreditCard },
-      { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
       { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
       { path: '/revenue-analysis', label: 'Umsatzbewertung', icon: PieChart },
     ],
