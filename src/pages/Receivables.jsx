@@ -8,6 +8,7 @@ import PaymentFreshnessWarning from '@/components/shared/PaymentFreshnessWarning
 import KpiCard from '@/components/shared/KpiCard';
 import FilterBar from '@/components/shared/FilterBar';
 import DataTable from '@/components/shared/DataTable';
+import DunningSection from '@/components/receivables/DunningSection';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { formatCurrency, calcOverdueDays, getAgingBucket, AGING_LABELS } from '@/lib/liquidityUtils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -100,6 +101,8 @@ export default function Receivables() {
         <KpiCard title="Kritische Fälle" value={criticalCount} variant={criticalCount > 0 ? 'danger' : 'default'} />
         <KpiCard title="Gesamt Positionen" value={filtered.length} />
       </div>
+
+      <DunningSection />
 
       <FilterBar
         filters={[

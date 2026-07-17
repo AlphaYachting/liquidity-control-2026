@@ -1,0 +1,80 @@
+{
+  "name": "DunningRecord",
+  "type": "object",
+  "properties": {
+    "sevdesk_invoice_id": {
+      "type": "string",
+      "description": "sevDesk ID der Ursprungsrechnung"
+    },
+    "invoice_number": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "gross_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "open_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "reference_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Erstversanddatum der Rechnung (sendDate, Fallback invoiceDate)"
+    },
+    "overdue_days_at_creation": {
+      "type": "number",
+      "default": 0
+    },
+    "dunning_level": {
+      "type": "number",
+      "default": 1,
+      "description": "1=Zahlungserinnerung (14 Tage), 2=1. Mahnung (21 Tage), 3=2. Mahnung (28 Tage)"
+    },
+    "level_label": {
+      "type": "string"
+    },
+    "call_escalation": {
+      "type": "boolean",
+      "default": false,
+      "description": "Ab 1. Mahnung: Hinweis auf Anrufeskalation"
+    },
+    "sevdesk_reminder_id": {
+      "type": "string",
+      "description": "sevDesk ID des erstellten Mahnungs-Entwurfs"
+    },
+    "sevdesk_reminder_url": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft_created",
+        "approved",
+        "rejected",
+        "error"
+      ],
+      "default": "draft_created"
+    },
+    "error_message": {
+      "type": "string"
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sevdesk_invoice_id",
+    "dunning_level"
+  ]
+}
