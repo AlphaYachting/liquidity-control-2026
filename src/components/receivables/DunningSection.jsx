@@ -36,6 +36,15 @@ export default function DunningSection() {
 
   const pending = records.filter(r => r.status === 'draft_created');
 
+  // Sortierung: nicht abgelehnte zuerst (Zahlungserinnerung vor Mahnungen), Abgelehnte ganz unten
+  const sortedRecords = [...records].sort((a, b) => {
+    const aRejected = a.status === 'rejected' ? 1 : 0;
+    const bRejected = b.status === 'rejected' ? 1 : 0;
+    if (aRejected !== bRejected) return aRejected - bRejected;
+    if ((a.dunning_level || 1) !== (b.dunning_level || 1)) return (a.dunning_level || 1) - (b.dunning_level || 1);
+    return (b.created_date || '').localeCompare(a.created_date || '');
+  });
+
   return (
     <div className="rounded-xl border bg-card p-5 space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -77,7 +86,7 @@ export default function DunningSection() {
       )}
 
       <DunningTable
-        records={records}
+        records={sortedRecords}
         isLoading={isLoading}
         onDecide={(id, status) => decideMutation.mutate({ id, status })}
       />
