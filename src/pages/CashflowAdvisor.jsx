@@ -195,7 +195,9 @@ export default function CashflowAdvisor() {
         // Sprechender Name: Fallbezeichnung + Datum, damit die Analyse später auffindbar ist
         const shortMsg = msg.length > 45 ? msg.slice(0, 45).trim() + '…' : msg;
         const name = `${shortMsg} · ${new Date().toLocaleDateString('de-AT')}`;
-        await base44.agents.updateConversation(conversation.id, { metadata: { name } });
+        if (typeof base44.agents.updateConversation === 'function') {
+          await base44.agents.updateConversation(conversation.id, { metadata: { name } });
+        }
         setConversation(c => ({ ...c, metadata: { ...c.metadata, name } }));
         setConversations(prev => prev.map(c => c.id === conversation.id ? { ...c, metadata: { ...c.metadata, name } } : c));
       }
