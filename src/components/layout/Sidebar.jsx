@@ -28,7 +28,7 @@ const navSections = [
   {
     title: 'Cashflow',
     items: [
-      { path: '/cashflow-advisor', label: 'Cashflow Berater', icon: BrainCircuit },
+      { path: '/cashflow-advisor', label: 'Projektberater', icon: BrainCircuit },
       { path: '/weekly-cashflow', label: 'Wöchentl. Cashflow', icon: CalendarDays },
       { path: '/variance-analysis', label: 'Abweichungsanalyse', icon: BarChart2 },
       { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
