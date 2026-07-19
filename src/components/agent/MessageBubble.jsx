@@ -2,7 +2,7 @@ import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from "@/components/ui/button";
-import { Copy, Zap, CheckCircle2, AlertCircle, Loader2, ChevronRight, Clock } from 'lucide-react';
+import { Copy, Zap, CheckCircle2, AlertCircle, Loader2, ChevronRight, Clock, Mail } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -111,7 +111,17 @@ export default function MessageBubble({ message }) {
                       </div>
                     ) : <code className="px-1 py-0.5 rounded bg-muted text-foreground text-xs">{children}</code>;
                   },
-                  a: ({ children, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer">{children}</a>,
+                  a: ({ children, href, ...props }) => {
+                    if (href?.startsWith('mailto:')) {
+                      return (
+                        <a href={href} className="not-prose inline-flex items-center gap-2 my-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium no-underline hover:bg-primary/90 transition-colors shadow-sm">
+                          <Mail className="h-4 w-4" />
+                          {children}
+                        </a>
+                      );
+                    }
+                    return <a href={href} {...props} target="_blank" rel="noopener noreferrer">{children}</a>;
+                  },
                   p: ({ children }) => <p className="my-1 leading-relaxed">{children}</p>,
                   ul: ({ children }) => <ul className="my-1 ml-4 list-disc">{children}</ul>,
                   ol: ({ children }) => <ol className="my-1 ml-4 list-decimal">{children}</ol>,
