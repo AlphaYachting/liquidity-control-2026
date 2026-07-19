@@ -133,7 +133,12 @@ export default function CashflowAdvisor() {
   useEffect(() => {
     if (!conversation) return;
     const unsub = base44.agents.subscribeToConversation(conversation.id, (data) => {
-      setMessages(data.messages || []);
+      const msgs = data.messages || [];
+      setMessages(msgs);
+      // Sicherheitsnetz: sobald die Antwort des Beraters da ist, Eingabe wieder freigeben
+      if (msgs.length > 0 && msgs[msgs.length - 1]?.role === 'assistant') {
+        setSending(false);
+      }
     });
     return unsub;
   }, [conversation?.id]);
@@ -165,8 +170,11 @@ export default function CashflowAdvisor() {
     if (!msg || !conversation || sending) return;
     setInput('');
     setSending(true);
-    await base44.agents.addMessage(conversation, { role: 'user', content: msg });
-    setSending(false);
+    try {
+      await base44.agents.addMessage(conversation, { role: 'user', content: msg });
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleSuggestionClick = async (suggestion) => {
@@ -181,8 +189,11 @@ export default function CashflowAdvisor() {
       setConversations(prev => [conv, ...prev]);
     }
     setSending(true);
-    await base44.agents.addMessage(conv, { role: 'user', content: suggestion.text });
-    setSending(false);
+    try {
+      await base44.agents.addMessage(conv, { role: 'user', content: suggestion.text });
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleKey = (e) => {
