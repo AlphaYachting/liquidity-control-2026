@@ -166,14 +166,11 @@ export default function CashflowAdvisor() {
     setConversations(list || []);
   };
 
-  const startNewConversation = async () => {
-    const conv = await base44.agents.createConversation({
-      agent_name: 'cashflow_advisor',
-      metadata: { name: `Analyse ${new Date().toLocaleDateString('de-AT')}` }
-    });
-    setConversation(conv);
+  const startNewConversation = () => {
+    // Konversation wird erst beim Senden der ersten Frage angelegt —
+    // so bekommt sie direkt einen eindeutigen Namen aus der Fragestellung
+    setConversation(null);
     setMessages([]);
-    setConversations(prev => [conv, ...prev]);
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
@@ -185,22 +182,22 @@ export default function CashflowAdvisor() {
 
   const sendMessage = async (text) => {
     const msg = text || input.trim();
-    if (!msg || !conversation || sending) return;
-    const isFirstMessage = messages.length === 0;
+    if (!msg || sending) return;
     setInput('');
     setSending(true);
     try {
-      await base44.agents.addMessage(conversation, { role: 'user', content: msg });
-      if (isFirstMessage) {
-        // Sprechender Name: Fallbezeichnung + Datum, damit die Analyse später auffindbar ist
+      let conv = conversation;
+      if (!conv) {
+        // Eindeutiger Name direkt aus der Fragestellung + Datum
         const shortMsg = msg.length > 45 ? msg.slice(0, 45).trim() + '…' : msg;
-        const name = `${shortMsg} · ${new Date().toLocaleDateString('de-AT')}`;
-        if (typeof base44.agents.updateConversation === 'function') {
-          await base44.agents.updateConversation(conversation.id, { metadata: { name } });
-        }
-        setConversation(c => ({ ...c, metadata: { ...c.metadata, name } }));
-        setConversations(prev => prev.map(c => c.id === conversation.id ? { ...c, metadata: { ...c.metadata, name } } : c));
+        conv = await base44.agents.createConversation({
+          agent_name: 'cashflow_advisor',
+          metadata: { name: `${shortMsg} · ${new Date().toLocaleDateString('de-AT')}` }
+        });
+        setConversation(conv);
+        setConversations(prev => [conv, ...prev]);
       }
+      await base44.agents.addMessage(conv, { role: 'user', content: msg });
     } finally {
       setSending(false);
     }
@@ -405,15 +402,7 @@ export default function CashflowAdvisor() {
             />
             <div className="flex flex-col gap-1.5">
               <Button
-                onClick={() => {
-                  if (!conversation) {
-                    startNewConversation().then(() => {
-                      if (input.trim()) setTimeout(() => sendMessage(), 300);
-                    });
-                  } else {
-                    sendMessage();
-                  }
-                }}
+                onClick={() => sendMessage()}
                 disabled={!input.trim() || sending}
                 size="icon"
                 className="rounded-xl"
