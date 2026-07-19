@@ -52,16 +52,16 @@ const SUGGESTION_GROUPS = [
     color: 'amber',
     items: [
       {
-        label: 'Rückfragen an Verantwortlichen erstellen',
+        label: 'Rückfragen an Umsetzer erstellen',
         icon: Mic,
-        description: '3 Klassifizierungsfragen + E-Mail-Link generieren',
-        text: 'Ich möchte Projekt-Rückfragen an den Projektverantwortlichen erstellen. Frage mich zuerst, um welches Projekt es geht (Kunde oder Projektname). Analysiere dann den vollständigen Datenstand und erstelle genau 3 strukturierte Klassifizierungsfragen (F1–F3 mit Antwortformat und Zielfeld) sowie einen E-Mail-Link zum Öffnen meines E-Mail-Programms.',
+        description: '3 Fragen an die umsetzende Person + E-Mail-Link',
+        text: 'Ich möchte Projekt-Rückfragen an die umsetzende Person erstellen (wir haben keine Projektmanager). Frage mich zuerst, um welches Projekt es geht (Kunde oder Projektname). Analysiere dann den vollständigen Datenstand, ermittle die umsetzende Person aus den awork-Daten und erstelle genau 3 strukturierte Klassifizierungsfragen in Umsetzer-Sprache (F1–F3 mit Antwortformat) sowie einen E-Mail-Link zum Öffnen meines E-Mail-Programms.',
       },
       {
         label: 'Antworten einspielen',
         icon: Send,
         description: 'Erhaltene Antworten zuordnen & Daten korrigieren',
-        text: 'Ich habe Antworten auf Projekt-Rückfragen erhalten und füge sie in meiner nächsten Nachricht ein. Ordne sie den Fragen F1–F3 zu, schlage mir konkrete Feld-Korrekturen vor (Feld, alter Wert, neuer Wert) und aktualisiere die Projektdaten erst nach meiner Bestätigung.',
+        text: 'Ich habe Antworten der umsetzenden Person auf Projekt-Rückfragen erhalten und füge sie in meiner nächsten Nachricht ein. Ordne sie den Fragen F1–F3 zu, übersetze die Umsetzer-Fakten in konkrete Feld-Korrekturen (Feld, alter Wert, neuer Wert) und aktualisiere die Projektdaten erst nach meiner Bestätigung.',
       },
     ],
   },
