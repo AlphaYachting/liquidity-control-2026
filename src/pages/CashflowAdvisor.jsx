@@ -48,6 +48,24 @@ const SUGGESTION_GROUPS = [
     ],
   },
   {
+    group: '📧 Projekt-Rückfragen',
+    color: 'amber',
+    items: [
+      {
+        label: 'Rückfragen an Verantwortlichen erstellen',
+        icon: Mic,
+        description: '3 Klassifizierungsfragen + E-Mail-Link generieren',
+        text: 'Ich möchte Projekt-Rückfragen an den Projektverantwortlichen erstellen. Frage mich zuerst, um welches Projekt es geht (Kunde oder Projektname). Analysiere dann den vollständigen Datenstand und erstelle genau 3 strukturierte Klassifizierungsfragen (F1–F3 mit Antwortformat und Zielfeld) sowie einen E-Mail-Link zum Öffnen meines E-Mail-Programms.',
+      },
+      {
+        label: 'Antworten einspielen',
+        icon: Send,
+        description: 'Erhaltene Antworten zuordnen & Daten korrigieren',
+        text: 'Ich habe Antworten auf Projekt-Rückfragen erhalten und füge sie in meiner nächsten Nachricht ein. Ordne sie den Fragen F1–F3 zu, schlage mir konkrete Feld-Korrekturen vor (Feld, alter Wert, neuer Wert) und aktualisiere die Projektdaten erst nach meiner Bestätigung.',
+      },
+    ],
+  },
+  {
     group: '📅 Planung & Forecast',
     color: 'violet',
     items: [
@@ -168,10 +186,19 @@ export default function CashflowAdvisor() {
   const sendMessage = async (text) => {
     const msg = text || input.trim();
     if (!msg || !conversation || sending) return;
+    const isFirstMessage = messages.length === 0;
     setInput('');
     setSending(true);
     try {
       await base44.agents.addMessage(conversation, { role: 'user', content: msg });
+      if (isFirstMessage) {
+        // Sprechender Name: Fallbezeichnung + Datum, damit die Analyse später auffindbar ist
+        const shortMsg = msg.length > 45 ? msg.slice(0, 45).trim() + '…' : msg;
+        const name = `${shortMsg} · ${new Date().toLocaleDateString('de-AT')}`;
+        await base44.agents.updateConversation(conversation.id, { metadata: { name } });
+        setConversation(c => ({ ...c, metadata: { ...c.metadata, name } }));
+        setConversations(prev => prev.map(c => c.id === conversation.id ? { ...c, metadata: { ...c.metadata, name } } : c));
+      }
     } finally {
       setSending(false);
     }
@@ -182,7 +209,7 @@ export default function CashflowAdvisor() {
     if (!conv) {
       conv = await base44.agents.createConversation({
         agent_name: 'cashflow_advisor',
-        metadata: { name: suggestion.label }
+        metadata: { name: `${suggestion.label} · ${new Date().toLocaleDateString('de-AT')}` }
       });
       setConversation(conv);
       setMessages([]);
@@ -204,11 +231,13 @@ export default function CashflowAdvisor() {
     emerald: 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800',
     blue: 'border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800',
     violet: 'border-violet-200 bg-violet-50 hover:bg-violet-100 text-violet-800',
+    amber: 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800',
   };
   const iconColorMap = {
     emerald: 'text-emerald-600',
     blue: 'text-blue-600',
     violet: 'text-violet-600',
+    amber: 'text-amber-600',
   };
 
   return (
