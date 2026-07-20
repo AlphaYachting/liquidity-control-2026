@@ -303,7 +303,7 @@ export default function CashflowAdvisor() {
           </div>
           <div className="min-w-0">
             <h1 className="text-sm font-semibold leading-tight truncate">
-              {conversation?.metadata?.name || 'Cashflow Berater'}
+              {conversation?.metadata?.name || 'Rittler und Co Projektintelligence'}
             </h1>
             <p className="text-xs text-muted-foreground">
               KI-Analyse · Projekt-Cockpit · Stand 15.06.2026
