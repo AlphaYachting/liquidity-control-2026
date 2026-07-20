@@ -1,0 +1,36 @@
+{
+  "name": "WeeklyIntelligenceReport",
+  "type": "object",
+  "properties": {
+    "report_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Datum der Berichtserstellung"
+    },
+    "title": {
+      "type": "string"
+    },
+    "content_markdown": {
+      "type": "string",
+      "description": "Vollst\u00e4ndiger Lagebericht als Markdown"
+    },
+    "kpi_json": {
+      "type": "string",
+      "description": "JSON: Kennzahlen (Potenzial, kritische Projekte, \u00fcberf\u00e4llige Rechnungen, offene Stunden)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "generated",
+        "error"
+      ],
+      "default": "generated"
+    },
+    "error_message": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "report_date"
+  ]
+}

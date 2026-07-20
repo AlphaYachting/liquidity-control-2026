@@ -1,0 +1,70 @@
+{
+  "name": "AdvisorRecommendation",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Verkn\u00fcpftes LiquidityProject"
+    },
+    "customer": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "recommendation_text": {
+      "type": "string",
+      "description": "Konkrete Empfehlung (z.B. 'Teilrechnung \u00fcber \u20ac5.000 stellen')"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "quick_win",
+        "budget_risk",
+        "billing",
+        "inquiry",
+        "collection",
+        "other"
+      ],
+      "default": "other"
+    },
+    "amount_net": {
+      "type": "number",
+      "default": 0,
+      "description": "Gesch\u00e4tztes Potenzial netto in EUR"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "done",
+        "dismissed",
+        "obsolete"
+      ],
+      "default": "open"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "advisor_chat",
+        "weekly_report",
+        "manual"
+      ],
+      "default": "advisor_chat"
+    },
+    "recommended_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "resolved_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "recommendation_text"
+  ]
+}

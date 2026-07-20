@@ -3,7 +3,13 @@ import { base44 } from '@/api/base44Client';
 import { BrainCircuit, Send, Plus, Trash2, ChevronRight, Zap, TrendingDown, Calendar, AlertTriangle, Search, BarChart3, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MessageBubble from '@/components/agent/MessageBubble';
+import WeeklyReportCard from '@/components/agent/WeeklyReportCard';
 import { toast } from 'sonner';
+
+// Dynamische Monatsbezüge — Vorschläge bleiben immer aktuell
+const _now = new Date();
+const _ym = (o) => { const d = new Date(_now.getFullYear(), _now.getMonth() + o, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+const _ml = (o) => new Date(_now.getFullYear(), _now.getMonth() + o, 1).toLocaleString('de-AT', { month: 'long', year: 'numeric' });
 
 const SUGGESTION_GROUPS = [
   {
@@ -73,14 +79,14 @@ const SUGGESTION_GROUPS = [
       {
         label: 'Forecast nächste 3 Monate',
         icon: Calendar,
-        description: 'Erwartete Einnahmen Juli–September 2026',
-        text: 'Cashflow-Prognose Juli–September 2026. Drei Quellen kombinieren: (1) InvoiceRecord (open/partially_paid): gruppiere open_amount nach Monat des due_date = erwartete Zahlungseingänge. (2) BillingInstruction (draft/ready_for_backoffice): nach Monat von planned_invoice_date = geplante neue Rechnungen. (3) LiquidityProject mit expected_invoice_month in 2026-07/08/09 + Quick-Win-Potenzial aus Fortschritts-Lücke. Zeige pro Monat: Zahlungseingänge, neue Rechnungen, Potenzial, Summe. Gesamtprognose kumuliert.',
+        description: `Erwartete Einnahmen ${_ml(1)} – ${_ml(3)}`,
+        text: `Cashflow-Prognose ${_ml(1)} bis ${_ml(3)}. Drei Quellen kombinieren: (1) InvoiceRecord (open/partially_paid): gruppiere open_amount nach Monat des due_date = erwartete Zahlungseingänge, verschoben um den durchschnittlichen Zahlungsverzug je Kunde. (2) BillingInstruction (draft/ready_for_backoffice): nach Monat von planned_invoice_date = geplante neue Rechnungen. (3) LiquidityProject mit expected_invoice_month in ${_ym(1)}, ${_ym(2)} oder ${_ym(3)} + Quick-Win-Potenzial aus Fortschritts-Lücke. Zeige pro Monat: Zahlungseingänge, neue Rechnungen, Potenzial, Summe. Gesamtprognose kumuliert.`,
       },
       {
-        label: 'Nächsten Monat planen (Juli 2026)',
+        label: `Nächsten Monat planen (${_ml(1)})`,
         icon: Calendar,
-        description: 'Vollständiger Abrechnungsplan für Juli',
-        text: 'Erstelle Abrechnungsplan für Juli 2026. Nutze: (1) MonthlyBillingPlan mit planning_month="2026-07". (2) BillingInstruction mit planned_invoice_date im Juli. (3) ProjectBillingBlock mit billing_month="2026-07". (4) LiquidityProject mit expected_invoice_month="2026-07". (5) AworkProjectSnapshot: Projekte mit hoher Fortschritts-Lücke die im Juli abgerechnet werden könnten. Sortiere nach Kunde, zeige Status und Beträge. Gesamtvolumen und Prioritätenliste.',
+        description: `Vollständiger Abrechnungsplan für ${_ml(1)}`,
+        text: `Erstelle Abrechnungsplan für ${_ml(1)}. Nutze: (1) MonthlyBillingPlan mit planning_month="${_ym(1)}". (2) BillingInstruction mit planned_invoice_date in diesem Monat. (3) ProjectBillingBlock mit billing_month="${_ym(1)}". (4) LiquidityProject mit expected_invoice_month="${_ym(1)}". (5) AworkProjectSnapshot: Projekte mit hoher Fortschritts-Lücke die in diesem Monat abgerechnet werden könnten. Sortiere nach Kunde, zeige Status und Beträge. Gesamtvolumen und Prioritätenliste.`,
       },
     ],
   },
@@ -306,7 +312,7 @@ export default function CashflowAdvisor() {
               {conversation?.metadata?.name || 'Rittler und Co Projektintelligence'}
             </h1>
             <p className="text-xs text-muted-foreground">
-              KI-Analyse · Projekt-Cockpit · Stand 15.06.2026
+              {`KI-Analyse · Projekt-Cockpit · Stand ${new Date().toLocaleDateString('de-AT')}`}
             </p>
           </div>
           {sending && (
@@ -334,6 +340,9 @@ export default function CashflowAdvisor() {
                   </p>
                 </div>
               )}
+
+              {/* Aktuellster Wochenbericht */}
+              {!conversation && <WeeklyReportCard />}
 
               {/* Suggestion Groups */}
               {SUGGESTION_GROUPS.map((group) => (
