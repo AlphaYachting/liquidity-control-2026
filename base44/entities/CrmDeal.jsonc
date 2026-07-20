@@ -103,6 +103,42 @@
     },
     "notes": {
       "type": "string"
+    },
+    "company_website": {
+      "type": "string",
+      "description": "Website der Firma (Stammdaten)"
+    },
+    "company_address": {
+      "type": "string",
+      "description": "Firmenadresse (Stammdaten)"
+    },
+    "company_industry": {
+      "type": "string",
+      "description": "Branche (Stammdaten)"
+    },
+    "company_size": {
+      "type": "string",
+      "description": "Firmengr\u00f6\u00dfe, z.B. Mitarbeiteranzahl (Stammdaten)"
+    },
+    "enrichment_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "complete",
+        "enriched",
+        "insufficient_data",
+        "error"
+      ],
+      "default": "pending",
+      "description": "Status der automatischen Stammdaten-Pr\u00fcfung/Recherche"
+    },
+    "enrichment_summary": {
+      "type": "string",
+      "description": "Kurzzusammenfassung der Web-Recherche"
+    },
+    "enriched_at": {
+      "type": "string",
+      "format": "date-time"
     }
   },
   "required": [

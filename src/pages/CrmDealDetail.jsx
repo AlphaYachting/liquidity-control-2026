@@ -11,6 +11,7 @@ import AppointmentSection from '@/components/crm/AppointmentSection';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import WonLostDialog from '@/components/crm/WonLostDialog';
 import CustomerContextCard from '@/components/crm/CustomerContextCard';
+import CompanyMasterDataCard from '@/components/crm/CompanyMasterDataCard';
 import { PIPELINES, STAGE_LABELS, SOURCE_LABELS, eur, isClosedStage, isWonStage } from '@/components/crm/stages';
 
 export default function CrmDealDetail() {
@@ -155,6 +156,8 @@ export default function CrmDealDetail() {
             {deal.contact_phone && <p className="text-sm flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-muted-foreground" /> {deal.contact_phone}</p>}
             {deal.description && <p className="text-xs text-muted-foreground whitespace-pre-wrap pt-1 border-t mt-2">{deal.description}</p>}
           </div>
+
+          <CompanyMasterDataCard deal={deal} onChanged={refreshAll} />
 
           <div className="border rounded-xl bg-card p-4">
             <AppointmentSection deal={deal} appointments={appointments} onChanged={refreshAll} />
