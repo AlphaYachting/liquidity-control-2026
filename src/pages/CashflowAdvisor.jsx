@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { BrainCircuit, Send, Plus, Trash2, ChevronRight, Zap, TrendingDown, Calendar, AlertTriangle, Search, BarChart3, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MessageBubble from '@/components/agent/MessageBubble';
+import { toast } from 'sonner';
 
 const SUGGESTION_GROUPS = [
   {
@@ -144,6 +145,17 @@ export default function CashflowAdvisor() {
 
   useEffect(() => { loadConversations(); }, []);
 
+  // Sicherheits-Watchdog: Eingabe nie dauerhaft sperren.
+  // Falls nach 3 Minuten keine Antwort kam (Timeout/Abbruch bei langen Chats), wieder freigeben.
+  useEffect(() => {
+    if (!sending) return;
+    const t = setTimeout(() => {
+      setSending(false);
+      toast.error('Der Berater braucht ungewöhnlich lange — Sie können weiter schreiben.');
+    }, 180000);
+    return () => clearTimeout(t);
+  }, [sending]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -198,6 +210,9 @@ export default function CashflowAdvisor() {
         setConversations(prev => [conv, ...prev]);
       }
       await base44.agents.addMessage(conv, { role: 'user', content: msg });
+    } catch (err) {
+      toast.error('Nachricht konnte nicht verarbeitet werden. Bitte erneut versuchen.');
+      setInput(msg);
     } finally {
       setSending(false);
     }
@@ -217,6 +232,8 @@ export default function CashflowAdvisor() {
     setSending(true);
     try {
       await base44.agents.addMessage(conv, { role: 'user', content: suggestion.text });
+    } catch (err) {
+      toast.error('Analyse konnte nicht gestartet werden. Bitte erneut versuchen.');
     } finally {
       setSending(false);
     }
@@ -397,8 +414,7 @@ export default function CashflowAdvisor() {
               onKeyDown={handleKey}
               rows={2}
               placeholder={conversation ? 'Frage stellen oder Projekt angeben… (Enter zum Senden)' : 'Neue Frage — zuerst eine Analyse oben wählen oder direkt tippen…'}
-              disabled={sending}
-              className="flex-1 resize-none rounded-xl border bg-background px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+              className="flex-1 resize-none rounded-xl border bg-background px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <div className="flex flex-col gap-1.5">
               <Button
