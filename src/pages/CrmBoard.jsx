@@ -17,6 +17,7 @@ export default function CrmBoard() {
   const queryClient = useQueryClient();
   const [pipeline, setPipeline] = useState('new_business');
   const [formOpen, setFormOpen] = useState(false);
+  const [showClosed, setShowClosed] = useState(null);
 
   const { data: deals = [], isLoading } = useQuery({
     queryKey: ['crm-deals'],
@@ -84,12 +85,18 @@ export default function CrmBoard() {
           <span className="px-2.5 py-1.5 rounded-lg bg-card border font-medium text-muted-foreground">
             Gewichtet: {eur(weightedValue)}
           </span>
-          <span className="px-2.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium flex items-center gap-1">
+          <button
+            onClick={() => setShowClosed(showClosed === 'won' ? null : 'won')}
+            className={`px-2.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium flex items-center gap-1 hover:bg-emerald-100 transition-colors ${showClosed === 'won' ? 'ring-2 ring-emerald-300' : ''}`}
+          >
             <Trophy className="w-3 h-3" /> {wonDeals.length}
-          </span>
-          <span className="px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 font-medium flex items-center gap-1">
+          </button>
+          <button
+            onClick={() => setShowClosed(showClosed === 'lost' ? null : 'lost')}
+            className={`px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 font-medium flex items-center gap-1 hover:bg-red-100 transition-colors ${showClosed === 'lost' ? 'ring-2 ring-red-300' : ''}`}
+          >
             <XCircle className="w-3 h-3" /> {lostDeals.length}
-          </span>
+          </button>
         </div>
       </div>
 
@@ -138,6 +145,23 @@ export default function CrmBoard() {
             })}
           </div>
         </DragDropContext>
+      )}
+
+      {showClosed && (
+        <div className="border rounded-xl bg-card p-4">
+          <h3 className="text-sm font-semibold mb-3">
+            {showClosed === 'won' ? '🏆 Gewonnene Deals' : '❌ Verlorene Deals'}
+          </h3>
+          {(showClosed === 'won' ? wonDeals : lostDeals).length === 0 ? (
+            <p className="text-xs text-muted-foreground">Noch keine Einträge.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              {(showClosed === 'won' ? wonDeals : lostDeals).map(d => (
+                <DealCard key={d.id} deal={d} onClick={() => navigate(`/crm/deals/${d.id}`)} />
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       <DealFormDialog

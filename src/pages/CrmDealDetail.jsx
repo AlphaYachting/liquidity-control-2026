@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Pencil, Trophy, XCircle, Building2, Mail, Phone, User } from 'lucide-react';
+import { ArrowLeft, Pencil, Trophy, XCircle, Building2, Mail, Phone, User, RotateCcw, Trash2 } from 'lucide-react';
 import ActivityTimeline from '@/components/crm/ActivityTimeline';
 import ActivityComposer from '@/components/crm/ActivityComposer';
 import AppointmentSection from '@/components/crm/AppointmentSection';
@@ -46,6 +46,24 @@ export default function CrmDealDetail() {
   const config = PIPELINES[deal.pipeline];
   const closed = isClosedStage(deal.stage);
 
+  const reopenDeal = async () => {
+    await base44.entities.CrmDeal.update(deal.id, { stage: config.stages[0].key, lost_reason: '' });
+    await base44.entities.CrmActivity.create({
+      deal_id: deal.id, activity_type: 'stage_change',
+      title: 'Deal wieder geöffnet', activity_date: new Date().toISOString(),
+    });
+    refreshAll();
+  };
+
+  const deleteDeal = async () => {
+    if (!window.confirm('Deal endgültig löschen? Alle Aktivitäten und Termine werden mitgelöscht.')) return;
+    if (activities.length > 0) await base44.entities.CrmActivity.deleteMany({ deal_id: deal.id });
+    if (appointments.length > 0) await base44.entities.CrmAppointment.deleteMany({ deal_id: deal.id });
+    await base44.entities.CrmDeal.delete(deal.id);
+    queryClient.invalidateQueries({ queryKey: ['crm-deals'] });
+    navigate('/crm');
+  };
+
   const changeStage = async (stage) => {
     await base44.entities.CrmDeal.update(deal.id, { stage });
     await base44.entities.CrmActivity.create({
@@ -83,15 +101,23 @@ export default function CrmDealDetail() {
           <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditOpen(true)}>
             <Pencil className="w-3.5 h-3.5" /> Bearbeiten
           </Button>
+          <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-red-600" onClick={deleteDeal} title="Deal löschen">
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
         </div>
       </div>
 
       {closed ? (
-        <div className={`rounded-xl border p-3 text-sm font-medium ${
+        <div className={`rounded-xl border p-3 text-sm font-medium flex items-center justify-between gap-3 ${
           isWonStage(deal.stage) ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-700'
         }`}>
-          {STAGE_LABELS[deal.stage]} am {deal.closed_at ? new Date(deal.closed_at).toLocaleDateString('de-AT') : '—'}
-          {deal.lost_reason && <span className="font-normal"> · Grund: {deal.lost_reason}</span>}
+          <span>
+            {STAGE_LABELS[deal.stage]} am {deal.closed_at ? new Date(deal.closed_at).toLocaleDateString('de-AT') : '—'}
+            {deal.lost_reason && <span className="font-normal"> · Grund: {deal.lost_reason}</span>}
+          </span>
+          <Button size="sm" variant="outline" className="gap-1.5 shrink-0 bg-background" onClick={reopenDeal}>
+            <RotateCcw className="w-3.5 h-3.5" /> Wieder öffnen
+          </Button>
         </div>
       ) : (
         <div className="flex items-center gap-2">

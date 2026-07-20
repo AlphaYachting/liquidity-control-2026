@@ -20,7 +20,12 @@ export default function DealFormDialog({ open, onOpenChange, initialData, onSave
   const isEdit = Boolean(initialData?.id);
 
   useEffect(() => {
-    if (open) setForm({ ...EMPTY, ...(initialData || {}) });
+    if (open) {
+      const merged = { ...EMPTY, ...(initialData || {}) };
+      // Startphase immer zur Pipeline passend setzen (Bug: Bestandskunden-Deal landete sonst unsichtbar in Neukunden-Phase)
+      if (!initialData?.id && !initialData?.stage) merged.stage = PIPELINES[merged.pipeline].stages[0].key;
+      setForm(merged);
+    }
   }, [open, initialData]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));

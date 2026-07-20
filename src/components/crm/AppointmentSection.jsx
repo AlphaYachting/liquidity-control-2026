@@ -21,14 +21,20 @@ export default function AppointmentSection({ deal, appointments, onChanged }) {
   const [title, setTitle] = useState('');
   const [when, setWhen] = useState('');
 
+  const logActivity = (title, content) => base44.entities.CrmActivity.create({
+    deal_id: deal.id, activity_type: 'meeting', title, content, activity_date: new Date().toISOString(),
+  });
+
   const create = async () => {
     if (!when) return;
+    const whenLabel = new Date(when).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     await base44.entities.CrmAppointment.create({
       deal_id: deal.id,
       title: title || 'Erstgespräch',
       scheduled_at: new Date(when).toISOString(),
       status: 'proposed',
     });
+    await logActivity('Termin vorgeschlagen', `${title || 'Erstgespräch'} · ${whenLabel}`);
     if (deal.pipeline === 'new_business' && ['new_lead', 'contacted'].includes(deal.stage)) {
       await base44.entities.CrmDeal.update(deal.id, { stage: 'meeting_scheduled' });
     }
@@ -41,6 +47,7 @@ export default function AppointmentSection({ deal, appointments, onChanged }) {
       status,
       ...(status === 'confirmed' ? { confirmed_at: new Date().toISOString(), confirmation_source: 'manual' } : {}),
     });
+    await logActivity(status === 'confirmed' ? 'Termin bestätigt' : 'Termin abgesagt', appt.title || 'Termin');
     if (status === 'confirmed' && deal.stage === 'meeting_scheduled') {
       await base44.entities.CrmDeal.update(deal.id, { stage: 'meeting_confirmed' });
     }

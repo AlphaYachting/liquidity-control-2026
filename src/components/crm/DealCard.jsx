@@ -5,8 +5,9 @@ import { SOURCE_LABELS, eur } from '@/components/crm/stages';
 
 export default function DealCard({ deal, onClick }) {
   const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const ageDays = deal.created_date ? differenceInDays(today, parseISO(deal.created_date)) : 0;
-  const nextOverdue = deal.next_step_date && parseISO(deal.next_step_date) < today;
+  const nextOverdue = deal.next_step_date && deal.next_step_date < todayStr;
 
   return (
     <button
