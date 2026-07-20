@@ -36,6 +36,8 @@ Suche gezielt auf LinkedIn (site:linkedin.com) und im Web nach dieser Person. Fi
 2. Aktuelle Position/Rolle im Unternehmen
 3. Kurzprofil (2-3 Sätze): beruflicher Hintergrund, Rolle, ggf. Entscheidungskompetenz
 
+KRITISCHE REGEL für linkedin_url: Gib die URL NUR an, wenn sie exakt so in deinen Suchergebnissen vorkommt (z.B. in einem Treffer von linkedin.com/in/... oder linkedin.com/posts/...). Konstruiere oder rate NIEMALS eine Profil-URL aus dem Namen — eine erfundene URL ist schlimmer als keine. Wenn du nur einen Post-Link (linkedin.com/posts/NAME-SLUG_...) findest, leite daraus die Profil-URL ab: https://www.linkedin.com/in/NAME-SLUG. Im Zweifel linkedin_url leer lassen.
+
 Wenn du die Person nicht eindeutig identifizieren kannst, setze found=false. Keine Vermutungen, keine Verwechslungen mit Namensvettern.`,
         add_context_from_internet: true,
         response_json_schema: {
