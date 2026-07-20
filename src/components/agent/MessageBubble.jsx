@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from "@/components/ui/button";
@@ -76,7 +76,7 @@ const FunctionDisplay = ({ toolCall }) => {
   );
 };
 
-export default function MessageBubble({ message }) {
+function MessageBubble({ message }) {
   const isUser = message.role === 'user';
   return (
     <div className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}>
@@ -152,3 +152,10 @@ export default function MessageBubble({ message }) {
     </div>
   );
 }
+
+// Nur neu rendern, wenn sich diese konkrete Nachricht ändert — verhindert das
+// Neuzeichnen des gesamten Verlaufs bei langen Chats (reine Darstellungsoptimierung).
+export default memo(MessageBubble, (prev, next) =>
+  prev.message.content === next.message.content &&
+  JSON.stringify(prev.message.tool_calls) === JSON.stringify(next.message.tool_calls)
+);

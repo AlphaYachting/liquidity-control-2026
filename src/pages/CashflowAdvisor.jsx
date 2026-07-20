@@ -157,8 +157,10 @@ export default function CashflowAdvisor() {
   }, [sending]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    // Sofortiges (nicht "smooth") Scrollen verhindert Zittern, während der
+    // Berater noch Teil-Updates streamt — reine Darstellung.
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+  }, [messages.length]);
 
   useEffect(() => {
     if (!conversation) return;
@@ -374,7 +376,7 @@ export default function CashflowAdvisor() {
             </div>
           ) : (
             <div className="p-5 space-y-4 max-w-3xl mx-auto">
-              {messages.map((msg, i) => <MessageBubble key={i} message={msg} />)}
+              {messages.map((msg, i) => <MessageBubble key={msg.id || `${msg.role}-${i}`} message={msg} />)}
 
               {/* Inline follow-up suggestions after response */}
               {!sending && messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && (
