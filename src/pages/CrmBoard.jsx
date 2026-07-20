@@ -128,7 +128,7 @@ export default function CrmBoard() {
                         }`}
                       >
                         {stageDeals.map((deal, idx) => (
-                          <Draggable key={deal.id} draggableId={deal.id} index={idx}>
+                          <Draggable key={deal.id} draggableId={deal.id} index={idx} disableInteractiveElementBlocking>
                             {(dragProvided) => (
                               <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} {...dragProvided.dragHandleProps}>
                                 <DealCard deal={deal} onClick={() => navigate(`/crm/deals/${deal.id}`)} />
