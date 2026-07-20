@@ -43,6 +43,29 @@ Deno.serve(async (req) => {
     const snapById: Record<string, any> = {};
     for (const s of snapshots) snapById[s.awork_project_id] = s;
 
+    // 2b. Ist-Abrechnung je Projekt aus ECHTEN Rechnungen (Wahrheitsquelle) —
+    // die Projektfelder already_invoiced_amount/open_amount sind oft veraltet.
+    const projectIds = projects.map(p => p.id);
+    const orders = await svc.entities.ConfirmedOrder.filter({ project_id: { $in: projectIds } }, null, 500);
+    const orderToProject: Record<string, string> = {};
+    for (const o of orders) orderToProject[o.id] = o.project_id;
+    const [invByProject, invByOrder] = await Promise.all([
+      svc.entities.InvoiceRecord.filter({ project_id: { $in: projectIds } }, null, 1000),
+      orders.length > 0
+        ? svc.entities.InvoiceRecord.filter({ confirmed_order_id: { $in: orders.map(o => o.id) } }, null, 1000)
+        : Promise.resolve([]),
+    ]);
+    const seenInv = new Set<string>();
+    const invoicedByProject: Record<string, number> = {};
+    for (const i of [...invByProject, ...invByOrder]) {
+      if (seenInv.has(i.id)) continue;
+      seenInv.add(i.id);
+      if (i.is_credit_note || i.payment_status === 'cancelled' || i.payment_status === 'draft') continue;
+      const pid = i.project_id || orderToProject[i.confirmed_order_id];
+      if (!pid) continue;
+      invoicedByProject[pid] = (invoicedByProject[pid] || 0) + (i.net_amount || 0);
+    }
+
     // 3. Offene verrechenbare Stunden — VOLLSTÄNDIG paginiert (kein Limit-Abschnitt)
     const openEntries: any[] = [];
     let skip = 0;
@@ -67,7 +90,9 @@ Deno.serve(async (req) => {
     const rows = projects.map(p => {
       const snap = p.awork_project_id ? snapById[p.awork_project_id] : null;
       const total = p.total_net_amount || 0;
-      const invoiced = p.already_invoiced_amount || 0;
+      // Echte Rechnungen schlagen das (oft veraltete) Projektfeld
+      const invoiced = Math.max(p.already_invoiced_amount || 0, invoicedByProject[p.id] || 0);
+      const openNet = Math.max(total - invoiced, 0);
       const billingPct = total > 0 ? Math.round((invoiced / total) * 100) : 0;
       const progress = (p.real_progress_percent > 0 ? p.real_progress_percent : null)
         ?? snap?.progress_percent ?? p.awork_progress_percent ?? 0;
@@ -75,11 +100,11 @@ Deno.serve(async (req) => {
         ? Math.round((snap.tracked_duration_minutes / snap.time_budget_minutes) * 100)
         : null;
       const openHours = p.awork_project_id ? Math.round((openMinutes[p.awork_project_id] || 0) / 60) : 0;
-      const stale = p.awork_project_id && (p.open_amount || 0) > 0 &&
+      const stale = p.awork_project_id && openNet > 0 &&
         (!lastEntryDate[p.awork_project_id] || lastEntryDate[p.awork_project_id] < twoWeeksAgo);
       return {
         kunde: p.customer, projekt: p.project_name,
-        auftrag_netto: total, offen_netto: p.open_amount || 0,
+        auftrag_netto: total, abgerechnet_netto: Math.round(invoiced), offen_netto: Math.round(openNet),
         fortschritt_pct: Math.round(progress), abrechnung_pct: billingPct,
         luecke_pct: Math.round(progress - billingPct),
         budget_auslastung_pct: budgetUtil, offene_stunden: openHours,
@@ -161,7 +186,14 @@ Struktur:
 5. "🔴 Eingreifen" — Budget-kritische und stagnierende Projekte
 6. "📋 Nachverfolgung" — offene Empfehlungen und unbeantwortete Rückfragen
 7. "🎯 Top-3-Aufgaben für nächste Woche" — konkrete Handlungen mit Beträgen
-Kompakt, Tabellen wo sinnvoll, konkrete Eurobeträge, keine Floskeln, keine erfundenen Zahlen.`;
+Formatvorgaben (strikt einhalten):
+- Jede Sektion beginnt mit einer "## "-Überschrift inkl. Emoji.
+- Jede Auflistung ist eine Markdown-Tabelle (z.B. | Kunde | Projekt | Betrag | Fällig/Status |), sortiert nach Betrag absteigend.
+- Beträge im Format €12.345 (netto, gerundet). In Quick-Win-Tabellen zusätzlich Spalten "Abgerechnet" und "Offen".
+- Nach jeder Tabelle höchstens ein kurzer Hinweis-Satz.
+- Leere Sektionen mit einem Satz abhandeln ("Keine Einträge").
+- Die Top-3-Aufgaben als nummerierte Liste, beginnend mit fettem Aktionsverb und Betrag.
+- Keine Einleitungs- oder Schlussabsätze, keine Floskeln, keine erfundenen Zahlen.`;
 
     const content = await svc.integrations.Core.InvokeLLM({ prompt });
 
