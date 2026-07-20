@@ -45,6 +45,7 @@ import Hosting from '@/pages/Hosting';
 import CrmBoard from '@/pages/CrmBoard';
 import CrmInbox from '@/pages/CrmInbox';
 import CrmDealDetail from '@/pages/CrmDealDetail';
+import AuditTrail from '@/pages/AuditTrail';
 import RestructuringLayout from '@/components/restructuring/RestructuringLayout';
 import RestructuringCockpit from '@/pages/RestructuringCockpit';
 import Restructuring13Week from '@/pages/Restructuring13Week';
@@ -118,6 +119,7 @@ const AuthenticatedApp = () => {
         <Route path="/billing-reset" element={<AdminRoute><BillingDataReset /></AdminRoute>} />
         <Route path="/operational-reset" element={<AdminRoute><OperationalReset /></AdminRoute>} />
         <Route path="/sevdesk-reimport" element={<AdminRoute><SevdeskReimport /></AdminRoute>} />
+        <Route path="/audit-trail" element={<AdminRoute><AuditTrail /></AdminRoute>} />
         <Route path="/restructuring" element={<AdminRoute><RestructuringLayout /></AdminRoute>}>
           <Route index element={<RestructuringCockpit />} />
           <Route path="liquidity" element={<Restructuring13Week />} />

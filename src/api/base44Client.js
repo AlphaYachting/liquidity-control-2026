@@ -1,10 +1,11 @@
 import { createClient } from '@base44/sdk';
 import { appParams } from '@/lib/app-params';
+import { withAuditLogging } from './auditWrapper';
 
 const { appId, token, functionsVersion, appBaseUrl } = appParams;
 
 //Create a client with authentication required
-export const base44 = createClient({
+const rawClient = createClient({
   appId,
   token,
   functionsVersion,
@@ -12,3 +13,6 @@ export const base44 = createClient({
   requiresAuth: false,
   appBaseUrl
 });
+
+// Alle Entity-Mutationen werden automatisch im AuditLog dem Benutzer-Login zugeordnet
+export const base44 = withAuditLogging(rawClient);

@@ -6,7 +6,7 @@ import {
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
   CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale,
-  KanbanSquare, Inbox
+  KanbanSquare, Inbox, History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
@@ -60,6 +60,7 @@ const navSections = [
 ];
 
 const adminNavItems = [
+  { path: '/audit-trail', label: 'Änderungsprotokoll', icon: History },
   { path: '/restructuring', label: 'Sanierungs-Reporting', icon: Scale },
   { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
   { path: '/billing-reset', label: 'Verrechnungsdaten Reset', icon: RefreshCw },
