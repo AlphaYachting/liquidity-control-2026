@@ -1,10 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { fetchLiveOpenReceivables } from '../../shared/sevdeskLiveReceivables.ts';
 
-// Wöchentlicher automatischer Lagebericht der Projektintelligence:
-// sammelt Ist-Daten (Projekte, awork, Rechnungen, offene Stunden, Empfehlungen,
-// Rückfragen), lässt daraus einen kompakten Markdown-Bericht generieren und
-// speichert ihn als WeeklyIntelligenceReport. Rein additiv — keine Änderungen
-// an bestehenden Daten außer dem neuen Berichts-Datensatz.
+// Wochenvorschau der Projektintelligence — läuft donnerstags und schaut
+// PROAKTIV in die NÄCHSTE Woche: erwartete Zahlungseingänge, geplante
+// Abrechnungen, Quick-Wins, Budget-Risiken und offene Nachverfolgungen.
+// Forderungszahlen kommen live aus sevDesk (Wahrheitsquelle),
+// Zeiterfassung wird vollständig paginiert geladen.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -12,21 +13,47 @@ Deno.serve(async (req) => {
     if (!isAuth) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const svc = base44.asServiceRole;
-    const today = new Date().toISOString().substring(0, 10);
+    const now = new Date();
+    const today = now.toISOString().substring(0, 10);
 
-    // 1. Aktive Projekte + awork-Snapshots
+    // Nächste Woche: Montag bis Sonntag nach dem heutigen Tag
+    const dow = now.getUTCDay(); // 0=So
+    const daysToNextMonday = ((8 - dow) % 7) || 7;
+    const nextMonday = new Date(now.getTime() + daysToNextMonday * 86400000);
+    const nextSunday = new Date(nextMonday.getTime() + 6 * 86400000);
+    const weekStart = nextMonday.toISOString().substring(0, 10);
+    const weekEnd = nextSunday.toISOString().substring(0, 10);
+    const nextWeekMonth = weekStart.substring(0, 7);
+
+    // 1. Live-Forderungen aus sevDesk (Wahrheitsquelle)
+    const apiKey = Deno.env.get('SEVDESK_API_KEY');
+    if (!apiKey) return Response.json({ error: 'SEVDESK_API_KEY not set' }, { status: 500 });
+    const receivables = await fetchLiveOpenReceivables(apiKey);
+    const overdue = receivables.filter(r => r.due_date && r.due_date < today);
+    const dueNextWeek = receivables.filter(r => r.due_date && r.due_date >= weekStart && r.due_date <= weekEnd);
+    const overdueSum = Math.round(overdue.reduce((s, r) => s + r.open_amount, 0));
+    const dueNextWeekSum = Math.round(dueNextWeek.reduce((s, r) => s + r.open_amount, 0));
+
+    // 2. Aktive Projekte + awork-Snapshots
     const projects = await svc.entities.LiquidityProject.filter({ is_active_for_billing: true }, null, 500);
     const aworkIds = projects.map(p => p.awork_project_id).filter(Boolean);
     const snapshots = aworkIds.length > 0
       ? await svc.entities.AworkProjectSnapshot.filter({ awork_project_id: { $in: aworkIds } }, null, 500)
       : [];
-    const snapById = {};
+    const snapById: Record<string, any> = {};
     for (const s of snapshots) snapById[s.awork_project_id] = s;
 
-    // 2. Offene verrechenbare Stunden je Projekt
-    const openEntries = await svc.entities.AworkTimeEntry.filter({ is_billable: true, is_billed: false }, null, 2000);
-    const openMinutes = {};
-    const lastEntryDate = {};
+    // 3. Offene verrechenbare Stunden — VOLLSTÄNDIG paginiert (kein Limit-Abschnitt)
+    const openEntries: any[] = [];
+    let skip = 0;
+    while (true) {
+      const page = await svc.entities.AworkTimeEntry.filter({ is_billable: true, is_billed: false }, null, 1000, skip);
+      openEntries.push(...page);
+      if (page.length < 1000) break;
+      skip += 1000;
+    }
+    const openMinutes: Record<string, number> = {};
+    const lastEntryDate: Record<string, string> = {};
     for (const e of openEntries) {
       if (!e.awork_project_id) continue;
       openMinutes[e.awork_project_id] = (openMinutes[e.awork_project_id] || 0) + (e.duration_minutes || 0);
@@ -35,8 +62,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Kennzahlen je Projekt
-    const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString().substring(0, 10);
+    // 4. Kennzahlen je Projekt
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000).toISOString().substring(0, 10);
     const rows = projects.map(p => {
       const snap = p.awork_project_id ? snapById[p.awork_project_id] : null;
       const total = p.total_net_amount || 0;
@@ -65,28 +92,36 @@ Deno.serve(async (req) => {
     const budgetCritical = rows.filter(r => r.budget_auslastung_pct !== null && r.budget_auslastung_pct > 100);
     const stagnating = rows.filter(r => r.stagniert);
 
-    // 4. Überfällige Rechnungen
-    const openInvoices = await svc.entities.InvoiceRecord.filter(
-      { payment_status: { $in: ['open', 'partially_paid', 'overdue'] } }, null, 1000);
-    const overdue = openInvoices.filter(i =>
-      i.payment_status === 'overdue' || (i.due_date && i.due_date < today));
-    const overdueSum = overdue.reduce((s, i) => s + (i.open_amount || i.gross_amount || 0), 0);
+    // 5. Geplante Abrechnungen für die nächste Woche / den Monat der nächsten Woche
+    const instructions = await svc.entities.BillingInstruction.filter(
+      { status: { $in: ['draft', 'ready_for_backoffice', 'sent_to_backoffice'] } }, null, 500);
+    const plannedNextWeek = instructions.filter(i =>
+      i.planned_invoice_date && i.planned_invoice_date >= weekStart && i.planned_invoice_date <= weekEnd);
+    const monthPlans = await svc.entities.MonthlyBillingPlan.filter(
+      { planning_month: nextWeekMonth, billing_status: { $in: ['open', 'planned', 'in_review', 'ready_for_invoice'] } }, null, 500);
+    const plannedSum = Math.round(
+      plannedNextWeek.reduce((s, i) => s + (i.instruction_amount_net || 0), 0) +
+      monthPlans.reduce((s, p) => s + (p.planned_amount_net || 0), 0));
 
-    // 5. Offene Empfehlungen & unbeantwortete Rückfragen
+    // 6. Nachverfolgung
     const openRecs = await svc.entities.AdvisorRecommendation.filter({ status: 'open' }, null, 200).catch(() => []);
     const openInquiries = await svc.entities.ProjectInquiry.filter({ status: 'sent' }, null, 200).catch(() => []);
 
-    // 6. Stundensatz für Euro-Bewertung
+    // 7. Stundensatz
     const settings = await svc.entities.RestructuringSetting.list(null, 1).catch(() => []);
     const hourlyRate = settings[0]?.wip_blended_hourly_rate || 100;
     const totalOpenHours = rows.reduce((s, r) => s + r.offene_stunden, 0);
 
     const kpis = {
+      woche_von: weekStart, woche_bis: weekEnd,
+      zahlungseingaenge_naechste_woche: dueNextWeekSum,
+      zahlungseingaenge_anzahl: dueNextWeek.length,
+      geplante_abrechnungen_netto: plannedSum,
       quick_win_potenzial_netto: Math.round(quickWins.reduce((s, r) => s + r.offen_netto, 0)),
       quick_wins: quickWins.length,
       budget_kritisch: budgetCritical.length,
       stagnierend: stagnating.length,
-      ueberfaellig_summe: Math.round(overdueSum),
+      ueberfaellig_summe: overdueSum,
       ueberfaellig_anzahl: overdue.length,
       offene_stunden: totalOpenHours,
       offene_stunden_wert_netto: Math.round(totalOpenHours * hourlyRate),
@@ -94,37 +129,45 @@ Deno.serve(async (req) => {
       unbeantwortete_rueckfragen: openInquiries.length,
     };
 
-    // 7. Bericht generieren
-    const prompt = `Du bist die "Rittler und Co Projektintelligence" einer österreichischen Digitalagentur. Heute ist ${today}. Erstelle den wöchentlichen Lagebericht als kompaktes Markdown-Dokument auf Deutsch.
+    // 8. Vorschau-Bericht generieren
+    const fmtDate = (s: string) => new Date(s).toLocaleDateString('de-AT');
+    const prompt = `Du bist die "Rittler und Co Projektintelligence" einer österreichischen Digitalagentur. Heute ist ${today}. Erstelle die WOCHENVORSCHAU für die NÄCHSTE Woche (${fmtDate(weekStart)} bis ${fmtDate(weekEnd)}) als kompaktes Markdown-Dokument auf Deutsch. Der Bericht ist ein proaktiver Arbeitsplan: WAS IST NÄCHSTE WOCHE ZU TUN — kein Rückblick.
 
-Kennzahlen: ${JSON.stringify(kpis)}
+Kennzahlen (bereits validiert, exakt so verwenden — NICHT neu berechnen oder runden): ${JSON.stringify(kpis)}
 
-Quick-Win-Projekte (Fortschritt deutlich vor Abrechnung, sofort abrechenbar): ${JSON.stringify(quickWins.slice(0, 15))}
+Rechnungen, die nächste Woche fällig werden (erwartete Zahlungseingänge, live aus sevDesk): ${JSON.stringify(dueNextWeek.slice(0, 15))}
 
-Budget-kritische Projekte (Budget überschritten): ${JSON.stringify(budgetCritical.slice(0, 10))}
+Bereits überfällige Rechnungen (nächste Woche nachfassen/mahnen, live aus sevDesk, Top nach Betrag): ${JSON.stringify(overdue.sort((a, b) => b.open_amount - a.open_amount).slice(0, 10))}
 
-Stagnierende Projekte (keine Zeitbuchung seit 14+ Tagen, offenes Volumen): ${JSON.stringify(stagnating.slice(0, 10))}
+Für nächste Woche geplante Abrechnungsanweisungen: ${JSON.stringify(plannedNextWeek.slice(0, 10).map(i => ({ kunde: i.customer_name, projekt: i.project_name, betrag_netto: i.instruction_amount_net, datum: i.planned_invoice_date, status: i.status })))}
 
-Überfällige Rechnungen (Top): ${JSON.stringify(overdue.slice(0, 10).map(i => ({ kunde: i.customer_name, nr: i.invoice_number, offen: i.open_amount || i.gross_amount, faellig: i.due_date })))}
+Offene Monatsplanungen für ${nextWeekMonth}: ${JSON.stringify(monthPlans.slice(0, 10).map(p => ({ betrag_netto: p.planned_amount_net, status: p.billing_status, typ: p.planned_invoice_type })))}
+
+Quick-Wins (Fortschritt deutlich vor Abrechnung — nächste Woche Rechnung stellen): ${JSON.stringify(quickWins.slice(0, 15))}
+
+Budget-kritische Projekte (nächste Woche eingreifen): ${JSON.stringify(budgetCritical.slice(0, 10))}
+
+Stagnierende Projekte (keine Zeitbuchung seit 14+ Tagen bei offenem Volumen): ${JSON.stringify(stagnating.slice(0, 10))}
 
 Offene Empfehlungen aus Vorwochen: ${JSON.stringify(openRecs.slice(0, 10).map(r => ({ kunde: r.customer, projekt: r.project_name, empfehlung: r.recommendation_text, betrag: r.amount_net, seit: r.recommended_at })))}
 
 Unbeantwortete Rückfragen an Umsetzer: ${JSON.stringify(openInquiries.slice(0, 10).map(q => ({ kunde: q.customer, projekt: q.project_name, empfaenger: q.recipient_name, seit: q.sent_at })))}
 
-Struktur des Berichts:
-1. KPI-Zeile oben (Potenzial €, Quick-Wins, Budget-kritisch, Überfällig €, Offene Stunden mit €-Wert bei ${hourlyRate}€/h)
-2. "⚡ Sofort abrechenbar" — Quick-Wins mit Kunde, Projekt, Betrag, Lücke
-3. "🔴 Budget & Risiken" — kritische und stagnierende Projekte
-4. "💶 Forderungen" — überfällige Rechnungen
-5. "📋 Nachverfolgung" — offene Empfehlungen und unbeantwortete Rückfragen aus Vorwochen
-6. "🎯 Top-3-Prioritäten dieser Woche" — konkrete Handlungen mit Beträgen
-Kompakt, Tabellen wo sinnvoll, konkrete Eurobeträge, keine Floskeln.`;
+Struktur:
+1. KPI-Zeile oben (erwartete Eingänge nächste Woche €, geplante Abrechnungen €, Quick-Win-Potenzial €, Überfällig €, offene Stunden mit €-Wert bei ${hourlyRate}€/h)
+2. "💶 Erwartete Zahlungseingänge nächste Woche" — fällige Rechnungen mit Kunde, Betrag, Fälligkeit
+3. "🧾 Nächste Woche Rechnung stellen" — geplante Anweisungen + Quick-Wins mit konkretem Betrag
+4. "📞 Nachfassen & Mahnen" — überfällige Rechnungen mit Priorität
+5. "🔴 Eingreifen" — Budget-kritische und stagnierende Projekte
+6. "📋 Nachverfolgung" — offene Empfehlungen und unbeantwortete Rückfragen
+7. "🎯 Top-3-Aufgaben für nächste Woche" — konkrete Handlungen mit Beträgen
+Kompakt, Tabellen wo sinnvoll, konkrete Eurobeträge, keine Floskeln, keine erfundenen Zahlen.`;
 
     const content = await svc.integrations.Core.InvokeLLM({ prompt });
 
     const record = await svc.entities.WeeklyIntelligenceReport.create({
       report_date: today,
-      title: `Wochenbericht ${new Date().toLocaleDateString('de-AT')}`,
+      title: `Wochenvorschau ${fmtDate(weekStart)} – ${fmtDate(weekEnd)}`,
       content_markdown: typeof content === 'string' ? content : JSON.stringify(content),
       kpi_json: JSON.stringify(kpis),
       status: 'generated',
