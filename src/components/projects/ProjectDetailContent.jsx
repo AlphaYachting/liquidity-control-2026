@@ -268,12 +268,15 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
     </div>
   );
 
+  // Variante A: Statuszeile bevorzugt den frischen AworkProjectSnapshot (aus dem
+  // automatischen Hintergrund-Sync), Projekt-/Order-Felder nur noch als Fallback.
+  // Reine Anzeige-Priorität — es werden keine Daten geschrieben.
   const aworkData = {
     awork_project_id: effectiveAworkProjectId,
-    awork_project_name: project.awork_project_name || primaryOrder?.awork_project_name || aworkSnapshot?.name,
-    awork_project_status: project.awork_project_status || primaryOrder?.awork_project_status || aworkSnapshot?.project_status,
-    awork_progress_percent: aworkTaskStats?.progress_percent ?? project.awork_progress_percent ?? primaryOrder?.awork_progress_percent ?? 0,
-    awork_last_synced_at: project.awork_last_synced_at || primaryOrder?.awork_last_synced_at,
+    awork_project_name: aworkSnapshot?.name || project.awork_project_name || primaryOrder?.awork_project_name,
+    awork_project_status: aworkSnapshot?.project_status || project.awork_project_status || primaryOrder?.awork_project_status,
+    awork_progress_percent: aworkTaskStats?.progress_percent ?? aworkSnapshot?.progress_percent ?? project.awork_progress_percent ?? primaryOrder?.awork_progress_percent ?? 0,
+    awork_last_synced_at: aworkSnapshot?.last_synced_at || project.awork_last_synced_at || primaryOrder?.awork_last_synced_at,
   };
 
   return (
