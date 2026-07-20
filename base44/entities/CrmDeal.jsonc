@@ -139,6 +139,18 @@
     "enriched_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "contact_position": {
+      "type": "string",
+      "description": "Position/Rolle des Ansprechpartners (LinkedIn-Recherche)"
+    },
+    "contact_linkedin_url": {
+      "type": "string",
+      "description": "LinkedIn-Profil-URL des Ansprechpartners"
+    },
+    "contact_background": {
+      "type": "string",
+      "description": "Kurzprofil des Ansprechpartners aus LinkedIn/Web-Recherche"
     }
   },
   "required": [

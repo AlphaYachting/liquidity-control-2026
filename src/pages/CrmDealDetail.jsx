@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Pencil, Trophy, XCircle, Building2, Mail, Phone, User, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Trophy, XCircle, Building2, Mail, Phone, User, RotateCcw, Trash2, Linkedin } from 'lucide-react';
 import ActivityTimeline from '@/components/crm/ActivityTimeline';
 import ActivityComposer from '@/components/crm/ActivityComposer';
 import AppointmentSection from '@/components/crm/AppointmentSection';
@@ -147,13 +147,24 @@ export default function CrmDealDetail() {
           <div className="border rounded-xl bg-card p-4 space-y-2.5">
             <h3 className="text-sm font-semibold">Kontakt</h3>
             {deal.company_name && <p className="text-sm flex items-center gap-2"><Building2 className="w-3.5 h-3.5 text-muted-foreground" /> {deal.company_name}</p>}
-            {deal.contact_name && <p className="text-sm flex items-center gap-2"><User className="w-3.5 h-3.5 text-muted-foreground" /> {deal.contact_name}</p>}
+            {deal.contact_name && (
+              <p className="text-sm flex items-center gap-2">
+                <User className="w-3.5 h-3.5 text-muted-foreground" /> {deal.contact_name}
+                {deal.contact_position && <span className="text-xs text-muted-foreground">· {deal.contact_position}</span>}
+              </p>
+            )}
+            {deal.contact_linkedin_url && (
+              <a href={deal.contact_linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm flex items-center gap-2 text-primary hover:underline">
+                <Linkedin className="w-3.5 h-3.5" /> LinkedIn-Profil
+              </a>
+            )}
             {deal.contact_email && (
               <a href={`mailto:${deal.contact_email}`} className="text-sm flex items-center gap-2 text-primary hover:underline">
                 <Mail className="w-3.5 h-3.5" /> {deal.contact_email}
               </a>
             )}
             {deal.contact_phone && <p className="text-sm flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-muted-foreground" /> {deal.contact_phone}</p>}
+            {deal.contact_background && <p className="text-xs text-muted-foreground whitespace-pre-wrap pt-1 border-t mt-2">{deal.contact_background}</p>}
             {deal.description && <p className="text-xs text-muted-foreground whitespace-pre-wrap pt-1 border-t mt-2">{deal.description}</p>}
           </div>
 

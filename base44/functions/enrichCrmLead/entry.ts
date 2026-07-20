@@ -20,6 +20,56 @@ Deno.serve(async (req) => {
     const deal = await db.CrmDeal.get(dealId);
     if (!deal) return Response.json({ error: 'Deal nicht gefunden' }, { status: 404 });
 
+    // LinkedIn-Recherche zum Ansprechpartner (unabhängig von Firmen-Stammdaten)
+    let personFound = false;
+    if (deal.contact_name && !deal.contact_linkedin_url) {
+      const person = await base44.asServiceRole.integrations.Core.InvokeLLM({
+        prompt: `Du bist ein Recherche-Assistent für eine österreichische Digitalagentur. Suche das LinkedIn-Profil dieser Person, die eine Projektanfrage gestellt hat.
+
+Person: ${deal.contact_name}
+E-Mail: ${deal.contact_email || 'unbekannt'}
+Firma: ${deal.company_name || (deal.contact_email?.includes('@') ? 'vermutlich ' + deal.contact_email.split('@')[1] : 'unbekannt')}
+Kontext der Anfrage: ${deal.title || '—'}
+
+Suche gezielt auf LinkedIn (site:linkedin.com) und im Web nach dieser Person. Finde nur belegbare Fakten:
+1. LinkedIn-Profil-URL (nur wenn du das Profil eindeutig dieser Person und Firma zuordnen kannst)
+2. Aktuelle Position/Rolle im Unternehmen
+3. Kurzprofil (2-3 Sätze): beruflicher Hintergrund, Rolle, ggf. Entscheidungskompetenz
+
+Wenn du die Person nicht eindeutig identifizieren kannst, setze found=false. Keine Vermutungen, keine Verwechslungen mit Namensvettern.`,
+        add_context_from_internet: true,
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            found: { type: 'boolean' },
+            linkedin_url: { type: 'string' },
+            position: { type: 'string' },
+            background: { type: 'string' },
+          },
+          required: ['found'],
+        },
+      });
+      if (person.found) {
+        personFound = true;
+        const pUpdates = {};
+        if (person.linkedin_url) pUpdates.contact_linkedin_url = person.linkedin_url;
+        if (person.position && !deal.contact_position) pUpdates.contact_position = person.position;
+        if (person.background && !deal.contact_background) pUpdates.contact_background = person.background;
+        if (Object.keys(pUpdates).length > 0) await db.CrmDeal.update(dealId, pUpdates);
+        await db.CrmActivity.create({
+          deal_id: dealId,
+          activity_type: 'system',
+          title: 'LinkedIn-Recherche zum Kontakt',
+          content: [
+            person.position ? `Position: ${person.position}` : '',
+            person.linkedin_url ? `Profil: ${person.linkedin_url}` : '',
+            person.background ? `\n${person.background}` : '',
+          ].filter(Boolean).join('\n'),
+          activity_date: new Date().toISOString(),
+        });
+      }
+    }
+
     // Fehlende Stammdaten ermitteln
     const missing = [];
     if (!deal.company_name) missing.push('Firmenname');
@@ -30,7 +80,7 @@ Deno.serve(async (req) => {
 
     if (missing.length === 0) {
       await db.CrmDeal.update(dealId, { enrichment_status: 'complete', enriched_at: new Date().toISOString() });
-      return Response.json({ status: 'complete', message: 'Alle Stammdaten vorhanden' });
+      return Response.json({ status: 'complete', message: 'Alle Stammdaten vorhanden', person_found: personFound });
     }
 
     // Recherche-Ansatz: Firmen-Domain aus E-Mail (keine Freemail) oder vorhandener Firmenname
@@ -150,7 +200,7 @@ Wenn du das Unternehmen nicht eindeutig identifizieren kannst, setze found=false
       activity_date: new Date().toISOString(),
     });
 
-    return Response.json({ status: 'enriched', filled, still_missing: stillMissing });
+    return Response.json({ status: 'enriched', filled, still_missing: stillMissing, person_found: personFound });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
