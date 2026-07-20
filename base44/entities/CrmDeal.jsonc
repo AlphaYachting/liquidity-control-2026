@@ -1,0 +1,112 @@
+{
+  "name": "CrmDeal",
+  "type": "object",
+  "properties": {
+    "pipeline": {
+      "type": "string",
+      "enum": [
+        "new_business",
+        "existing_customer"
+      ],
+      "default": "new_business",
+      "description": "Neukunden-Sales oder Bestandskunden-Anfrage"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "new_lead",
+        "contacted",
+        "meeting_scheduled",
+        "meeting_confirmed",
+        "proposal_sent",
+        "negotiation",
+        "won",
+        "lost",
+        "inquiry_received",
+        "evaluated",
+        "estimated",
+        "ordered",
+        "declined"
+      ],
+      "default": "new_lead"
+    },
+    "title": {
+      "type": "string",
+      "description": "Deal-Bezeichnung"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "contact_name": {
+      "type": "string"
+    },
+    "contact_email": {
+      "type": "string"
+    },
+    "contact_phone": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "phone_ai",
+        "email",
+        "manual",
+        "referral",
+        "website",
+        "other"
+      ],
+      "default": "manual"
+    },
+    "value_net": {
+      "type": "number",
+      "default": 0,
+      "description": "Erwarteter Auftragswert netto EUR"
+    },
+    "probability_percent": {
+      "type": "number",
+      "default": 50
+    },
+    "expected_close_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "next_step": {
+      "type": "string",
+      "description": "Konkreter n\u00e4chster Schritt"
+    },
+    "next_step_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "lost_reason": {
+      "type": "string"
+    },
+    "closed_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "sevdesk_contact_id": {
+      "type": "string",
+      "description": "Verkn\u00fcpfung zum sevDesk-Kunden (Bestandskunden)"
+    },
+    "linked_customer_name": {
+      "type": "string",
+      "description": "Kundenname wie in InvoiceRecord/LiquidityProject"
+    },
+    "liquidity_project_id": {
+      "type": "string",
+      "description": "Optional: entstandenes LiquidityProject nach Gewinn"
+    },
+    "description": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "pipeline"
+  ]
+}

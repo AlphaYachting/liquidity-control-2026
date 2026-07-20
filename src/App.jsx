@@ -42,6 +42,9 @@ import BillingDataReset from '@/pages/BillingDataReset';
 import OperationalReset from '@/pages/OperationalReset';
 import SevdeskReimport from '@/pages/SevdeskReimport';
 import Hosting from '@/pages/Hosting';
+import CrmBoard from '@/pages/CrmBoard';
+import CrmInbox from '@/pages/CrmInbox';
+import CrmDealDetail from '@/pages/CrmDealDetail';
 import RestructuringLayout from '@/components/restructuring/RestructuringLayout';
 import RestructuringCockpit from '@/pages/RestructuringCockpit';
 import Restructuring13Week from '@/pages/Restructuring13Week';
@@ -89,6 +92,9 @@ const AuthenticatedApp = () => {
         <Route path="/online-marketing" element={<OnlineMarketing />} />
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/hosting" element={<Hosting />} />
+        <Route path="/crm" element={<CrmBoard />} />
+        <Route path="/crm/inbox" element={<CrmInbox />} />
+        <Route path="/crm/deals/:dealId" element={<CrmDealDetail />} />
         <Route path="/production" element={<Production />} />
         <Route path="/tools" element={<Tools />} />
         <Route path="/receivables" element={<Receivables />} />

@@ -5,7 +5,8 @@ import {
   CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
-  CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale
+  CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale,
+  KanbanSquare, Inbox
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
@@ -23,6 +24,13 @@ const navSections = [
       { path: '/customer-risk', label: 'Kundenrisiko', icon: Users },
       { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock },
       { path: '/escalation-alerts', label: 'Eskalations-Alerts', icon: AlertTriangle },
+    ],
+  },
+  {
+    title: 'CRM',
+    items: [
+      { path: '/crm', label: 'Pipeline', icon: KanbanSquare },
+      { path: '/crm/inbox', label: 'Posteingang', icon: Inbox },
     ],
   },
   {

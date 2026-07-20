@@ -1,0 +1,68 @@
+{
+  "name": "CrmInboxItem",
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": [
+        "phone_ai",
+        "email",
+        "manual"
+      ],
+      "default": "manual"
+    },
+    "sender_name": {
+      "type": "string"
+    },
+    "sender_email": {
+      "type": "string"
+    },
+    "sender_phone": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string",
+      "description": "Inhalt der Anfrage / Gespr\u00e4chszusammenfassung der Telefon-KI"
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "email_message_id": {
+      "type": "string",
+      "description": "Message-ID der Quell-E-Mail (f\u00fcr Postfach-Sync, Duplikatschutz)"
+    },
+    "suggested_pipeline": {
+      "type": "string",
+      "enum": [
+        "new_business",
+        "existing_customer",
+        "unknown"
+      ],
+      "default": "unknown",
+      "description": "KI-Einsch\u00e4tzung: Neukunde oder Bestandskunde"
+    },
+    "matched_customer_name": {
+      "type": "string",
+      "description": "Erkannter Bestandskunde"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "converted",
+        "dismissed"
+      ],
+      "default": "new"
+    },
+    "linked_deal_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "source"
+  ]
+}

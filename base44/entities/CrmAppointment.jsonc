@@ -1,0 +1,58 @@
+{
+  "name": "CrmAppointment",
+  "type": "object",
+  "properties": {
+    "deal_id": {
+      "type": "string",
+      "description": "Verkn\u00fcpfter CrmDeal"
+    },
+    "title": {
+      "type": "string"
+    },
+    "scheduled_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Vorgeschlagener/vereinbarter Zeitpunkt"
+    },
+    "duration_minutes": {
+      "type": "number",
+      "default": 60
+    },
+    "location": {
+      "type": "string",
+      "description": "Ort oder Meeting-Link"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "confirmed",
+        "declined",
+        "cancelled",
+        "completed"
+      ],
+      "default": "proposed"
+    },
+    "confirmation_source": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "email_auto",
+        "phone"
+      ],
+      "default": "manual",
+      "description": "email_auto = automatisch aus Best\u00e4tigungs-E-Mail ausgelesen"
+    },
+    "confirmed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "deal_id",
+    "scheduled_at"
+  ]
+}
