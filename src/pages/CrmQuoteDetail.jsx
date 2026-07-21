@@ -19,6 +19,7 @@ export default function CrmQuoteDetail() {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showSource, setShowSource] = useState(false);
+  const [sourceContent, setSourceContent] = useState(null);
 
   const { data: quote, isLoading } = useQuery({
     queryKey: ['crm-quote', quoteId],
@@ -132,10 +133,17 @@ export default function CrmQuoteDetail() {
         </CardContent>
       </Card>
 
-      {quote.source_text && (
+      {(quote.source_text || quote.source_text_url) && (
         <Card>
           <CardHeader className="pb-2">
-            <button onClick={() => setShowSource(s => !s)} className="flex items-center justify-between w-full text-left">
+            <button
+              onClick={() => {
+                setShowSource(s => !s);
+                if (!showSource && !quote.source_text && quote.source_text_url && sourceContent === null) {
+                  fetch(quote.source_text_url).then(r => r.text()).then(setSourceContent);
+                }
+              }}
+              className="flex items-center justify-between w-full text-left">
               <CardTitle className="text-base flex items-center gap-2">
                 Original-Input <Badge variant="outline" className="text-xs font-normal">{QUOTE_SOURCE[quote.source]?.label}</Badge>
               </CardTitle>
@@ -144,7 +152,9 @@ export default function CrmQuoteDetail() {
           </CardHeader>
           {showSource && (
             <CardContent>
-              <p className="text-xs text-muted-foreground whitespace-pre-wrap">{quote.source_text}</p>
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                {quote.source_text || sourceContent || 'Original-Input wird geladen…'}
+              </p>
             </CardContent>
           )}
         </Card>

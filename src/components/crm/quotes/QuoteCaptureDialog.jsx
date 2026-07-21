@@ -130,6 +130,12 @@ ${text}
       });
 
       setPhase('saving');
+      let sourceFields = { source_text: text, source_text_url: '' };
+      if (text.length > 40000) {
+        const file = new File([text], 'original-input.txt', { type: 'text/plain' });
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        sourceFields = { source_text: '', source_text_url: file_url };
+      }
       const items = (result.items || []).map((it, idx) => ({
         position: idx + 1,
         title: it.title || '',
@@ -152,7 +158,7 @@ ${text}
         ...totals,
         status: 'draft',
         source,
-        source_text: text,
+        ...sourceFields,
         notes: result.notes || '',
       });
       onOpenChange(false);

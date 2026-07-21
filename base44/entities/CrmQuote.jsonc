@@ -48,7 +48,11 @@
     },
     "source_text": {
       "type": "string",
-      "description": "Original-Input (Transkript, E-Mail-Text oder Sprachmemo-Transkription)"
+      "description": "Original-Input (bei kurzen Texten direkt gespeichert)"
+    },
+    "source_text_url": {
+      "type": "string",
+      "description": "Datei-URL des Original-Inputs bei gro\u00dfen Transkripten"
     },
     "intro_text": {
       "type": "string",
