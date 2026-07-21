@@ -131,7 +131,7 @@ ${text}
 
       setPhase('saving');
       let sourceFields = { source_text: text, source_text_url: '' };
-      if (text.length > 40000) {
+      if (text.length > 8000) {
         const file = new File([text], 'original-input.txt', { type: 'text/plain' });
         const { file_url } = await base44.integrations.Core.UploadFile({ file });
         sourceFields = { source_text: '', source_text_url: file_url };
