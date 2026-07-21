@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Loader2, Sparkles, CheckCircle2, RefreshCw } from 'lucide-react';
 import { PROPOSAL_STATUSES, MODE_LABELS, WORKFLOW_STEPS } from '@/components/crm/proposals/proposalConfig';
 import { buildLargeTextPatch, loadLargeText, loadJsonField } from '@/components/crm/proposals/jsonFields';
-import { runAnalysis, runMapping, runConfig } from '@/components/crm/proposals/proposalReasoning';
+import { runAnalysis, runMapping, runConfig, extractContext } from '@/components/crm/proposals/proposalReasoning';
 import ContextEditor from '@/components/crm/proposals/ContextEditor';
 import AnalysisView from '@/components/crm/proposals/AnalysisView';
 import MappingView from '@/components/crm/proposals/MappingView';
@@ -67,7 +67,18 @@ export default function CrmProposalDetail() {
         ...notesPatch,
         analysis_correction: withCorrection ? correction : '',
       });
-      const fresh = await base44.entities.CrmProposal.get(proposalId);
+      let fresh = await base44.entities.CrmProposal.get(proposalId);
+      if (!fresh.client_core_business && !fresh.client_project_scope) {
+        const ctx = await extractContext(notes);
+        const ctxPatch = {};
+        ['customer_company', 'contact_person', 'client_core_business', 'client_industry',
+          'client_target_audience', 'client_usp', 'client_existing_marketing', 'client_project_scope']
+          .forEach(f => { if (ctx?.[f] && !fresh[f]) ctxPatch[f] = ctx[f]; });
+        if (Object.keys(ctxPatch).length > 0) {
+          await base44.entities.CrmProposal.update(proposalId, ctxPatch);
+          fresh = await base44.entities.CrmProposal.get(proposalId);
+        }
+      }
       const result = await runAnalysis(fresh);
       const jsonPatch = await buildLargeTextPatch('analysis_json', JSON.stringify(result), 'analysis.json');
       await update({ ...jsonPatch, status: 'analysis_review', error_message: '' });

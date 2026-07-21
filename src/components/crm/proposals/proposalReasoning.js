@@ -29,6 +29,31 @@ async function baseParts(proposal) {
 
 const header = (p) => `Du bist der Angebots-Skill "${p.mode === 'short' ? 'rittler-angebote-short' : 'rittler-angebote'}" von Rittler & Co. Es folgen die verbindlichen Regelwerke (SKILL.md + Referenzdateien). Halte dich strikt an alle Regeln, Standing Rules und Freigabe-Stopps. Antworte auf Deutsch.`;
 
+// Step 1 des Skills: Kundenkontext aus den Gesprächsnotizen extrahieren.
+export async function extractContext(notes) {
+  return base44.integrations.Core.InvokeLLM({
+    prompt: `Analysiere die folgenden Gesprächsnotizen/Transkript einer Digitalagentur (Rittler & Co) und extrahiere den Kundenkontext-Block. Antworte auf Deutsch. Wenn ein Feld nicht aus dem Text ableitbar ist, gib einen leeren String zurück — nichts erfinden.
+
+NOTIZEN:
+"""
+${notes}
+"""`,
+    response_json_schema: {
+      type: 'object',
+      properties: {
+        customer_company: { type: 'string', description: 'Firmenname des Kunden' },
+        contact_person: { type: 'string', description: 'Name des Ansprechpartners' },
+        client_core_business: { type: 'string', description: 'Was macht die Firma? (1 Satz)' },
+        client_industry: { type: 'string' },
+        client_target_audience: { type: 'string', description: 'B2B/B2C, wer sind die Kunden' },
+        client_usp: { type: 'string' },
+        client_existing_marketing: { type: 'string' },
+        client_project_scope: { type: 'string', description: 'Was ist IN und was NICHT in diesem Angebot' },
+      },
+    },
+  });
+}
+
 export async function runAnalysis(proposal) {
   const { rules, notes } = await baseParts(proposal);
   const correction = proposal.analysis_correction

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,10 @@ export default function ContextEditor({ proposal, notes, onNotesChange, onSave, 
   const [form, setForm] = useState(() =>
     Object.fromEntries(CONTEXT_FIELDS.map(([k]) => [k, proposal[k] || ''])));
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    setForm(Object.fromEntries(CONTEXT_FIELDS.map(([k]) => [k, proposal[k] || ''])));
+  }, [proposal.updated_date]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Card>
