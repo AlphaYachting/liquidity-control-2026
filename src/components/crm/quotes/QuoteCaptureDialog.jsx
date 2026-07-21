@@ -43,8 +43,33 @@ export default function QuoteCaptureDialog({ open, onOpenChange }) {
   const mediaRef = useRef(null);
   const chunksRef = useRef([]);
   const fileInputRef = useRef(null);
+  const transcriptFileRef = useRef(null);
 
-  const busy = ['transcribing', 'analyzing', 'saving'].includes(phase);
+  const busy = ['transcribing', 'reading_file', 'analyzing', 'saving'].includes(phase);
+
+  const handleTranscriptFile = async (file) => {
+    setError(null);
+    setPhase('reading_file');
+    try {
+      if (/\.pdf$/i.test(file.name)) {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        const res = await base44.integrations.Core.ExtractDataFromUploadedFile({
+          file_url,
+          json_schema: { type: 'object', properties: { transcript_text: { type: 'string', description: 'Der vollständige Textinhalt des Dokuments' } } },
+        });
+        if (res.status !== 'success') throw new Error(res.details || 'PDF konnte nicht gelesen werden');
+        const content = res.output?.transcript_text || (Array.isArray(res.output) ? res.output.map(o => o.transcript_text).join('\n') : '');
+        setText(t => (t ? t + '\n' : '') + content);
+      } else {
+        const content = await file.text();
+        setText(t => (t ? t + '\n' : '') + content);
+      }
+      setPhase('idle');
+    } catch (e) {
+      setError('Datei konnte nicht gelesen werden: ' + (e?.message || ''));
+      setPhase('idle');
+    }
+  };
 
   const startRecording = async () => {
     setError(null);
@@ -148,6 +173,22 @@ ${text}
           </TabsList>
         </Tabs>
 
+        {source === 'transcript' && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={busy}
+              onClick={() => transcriptFileRef.current?.click()} className="gap-2">
+              <Upload className="w-3.5 h-3.5" /> Transkriptdatei hochladen
+            </Button>
+            <input ref={transcriptFileRef} type="file" accept=".txt,.md,.vtt,.srt,.pdf,text/plain" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }} />
+            {phase === 'reading_file' && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Loader2 className="w-3 h-3 animate-spin" /> Datei wird gelesen…
+              </span>
+            )}
+          </div>
+        )}
+
         {source === 'voice_memo' && (
           <div className="flex items-center gap-2">
             {phase === 'recording' ? (
@@ -193,7 +234,7 @@ ${text}
             Abbrechen
           </Button>
           <Button onClick={handleAnalyze} disabled={busy || phase === 'recording' || !text.trim()} className="gap-2">
-            {busy && phase !== 'transcribing'
+            {['analyzing', 'saving'].includes(phase)
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <Sparkles className="w-4 h-4" />}
             {phase === 'analyzing' ? 'KI analysiert…' : phase === 'saving' ? 'Wird gespeichert…' : 'Angebotsentwurf erstellen'}
