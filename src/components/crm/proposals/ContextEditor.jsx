@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Save } from 'lucide-react';
+import NotesCaptureBar from '@/components/crm/proposals/NotesCaptureBar';
 
 const CONTEXT_FIELDS = [
   ['client_core_business', 'Kernbusiness (1 Satz)'],
@@ -34,8 +35,12 @@ export default function ContextEditor({ proposal, notes, onNotesChange, onSave, 
             </div>
           ))}
         </div>
-        <div>
+        <div className="space-y-2">
           <Label className="text-xs">Gesprächsnotizen / Briefing *</Label>
+          <NotesCaptureBar
+            disabled={saving}
+            onAppend={(content) => onNotesChange((notes ? notes + '\n' : '') + content)}
+          />
           <Textarea
             value={notes}
             onChange={e => onNotesChange(e.target.value)}
