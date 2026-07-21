@@ -1,0 +1,51 @@
+{
+  "name": "ProposalSkillDoc",
+  "type": "object",
+  "properties": {
+    "skill_variant": {
+      "type": "string",
+      "enum": [
+        "full",
+        "short",
+        "shared"
+      ],
+      "description": "Zu welchem Skill geh\u00f6rt das Dokument"
+    },
+    "doc_type": {
+      "type": "string",
+      "enum": [
+        "skill",
+        "reference",
+        "config_template",
+        "script",
+        "font",
+        "asset",
+        "doc"
+      ],
+      "default": "reference"
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "Storage-URL des Dokuments"
+    },
+    "size_bytes": {
+      "type": "number",
+      "default": 0
+    },
+    "include_in_prompt": {
+      "type": "boolean",
+      "default": false,
+      "description": "Wird beim Reasoning als System-Prompt-Teil geladen"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "file_name",
+    "file_url"
+  ]
+}
