@@ -1,0 +1,118 @@
+{
+  "name": "CrmQuote",
+  "type": "object",
+  "properties": {
+    "deal_id": {
+      "type": "string",
+      "description": "Optional verkn\u00fcpfter CrmDeal"
+    },
+    "quote_number": {
+      "type": "string",
+      "description": "Angebotsnummer"
+    },
+    "title": {
+      "type": "string",
+      "description": "Angebotsbezeichnung"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "contact_name": {
+      "type": "string"
+    },
+    "contact_email": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "in_review",
+        "sent",
+        "accepted",
+        "declined",
+        "expired"
+      ],
+      "default": "draft"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "transcript",
+        "email",
+        "voice_memo",
+        "manual"
+      ],
+      "default": "manual",
+      "description": "Erfassungsquelle des Angebots"
+    },
+    "source_text": {
+      "type": "string",
+      "description": "Original-Input (Transkript, E-Mail-Text oder Sprachmemo-Transkription)"
+    },
+    "intro_text": {
+      "type": "string",
+      "description": "Anschreiben / Einleitungstext des Angebots"
+    },
+    "items": {
+      "type": "array",
+      "description": "Angebotspositionen",
+      "items": {
+        "type": "object",
+        "properties": {
+          "position": {
+            "type": "number"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number",
+            "default": 1
+          },
+          "unit": {
+            "type": "string",
+            "default": "pauschal"
+          },
+          "unit_price": {
+            "type": "number",
+            "default": 0
+          },
+          "total_price": {
+            "type": "number",
+            "default": 0
+          }
+        }
+      }
+    },
+    "total_net": {
+      "type": "number",
+      "default": 0
+    },
+    "vat_rate": {
+      "type": "number",
+      "default": 20
+    },
+    "total_gross": {
+      "type": "number",
+      "default": 0
+    },
+    "valid_until": {
+      "type": "string",
+      "format": "date"
+    },
+    "template_key": {
+      "type": "string",
+      "description": "Gestaltungs-Vorlage (wird mit den Skills/Vorlagen bef\u00fcllt)"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

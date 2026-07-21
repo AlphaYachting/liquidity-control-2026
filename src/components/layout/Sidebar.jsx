@@ -32,6 +32,7 @@ const navSections = [
     items: [
       { path: '/crm', label: 'Pipeline', icon: KanbanSquare },
       { path: '/crm/inbox', label: 'Posteingang', icon: Inbox },
+      { path: '/crm/quotes', label: 'Angebote', icon: FileText },
     ],
   },
   {
