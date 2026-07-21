@@ -1,0 +1,140 @@
+{
+  "name": "CrmProposal",
+  "type": "object",
+  "properties": {
+    "deal_id": {
+      "type": "string",
+      "description": "Optional verkn\u00fcpfter CrmDeal"
+    },
+    "title": {
+      "type": "string",
+      "description": "Interne Bezeichnung des Angebots"
+    },
+    "customer_company": {
+      "type": "string"
+    },
+    "contact_person": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "full",
+        "short"
+      ],
+      "default": "full",
+      "description": "Vollversion oder Kurzform des Skills"
+    },
+    "sprint_mode": {
+      "type": "boolean",
+      "default": false,
+      "description": "Sprint (fester Liefertermin) oder klassisch"
+    },
+    "signed_by": {
+      "type": "string",
+      "default": "Alfons Rittler",
+      "description": "Signatur/Ansprechpartner (Alfons Rittler oder Sebastian Haslinger)"
+    },
+    "logo_url": {
+      "type": "string",
+      "description": "Kundenlogo f\u00fcr das Angebot"
+    },
+    "client_core_business": {
+      "type": "string"
+    },
+    "client_industry": {
+      "type": "string"
+    },
+    "client_target_audience": {
+      "type": "string"
+    },
+    "client_usp": {
+      "type": "string"
+    },
+    "client_existing_marketing": {
+      "type": "string"
+    },
+    "client_project_scope": {
+      "type": "string",
+      "description": "Was ist IN und was ist NICHT in diesem Angebot"
+    },
+    "input_text": {
+      "type": "string",
+      "description": "Gespr\u00e4chsnotizen (inline bei kurzen Texten)"
+    },
+    "input_text_url": {
+      "type": "string",
+      "description": "Datei-URL bei gro\u00dfen Gespr\u00e4chsnotizen"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "input",
+        "analysis_review",
+        "mapping_review",
+        "config_ready",
+        "rendered",
+        "error"
+      ],
+      "default": "input"
+    },
+    "analysis_json": {
+      "type": "string"
+    },
+    "analysis_json_url": {
+      "type": "string"
+    },
+    "analysis_correction": {
+      "type": "string",
+      "description": "Korrektur des Mitarbeiters zur Analyse"
+    },
+    "analysis_approved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "analysis_approved_by": {
+      "type": "string"
+    },
+    "mapping_json": {
+      "type": "string"
+    },
+    "mapping_json_url": {
+      "type": "string"
+    },
+    "mapping_correction": {
+      "type": "string"
+    },
+    "mapping_approved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "mapping_approved_by": {
+      "type": "string"
+    },
+    "config_json": {
+      "type": "string",
+      "description": "Finale Render-Config (JSON-\u00c4quivalent der client_config.py)"
+    },
+    "config_json_url": {
+      "type": "string"
+    },
+    "pdf_url": {
+      "type": "string",
+      "description": "Fertiges Angebots-PDF vom Render-Service"
+    },
+    "version": {
+      "type": "number",
+      "default": 1
+    },
+    "error_message": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "mode"
+  ]
+}

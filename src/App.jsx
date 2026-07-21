@@ -46,6 +46,8 @@ import CrmBoard from '@/pages/CrmBoard';
 import CrmInbox from '@/pages/CrmInbox';
 import CrmDealDetail from '@/pages/CrmDealDetail';
 import CrmQuotes from '@/pages/CrmQuotes';
+import CrmProposals from '@/pages/CrmProposals';
+import CrmProposalDetail from '@/pages/CrmProposalDetail';
 import CrmQuoteDetail from '@/pages/CrmQuoteDetail';
 import AuditTrail from '@/pages/AuditTrail';
 import RestructuringLayout from '@/components/restructuring/RestructuringLayout';
@@ -100,6 +102,8 @@ const AuthenticatedApp = () => {
         <Route path="/crm/deals/:dealId" element={<CrmDealDetail />} />
         <Route path="/crm/quotes" element={<CrmQuotes />} />
         <Route path="/crm/quotes/:quoteId" element={<CrmQuoteDetail />} />
+        <Route path="/crm/proposals" element={<CrmProposals />} />
+        <Route path="/crm/proposals/:proposalId" element={<CrmProposalDetail />} />
         <Route path="/production" element={<Production />} />
         <Route path="/tools" element={<Tools />} />
         <Route path="/receivables" element={<Receivables />} />

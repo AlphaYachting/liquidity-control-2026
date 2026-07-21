@@ -6,7 +6,7 @@ import {
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
   CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale,
-  KanbanSquare, Inbox, History
+  KanbanSquare, Inbox, History, Presentation
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
@@ -33,6 +33,7 @@ const navSections = [
       { path: '/crm', label: 'Pipeline', icon: KanbanSquare },
       { path: '/crm/inbox', label: 'Posteingang', icon: Inbox },
       { path: '/crm/quotes', label: 'Angebote', icon: FileText },
+      { path: '/crm/proposals', label: 'Angebots-Studio', icon: Presentation },
     ],
   },
   {
