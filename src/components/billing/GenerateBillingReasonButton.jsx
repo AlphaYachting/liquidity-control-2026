@@ -15,6 +15,7 @@ export default function GenerateBillingReasonButton({
   plannedPercent,
   plannedInvoiceType,
   planningMonth,
+  userReasonDraft,
   onResult,
   disabled,
 }) {
@@ -31,6 +32,7 @@ export default function GenerateBillingReasonButton({
       planned_percent: plannedPercent || 0,
       planned_invoice_type: plannedInvoiceType || 'TR',
       planning_month: planningMonth || '',
+      user_reason_hint: userReasonDraft || '',
     });
     setLoading(false);
     if (res?.data?.invoice_reason) {

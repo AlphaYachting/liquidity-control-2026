@@ -396,6 +396,7 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
                         plannedPercent={Number(form.planned_percent) || 0}
                         plannedInvoiceType={form.planned_invoice_type || 'TR'}
                         planningMonth={month}
+                        userReasonDraft={form.invoice_reason || ''}
                         onResult={text => setForm(f => ({ ...f, invoice_reason: text }))}
                         disabled={!form.planned_amount_net && !form.planned_percent}
                       />

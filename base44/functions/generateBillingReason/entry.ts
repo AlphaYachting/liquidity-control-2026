@@ -12,7 +12,10 @@ Deno.serve(async (req) => {
     planned_percent,
     planned_invoice_type,
     planning_month,
+    user_reason_hint,
   } = await req.json();
+
+  const userHint = (user_reason_hint || '').trim();
 
   // Step 1: Fetch project first to get awork_project_id
   const project = await base44.asServiceRole.entities.LiquidityProject.filter({ id: project_id }).then(r => r[0] || null);
@@ -125,7 +128,12 @@ ${aworkSnapshot
 - Aufgaben gesamt: ${aworkSnapshot.tasks_count || 0} · Erledigt: ${aworkSnapshot.tasks_done_count || 0}`
   : 'Kein awork-Snapshot verfügbar.'}
 
-## Erledigte Aufgaben aus awork (${doneTasks.length} Tasks) — WICHTIGSTE GRUNDLAGE FÜR DEN ABRECHNUNGSGRUND
+${userHint ? `## VOM PROJEKTMANAGER EINGEGEBENER ABRECHNUNGSGRUND — VERBINDLICHE GRUNDLAGE
+"${userHint}"
+
+WICHTIG: Der Projektmanager hat oben bereits den Grund bzw. eine Kurzbeschreibung angegeben. Deine Aufgabe ist NICHT, selbst einen Grund aus den awork-Daten zu recherchieren, sondern EXAKT DIESE Angabe professionell auszuformulieren und in den Projektkontext einzubetten. Erfinde keine anderen Leistungen als Hauptbegründung — die awork-Daten dienen nur zur Anreicherung mit Details, sofern sie zur PM-Angabe passen.
+` : ''}
+## Erledigte Aufgaben aus awork (${doneTasks.length} Tasks) — ${userHint ? 'NUR ERGÄNZENDER KONTEXT' : 'WICHTIGSTE GRUNDLAGE FÜR DEN ABRECHNUNGSGRUND'}
 ${doneTasks.length > 0 ? doneTasksText : 'Keine erledigten Tasks in awork gefunden.'}
 
 ## Noch offene Aufgaben (${openTasks.length} Tasks)
@@ -148,7 +156,9 @@ ${prevInvoicesText ? `## Bereits gestellte Rechnungen\n${prevInvoicesText}\n` : 
 ## Deine Aufgabe
 
 Schreibe einen **Abrechnungsgrund** der:
-1. Die **konkret erledigten awork-Tasks** als Leistungsnachweis nutzt — nenne 3-6 spezifische, abgeschlossene Tätigkeiten aus der Liste oben
+1. ${userHint
+    ? '**Die PM-Angabe als Kern** professionell ausformuliert und in den Projektkontext bringt — passende awork-Tasks nur ergänzend erwähnen'
+    : 'Die **konkret erledigten awork-Tasks** als Leistungsnachweis nutzt — nenne 3-6 spezifische, abgeschlossene Tätigkeiten aus der Liste oben'}
 2. **Keine Leistungen wiederholt**, die bereits in bisherigen Abrechnungsgründen erwähnt wurden
 3. Den **Fortschritt im Verhältnis zum Gesamtauftrag** widerspiegelt (${Math.round(planned_percent || 0)}% dieser Abrechnung)
 4. **Kundenseitig verständlich** ist — konkret, nicht zu technisch, nachvollziehbar warum jetzt abgerechnet wird
