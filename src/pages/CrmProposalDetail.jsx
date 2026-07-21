@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -41,8 +41,17 @@ export default function CrmProposalDetail() {
     enabled: !!proposal,
   });
 
+  const autostartRef = useRef(false);
   useEffect(() => {
-    if (proposal) loadLargeText(proposal, 'input_text').then(setNotes);
+    if (!proposal) return;
+    loadLargeText(proposal, 'input_text').then((t) => {
+      setNotes(t);
+      const urlParams = new URLSearchParams(window.location.search);
+      if (!autostartRef.current && urlParams.get('autostart') === '1' && proposal.status === 'input' && t.trim()) {
+        autostartRef.current = true;
+        startAnalysis(false, t);
+      }
+    });
   }, [proposal?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['crm-proposal', proposalId] });
@@ -59,17 +68,18 @@ export default function CrmProposalDetail() {
     setBusy(null);
   };
 
-  const startAnalysis = async (withCorrection) => {
+  const startAnalysis = async (withCorrection, textOverride) => {
+    const inputText = textOverride ?? notes;
     setBusy('analysis'); setError(null);
     try {
-      const notesPatch = await buildLargeTextPatch('input_text', notes, 'gespraechsnotizen.txt');
+      const notesPatch = await buildLargeTextPatch('input_text', inputText, 'gespraechsnotizen.txt');
       await base44.entities.CrmProposal.update(proposalId, {
         ...notesPatch,
         analysis_correction: withCorrection ? correction : '',
       });
       let fresh = await base44.entities.CrmProposal.get(proposalId);
       if (!fresh.client_core_business && !fresh.client_project_scope) {
-        const ctx = await extractContext(notes);
+        const ctx = await extractContext(inputText);
         const ctxPatch = {};
         ['customer_company', 'contact_person', 'client_core_business', 'client_industry',
           'client_target_audience', 'client_usp', 'client_existing_marketing', 'client_project_scope']

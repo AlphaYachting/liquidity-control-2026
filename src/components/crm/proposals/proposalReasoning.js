@@ -41,6 +41,7 @@ ${notes}
     response_json_schema: {
       type: 'object',
       properties: {
+        proposal_title: { type: 'string', description: 'Prägnante interne Angebotsbezeichnung, z.B. "Website-Relaunch Wieser Handwerk"' },
         customer_company: { type: 'string', description: 'Firmenname des Kunden' },
         contact_person: { type: 'string', description: 'Name des Ansprechpartners' },
         client_core_business: { type: 'string', description: 'Was macht die Firma? (1 Satz)' },
