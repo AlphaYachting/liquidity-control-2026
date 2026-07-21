@@ -60,6 +60,15 @@ export default function QuoteCaptureDialog({ open, onOpenChange }) {
         if (res.status !== 'success') throw new Error(res.details || 'PDF konnte nicht gelesen werden');
         const content = res.output?.transcript_text || (Array.isArray(res.output) ? res.output.map(o => o.transcript_text).join('\n') : '');
         setText(t => (t ? t + '\n' : '') + content);
+      } else if (/\.docx?$/i.test(file.name)) {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        const res = await base44.integrations.Core.InvokeLLM({
+          prompt: 'Extrahiere den vollständigen Textinhalt des angehängten Word-Dokuments. Gib den Text unverändert und vollständig zurück, ohne Kommentare oder Zusammenfassungen.',
+          file_urls: [file_url],
+          response_json_schema: { type: 'object', properties: { transcript_text: { type: 'string' } } },
+        });
+        if (!res?.transcript_text) throw new Error('Word-Dokument konnte nicht gelesen werden');
+        setText(t => (t ? t + '\n' : '') + res.transcript_text);
       } else {
         const content = await file.text();
         setText(t => (t ? t + '\n' : '') + content);
@@ -179,7 +188,7 @@ ${text}
               onClick={() => transcriptFileRef.current?.click()} className="gap-2">
               <Upload className="w-3.5 h-3.5" /> Transkriptdatei hochladen
             </Button>
-            <input ref={transcriptFileRef} type="file" accept=".txt,.md,.vtt,.srt,.pdf,text/plain" className="hidden"
+            <input ref={transcriptFileRef} type="file" accept=".txt,.md,.vtt,.srt,.pdf,.docx,.doc,text/plain" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTranscriptFile(f); e.target.value = ''; }} />
             {phase === 'reading_file' && (
               <span className="text-xs text-muted-foreground flex items-center gap-1">
