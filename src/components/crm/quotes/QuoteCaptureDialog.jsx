@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Mic, Square, Loader2, Sparkles, Upload } from 'lucide-react';
 import { calcTotals } from '@/components/crm/quotes/quoteConfig';
+import { extractDocxText } from '@/components/crm/quotes/docxText';
 
 const EXTRACTION_SCHEMA = {
   type: 'object',
@@ -60,15 +61,11 @@ export default function QuoteCaptureDialog({ open, onOpenChange }) {
         if (res.status !== 'success') throw new Error(res.details || 'PDF konnte nicht gelesen werden');
         const content = res.output?.transcript_text || (Array.isArray(res.output) ? res.output.map(o => o.transcript_text).join('\n') : '');
         setText(t => (t ? t + '\n' : '') + content);
-      } else if (/\.docx?$/i.test(file.name)) {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
-        const res = await base44.integrations.Core.InvokeLLM({
-          prompt: 'Extrahiere den vollständigen Textinhalt des angehängten Word-Dokuments. Gib den Text unverändert und vollständig zurück, ohne Kommentare oder Zusammenfassungen.',
-          file_urls: [file_url],
-          response_json_schema: { type: 'object', properties: { transcript_text: { type: 'string' } } },
-        });
-        if (!res?.transcript_text) throw new Error('Word-Dokument konnte nicht gelesen werden');
-        setText(t => (t ? t + '\n' : '') + res.transcript_text);
+      } else if (/\.docx$/i.test(file.name)) {
+        const content = await extractDocxText(file);
+        setText(t => (t ? t + '\n' : '') + content);
+      } else if (/\.doc$/i.test(file.name)) {
+        throw new Error('Bitte die Datei als .docx speichern (altes .doc-Format wird nicht unterstützt)');
       } else {
         const content = await file.text();
         setText(t => (t ? t + '\n' : '') + content);
