@@ -1,24 +1,17 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Mail, AlertTriangle, Loader2, ExternalLink } from 'lucide-react';
-import { emailApi } from '@/components/crm/emails/emailApi';
 import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, formatMailDate } from '@/components/crm/emails/emailConfig';
+import { useCustomerEmailThreads } from '@/hooks/useCustomerEmailThreads';
 
 // Zeigt die letzten E-Mail-Konversationen eines Kunden im Projekt-Cockpit.
 export default function CustomerEmailSection({ customer }) {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['customer-emails', customer],
-    queryFn: () => emailApi('threads', { params: { customer, days: 90, limit: 5 } }),
-    enabled: !!customer,
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
+  const { data, isLoading, isError } = useCustomerEmailThreads(customer);
 
   if (!customer) return null;
-  const threads = data?.results || [];
+  const threads = (data?.results || []).slice(0, 5);
 
   return (
     <Card>

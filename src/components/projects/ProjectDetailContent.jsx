@@ -36,6 +36,7 @@ import NextMonthsBillingPreview from '@/components/projects/NextMonthsBillingPre
 import WebsiteMilestoneGuide from '@/components/projects/WebsiteMilestoneGuide';
 import DeleteProjectCockpitDialog from '@/components/projects/DeleteProjectCockpitDialog';
 import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
+import CommunicationStatusBadge from '@/components/crm/emails/CommunicationStatusBadge';
 
 /**
  * ProjectDetailContent — reusable project cockpit content, usable both as a page
@@ -296,6 +297,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
           actions={
             <div className="flex items-center gap-2 flex-wrap">
               <StatusBadge status={project.status} />
+              <CommunicationStatusBadge customer={project.customer} />
               <select
                 value={project.risk_status || 'none'}
                 onChange={e => updateProjectMutation.mutate({ risk_status: e.target.value })}
