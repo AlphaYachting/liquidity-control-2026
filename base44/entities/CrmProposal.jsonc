@@ -58,9 +58,48 @@
       "type": "string",
       "description": "Was ist IN und was ist NICHT in diesem Angebot"
     },
+    "source_documents": {
+      "type": "array",
+      "description": "Eigenst\u00e4ndige Quell-Dokumente (Transkript, Kunden-E-Mail, Sprachmemo, Kundenbriefing) \u2014 getrennt gespeichert und getrennt verarbeitet",
+      "items": {
+        "type": "object",
+        "properties": {
+          "doc_type": {
+            "type": "string",
+            "enum": [
+              "transcript",
+              "email",
+              "voice_memo",
+              "briefing"
+            ],
+            "default": "transcript"
+          },
+          "label": {
+            "type": "string",
+            "description": "Anzeigename, z.B. Dateiname"
+          },
+          "text": {
+            "type": "string",
+            "description": "Inhalt inline (bei kurzen Texten)"
+          },
+          "text_url": {
+            "type": "string",
+            "description": "Datei-URL bei gro\u00dfen Inhalten"
+          },
+          "size_chars": {
+            "type": "number",
+            "default": 0
+          },
+          "added_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
     "input_text": {
       "type": "string",
-      "description": "Gespr\u00e4chsnotizen (inline bei kurzen Texten)"
+      "description": "Manuelle Gespr\u00e4chsnotizen (inline bei kurzen Texten)"
     },
     "input_text_url": {
       "type": "string",

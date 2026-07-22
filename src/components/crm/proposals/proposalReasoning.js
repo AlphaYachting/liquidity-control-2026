@@ -1,6 +1,7 @@
 import { base44 } from '@/api/base44Client';
 import { loadSkillRules, loadConfigTemplate } from '@/components/crm/proposals/skillLoader';
 import { loadLargeText, unwrapLLM } from '@/components/crm/proposals/jsonFields';
+import { composeNotes } from '@/components/crm/proposals/sourceDocs';
 
 const MODEL = 'claude_sonnet_4_6';
 
@@ -112,10 +113,12 @@ function contextBlock(p) {
 }
 
 async function baseParts(proposal) {
-  const [rules, notes] = await Promise.all([
+  const [rules, manual] = await Promise.all([
     loadSkillRules(proposal.mode),
     loadLargeText(proposal, 'input_text'),
   ]);
+  // Quell-Dokumente (Transkript, E-Mail, Sprachmemo, Briefing) klar getrennt + manuelle Notizen
+  const notes = await composeNotes(proposal, manual);
   return { rules, notes };
 }
 

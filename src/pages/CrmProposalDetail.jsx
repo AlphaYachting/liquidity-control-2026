@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2, Sparkles, CheckCircle2, RefreshCw } from 'lucide-re
 import { PROPOSAL_STATUSES, MODE_LABELS, WORKFLOW_STEPS } from '@/components/crm/proposals/proposalConfig';
 import { buildLargeTextPatch, loadLargeText, loadJsonField } from '@/components/crm/proposals/jsonFields';
 import { runAnalysis, runMapping, runConfig, extractContext } from '@/components/crm/proposals/proposalReasoning';
+import { composeNotes } from '@/components/crm/proposals/sourceDocs';
 import ContextEditor from '@/components/crm/proposals/ContextEditor';
 import AnalysisView from '@/components/crm/proposals/AnalysisView';
 import MappingView from '@/components/crm/proposals/MappingView';
@@ -55,7 +56,7 @@ export default function CrmProposalDetail() {
     loadLargeText(proposal, 'input_text').then((t) => {
       setNotes(t);
       const urlParams = new URLSearchParams(window.location.search);
-      if (!autostartRef.current && urlParams.get('autostart') === '1' && proposal.status === 'input' && t.trim()) {
+      if (!autostartRef.current && urlParams.get('autostart') === '1' && proposal.status === 'input' && (t.trim() || (proposal.source_documents || []).length > 0)) {
         autostartRef.current = true;
         startAnalysis(false, t);
       }
@@ -76,6 +77,14 @@ export default function CrmProposalDetail() {
     setBusy(null);
   };
 
+  const addDocument = async (doc) => {
+    await update({ source_documents: [...(proposal.source_documents || []), doc] });
+  };
+
+  const removeDocument = async (idx) => {
+    await update({ source_documents: (proposal.source_documents || []).filter((_, i) => i !== idx) });
+  };
+
   const startAnalysis = async (withCorrection, textOverride) => {
     const inputText = textOverride ?? notes;
     setBusy('analysis'); setError(null); setLog([]);
@@ -88,8 +97,9 @@ export default function CrmProposalDetail() {
       });
       let fresh = await base44.entities.CrmProposal.get(proposalId);
       if (!fresh.client_core_business && !fresh.client_project_scope) {
-        logStep('Kundenkontext wird aus den Notizen extrahiert…');
-        const ctx = await extractContext(inputText);
+        logStep('Kundenkontext wird aus den Dokumenten extrahiert…');
+        const composed = await composeNotes(fresh, inputText);
+        const ctx = await extractContext(composed.slice(0, 30000));
         const ctxPatch = {};
         ['customer_company', 'contact_person', 'client_core_business', 'client_industry',
           'client_target_audience', 'client_usp', 'client_existing_marketing', 'client_project_scope']
@@ -205,11 +215,13 @@ export default function CrmProposalDetail() {
         onNotesChange={setNotes}
         onSave={saveInput}
         saving={busy === 'save'}
+        onAddDocument={addDocument}
+        onRemoveDocument={removeDocument}
       />
 
       {step === 1 && (
         <div className="flex justify-end">
-          <Button onClick={() => startAnalysis(false)} disabled={!!busy || !notes.trim()} className="gap-2">
+          <Button onClick={() => startAnalysis(false)} disabled={!!busy || (!notes.trim() && !(proposal.source_documents || []).length)} className="gap-2">
             {busy === 'analysis' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             {busy === 'analysis' ? 'Analyse läuft…' : 'Strategische Analyse starten'}
           </Button>
@@ -219,7 +231,7 @@ export default function CrmProposalDetail() {
       {analysis && step >= 2 && <AnalysisView analysis={analysis} />}
 
       {step === 2 && (
-        <div className="border rounded-xl bg-card p-4 space-y-3">
+        <div className="sticky bottom-3 z-30 border rounded-xl bg-card p-4 space-y-3 shadow-xl">
           <p className="text-xs font-semibold">Stopp 1 — Analyse freigeben oder korrigieren</p>
           {correctionBox('Korrektur zur Analyse (optional) — z.B. anderer Projekttyp, fehlendes Thema, anderes Format…')}
           <div className="flex justify-end gap-2">
@@ -238,7 +250,7 @@ export default function CrmProposalDetail() {
       {mapping && step >= 3 && <MappingView mapping={mapping} />}
 
       {step === 3 && (
-        <div className="border rounded-xl bg-card p-4 space-y-3">
+        <div className="sticky bottom-3 z-30 border rounded-xl bg-card p-4 space-y-3 shadow-xl">
           <p className="text-xs font-semibold">Stopp 2 — Mapping & Preise freigeben oder korrigieren</p>
           {correctionBox('Korrektur zum Mapping (optional) — z.B. Position streichen, Preis anpassen, Struktur ändern…')}
           <div className="flex justify-end gap-2">

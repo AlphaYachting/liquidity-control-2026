@@ -8,14 +8,17 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Loader2, Sparkles } from 'lucide-react';
 import { SIGNERS } from '@/components/crm/proposals/proposalConfig';
 import { buildLargeTextPatch } from '@/components/crm/proposals/jsonFields';
 import { extractContext } from '@/components/crm/proposals/proposalReasoning';
-import NotesCaptureBar from '@/components/crm/proposals/NotesCaptureBar';
+import { composeDocsText } from '@/components/crm/proposals/sourceDocs';
+import SourceDocumentsPanel from '@/components/crm/proposals/SourceDocumentsPanel';
 
 export default function ProposalCreateDialog({ open, onOpenChange }) {
   const navigate = useNavigate();
+  const [docs, setDocs] = useState([]);
   const [text, setText] = useState('');
   const [mode, setMode] = useState('full');
   const [sprint, setSprint] = useState(false);
@@ -23,14 +26,18 @@ export default function ProposalCreateDialog({ open, onOpenChange }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  const hasInput = docs.length > 0 || text.trim();
+
   const handleCreate = async () => {
     setSaving(true); setError(null);
     try {
-      // Kontext-Extraktion mit gekürztem Text; bei Fehler (z.B. 502) trotzdem anlegen —
+      const docsText = await composeDocsText(docs);
+      const combined = [docsText, text.trim()].filter(Boolean).join('\n\n');
+      // Kontext-Extraktion mit gekürztem Text; bei Fehler trotzdem anlegen —
       // die Detailseite zieht den Kontext vor der Analyse automatisch nach.
       let ctx = null;
       try {
-        ctx = await extractContext(text.length > 30000 ? text.slice(0, 30000) : text);
+        ctx = await extractContext(combined.slice(0, 30000));
       } catch {
         ctx = null;
       }
@@ -45,12 +52,14 @@ export default function ProposalCreateDialog({ open, onOpenChange }) {
         client_usp: ctx?.client_usp || '',
         client_existing_marketing: ctx?.client_existing_marketing || '',
         client_project_scope: ctx?.client_project_scope || '',
+        source_documents: docs,
         mode, sprint_mode: sprint, signed_by: signedBy, status: 'input',
         ...notesPatch,
       });
       setSaving(false);
       onOpenChange(false);
       setText('');
+      setDocs([]);
       navigate(`/crm/proposals/${proposal.id}?autostart=1`);
     } catch (e) {
       setError('Anlage fehlgeschlagen: ' + (e?.message || ''));
@@ -60,18 +69,41 @@ export default function ProposalCreateDialog({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!saving) onOpenChange(o); }}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Neues visuelles Angebot</DialogTitle></DialogHeader>
 
-        <NotesCaptureBar disabled={saving} onAppend={(c) => setText(t => (t ? t + '\n' : '') + c)} />
-
-        <Textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder="Transkript, Kunden-E-Mail oder Gesprächsnotiz hier einfügen — oder oben hochladen/aufnehmen…"
-          className="min-h-[200px] text-sm"
+        <SourceDocumentsPanel
+          title="Erst-Input — Transkript, Kunden-E-Mail oder Sprachmemo"
+          hint="Jeder Upload wird als eigenständiges Dokument abgelegt und getrennt verarbeitet."
+          types={['transcript', 'email', 'voice_memo']}
+          documents={docs}
+          onAdd={(doc) => setDocs(d => [...d, doc])}
+          onRemove={(idx) => setDocs(d => d.filter((_, i) => i !== idx))}
           disabled={saving}
         />
+
+        <Separator />
+
+        <SourceDocumentsPanel
+          title="Zusätzliches Kundenbriefing (optional)"
+          hint="Eigenständiger Kontext — fließt getrennt vom Erst-Input in die Angebotserstellung ein."
+          types={['briefing']}
+          documents={docs}
+          onAdd={(doc) => setDocs(d => [...d, doc])}
+          onRemove={(idx) => setDocs(d => d.filter((_, i) => i !== idx))}
+          disabled={saving}
+        />
+
+        <div>
+          <Label className="text-xs">Manuelle Notizen (optional)</Label>
+          <Textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="Zusätzliche eigene Notizen — Dokumente bitte oben als Anhang hinzufügen…"
+            className="mt-1 min-h-[100px] text-sm"
+            disabled={saving}
+          />
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
           <div>
@@ -102,7 +134,7 @@ export default function ProposalCreateDialog({ open, onOpenChange }) {
 
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Abbrechen</Button>
-          <Button onClick={handleCreate} disabled={!text.trim() || saving} className="gap-2">
+          <Button onClick={handleCreate} disabled={!hasInput || saving} className="gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             {saving ? 'Kontext wird analysiert…' : 'Anlegen & Analyse starten'}
           </Button>
