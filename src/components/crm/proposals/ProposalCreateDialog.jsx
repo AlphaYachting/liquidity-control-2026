@@ -26,7 +26,14 @@ export default function ProposalCreateDialog({ open, onOpenChange }) {
   const handleCreate = async () => {
     setSaving(true); setError(null);
     try {
-      const ctx = await extractContext(text);
+      // Kontext-Extraktion mit gekürztem Text; bei Fehler (z.B. 502) trotzdem anlegen —
+      // die Detailseite zieht den Kontext vor der Analyse automatisch nach.
+      let ctx = null;
+      try {
+        ctx = await extractContext(text.length > 30000 ? text.slice(0, 30000) : text);
+      } catch {
+        ctx = null;
+      }
       const notesPatch = await buildLargeTextPatch('input_text', text, 'gespraechsnotizen.txt');
       const proposal = await base44.entities.CrmProposal.create({
         title: ctx?.proposal_title || ctx?.customer_company || 'Neues Angebot',
