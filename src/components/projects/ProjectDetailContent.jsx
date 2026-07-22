@@ -6,9 +6,7 @@ import {
   ArrowLeft, FolderKanban, Plus, Pencil, Check, X, AlertTriangle,
   Link2, Unlink, RefreshCw, ClipboardList, ExternalLink, Info, Trash2
 } from 'lucide-react';
-import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
-import StatusBadge from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -36,7 +34,7 @@ import NextMonthsBillingPreview from '@/components/projects/NextMonthsBillingPre
 import WebsiteMilestoneGuide from '@/components/projects/WebsiteMilestoneGuide';
 import DeleteProjectCockpitDialog from '@/components/projects/DeleteProjectCockpitDialog';
 import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
-import CommunicationStatusBadge from '@/components/crm/emails/CommunicationStatusBadge';
+import ProjectCockpitHeader from '@/components/projects/ProjectCockpitHeader';
 
 /**
  * ProjectDetailContent — reusable project cockpit content, usable both as a page
@@ -283,71 +281,19 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        {!embedded && (
-          <Button variant="ghost" size="icon" onClick={() => navigate('/projects')}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-        )}
-        <PageHeader
-          title={project.project_name}
-          subtitle={`${project.customer} · Projekt-Cockpit`}
-          icon={FolderKanban}
-          actions={
-            <div className="flex items-center gap-2 flex-wrap">
-              <StatusBadge status={project.status} />
-              <CommunicationStatusBadge customer={project.customer} />
-              <select
-                value={project.risk_status || 'none'}
-                onChange={e => updateProjectMutation.mutate({ risk_status: e.target.value })}
-                className={`text-xs rounded-md px-2 py-1 border cursor-pointer font-medium ${
-                  project.risk_status === 'critical' ? 'bg-red-100 text-red-800 border-red-300' :
-                  project.risk_status === 'high' ? 'bg-orange-100 text-orange-800 border-orange-300' :
-                  project.risk_status === 'medium' ? 'bg-amber-100 text-amber-800 border-amber-300' :
-                  project.risk_status === 'low' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
-                  'bg-muted text-muted-foreground border-border'
-                }`}
-              >
-                <option value="none">Risiko: keines</option>
-                <option value="low">Risiko: niedrig</option>
-                <option value="medium">Risiko: mittel</option>
-                <option value="high">Risiko: hoch</option>
-                <option value="critical">Risiko: kritisch</option>
-              </select>
-              {project.billing_relevance_status === 'archived' || project.excluded_from_project_cockpit ? (
-                <Button size="sm" variant="ghost" className="h-8 text-xs text-emerald-700 hover:bg-emerald-50"
-                  onClick={() => updateProjectMutation.mutate({
-                    billing_relevance_status: 'active_billing_relevant',
-                    excluded_from_project_cockpit: false,
-                    archived_at: null, archive_source: null, archived_by: null,
-                  })}>
-                  Reaktivieren
-                </Button>
-              ) : (
-                <Button size="sm" variant="ghost" className="h-8 text-xs text-amber-700 hover:bg-amber-50"
-                  onClick={() => {
-                    updateProjectMutation.mutate({
-                      billing_relevance_status: 'archived', excluded_from_project_cockpit: true,
-                      archived_at: new Date().toISOString(), archive_source: 'manual',
-                    });
-                    if (!embedded) navigate('/projects');
-                    else onClose?.();
-                  }}>
-                  Archivieren
-                </Button>
-              )}
-              {!embedded && (
-                <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive hover:bg-destructive/10"
-                  onClick={() => setShowDeleteDialog(true)}>
-                  <Trash2 className="w-3.5 h-3.5 mr-1" />
-                  Löschen
-                </Button>
-              )}
-            </div>
+      <ProjectCockpitHeader
+        project={project}
+        embedded={embedded}
+        onBack={() => navigate('/projects')}
+        onUpdate={(data, opts) => {
+          updateProjectMutation.mutate(data);
+          if (opts?.close) {
+            if (!embedded) navigate('/projects');
+            else onClose?.();
           }
-        />
-      </div>
+        }}
+        onDelete={() => setShowDeleteDialog(true)}
+      />
 
       <AworkStatusBar
         data={aworkData}
