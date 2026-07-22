@@ -12,6 +12,7 @@ export default function CustomerEmailSection({ customer }) {
 
   if (!customer) return null;
   const threads = (data?.results || []).slice(0, 5);
+  const isSearchFallback = data?.mode === 'search';
 
   return (
     <Card>
@@ -30,6 +31,13 @@ export default function CustomerEmailSection({ customer }) {
         ) : threads.length === 0 ? (
           <p className="text-xs text-muted-foreground py-1">Keine zugeordneten E-Mails (letzte 90 Tage).</p>
         ) : (
+          <>
+          {isSearchFallback && (
+            <p className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+              Über Namenssuche „{data.search_term}" gefunden — KI-Auswertung noch ausstehend.
+            </p>
+          )}
+          {
           threads.map((t) => {
             const cat = EMAIL_CATEGORIES[t.category];
             const st = EMAIL_THREAD_STATUSES[t.status];
@@ -54,6 +62,8 @@ export default function CustomerEmailSection({ customer }) {
               </div>
             );
           })
+          }
+          </>
         )}
         <Link to="/crm/emails" className="flex items-center gap-1 text-xs text-primary hover:underline pt-1">
           <ExternalLink className="w-3 h-3" /> Zur E-Mail-Zentrale
