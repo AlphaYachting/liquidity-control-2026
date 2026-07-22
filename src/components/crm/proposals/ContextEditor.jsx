@@ -8,12 +8,12 @@ import { Loader2, Save } from 'lucide-react';
 import NotesCaptureBar from '@/components/crm/proposals/NotesCaptureBar';
 
 const CONTEXT_FIELDS = [
-  ['client_core_business', 'Kernbusiness (1 Satz)'],
-  ['client_industry', 'Branche'],
+  ['client_industry', 'Branche', true],
+  ['client_core_business', 'Kernbusiness (1 Satz)', true],
   ['client_target_audience', 'Zielgruppe (B2B/B2C)'],
   ['client_usp', 'USP'],
   ['client_existing_marketing', 'Bestehendes Marketing'],
-  ['client_project_scope', 'Projektumfang — was ist IN / NICHT IN'],
+  ['client_project_scope', 'Projektumfang — was ist IN / NICHT IN', true],
 ];
 
 export default function ContextEditor({ proposal, notes, onNotesChange, onSave, saving }) {
@@ -32,8 +32,8 @@ export default function ContextEditor({ proposal, notes, onNotesChange, onSave, 
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {CONTEXT_FIELDS.map(([key, label]) => (
-            <div key={key} className={key === 'client_project_scope' ? 'md:col-span-2' : ''}>
+          {CONTEXT_FIELDS.map(([key, label, fullWidth]) => (
+            <div key={key} className={fullWidth ? 'md:col-span-2' : ''}>
               <Label className="text-xs">{label}</Label>
               <Input value={form[key]} onChange={e => set(key, e.target.value)} className="mt-1" />
             </div>
