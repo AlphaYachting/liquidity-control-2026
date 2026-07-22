@@ -48,14 +48,15 @@ export function useCustomerEmailThreads(customer) {
   });
 }
 
-// Leitet einen Kommunikations-Status aus den Threads ab (rein abgeleitet, keine Writes).
+// Leitet die Kommunikationsqualität aus den Threads ab (rein abgeleitet, keine Writes):
+// Rot = Eskalation (eingreifen), Gelb = Reklamation (prüfen), Grün = Kommunikation gut.
 export function deriveCommunicationStatus(data) {
   const threads = data?.results || [];
   if (threads.length === 0) return { level: 'none', label: 'Keine E-Mails (90 Tage)' };
   const escalated = threads.filter((t) => Number(t.eskalation) === 1);
-  if (escalated.length > 0) return { level: 'critical', label: `Eskalation (${escalated.length})`, threads: escalated };
-  const waiting = threads.filter((t) => t.status === 'offen' || t.status === 'wartet_auf_kunde');
-  if (waiting.length > 0) return { level: 'attention', label: `${waiting.length} offene Konversation${waiting.length > 1 ? 'en' : ''}`, threads: waiting };
-  if (data?.mode === 'search') return { level: 'pending', label: `${threads.length} Konversation${threads.length > 1 ? 'en' : ''} · KI-Auswertung ausstehend` };
-  return { level: 'ok', label: 'Kommunikation unauffällig' };
+  if (escalated.length > 0) return { level: 'critical', label: `Eingreifen erforderlich (${escalated.length})`, threads: escalated };
+  const complaints = threads.filter((t) => t.category === 'reklamation');
+  if (complaints.length > 0) return { level: 'attention', label: `Reklamation — prüfen (${complaints.length})`, threads: complaints };
+  if (data?.mode === 'search' || threads.every((t) => !t.category)) return { level: 'pending', label: 'KI-Auswertung ausstehend' };
+  return { level: 'ok', label: 'Kommunikation gut' };
 }
