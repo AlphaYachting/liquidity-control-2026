@@ -6,7 +6,7 @@ import {
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
   CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale,
-  KanbanSquare, Inbox, History, Presentation, Mail
+  KanbanSquare, Inbox, History, Presentation, Mail, Siren
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
@@ -33,7 +33,7 @@ const navSections = [
       { path: '/crm', label: 'Pipeline', icon: KanbanSquare },
       { path: '/crm/inbox', label: 'Posteingang', icon: Inbox },
       { path: '/crm/emails', label: 'E-Mail-Zentrale', icon: Mail },
-      { path: '/crm/quotes', label: 'Angebote', icon: FileText },
+      { path: '/crm/alerts', label: 'Kommunikations-Alerts', icon: Siren },
       { path: '/crm/proposals', label: 'Angebots-Studio', icon: Presentation },
     ],
   },
