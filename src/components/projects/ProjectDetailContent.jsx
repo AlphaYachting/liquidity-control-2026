@@ -35,6 +35,7 @@ import RealProgressValidator from '@/components/projects/RealProgressValidator';
 import NextMonthsBillingPreview from '@/components/projects/NextMonthsBillingPreview';
 import WebsiteMilestoneGuide from '@/components/projects/WebsiteMilestoneGuide';
 import DeleteProjectCockpitDialog from '@/components/projects/DeleteProjectCockpitDialog';
+import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
 
 /**
  * ProjectDetailContent — reusable project cockpit content, usable both as a page
@@ -736,6 +737,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
             );
           })()}
 
+          <CustomerEmailSection customer={project.customer} />
 
         </div>
       </div>
