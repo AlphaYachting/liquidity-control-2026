@@ -47,6 +47,7 @@ import CrmInbox from '@/pages/CrmInbox';
 import CrmDealDetail from '@/pages/CrmDealDetail';
 import CrmQuotes from '@/pages/CrmQuotes';
 import CrmProposals from '@/pages/CrmProposals';
+import CrmEmails from '@/pages/CrmEmails';
 import CrmProposalDetail from '@/pages/CrmProposalDetail';
 import CrmQuoteDetail from '@/pages/CrmQuoteDetail';
 import AuditTrail from '@/pages/AuditTrail';
@@ -99,6 +100,7 @@ const AuthenticatedApp = () => {
         <Route path="/hosting" element={<Hosting />} />
         <Route path="/crm" element={<CrmBoard />} />
         <Route path="/crm/inbox" element={<CrmInbox />} />
+        <Route path="/crm/emails" element={<CrmEmails />} />
         <Route path="/crm/deals/:dealId" element={<CrmDealDetail />} />
         <Route path="/crm/quotes" element={<CrmQuotes />} />
         <Route path="/crm/quotes/:quoteId" element={<CrmQuoteDetail />} />
