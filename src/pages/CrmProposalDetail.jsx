@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Loader2, Sparkles, CheckCircle2, RefreshCw } from 'lucide-react';
 import { PROPOSAL_STATUSES, MODE_LABELS, WORKFLOW_STEPS } from '@/components/crm/proposals/proposalConfig';
 import { buildLargeTextPatch, loadLargeText, loadJsonField } from '@/components/crm/proposals/jsonFields';
@@ -12,6 +11,7 @@ import ContextEditor from '@/components/crm/proposals/ContextEditor';
 import AnalysisView from '@/components/crm/proposals/AnalysisView';
 import MappingView from '@/components/crm/proposals/MappingView';
 import RenderPanel from '@/components/crm/proposals/RenderPanel';
+import CorrectionInput from '@/components/crm/proposals/CorrectionInput';
 
 export default function CrmProposalDetail() {
   const { proposalId } = useParams();
@@ -145,11 +145,10 @@ export default function CrmProposalDetail() {
   const step = st.step;
 
   const correctionBox = (placeholder) => (
-    <Textarea
+    <CorrectionInput
       value={correction}
-      onChange={e => setCorrection(e.target.value)}
+      onChange={setCorrection}
       placeholder={placeholder}
-      className="min-h-[70px] text-sm"
       disabled={!!busy}
     />
   );
