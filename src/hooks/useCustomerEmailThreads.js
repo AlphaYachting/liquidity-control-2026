@@ -40,7 +40,22 @@ export function useCustomerEmailThreads(customer) {
           });
         }
       }
-      return { mode: 'search', search_term: core, results: [...byThread.values()].sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || '')) };
+      const stubs = [...byThread.values()].sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || ''));
+
+      // KI-Bewertungen (Kategorie, Status, Eskalation) für die neuesten Treffer nachladen,
+      // damit auch ohne direkte Kundenzuordnung die Kommunikationsqualität sichtbar ist.
+      const enriched = await Promise.all(
+        stubs.slice(0, 8).map(async (stub) => {
+          try {
+            const detail = await emailApi('thread', { params: { id: stub.id, msgs: 1 } });
+            const t = detail?.thread || {};
+            return { ...stub, summary: t.summary || null, category: t.category || null, status: t.status || null, eskalation: Number(t.eskalation) || 0 };
+          } catch {
+            return stub;
+          }
+        })
+      );
+      return { mode: 'search', search_term: core, results: [...enriched, ...stubs.slice(8)] };
     },
     enabled: !!customer,
     staleTime: 5 * 60 * 1000,
@@ -57,6 +72,6 @@ export function deriveCommunicationStatus(data) {
   if (escalated.length > 0) return { level: 'critical', label: `Eingreifen erforderlich (${escalated.length})`, threads: escalated };
   const complaints = threads.filter((t) => t.category === 'reklamation');
   if (complaints.length > 0) return { level: 'attention', label: `Reklamation — prüfen (${complaints.length})`, threads: complaints };
-  if (data?.mode === 'search' || threads.every((t) => !t.category)) return { level: 'pending', label: 'KI-Auswertung ausstehend' };
+  if (threads.every((t) => !t.category)) return { level: 'pending', label: 'KI-Auswertung ausstehend' };
   return { level: 'ok', label: 'Kommunikation gut' };
 }
