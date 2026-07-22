@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { fetchLiveOpenReceivables } from '../../shared/sevdeskLiveReceivables.ts';
+import { emailDbGet } from '../../shared/emailDb.ts';
 
 // Wochenvorschau der Projektintelligence — läuft donnerstags und schaut
 // PROAKTIV in die NÄCHSTE Woche: erwartete Zahlungseingänge, geplante
@@ -132,6 +133,20 @@ Deno.serve(async (req) => {
     const openRecs = await svc.entities.AdvisorRecommendation.filter({ status: 'open' }, null, 200).catch(() => []);
     const openInquiries = await svc.entities.ProjectInquiry.filter({ status: 'sent' }, null, 200).catch(() => []);
 
+    // 6b. E-Mail-Eskalationen aus der zentralen E-Mail-Datenbank (letzte 14 Tage)
+    let emailEscalations: any[] = [];
+    try {
+      const listing = await emailDbGet('threads', { days: 14, limit: 200 });
+      emailEscalations = (listing.results || [])
+        .filter((t: any) => Number(t.eskalation) === 1)
+        .map((t: any) => ({
+          kunde: t.customer_normalized || 'unbekannt',
+          betreff: t.subject || '',
+          zusammenfassung: t.summary || '',
+          letzte_mail: (t.last_message_at || '').slice(0, 10),
+        }));
+    } catch (_) { /* E-Mail-DB nicht erreichbar — Bericht läuft ohne weiter */ }
+
     // 7. Stundensatz
     const settings = await svc.entities.RestructuringSetting.list(null, 1).catch(() => []);
     const hourlyRate = settings[0]?.wip_blended_hourly_rate || 100;
@@ -152,6 +167,7 @@ Deno.serve(async (req) => {
       offene_stunden_wert_netto: Math.round(totalOpenHours * hourlyRate),
       offene_empfehlungen: openRecs.length,
       unbeantwortete_rueckfragen: openInquiries.length,
+      email_eskalationen: emailEscalations.length,
     };
 
     // 8. Vorschau-Bericht generieren
@@ -178,12 +194,14 @@ Offene Empfehlungen aus Vorwochen: ${JSON.stringify(openRecs.slice(0, 10).map(r 
 
 Unbeantwortete Rückfragen an Umsetzer: ${JSON.stringify(openInquiries.slice(0, 10).map(q => ({ kunde: q.customer, projekt: q.project_name, empfaenger: q.recipient_name, seit: q.sent_at })))}
 
+E-Mail-Eskalationen aus der Kundenkommunikation der letzten 14 Tage (KI-erkannt: unzufriedene Kunden, Beschwerden, Konfliktton — nächste Woche persönlich reagieren): ${JSON.stringify(emailEscalations.slice(0, 10))}
+
 Struktur:
 1. KPI-Zeile oben (erwartete Eingänge nächste Woche €, geplante Abrechnungen €, Quick-Win-Potenzial €, Überfällig €, offene Stunden mit €-Wert bei ${hourlyRate}€/h)
 2. "💶 Erwartete Zahlungseingänge nächste Woche" — fällige Rechnungen mit Kunde, Betrag, Fälligkeit
 3. "🧾 Nächste Woche Rechnung stellen" — geplante Anweisungen + Quick-Wins mit konkretem Betrag
 4. "📞 Nachfassen & Mahnen" — überfällige Rechnungen mit Priorität
-5. "🔴 Eingreifen" — Budget-kritische und stagnierende Projekte
+5. "🔴 Eingreifen" — Budget-kritische und stagnierende Projekte sowie E-Mail-Eskalationen (unzufriedene Kunden mit Betreff und Kurzzusammenfassung)
 6. "📋 Nachverfolgung" — offene Empfehlungen und unbeantwortete Rückfragen
 7. "🎯 Top-3-Aufgaben für nächste Woche" — konkrete Handlungen mit Beträgen
 Formatvorgaben (strikt einhalten):

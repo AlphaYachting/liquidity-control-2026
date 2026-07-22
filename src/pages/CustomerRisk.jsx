@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Users, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Users, ChevronDown, ChevronRight, AlertTriangle, Mail } from 'lucide-react';
+import { useEmailEscalations } from '@/hooks/useEmailEscalations';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/liquidityUtils';
@@ -27,6 +28,17 @@ export default function CustomerRisk() {
   });
 
   const isLoading = pLoading || iLoading || oLoading || bLoading;
+
+  // Eskalierte E-Mail-Threads je Kunde (aus der KI-Auswertung der E-Mail-Zentrale)
+  const { data: escalatedThreads = [] } = useEmailEscalations();
+  const emailEscMap = useMemo(() => {
+    const m = {};
+    escalatedThreads.forEach(t => {
+      const k = (t.customer_normalized || '').toLowerCase().trim();
+      if (k) m[k] = (m[k] || 0) + 1;
+    });
+    return m;
+  }, [escalatedThreads]);
 
   // Pre-compute financials per project using the shared helper (same as Projects page)
   const finMap = useMemo(() => {
@@ -128,6 +140,9 @@ export default function CustomerRisk() {
         {customerData.map((c, idx) => {
           const isOpen = expanded[c.customer];
           const riskBadge = getRiskBadge(c);
+          const cLower = (c.customer || '').toLowerCase().trim();
+          const emailEsc = Object.entries(emailEscMap).reduce(
+            (s, [k, n]) => (cLower && (k.includes(cLower) || cLower.includes(k)) ? s + n : s), 0);
           const exposurePct = totalExposure > 0 ? ((c.totalNet / totalExposure) * 100).toFixed(1) : 0;
 
           return (
@@ -144,6 +159,11 @@ export default function CustomerRisk() {
                     {riskBadge && (
                       <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${riskBadge.cls}`}>
                         {riskBadge.label}
+                      </span>
+                    )}
+                    {emailEsc > 0 && (
+                      <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-red-100 text-red-700 border-red-200 inline-flex items-center gap-1">
+                        <Mail className="w-3 h-3" /> {emailEsc} E-Mail-Eskalation{emailEsc > 1 ? 'en' : ''}
                       </span>
                     )}
                     <span className="text-xs text-muted-foreground">
