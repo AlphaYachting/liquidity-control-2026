@@ -147,8 +147,10 @@ ${notes}
   }));
 }
 
-export async function runAnalysis(proposal) {
+export async function runAnalysis(proposal, onProgress = () => {}) {
+  onProgress('Regelwerke (SKILL.md + Referenzen) & Gesprächsnotizen werden geladen…');
   const { rules, notes } = await baseParts(proposal);
+  onProgress('KI erstellt strategische Analyse & Gap-Analyse (kann 1–2 Minuten dauern)…');
   const correction = proposal.analysis_correction
     ? `\n\nKORREKTUR DES MITARBEITERS (verbindlich einarbeiten):\n${proposal.analysis_correction}`
     : '';
@@ -173,11 +175,14 @@ AUFGABE — Step 2 des Skills (Strategische Analyse & Gap-Analyse):
 ERSTELLE NOCH KEINE Positionen und KEIN PDF — nur die Analyse zur Freigabe.${JSON_HINT}`,
     response_json_schema: ANALYSIS_SCHEMA,
   });
+  onProgress('KI-Antwort wird geprüft & strukturiert…');
   return ensureShape(raw, 'project_type', ANALYSIS_SCHEMA);
 }
 
-export async function runMapping(proposal, analysis) {
+export async function runMapping(proposal, analysis, onProgress = () => {}) {
+  onProgress('Regelwerke (SKILL.md + Referenzen) & Gesprächsnotizen werden geladen…');
   const { rules, notes } = await baseParts(proposal);
+  onProgress('KI erstellt Gesprächs-Mapping, Positionen & Preisvorschlag (kann 1–2 Minuten dauern)…');
   const correction = proposal.mapping_correction
     ? `\n\nKORREKTUR DES MITARBEITERS (verbindlich einarbeiten):\n${proposal.mapping_correction}`
     : '';
@@ -205,14 +210,17 @@ AUFGABE — Step 3 des Skills (Gesprächs-Mapping & Positionsabstimmung):
 NOCH KEIN PDF — diese Übersicht geht zur Freigabe (Stopp 2).${JSON_HINT}`,
     response_json_schema: MAPPING_SCHEMA,
   });
+  onProgress('KI-Antwort wird geprüft & strukturiert…');
   return ensureShape(raw, 'positions', MAPPING_SCHEMA);
 }
 
-export async function runConfig(proposal, analysis, mapping) {
+export async function runConfig(proposal, analysis, mapping, onProgress = () => {}) {
+  onProgress('Regelwerke, Notizen & Config-Template werden geladen…');
   const [{ rules, notes }, template] = await Promise.all([
     baseParts(proposal),
     loadConfigTemplate(proposal.mode),
   ]);
+  onProgress('KI erstellt die finale Render-Config (kann 1–2 Minuten dauern)…');
   const raw = await base44.integrations.Core.InvokeLLM({
     model: MODEL,
     prompt: `${header(proposal)}
@@ -245,6 +253,7 @@ AUFGABE — Step 4 des Skills: Erzeuge die FINALE Config als JSON-Objekt im Feld
 - Standing Rules strikt beachten (® direkt hinter rittler&co, mittleres Paket nie "empfohlen", Preise grün, PROPOSAL_DATE = ${new Date().toLocaleDateString('de-AT')}).${JSON_HINT}`,
     response_json_schema: CONFIG_SCHEMA,
   });
+  onProgress('KI-Antwort wird geprüft & strukturiert…');
   const result = await ensureShape(raw, 'config', CONFIG_SCHEMA);
   return result?.config ? unwrapLLM(result.config) : result;
 }

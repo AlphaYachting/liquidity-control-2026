@@ -12,6 +12,7 @@ import AnalysisView from '@/components/crm/proposals/AnalysisView';
 import MappingView from '@/components/crm/proposals/MappingView';
 import RenderPanel from '@/components/crm/proposals/RenderPanel';
 import CorrectionInput from '@/components/crm/proposals/CorrectionInput';
+import ProgressLog, { analyzeError } from '@/components/crm/proposals/ProgressLog';
 
 export default function CrmProposalDetail() {
   const { proposalId } = useParams();
@@ -19,7 +20,14 @@ export default function CrmProposalDetail() {
   const [notes, setNotes] = useState('');
   const [correction, setCorrection] = useState('');
   const [busy, setBusy] = useState(null); // 'save' | 'analysis' | 'mapping' | 'config'
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(null); // { message, advice[] }
+  const [log, setLog] = useState([]);
+
+  const logStep = (text) => setLog(prev => [
+    ...prev.map(l => l.status === 'running' ? { ...l, status: 'done' } : l),
+    { text, status: 'running', time: new Date().toLocaleTimeString('de-AT') },
+  ]);
+  const logFail = () => setLog(prev => prev.map(l => l.status === 'running' ? { ...l, status: 'error' } : l));
 
   const { data: proposal, isLoading } = useQuery({
     queryKey: ['crm-proposal', proposalId],
@@ -70,8 +78,9 @@ export default function CrmProposalDetail() {
 
   const startAnalysis = async (withCorrection, textOverride) => {
     const inputText = textOverride ?? notes;
-    setBusy('analysis'); setError(null);
+    setBusy('analysis'); setError(null); setLog([]);
     try {
+      logStep('Gesprächsnotizen werden gespeichert…');
       const notesPatch = await buildLargeTextPatch('input_text', inputText, 'gespraechsnotizen.txt');
       await base44.entities.CrmProposal.update(proposalId, {
         ...notesPatch,
@@ -79,6 +88,7 @@ export default function CrmProposalDetail() {
       });
       let fresh = await base44.entities.CrmProposal.get(proposalId);
       if (!fresh.client_core_business && !fresh.client_project_scope) {
+        logStep('Kundenkontext wird aus den Notizen extrahiert…');
         const ctx = await extractContext(inputText);
         const ctxPatch = {};
         ['customer_company', 'contact_person', 'client_core_business', 'client_industry',
@@ -89,19 +99,23 @@ export default function CrmProposalDetail() {
           fresh = await base44.entities.CrmProposal.get(proposalId);
         }
       }
-      const result = await runAnalysis(fresh);
+      const result = await runAnalysis(fresh, logStep);
+      logStep('Analyse-Ergebnis wird gespeichert…');
       const jsonPatch = await buildLargeTextPatch('analysis_json', JSON.stringify(result), 'analysis.json');
       await update({ ...jsonPatch, status: 'analysis_review', error_message: '' });
       setCorrection('');
+      setLog([]);
     } catch (e) {
-      setError('Analyse fehlgeschlagen: ' + (e?.message || ''));
+      logFail();
+      setError(analyzeError(e, 'Strategische Analyse'));
     }
     setBusy(null);
   };
 
   const approveAnalysisAndMap = async (withCorrection) => {
-    setBusy('mapping'); setError(null);
+    setBusy('mapping'); setError(null); setLog([]);
     try {
+      logStep('Analyse-Freigabe wird gespeichert…');
       const user = await base44.auth.me().catch(() => null);
       await base44.entities.CrmProposal.update(proposalId, {
         mapping_correction: withCorrection ? correction : '',
@@ -109,30 +123,37 @@ export default function CrmProposalDetail() {
         analysis_approved_by: user?.email || '',
       });
       const fresh = await base44.entities.CrmProposal.get(proposalId);
-      const result = await runMapping(fresh, analysis);
+      const result = await runMapping(fresh, analysis, logStep);
+      logStep('Mapping-Ergebnis wird gespeichert…');
       const jsonPatch = await buildLargeTextPatch('mapping_json', JSON.stringify(result), 'mapping.json');
       await update({ ...jsonPatch, status: 'mapping_review', error_message: '' });
       setCorrection('');
+      setLog([]);
     } catch (e) {
-      setError('Mapping fehlgeschlagen: ' + (e?.message || ''));
+      logFail();
+      setError(analyzeError(e, 'Gesprächs-Mapping'));
     }
     setBusy(null);
   };
 
   const approveMappingAndConfig = async () => {
-    setBusy('config'); setError(null);
+    setBusy('config'); setError(null); setLog([]);
     try {
+      logStep('Mapping-Freigabe wird gespeichert…');
       const user = await base44.auth.me().catch(() => null);
       await base44.entities.CrmProposal.update(proposalId, {
         mapping_approved_at: new Date().toISOString(),
         mapping_approved_by: user?.email || '',
       });
       const fresh = await base44.entities.CrmProposal.get(proposalId);
-      const result = await runConfig(fresh, analysis, mapping);
+      const result = await runConfig(fresh, analysis, mapping, logStep);
+      logStep('Config wird gespeichert…');
       const jsonPatch = await buildLargeTextPatch('config_json', JSON.stringify(result), 'config.json');
       await update({ ...jsonPatch, status: 'config_ready', error_message: '' });
+      setLog([]);
     } catch (e) {
-      setError('Config-Erstellung fehlgeschlagen: ' + (e?.message || ''));
+      logFail();
+      setError(analyzeError(e, 'Config-Erstellung'));
     }
     setBusy(null);
   };
@@ -176,7 +197,7 @@ export default function CrmProposalDetail() {
         ))}
       </div>
 
-      {error && <p className="text-xs text-destructive border border-destructive/30 bg-destructive/5 rounded-lg p-3">{error}</p>}
+      {(log.length > 0 || error) && <ProgressLog lines={log} error={error} />}
 
       <ContextEditor
         proposal={proposal}
