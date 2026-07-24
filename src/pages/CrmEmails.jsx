@@ -28,7 +28,7 @@ export default function CrmEmails() {
         setMode('search');
         setItems(data.results || []);
       } else {
-        const params = { limit: 50 };
+        const params = { limit: 50, with_reply_state: 1 };
         if (f.customer.trim()) params.customer = f.customer.trim();
         if (f.status !== 'all') params.status = f.status;
         if (f.days !== 'all') params.days = f.days;

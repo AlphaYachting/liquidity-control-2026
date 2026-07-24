@@ -19,6 +19,27 @@ Deno.serve(async (req) => {
     const paths = { health: 'health', search: 'search', threads: 'threads', thread: 'thread' };
     const path = paths[action];
     if (!path) return Response.json({ error: `Unbekannte Aktion: ${action}` }, { status: 400 });
+
+    // Thread-Liste optional mit letzter Nachricht anreichern (wer hat zuletzt geschrieben?)
+    if (action === 'threads' && params.with_reply_state) {
+      const { with_reply_state: _drop, ...listParams } = params;
+      const listing = await emailDbGet('threads', listParams);
+      const results = listing.results || [];
+      for (let i = 0; i < results.length; i += 10) {
+        await Promise.all(results.slice(i, i + 10).map(async (t: any) => {
+          try {
+            const detail = await emailDbGet('thread', { id: t.id, msgs: 1 });
+            const last = (detail.messages || [])[0];
+            if (last) {
+              t.last_from = last.from || '';
+              t.last_direction = last.direction || '';
+            }
+          } catch (_e) { /* Anreicherung optional */ }
+        }));
+      }
+      return Response.json(listing);
+    }
+
     return Response.json(await emailDbGet(path, params));
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
