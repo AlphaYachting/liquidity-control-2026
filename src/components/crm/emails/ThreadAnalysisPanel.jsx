@@ -12,6 +12,7 @@ export default function ThreadAnalysisPanel({ thread, messages, onSaved }) {
   const [busy, setBusy] = useState(null); // 'analyze' | 'save'
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [saved, setSaved] = useState(false);
 
   const runAnalysis = async () => {
     setBusy('analyze'); setError(null);
@@ -66,8 +67,11 @@ Bewerte: Kategorie, Bearbeitungsstatus, Stimmung des Kunden, ob Eskalationsgefah
       if (result.customer_normalized?.trim() && !thread.customer) {
         fields.customer_normalized = result.customer_normalized.trim();
       }
-      await emailApi('enrich', { thread_id: thread.id, fields });
+      const res = await emailApi('enrich', { thread_id: thread.id, fields });
+      if (!res?.ok) throw new Error(res?.error || 'Die E-Mail-Datenbank hat die Änderung nicht bestätigt');
       setResult(null);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 4000);
       onSaved?.();
     } catch (e) {
       setError('Zurückschreiben fehlgeschlagen: ' + (e?.response?.data?.error || e?.message || ''));
@@ -125,6 +129,7 @@ Bewerte: Kategorie, Bearbeitungsstatus, Stimmung des Kunden, ob Eskalationsgefah
         </div>
       )}
 
+      {saved && <p className="text-xs text-emerald-600 font-medium">✓ Auswertung in die E-Mail-Datenbank zurückgeschrieben.</p>}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );

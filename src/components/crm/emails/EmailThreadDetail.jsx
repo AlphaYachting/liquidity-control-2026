@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Reply, AlertTriangle, Mail } from 'lucide-react';
 import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, DIRECTION_META, formatMailDate } from '@/components/crm/emails/emailConfig';
 import ThreadAnalysisPanel from '@/components/crm/emails/ThreadAnalysisPanel';
+import ReplyDraftPanel from '@/components/crm/emails/ReplyDraftPanel';
 
 export default function EmailThreadDetail({ thread, loading, onRefresh }) {
   if (loading) {
@@ -73,6 +74,8 @@ export default function EmailThreadDetail({ thread, loading, onRefresh }) {
       </Card>
 
       <ThreadAnalysisPanel thread={t} messages={messages} onSaved={onRefresh} />
+
+      <ReplyDraftPanel thread={t} messages={messages} />
 
       <div className="space-y-2">
         {messages.map((m) => {

@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useUnlinkedOrdersCount } from '@/hooks/useUnlinkedOrdersCount';
 import { usePendingDunningCount } from '@/hooks/usePendingDunningCount';
 import { useCrmInboxCount } from '@/hooks/useCrmInboxCount';
+import { useEmailActionCount } from '@/hooks/useEmailActionCount';
 
 const navSections = [
   {
@@ -84,6 +85,7 @@ export default function Sidebar() {
   const unlinkedCount = useUnlinkedOrdersCount();
   const pendingDunningCount = usePendingDunningCount();
   const crmInboxCount = useCrmInboxCount();
+  const emailActionCount = useEmailActionCount();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -97,7 +99,8 @@ export default function Sidebar() {
     const active = isActive(item.path);
     const badgeCount = item.path === '/confirmed-orders' ? unlinkedCount
       : item.path === '/receivables' ? pendingDunningCount
-      : item.path === '/crm/inbox' ? crmInboxCount : 0;
+      : item.path === '/crm/inbox' ? crmInboxCount
+      : item.path === '/crm/emails' ? emailActionCount : 0;
     return (
       <Link
         key={item.path}

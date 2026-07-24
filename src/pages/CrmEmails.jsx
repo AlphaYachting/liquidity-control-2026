@@ -88,7 +88,7 @@ export default function CrmEmails() {
         <EmailThreadDetail
           thread={thread}
           loading={loadingThread}
-          onRefresh={() => openThread(selectedId)}
+          onRefresh={() => { openThread(selectedId); load(); }}
         />
       </div>
     </div>
