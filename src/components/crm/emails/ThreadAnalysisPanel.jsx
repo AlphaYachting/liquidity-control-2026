@@ -32,7 +32,14 @@ KONVERSATION (neueste zuerst):
 ${convo}
 """
 
-Bewerte: Kategorie, Bearbeitungsstatus, Stimmung des Kunden, ob Eskalationsgefahr besteht (unzufriedener Kunde, Beschwerden, Fristdruck, Mahnungen), ob aktives Handeln unsererseits nötig ist, und fasse den Stand in 2-3 Sätzen zusammen.`,
+Bewerte: Kategorie, Bearbeitungsstatus, Stimmung des Kunden, ob Eskalationsgefahr besteht (unzufriedener Kunde, Beschwerden, Fristdruck, Mahnungen), ob aktives Handeln unsererseits nötig ist, und fasse den Stand in 2-3 Sätzen zusammen.
+
+Regeln zum Kommunikationsweg (WICHTIG für den Status):
+- Die Konversation ist chronologisch NEUESTE ZUERST sortiert. Prüfe genau, wer zuletzt geschrieben hat.
+- Absender mit @rittler.co oder @rico-office.at sind unsere Kollegen.
+- Wenn nach der letzten Kundenanfrage bereits ein Kollege dem Kunden inhaltlich geantwortet hat: status "beantwortet" (NICHT "offen") und colleague_replied true.
+- status "offen" NUR, wenn die letzte Anfrage des Kunden von uns noch unbeantwortet ist.
+- Reine interne Weiterleitungen ("WG:", "Bitte um Antwort") ohne Antwort an den Kunden zählen NICHT als beantwortet.`,
         response_json_schema: {
           type: 'object',
           properties: {
@@ -41,6 +48,7 @@ Bewerte: Kategorie, Bearbeitungsstatus, Stimmung des Kunden, ob Eskalationsgefah
             status: { type: 'string', enum: Object.keys(EMAIL_THREAD_STATUSES) },
             sentiment: { type: 'string', enum: ['positiv', 'neutral', 'angespannt', 'negativ'] },
             eskalation: { type: 'boolean' },
+            colleague_replied: { type: 'boolean', description: 'true wenn ein Kollege dem Kunden bereits geantwortet hat' },
             action_needed: { type: 'string', description: 'Konkreter Handlungsbedarf unsererseits, leer wenn keiner' },
             customer_normalized: { type: 'string', description: 'Firmenname des Kunden, leer wenn nicht erkennbar' },
           },
@@ -59,7 +67,7 @@ Bewerte: Kategorie, Bearbeitungsstatus, Stimmung des Kunden, ob Eskalationsgefah
       const fields = {
         summary: result.summary || '',
         category: result.category || 'sonstiges',
-        status: result.status || 'offen',
+        status: result.colleague_replied && (result.status || 'offen') === 'offen' ? 'beantwortet' : (result.status || 'offen'),
         eskalation: result.eskalation ? 1 : 0,
         zuordnung_status: 'automatisch',
         klass_modell: 'base44-invokellm',
@@ -107,6 +115,11 @@ Bewerte: Kategorie, Bearbeitungsstatus, Stimmung des Kunden, ob Eskalationsgefah
               </Badge>
             )}
             {senti && <Badge variant="outline" className={`text-[10px] border-0 ${senti.color}`}>Stimmung: {senti.label}</Badge>}
+            {result.colleague_replied && (
+              <Badge variant="outline" className="text-[10px] border-0 bg-sky-100 text-sky-700">
+                Kollege hat geantwortet
+              </Badge>
+            )}
             {result.eskalation && (
               <Badge variant="outline" className="text-[10px] border-0 bg-red-100 text-red-700 gap-1">
                 <AlertTriangle className="w-3 h-3" /> Eskalationsgefahr

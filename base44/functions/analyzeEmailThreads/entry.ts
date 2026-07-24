@@ -54,7 +54,14 @@ ${convo}
 Regeln:
 - Spam, Newsletter, Werbung, Cold-Outreach: category "sonstiges", status "erledigt", summary "Spam/Werbung — nicht relevant", eskalation false, customer_normalized leer.
 - Eskalation = true nur bei erkennbar unzufriedenem Kunden, Beschwerde, Mahnung, Fristdruck oder Konfliktton.
-- customer_normalized: exakter Name aus der Kundenliste wenn zuordenbar, sonst erkennbarer Firmenname, sonst leer.`,
+- customer_normalized: exakter Name aus der Kundenliste wenn zuordenbar, sonst erkennbarer Firmenname, sonst leer.
+
+Regeln zum Kommunikationsweg (WICHTIG für den Status):
+- Die Konversation ist chronologisch NEUESTE ZUERST sortiert. Prüfe genau, wer zuletzt geschrieben hat.
+- Absender mit @rittler.co oder @rico-office.at sind unsere Kollegen.
+- Wenn nach der letzten Kundenanfrage bereits ein Kollege dem Kunden inhaltlich geantwortet hat: status "beantwortet" (NICHT "offen") und colleague_replied true.
+- status "offen" NUR, wenn die letzte Anfrage des Kunden von uns noch unbeantwortet ist.
+- Reine interne Weiterleitungen ("WG:", "Bitte um Antwort") ohne Antwort an den Kunden zählen NICHT als beantwortet.`,
           response_json_schema: {
             type: 'object',
             properties: {
@@ -62,6 +69,7 @@ Regeln:
               category: { type: 'string', enum: CATEGORIES },
               status: { type: 'string', enum: STATUSES },
               eskalation: { type: 'boolean' },
+              colleague_replied: { type: 'boolean' },
               customer_normalized: { type: 'string' },
             },
           },
@@ -70,7 +78,10 @@ Regeln:
         const fields = {
           summary: result.summary || '',
           category: CATEGORIES.includes(result.category) ? result.category : 'sonstiges',
-          status: STATUSES.includes(result.status) ? result.status : 'offen',
+          status: (() => {
+            const s = STATUSES.includes(result.status) ? result.status : 'offen';
+            return result.colleague_replied && s === 'offen' ? 'beantwortet' : s;
+          })(),
           eskalation: result.eskalation ? 1 : 0,
           zuordnung_status: 'automatisch',
           klass_modell: 'base44-batch',

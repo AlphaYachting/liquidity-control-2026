@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, Reply, AlertTriangle, Mail } from 'lucide-react';
-import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, DIRECTION_META, formatMailDate } from '@/components/crm/emails/emailConfig';
+import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, DIRECTION_META, formatMailDate, colleagueRepliedLast } from '@/components/crm/emails/emailConfig';
 import ThreadAnalysisPanel from '@/components/crm/emails/ThreadAnalysisPanel';
 import ReplyDraftPanel from '@/components/crm/emails/ReplyDraftPanel';
 
@@ -55,6 +55,11 @@ export default function EmailThreadDetail({ thread, loading, onRefresh }) {
           <div className="flex items-center gap-1.5 flex-wrap mt-1">
             {cat && <Badge variant="outline" className={`text-[10px] border-0 ${cat.color}`}>{cat.label}</Badge>}
             {st && <Badge variant="outline" className={`text-[10px] border-0 ${st.color}`}>{st.label}</Badge>}
+            {t.status === 'offen' && colleagueRepliedLast(messages) && (
+              <Badge variant="outline" className="text-[10px] border-0 bg-sky-100 text-sky-700 gap-1">
+                <Reply className="w-3 h-3" /> Kollege hat geantwortet
+              </Badge>
+            )}
             {Number(t.eskalation) === 1 && (
               <Badge variant="outline" className="text-[10px] border-0 bg-red-100 text-red-700 gap-1">
                 <AlertTriangle className="w-3 h-3" /> Eskalation

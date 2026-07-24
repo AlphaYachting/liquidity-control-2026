@@ -29,3 +29,15 @@ export const SENTIMENT_META = {
 };
 
 export const formatMailDate = (s) => (s ? String(s).slice(0, 16) : '—');
+
+// Kollegen-Erkennung: Absender aus den eigenen Firmen-Domains
+export const INTERNAL_DOMAINS = ['rittler.co', 'rico-office.at'];
+export const isInternalSender = (from) =>
+  INTERNAL_DOMAINS.some((d) => String(from || '').toLowerCase().includes('@' + d));
+
+// Hat nach der letzten Kundennachricht bereits ein Kollege geschrieben?
+// (Nachrichten sind neueste zuerst sortiert)
+export const colleagueRepliedLast = (messages) => {
+  const m = messages?.[0];
+  return !!m && m.direction !== 'in' && isInternalSender(m.from);
+};
