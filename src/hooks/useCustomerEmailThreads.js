@@ -3,12 +3,15 @@ import { emailApi } from '@/components/crm/emails/emailApi';
 
 const STOPWORDS = new Set(['der', 'die', 'das', 'und', 'the']);
 const LEGAL_FORMS = /\b(gmbh|ag|kg|og|se|holding|gesellschaft|m\.b\.h\.?|mbh|d\.o\.o\.?|co)\b/gi;
+// Generische Branchenbegriffe — als Suchbegriff ungeeignet (matchen z.B. den eigenen Steuerberater).
+const GENERIC_TERMS = new Set(['steuerberatung', 'steuerberater', 'marketing', 'agentur', 'consulting', 'immobilien', 'architekten', 'rechtsanwalt', 'rechtsanwälte', 'kanzlei', 'gruppe', 'group', 'partner', 'service', 'services']);
 
-// Kernname der Firma für die Volltextsuche (Rechtsform & Füllwörter entfernt).
+// Kernname der Firma für die Volltextsuche (Rechtsform, Füllwörter & generische Branchenbegriffe entfernt).
 export function coreCustomerName(name) {
   const cleaned = (name || '').replace(LEGAL_FORMS, ' ').replace(/[.,&]/g, ' ').replace(/\s+/g, ' ').trim();
-  const word = cleaned.split(' ').find((w) => w.length >= 3 && !STOPWORDS.has(w.toLowerCase()));
-  return word || null;
+  const words = cleaned.split(' ').filter((w) => w.length >= 3 && !STOPWORDS.has(w.toLowerCase()));
+  const distinctive = words.find((w) => !GENERIC_TERMS.has(w.toLowerCase()));
+  return distinctive || words[0] || null;
 }
 
 // Zentraler, rein lesender Hook: E-Mail-Threads eines Kunden (letzte 90 Tage).
@@ -23,10 +26,17 @@ export function useCustomerEmailThreads(customer) {
       const core = coreCustomerName(customer);
       if (!core) return { mode: 'direct', results: [] };
       const search = await emailApi('search', { params: { q: core, days: 90, limit: 25 } });
+      const coreLc = core.toLowerCase();
       const byThread = new Map();
+      const senderMatch = new Set();
       for (const m of search?.results || []) {
         const from = (m.from || '').toLowerCase();
         if (from.includes('no-reply') || from.includes('noreply')) continue;
+        // Absender-Prüfung: der Kundenname muss im Absender (Adresse oder Name) vorkommen,
+        // damit z.B. Mails unseres eigenen Steuerberaters nicht dem Kunden zugeordnet werden.
+        if (from.includes(coreLc) || (m.from_name || '').toLowerCase().includes(coreLc)) {
+          senderMatch.add(m.thread_id);
+        }
         const existing = byThread.get(m.thread_id);
         if (!existing || (m.received_at || '') > (existing.last_message_at || '')) {
           byThread.set(m.thread_id, {
@@ -40,7 +50,9 @@ export function useCustomerEmailThreads(customer) {
           });
         }
       }
-      const stubs = [...byThread.values()].sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || ''));
+      const stubs = [...byThread.values()]
+        .filter((s) => senderMatch.has(s.id))
+        .sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || ''));
 
       // KI-Bewertungen (Kategorie, Status, Eskalation) für die neuesten Treffer nachladen,
       // damit auch ohne direkte Kundenzuordnung die Kommunikationsqualität sichtbar ist.
@@ -49,13 +61,16 @@ export function useCustomerEmailThreads(customer) {
           try {
             const detail = await emailApi('thread', { params: { id: stub.id, msgs: 1 } });
             const t = detail?.thread || {};
+            // Wenn die KI den Thread bereits einem ANDEREN Kunden zugeordnet hat: verwerfen.
+            const assigned = (t.customer_normalized || t.customer || '').toLowerCase();
+            if (assigned && !assigned.includes(coreLc) && !(customer || '').toLowerCase().includes(assigned)) return null;
             return { ...stub, summary: t.summary || null, category: t.category || null, status: t.status || null, eskalation: Number(t.eskalation) || 0 };
           } catch {
             return stub;
           }
         })
       );
-      return { mode: 'search', search_term: core, results: [...enriched, ...stubs.slice(8)] };
+      return { mode: 'search', search_term: core, results: [...enriched.filter(Boolean), ...stubs.slice(8)] };
     },
     enabled: !!customer,
     staleTime: 5 * 60 * 1000,

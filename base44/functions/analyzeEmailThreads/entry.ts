@@ -55,6 +55,7 @@ Regeln:
 - Spam, Newsletter, Werbung, Cold-Outreach: category "sonstiges", status "erledigt", summary "Spam/Werbung — nicht relevant", eskalation false, customer_normalized leer.
 - Eskalation = true nur bei erkennbar unzufriedenem Kunden, Beschwerde, Mahnung, Fristdruck oder Konfliktton.
 - customer_normalized: exakter Name aus der Kundenliste wenn zuordenbar, sonst erkennbarer Firmenname, sonst leer.
+- WICHTIG bei der Kundenzuordnung: Prüfe explizit den ABSENDER (E-Mail-Adresse/Domain und Name). Der Kunde ist nur zuordenbar, wenn der Absender oder Empfänger erkennbar zu dieser Firma gehört. Eine bloße Themen- oder Branchenähnlichkeit reicht NICHT (Beispiel: Mails unseres eigenen Steuerberaters gehören NICHT zum Kunden "Steuerberatung Erdkönig", nur weil beide Steuerberater sind). Im Zweifel customer_normalized leer lassen.
 
 Regeln zum Kommunikationsweg (WICHTIG für den Status):
 - Die Konversation ist chronologisch NEUESTE ZUERST sortiert. Prüfe genau, wer zuletzt geschrieben hat.
