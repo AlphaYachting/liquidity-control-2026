@@ -42,7 +42,13 @@ export default function CrmEmails() {
     setLoadingList(false);
   };
 
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    load();
+    // Deep-Link aus dem Projektcockpit: ?thread=<id> öffnet die Konversation direkt
+    const urlParams = new URLSearchParams(window.location.search);
+    const threadParam = urlParams.get('thread');
+    if (threadParam) openThread(threadParam);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openThread = async (threadId) => {
     if (!threadId) return;
