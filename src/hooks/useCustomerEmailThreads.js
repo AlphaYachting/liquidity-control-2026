@@ -27,14 +27,20 @@ export function useCustomerEmailThreads(customer) {
       if (!core) return { mode: 'direct', results: [] };
       const search = await emailApi('search', { params: { q: core, days: 90, limit: 25 } });
       const coreLc = core.toLowerCase();
+      // Umlaut-Variante für E-Mail-Adressen/Domains (erdkönig → erdkoenig)
+      const coreAscii = coreLc.replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+      const nameMatches = (s) => {
+        const v = (s || '').toLowerCase();
+        return v.includes(coreLc) || v.includes(coreAscii);
+      };
       const byThread = new Map();
       const senderMatch = new Set();
       for (const m of search?.results || []) {
         const from = (m.from || '').toLowerCase();
         if (from.includes('no-reply') || from.includes('noreply')) continue;
-        // Absender-Prüfung: der Kundenname muss im Absender (Adresse oder Name) vorkommen,
+        // Absender-/Empfänger-Prüfung: der Kundenname muss im Absender oder Empfänger vorkommen,
         // damit z.B. Mails unseres eigenen Steuerberaters nicht dem Kunden zugeordnet werden.
-        if (from.includes(coreLc) || (m.from_name || '').toLowerCase().includes(coreLc)) {
+        if (nameMatches(m.from) || nameMatches(m.from_name) || nameMatches(m.to)) {
           senderMatch.add(m.thread_id);
         }
         const existing = byThread.get(m.thread_id);
@@ -63,7 +69,7 @@ export function useCustomerEmailThreads(customer) {
             const t = detail?.thread || {};
             // Wenn die KI den Thread bereits einem ANDEREN Kunden zugeordnet hat: verwerfen.
             const assigned = (t.customer_normalized || t.customer || '').toLowerCase();
-            if (assigned && !assigned.includes(coreLc) && !(customer || '').toLowerCase().includes(assigned)) return null;
+            if (assigned && !nameMatches(assigned) && !(customer || '').toLowerCase().includes(assigned)) return null;
             return { ...stub, summary: t.summary || null, category: t.category || null, status: t.status || null, eskalation: Number(t.eskalation) || 0 };
           } catch {
             return stub;
