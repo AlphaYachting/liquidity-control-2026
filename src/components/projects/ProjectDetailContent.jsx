@@ -189,6 +189,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
       }
     }
     queryClient.invalidateQueries({ queryKey: ['billingBlocks-project', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['awork-snapshot', effectiveAworkProjectId] });
     await updateProjectMutation.mutateAsync({ awork_last_synced_at: new Date().toISOString() });
     setIsSyncing(false);
   };
@@ -276,7 +277,14 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
     awork_project_name: aworkSnapshot?.name || project.awork_project_name || primaryOrder?.awork_project_name,
     awork_project_status: aworkSnapshot?.project_status || project.awork_project_status || primaryOrder?.awork_project_status,
     awork_progress_percent: aworkTaskStats?.progress_percent ?? aworkSnapshot?.progress_percent ?? project.awork_progress_percent ?? primaryOrder?.awork_progress_percent ?? 0,
-    awork_last_synced_at: aworkSnapshot?.last_synced_at || project.awork_last_synced_at || primaryOrder?.awork_last_synced_at,
+    // Neuester Zeitstempel aus allen Quellen — der manuelle Sync aktualisiert Tasks/Projekt,
+    // der Hintergrund-Sync den Snapshot; keiner darf einen frischeren Sync verdecken.
+    awork_last_synced_at: [
+      aworkSnapshot?.last_synced_at,
+      project.awork_last_synced_at,
+      primaryOrder?.awork_last_synced_at,
+      aworkTaskStats?.last_synced_at,
+    ].filter(Boolean).sort().reverse()[0] || null,
   };
 
   return (
