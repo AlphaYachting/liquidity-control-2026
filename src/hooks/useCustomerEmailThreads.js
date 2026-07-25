@@ -68,9 +68,11 @@ export function useCustomerEmailThreads(customer) {
 export function deriveCommunicationStatus(data) {
   const threads = data?.results || [];
   if (threads.length === 0) return { level: 'none', label: 'Keine E-Mails (90 Tage)' };
-  const escalated = threads.filter((t) => Number(t.eskalation) === 1);
+  // Als erledigt markierte Threads sind geprüft und zählen nicht mehr als Problem.
+  const open = threads.filter((t) => t.status !== 'erledigt');
+  const escalated = open.filter((t) => Number(t.eskalation) === 1);
   if (escalated.length > 0) return { level: 'critical', label: `Eingreifen erforderlich (${escalated.length})`, threads: escalated };
-  const complaints = threads.filter((t) => t.category === 'reklamation');
+  const complaints = open.filter((t) => t.category === 'reklamation');
   if (complaints.length > 0) return { level: 'attention', label: `Reklamation — prüfen (${complaints.length})`, threads: complaints };
   if (threads.every((t) => !t.category)) return { level: 'pending', label: 'KI-Auswertung ausstehend' };
   return { level: 'ok', label: 'Kommunikation gut' };
