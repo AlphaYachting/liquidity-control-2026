@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { BrainCircuit, Send, Plus, Trash2, ChevronRight, Zap, TrendingDown, Calendar, AlertTriangle, Search, BarChart3, Mic, MicOff } from 'lucide-react';
+import { BrainCircuit, Send, Plus, Trash2, ChevronRight, Zap, TrendingDown, Calendar, AlertTriangle, Search, BarChart3, Mic, MicOff, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MessageBubble from '@/components/agent/MessageBubble';
+import ProjectDetailSlideOver from '@/components/projects/ProjectDetailSlideOver';
+import { findProjectMatch } from '@/components/agent/projectMatcher';
 import WeeklyReportCard from '@/components/agent/WeeklyReportCard';
 import { toast } from 'sonner';
 
@@ -100,6 +102,8 @@ export default function CashflowAdvisor() {
   const [sending, setSending] = useState(false);
   const [activeGroup, setActiveGroup] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [overlayProjectId, setOverlayProjectId] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -150,6 +154,13 @@ export default function CashflowAdvisor() {
   };
 
   useEffect(() => { loadConversations(); }, []);
+
+  // Projekte für Kontext-Erkennung in der Gesprächsliste laden
+  useEffect(() => {
+    base44.entities.LiquidityProject.filter({ is_active_for_billing: true }, '-updated_date', 500)
+      .then(setProjects)
+      .catch(() => {});
+  }, []);
 
   // Sicherheits-Watchdog: Eingabe nie dauerhaft sperren.
   // Falls nach 3 Minuten keine Antwort kam (Timeout/Abbruch bei langen Chats), wieder freigeben.
@@ -278,24 +289,40 @@ export default function CashflowAdvisor() {
           {conversations.length === 0 && (
             <p className="text-xs text-muted-foreground p-2 text-center mt-4">Noch keine Gespräche</p>
           )}
-          {conversations.map(c => (
-            <button
-              key={c.id}
-              onClick={() => openConversation(c)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors group ${
-                conversation?.id === c.id
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-muted text-foreground'
-              }`}
-            >
-              <p className="truncate text-xs font-medium leading-tight">
-                {c.metadata?.name || 'Analyse'}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {new Date(c.created_date).toLocaleDateString('de-AT')}
-              </p>
-            </button>
-          ))}
+          {conversations.map(c => {
+            const match = findProjectMatch(c.metadata?.name, projects);
+            return (
+              <div
+                key={c.id}
+                onClick={() => openConversation(c)}
+                role="button"
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer group ${
+                  conversation?.id === c.id
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'hover:bg-muted text-foreground'
+                }`}
+              >
+                <p className="truncate text-xs font-medium leading-tight">
+                  {c.metadata?.name || 'Analyse'}
+                </p>
+                <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                  <p className="text-[11px] text-muted-foreground shrink-0">
+                    {new Date(c.created_date).toLocaleDateString('de-AT')}
+                  </p>
+                  {match && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setOverlayProjectId(match.id); }}
+                      title={`Projektcockpit: ${match.customer} · ${match.project_name}`}
+                      className="flex items-center gap-1 min-w-0 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
+                    >
+                      <FolderOpen className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">{match.customer || match.project_name}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -315,6 +342,19 @@ export default function CashflowAdvisor() {
               {`KI-Analyse · Projekt-Cockpit · Stand ${new Date().toLocaleDateString('de-AT')}`}
             </p>
           </div>
+          {(() => {
+            const match = conversation ? findProjectMatch(conversation.metadata?.name, projects) : null;
+            return match ? (
+              <button
+                onClick={() => setOverlayProjectId(match.id)}
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors shrink-0"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline max-w-[200px] truncate">{match.customer} · {match.project_name}</span>
+                <span className="sm:hidden">Cockpit</span>
+              </button>
+            ) : null;
+          })()}
           {sending && (
             <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
               <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{animationDelay:'0ms'}}/>
@@ -384,7 +424,7 @@ export default function CashflowAdvisor() {
               </div>
             </div>
           ) : (
-            <div className="p-5 space-y-4 max-w-3xl mx-auto">
+            <div className="p-5 space-y-4 max-w-5xl mx-auto">
               {messages.map((msg, i) => <MessageBubble key={msg.id || `${msg.role}-${i}`} message={msg} />)}
 
               {/* Inline follow-up suggestions after response */}
@@ -417,7 +457,7 @@ export default function CashflowAdvisor() {
 
         {/* Input */}
         <div className="p-3 border-t bg-card shrink-0">
-          <div className="max-w-3xl mx-auto flex gap-2">
+          <div className="max-w-5xl mx-auto flex gap-2">
             <textarea
               ref={inputRef}
               value={input}
@@ -450,11 +490,18 @@ export default function CashflowAdvisor() {
               )}
             </div>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1 text-center max-w-3xl mx-auto">
+          <p className="text-[11px] text-muted-foreground mt-1 text-center max-w-5xl mx-auto">
             Enter senden · Shift+Enter neue Zeile · Modell: Claude Sonnet (höhere Analysequalität)
           </p>
         </div>
       </div>
+
+      {/* Projektcockpit als Overlay — Chat bleibt erhalten */}
+      <ProjectDetailSlideOver
+        projectId={overlayProjectId}
+        open={!!overlayProjectId}
+        onClose={() => setOverlayProjectId(null)}
+      />
     </div>
   );
 }
