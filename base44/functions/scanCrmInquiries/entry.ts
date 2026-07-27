@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
         const from = String(firstIn.from || '').toLowerCase();
         const domain = (from.match(/@([a-z0-9.\-]+)/) || [])[1] || '';
         // Website-Formular-Mails kommen von der EIGENEN Domain (z.B. office@rittler.co) — die dürfen nicht aussortiert werden
-        const looksLikeFormMail = /hurra,?\s*die post ist da|sch(ö|oe)n von ihnen zu lesen|kontaktformular/i.test(`${t.subject || ''} ${firstIn.text || ''}`);
+        const looksLikeFormMail = formRegex.test(`${t.subject || ''} ${firstIn.text || ''}`);
         if (!looksLikeFormMail && INTERNAL_DOMAINS.some((d) => domain === d || domain.endsWith('.' + d))) {
           await markChecked(db, t, 'interner Absender'); stats.checked++; continue;
         }
