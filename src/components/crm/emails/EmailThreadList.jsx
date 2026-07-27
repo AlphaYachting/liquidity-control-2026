@@ -1,7 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Paperclip, Reply } from 'lucide-react';
-import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, DIRECTION_META, formatMailDate, isInternalSender } from '@/components/crm/emails/emailConfig';
+import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, DIRECTION_META, formatMailDate, isInternalSender, deriveCustomerFromEmail } from '@/components/crm/emails/emailConfig';
 
 // Liste von Konversationen (mode="threads") oder Suchtreffern (mode="search").
 export default function EmailThreadList({ mode, items, selectedId, onSelect, loading, error }) {
@@ -41,7 +41,7 @@ export default function EmailThreadList({ mode, items, selectedId, onSelect, loa
             <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
               {mode === 'search'
                 ? `${item.from_name || item.from || ''}`
-                : `${item.customer || 'Kunde unbekannt'} · ${item.message_count || 0} Nachrichten`}
+                : `${item.customer || deriveCustomerFromEmail(item.last_inbound_from) || deriveCustomerFromEmail(item.last_from) || 'Kunde unbekannt'} · ${item.message_count || 0} Nachrichten`}
             </p>
             {(item.preview || item.summary) && (
               <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{item.preview || item.summary}</p>

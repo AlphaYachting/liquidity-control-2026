@@ -35,6 +35,24 @@ export const INTERNAL_DOMAINS = ['rittler.co', 'rico-office.at'];
 export const isInternalSender = (from) =>
   INTERNAL_DOMAINS.some((d) => String(from || '').toLowerCase().includes('@' + d));
 
+// Freemail-/Provider-Domains, aus denen kein Firmenname ableitbar ist
+const GENERIC_DOMAINS = ['gmail.com', 'gmx.at', 'gmx.net', 'gmx.de', 'outlook.com', 'hotmail.com', 'yahoo.com', 'yahoo.de', 'icloud.com', 'aon.at', 'a1.net', 'web.de', 't-online.de', 'live.com', 'me.com', 'proton.me', 'protonmail.com',
+  // System-/Tool-Absender — keine Kunden
+  'awork.com', 'brevo.com', 'm.brevo.com', 'sevdesk.de', 'sevdesk.com', 'wordpress.com', 'google.com', 'microsoft.com', 'linkedin.com', 'mailchimp.com', 'atlassian.com', 'base44.com'];
+
+// Kundenlabel aus der Absender-Domain ableiten (z.B. office@holzbau-maier.at → "Holzbau-maier")
+export const deriveCustomerFromEmail = (from) => {
+  const m = String(from || '').toLowerCase().match(/@([a-z0-9.\-]+\.[a-z]{2,})/);
+  if (!m) return null;
+  const domain = m[1];
+  if (INTERNAL_DOMAINS.some((d) => domain === d || domain.endsWith('.' + d))) return null;
+  if (GENERIC_DOMAINS.includes(domain)) return null;
+  const parts = domain.split('.');
+  const core = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+  if (!core) return null;
+  return core.charAt(0).toUpperCase() + core.slice(1);
+};
+
 // Hat nach der letzten Kundennachricht bereits ein Kollege geschrieben?
 // (Nachrichten sind neueste zuerst sortiert)
 export const colleagueRepliedLast = (messages) => {

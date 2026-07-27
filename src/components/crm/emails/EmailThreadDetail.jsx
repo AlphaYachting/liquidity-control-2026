@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, Reply, AlertTriangle, Mail } from 'lucide-react';
-import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, DIRECTION_META, formatMailDate, colleagueRepliedLast } from '@/components/crm/emails/emailConfig';
+import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, DIRECTION_META, formatMailDate, colleagueRepliedLast, deriveCustomerFromEmail } from '@/components/crm/emails/emailConfig';
 import ThreadAnalysisPanel from '@/components/crm/emails/ThreadAnalysisPanel';
 import ReplyDraftPanel from '@/components/crm/emails/ReplyDraftPanel';
 
@@ -30,6 +30,7 @@ export default function EmailThreadDetail({ thread, loading, onRefresh }) {
   const cat = EMAIL_CATEGORIES[t.category];
   const st = EMAIL_THREAD_STATUSES[t.status];
   const lastInbound = messages.find((m) => m.direction === 'in');
+  const customerLabel = t.customer || deriveCustomerFromEmail(lastInbound?.from);
   const replyHref = lastInbound
     ? `mailto:${lastInbound.from}?subject=${encodeURIComponent('Re: ' + (t.subject || ''))}`
     : null;
@@ -42,7 +43,7 @@ export default function EmailThreadDetail({ thread, loading, onRefresh }) {
             <div className="min-w-0">
               <CardTitle className="text-sm leading-snug">{t.subject || '(kein Betreff)'}</CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
-                {t.customer || 'Kunde unbekannt'} · {t.message_count || 0} Nachrichten ·{' '}
+                {customerLabel || 'Kunde unbekannt'} · {t.message_count || 0} Nachrichten ·{' '}
                 {formatMailDate(t.first_message_at)} bis {formatMailDate(t.last_message_at)}
               </p>
             </div>

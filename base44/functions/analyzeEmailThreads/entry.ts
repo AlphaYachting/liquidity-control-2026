@@ -53,8 +53,9 @@ ${convo}
 
 Regeln:
 - Spam, Newsletter, Werbung, Cold-Outreach: category "sonstiges", status "erledigt", summary "Spam/Werbung — nicht relevant", eskalation false, customer_normalized leer.
+- INTERNE/SYSTEM-MAILS sind KEIN Handlungsbedarf: automatische Benachrichtigungen aus Tools (awork, Monitoring, CRM, "Automatische Benachrichtigung", Ticket-/Systemmails), rein interne Mails zwischen Kollegen (@rittler.co / @rico-office.at) ohne Kundenbeteiligung. Solche Threads: status "erledigt", eskalation false, summary mit Hinweis "Intern/System — kein Handlungsbedarf". Status "offen" darf NUR vergeben werden, wenn eine echte Kundenanfrage unbeantwortet ist.
 - Eskalation = true nur bei erkennbar unzufriedenem Kunden, Beschwerde, Mahnung, Fristdruck oder Konfliktton.
-- customer_normalized: exakter Name aus der Kundenliste wenn zuordenbar, sonst erkennbarer Firmenname, sonst leer.
+- customer_normalized: exakter Name aus der Kundenliste wenn zuordenbar. Wenn kein Listenname passt, leite den Firmennamen aus der Absender-Domain des Kunden ab (z.B. office@holzbau-maier.at → "Holzbau Maier"). Bei Freemail-Domains (gmail, gmx, outlook, yahoo …) und internen/System-Mails leer lassen.
 - WICHTIG bei der Kundenzuordnung: Prüfe explizit den ABSENDER (E-Mail-Adresse/Domain und Name). Der Kunde ist nur zuordenbar, wenn der Absender oder Empfänger erkennbar zu dieser Firma gehört. Eine bloße Themen- oder Branchenähnlichkeit reicht NICHT (Beispiel: Mails unseres eigenen Steuerberaters gehören NICHT zum Kunden "Steuerberatung Erdkönig", nur weil beide Steuerberater sind). Im Zweifel customer_normalized leer lassen.
 
 Regeln zum Kommunikationsweg (WICHTIG für den Status):

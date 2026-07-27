@@ -28,12 +28,16 @@ Deno.serve(async (req) => {
       for (let i = 0; i < results.length; i += 10) {
         await Promise.all(results.slice(i, i + 10).map(async (t: any) => {
           try {
-            const detail = await emailDbGet('thread', { id: t.id, msgs: 1 });
-            const last = (detail.messages || [])[0];
+            const detail = await emailDbGet('thread', { id: t.id, msgs: 6 });
+            const msgs = detail.messages || [];
+            const last = msgs[0];
             if (last) {
               t.last_from = last.from || '';
               t.last_direction = last.direction || '';
             }
+            // Letzter Kunden-Absender (für Kundenableitung aus der Domain im Frontend)
+            const lastIn = msgs.find((m: any) => m.direction === 'in');
+            if (lastIn) t.last_inbound_from = lastIn.from || '';
           } catch (_e) { /* Anreicherung optional */ }
         }));
       }
