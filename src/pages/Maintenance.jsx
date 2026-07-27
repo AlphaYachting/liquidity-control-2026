@@ -12,6 +12,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import ExtractMaintenanceContractsDialog from '@/components/maintenance/ExtractMaintenanceContractsDialog';
 import EditContractDialog from '@/components/maintenance/EditContractDialog';
+import CsvExportButton from '@/components/shared/CsvExportButton';
+
+const CSV_COLUMNS = [
+  { key: 'status', label: 'Status' },
+  { key: 'customer', label: 'Kunde' },
+  { key: 'project_name', label: 'Vertrag' },
+  { key: 'billing_interval', label: 'Intervall' },
+  { key: 'annual_amount', label: 'Jahresbetrag (EUR)' },
+  { key: 'monthly_fixed_price', label: 'Monatlich (EUR)' },
+  { key: 'due_date', label: 'Fälligkeit' },
+  { key: 'notes', label: 'Notizen' },
+];
 
 export default function Maintenance() {
   const queryClient = useQueryClient();
@@ -71,6 +83,7 @@ export default function Maintenance() {
       <PageHeader title="Wartungsverträge 2026" subtitle={`${contracts.length} Verträge`} icon={Shield}
         actions={
           <div className="flex gap-2">
+            <CsvExportButton data={contracts} columns={CSV_COLUMNS} filename="wartungsvertraege.csv" />
             <Button variant="outline" className="gap-2" onClick={() => setEditingContract({ customer: '', project_name: '', status: 'active', billing_interval: 'yearly', contract_type: 'maintenance', annual_amount: 0, monthly_fixed_price: 0 })}>
               <Plus className="w-4 h-4" />
               Neuer Vertrag

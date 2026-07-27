@@ -11,6 +11,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import EditContractDialog from '@/components/maintenance/EditContractDialog';
+import CsvExportButton from '@/components/shared/CsvExportButton';
+
+const CSV_COLUMNS = [
+  { key: 'status', label: 'Status' },
+  { key: 'customer', label: 'Kunde' },
+  { key: 'project_name', label: 'Projekt / Retainer' },
+  { key: 'project_manager', label: 'PM' },
+  { key: 'monthly_fixed_price', label: 'Mtl. Fixpreis (EUR)' },
+  { key: 'annual_amount', label: 'Jahresbetrag (EUR)' },
+  { key: 'one_time_payment', label: 'Einmalig (EUR)' },
+  { key: 'billing_interval', label: 'Intervall' },
+  { key: 'start_date', label: 'Start' },
+  { key: 'notes', label: 'Notizen' },
+];
 
 const NEW_CONTRACT_DEFAULTS = {
   contract_type: 'online_marketing',
@@ -82,10 +96,13 @@ export default function OnlineMarketing() {
         subtitle={`${contracts.length} Verträge / Retainer`}
         icon={Megaphone}
         actions={
-          <Button className="gap-2" onClick={() => setEditingContract({ ...NEW_CONTRACT_DEFAULTS })}>
-            <Plus className="w-4 h-4" />
-            Neuer Retainer
-          </Button>
+          <div className="flex gap-2">
+            <CsvExportButton data={contracts} columns={CSV_COLUMNS} filename="online-marketing-vertraege.csv" />
+            <Button className="gap-2" onClick={() => setEditingContract({ ...NEW_CONTRACT_DEFAULTS })}>
+              <Plus className="w-4 h-4" />
+              Neuer Retainer
+            </Button>
+          </div>
         }
       />
 
