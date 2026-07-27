@@ -14,6 +14,7 @@ import { useUnlinkedOrdersCount } from '@/hooks/useUnlinkedOrdersCount';
 import { usePendingDunningCount } from '@/hooks/usePendingDunningCount';
 import { useCrmInboxCount } from '@/hooks/useCrmInboxCount';
 import { useEmailActionCount } from '@/hooks/useEmailActionCount';
+import { useEmailEscalations } from '@/hooks/useEmailEscalations';
 
 const navSections = [
   {
@@ -86,6 +87,7 @@ export default function Sidebar() {
   const pendingDunningCount = usePendingDunningCount();
   const crmInboxCount = useCrmInboxCount();
   const emailActionCount = useEmailActionCount();
+  const commAlertCount = useEmailEscalations().data?.length || 0;
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -100,7 +102,9 @@ export default function Sidebar() {
     const badgeCount = item.path === '/confirmed-orders' ? unlinkedCount
       : item.path === '/receivables' ? pendingDunningCount
       : item.path === '/crm/inbox' ? crmInboxCount
-      : item.path === '/crm/emails' ? emailActionCount : 0;
+      : item.path === '/crm/emails' ? emailActionCount
+      : item.path === '/crm/alerts' ? commAlertCount : 0;
+    const badgeColor = item.path === '/crm/alerts' ? 'bg-red-600' : 'bg-amber-500';
     return (
       <Link
         key={item.path}
@@ -118,9 +122,9 @@ export default function Sidebar() {
         {!collapsed && <span className="truncate flex-1">{item.label}</span>}
         {badgeCount > 0 && (
           collapsed ? (
-            <span className="absolute ml-6 -mt-4 w-2 h-2 rounded-full bg-amber-500" />
+            <span className={`absolute ml-6 -mt-4 w-2 h-2 rounded-full ${badgeColor}`} />
           ) : (
-            <span className="flex-shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[11px] font-semibold flex items-center justify-center">
+            <span className={`flex-shrink-0 min-w-[20px] h-5 px-1.5 rounded-full ${badgeColor} text-white text-[11px] font-semibold flex items-center justify-center`}>
               {badgeCount}
             </span>
           )

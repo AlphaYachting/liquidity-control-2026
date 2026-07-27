@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { emailApi } from '@/components/crm/emails/emailApi';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Sparkles, Loader2, FolderKanban, Mail } from 'lucide-react';
+import { AlertTriangle, Sparkles, Loader2, FolderKanban, Mail, CheckCircle2 } from 'lucide-react';
 import { formatMailDate } from '@/components/crm/emails/emailConfig';
 
 // Eskalations-Alert mit KI-generiertem Einschreitungsvorschlag (on demand).
@@ -13,6 +14,13 @@ export default function EscalationInterventionCard({ thread, linkedProjects = []
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
+
+  // Alert als erledigt markieren: Status in der E-Mail-DB setzen, Eskalation aufheben
+  const resolveMutation = useMutation({
+    mutationFn: () => emailApi('enrich', { thread_id: thread.id, fields: { status: 'erledigt', eskalation: 0 } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-escalations'] }),
+  });
 
   const generatePlan = async () => {
     setLoading(true);
@@ -88,6 +96,10 @@ Liefere: (1) Kern des Problems in 1-2 Sätzen. (2) Dringlichkeit (hoch/mittel/ni
             <Button size="sm" onClick={generatePlan} disabled={loading} className="gap-1.5">
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               Einschreitungsvorschlag
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => resolveMutation.mutate()} disabled={resolveMutation.isPending} className="gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800">
+              {resolveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              Als erledigt markieren
             </Button>
             <Link to="/crm/emails" className="text-xs text-primary hover:underline text-center flex items-center gap-1 justify-center">
               <Mail className="w-3 h-3" /> Zur E-Mail-Zentrale
