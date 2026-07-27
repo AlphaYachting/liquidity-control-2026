@@ -28,7 +28,13 @@ export const SENTIMENT_META = {
   negativ: { label: 'Negativ', color: 'bg-red-100 text-red-700' },
 };
 
-export const formatMailDate = (s) => (s ? String(s).slice(0, 16) : '—');
+// DB liefert UTC-Zeitstempel ("YYYY-MM-DD HH:MM:SS") — in lokale Zeit umrechnen
+export const formatMailDate = (s) => {
+  if (!s) return '—';
+  const d = new Date(String(s).slice(0, 19).replace(' ', 'T') + 'Z');
+  if (isNaN(d.getTime())) return String(s).slice(0, 16);
+  return d.toLocaleString('de-AT', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+};
 
 // Kollegen-Erkennung: Absender aus den eigenen Firmen-Domains
 export const INTERNAL_DOMAINS = ['rittler.co', 'rico-office.at'];
