@@ -59,7 +59,9 @@ Deno.serve(async (req) => {
 
         const from = String(firstIn.from || '').toLowerCase();
         const domain = (from.match(/@([a-z0-9.\-]+)/) || [])[1] || '';
-        if (INTERNAL_DOMAINS.some((d) => domain === d || domain.endsWith('.' + d))) {
+        // Website-Formular-Mails kommen von der EIGENEN Domain (z.B. office@rittler.co) — die dürfen nicht aussortiert werden
+        const looksLikeFormMail = /hurra,?\s*die post ist da|sch(ö|oe)n von ihnen zu lesen|kontaktformular/i.test(`${t.subject || ''} ${firstIn.text || ''}`);
+        if (!looksLikeFormMail && INTERNAL_DOMAINS.some((d) => domain === d || domain.endsWith('.' + d))) {
           await markChecked(db, t, 'interner Absender'); stats.checked++; continue;
         }
         if (SYSTEM_DOMAINS.some((d) => domain === d || domain.endsWith('.' + d))) {
@@ -75,6 +77,8 @@ TYPISCHE ANGEBOTSANFRAGEN:
 - E-Mails vom eigenen Website-Kontaktformular. Erkennungsmerkmale: Formulierungen wie "Hurra, die Post ist da", "Schön von Ihnen zu lesen" oder klar strukturierte Formularfelder (Name, E-Mail, Telefon, Nachricht).
 - Direkte Anfragen an die Office-Adresse: Kunde/Interessent bittet um Angebot, Kostenschätzung, neues Projekt (Website, Design, Marketing, Programmierung).
 - Auch Bestandskunden, die ein NEUES Projekt oder eine Erweiterung anfragen, zählen.
+
+WICHTIG: E-Mails vom Website-Kontaktformular gelten IMMER als Angebotsanfrage (is_inquiry=true) — auch wenn die Absenderadresse die eigene Domain (office@rittler.co) ist, denn das Formular versendet über diese Adresse. Verwirf Formular-Einsendungen NICHT als "internen Test" — stufe sie im Zweifel als Anfrage mit confidence="mittel" ein. Einzige Ausnahme: offensichtlicher Spam.
 
 KEINE ANGEBOTSANFRAGEN (is_inquiry=false):
 - Laufende Projektkommunikation, Rückfragen, Abnahmen, Terminabstimmungen
@@ -115,7 +119,27 @@ Extrahiere bei einer Anfrage die Kontaktdaten AUS DEM TEXT (nichts erfinden). co
 
         stats.checked++;
 
-        if (!analysis.is_inquiry) { await markChecked(db, t, analysis.reason || 'inhaltlich keine Anfrage'); continue; }
+        if (!analysis.is_inquiry) {
+          if (looksLikeFormMail) {
+            // Sicherheitsnetz: Formular-Mails nie stillschweigend verwerfen — immer in den Posteingang
+            await db.CrmInboxItem.create({
+              source: 'email',
+              email_message_id: `thread:${t.id}`,
+              sender_name: analysis.contact_name || firstIn.from_name || '',
+              sender_email: analysis.contact_email || '',
+              sender_phone: analysis.contact_phone || '',
+              subject: (t.subject || '').slice(0, 200),
+              body: `⚠️ Website-Formular-Mail, von der KI nicht als Anfrage eingestuft (${analysis.reason || 'ohne Begründung'}) — bitte manuell prüfen.\n\n---\n${bodyText.slice(0, 2000)}`,
+              received_at: firstIn.received_at ? new Date(String(firstIn.received_at).slice(0, 19).replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString(),
+              suggested_pipeline: 'unknown',
+              status: 'new',
+            });
+            stats.needs_review++;
+          } else {
+            await markChecked(db, t, analysis.reason || 'inhaltlich keine Anfrage');
+          }
+          continue;
+        }
 
         stats.inquiries++;
         const matchedCustomer = analysis.is_existing_customer && customers.includes(analysis.matched_customer) ? analysis.matched_customer : '';
