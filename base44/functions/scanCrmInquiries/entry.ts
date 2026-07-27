@@ -53,10 +53,15 @@ Deno.serve(async (req) => {
       try {
         const detail = await emailDbGet('thread', { id: t.id, msgs: 5, full: 1 });
         const msgs = detail.messages || [];
+        const formRegex = /hurra[\s\S]{0,15}die post ist da|sch(ö|oe)n von ihnen zu lesen|kontaktformular/i;
         // Erste eingehende Nachricht (Nachrichten sind neueste zuerst).
-        // Fallback: Formular-Mails von der eigenen Domain werden als "intern" geführt — dann die älteste Nachricht nehmen.
-        const firstIn = [...msgs].reverse().find((m) => m.direction === 'in') || msgs[msgs.length - 1];
-        if (!firstIn) { await markChecked(db, t, 'keine Nachricht im Thread'); stats.checked++; continue; }
+        let firstIn = [...msgs].reverse().find((m) => m.direction === 'in');
+        // Website-Formular-Mails laufen von office@ an office@ und sind daher als 'intern' markiert
+        if (!firstIn) {
+          const oldest = msgs[msgs.length - 1];
+          if (oldest && formRegex.test(`${t.subject || ''} ${oldest.text || ''}`)) firstIn = oldest;
+        }
+        if (!firstIn) { await markChecked(db, t, 'keine eingehende Nachricht'); stats.checked++; continue; }
 
         const from = String(firstIn.from || '').toLowerCase();
         const domain = (from.match(/@([a-z0-9.\-]+)/) || [])[1] || '';
