@@ -128,6 +128,14 @@
     },
     "linked_invoice_id": {
       "type": "string"
+    },
+    "postponed_from_month": {
+      "type": "string",
+      "description": "YYYY-MM \u2014 urspr\u00fcnglicher Planungsmonat vor der ersten Verschiebung"
+    },
+    "postpone_reason": {
+      "type": "string",
+      "description": "Verschiebungsgrund der letzten Verschiebung"
     }
   },
   "required": [

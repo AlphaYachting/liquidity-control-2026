@@ -12,6 +12,7 @@ import { format, addMonths, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Plus, CalendarDays, Bell, Pencil, CheckCircle2, Loader2, Trash2 } from 'lucide-react';
 import GenerateBillingReasonButton from '@/components/billing/GenerateBillingReasonButton';
+import PlanMoveControl from '@/components/projects/PlanMoveControl';
 
 const PLAN_TYPE_TO_INVOICE_TYPE = {
   AZ: 'advance_invoice',
@@ -111,6 +112,36 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
     mutationFn: (planId) => base44.entities.MonthlyBillingPlan.delete(planId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlans', project.id] }),
   });
+
+  // Verschiebung in anderen Monat — alle Plandaten bleiben unverändert erhalten
+  const movePlanMutation = useMutation({
+    mutationFn: async ({ plan, targetMonth, reason }) => {
+      const monthList = [0, 1, 2, 3].map(o => getMonthStr(o));
+      const planningType = targetMonth === monthList[0] ? 'current_month' : targetMonth === monthList[1] ? 'next_month' : 'future_month';
+      await base44.entities.MonthlyBillingPlan.update(plan.id, {
+        planning_month: targetMonth,
+        planning_type: planningType,
+        postponed_from_month: plan.postponed_from_month || plan.planning_month,
+        postpone_reason: reason || '',
+      });
+      // Nur eine noch nicht freigegebene (Entwurfs-)Anweisung zieht mit — sonst keine Side-Effects
+      if (plan.linked_billing_instruction_id) {
+        const instr = allInstructions.find(i => i.id === plan.linked_billing_instruction_id);
+        if (instr && instr.status === 'draft') {
+          await base44.entities.BillingInstruction.update(instr.id, { planned_invoice_date: `${targetMonth}-01` });
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlans', project.id] });
+      queryClient.invalidateQueries({ queryKey: ['billingInstructions'] });
+    },
+  });
+
+  const handleMovePlan = (plan, targetMonth, reason, done) =>
+    movePlanMutation.mutate({ plan, targetMonth, reason }, { onSuccess: done });
+
+  const moveMonthOptions = [0, 1, 2, 3, 4, 5].map(o => getMonthStr(o));
 
   const [confirmDeletePlanId, setConfirmDeletePlanId] = useState(null);
 
@@ -245,6 +276,11 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
                     <Badge className={`text-xs py-0 ${STATUS_CFG[plan.billing_status]?.color || ''}`}>
                       {STATUS_CFG[plan.billing_status]?.label || plan.billing_status}
                     </Badge>
+                    {plan.postponed_from_month && (
+                      <Badge className="text-xs py-0 bg-orange-100 text-orange-700" title={plan.postpone_reason || ''}>
+                        ↷ aus {getMonthLabel(plan.postponed_from_month)}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {plan.reminder_date && (
@@ -264,6 +300,14 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
                         ))}
                       </SelectContent>
                     </Select>
+                    {plan.billing_status !== 'invoiced' && (
+                      <PlanMoveControl
+                        plan={plan}
+                        monthOptions={moveMonthOptions}
+                        getMonthLabel={getMonthLabel}
+                        onMove={handleMovePlan}
+                        isPending={movePlanMutation.isPending} />
+                    )}
                     <button
                       title="Bearbeiten"
                       onClick={() => handleEdit(plan, month)}
@@ -441,6 +485,35 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
             </div>
           );
         })}
+
+        {/* Planungen, die über das 4-Monats-Fenster hinaus verschoben wurden */}
+        {plans.some(p => p.planning_month > months[3]) && (
+          <div className="rounded-xl border border-dashed p-3 space-y-2">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Später geplant</span>
+            {plans.filter(p => p.planning_month > months[3]).map(plan => (
+              <div key={plan.id} className="flex items-center justify-between gap-2 p-2 bg-white/80 rounded-lg border text-xs">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className={`text-xs py-0 ${TYPE_CFG[plan.planned_invoice_type]?.color || 'bg-gray-100 text-gray-600'}`}>
+                    {plan.planned_invoice_type}
+                  </Badge>
+                  <span className="font-semibold">{formatCurrency(plan.planned_amount_net)}</span>
+                  <span className="text-muted-foreground">{getMonthLabel(plan.planning_month)}</span>
+                  {plan.postponed_from_month && (
+                    <Badge className="text-xs py-0 bg-orange-100 text-orange-700" title={plan.postpone_reason || ''}>
+                      ↷ aus {getMonthLabel(plan.postponed_from_month)}
+                    </Badge>
+                  )}
+                </div>
+                <PlanMoveControl
+                  plan={plan}
+                  monthOptions={moveMonthOptions}
+                  getMonthLabel={getMonthLabel}
+                  onMove={handleMovePlan}
+                  isPending={movePlanMutation.isPending} />
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
