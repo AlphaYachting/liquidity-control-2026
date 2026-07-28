@@ -7,6 +7,8 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    // Mahnentwürfe dürfen ausschließlich Admins ablehnen/löschen
+    if (user.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
     const apiKey = Deno.env.get('SEVDESK_API_KEY');
     if (!apiKey) return Response.json({ error: 'SEVDESK_API_KEY not set' }, { status: 500 });

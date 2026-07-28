@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import * as XLSX from 'npm:xlsx@0.18.5';
+import { assertSafeFileUrl } from '../../shared/safeFileUrl.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -10,8 +11,14 @@ Deno.serve(async (req) => {
     const { file_url, sheet_index = 0 } = await req.json();
     if (!file_url) return Response.json({ error: 'file_url required' }, { status: 400 });
 
-    // Fetch the file
-    const fileResp = await fetch(file_url);
+    // Fetch the file (URL serverseitig validiert — SSRF-Schutz)
+    let safeUrl: string;
+    try {
+      safeUrl = assertSafeFileUrl(file_url);
+    } catch (e) {
+      return Response.json({ error: e.message }, { status: 400 });
+    }
+    const fileResp = await fetch(safeUrl);
     if (!fileResp.ok) return Response.json({ error: `Cannot fetch file: ${fileResp.status}` }, { status: 400 });
 
     const arrayBuffer = await fileResp.arrayBuffer();

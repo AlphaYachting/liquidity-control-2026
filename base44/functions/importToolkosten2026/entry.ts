@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import * as XLSX from 'npm:xlsx@0.18.5';
+import { assertSafeFileUrl } from '../../shared/safeFileUrl.ts';
 
 const DEPT_MAP = {
   'design': 'design',
@@ -68,8 +69,14 @@ Deno.serve(async (req) => {
     const fileUrl = body.file_url;
     if (!fileUrl) return Response.json({ error: 'file_url required' }, { status: 400 });
 
-    // Download the file
-    const fileRes = await fetch(fileUrl);
+    // Download the file (URL serverseitig validiert — SSRF-Schutz)
+    let safeUrl: string;
+    try {
+      safeUrl = assertSafeFileUrl(fileUrl);
+    } catch (e) {
+      return Response.json({ error: e.message }, { status: 400 });
+    }
+    const fileRes = await fetch(safeUrl);
     if (!fileRes.ok) throw new Error(`Download failed: ${fileRes.status}`);
     const arrayBuffer = await fileRes.arrayBuffer();
     const data = new Uint8Array(arrayBuffer);

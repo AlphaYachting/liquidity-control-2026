@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import * as XLSX from 'npm:xlsx@0.18.5';
+import { assertSafeFileUrl } from '../../shared/safeFileUrl.ts';
 
 function cellVal(sheet, row, col) {
   const addr = XLSX.utils.encode_cell({ r: row, c: col });
@@ -32,7 +33,13 @@ Deno.serve(async (req) => {
     const { file_url, dry_run } = body;
     if (!file_url) return Response.json({ error: 'file_url required' }, { status: 400 });
 
-    const fileResp = await fetch(file_url);
+    let safeUrl: string;
+    try {
+      safeUrl = assertSafeFileUrl(file_url);
+    } catch (e) {
+      return Response.json({ error: e.message }, { status: 400 });
+    }
+    const fileResp = await fetch(safeUrl);
     const arrayBuffer = await fileResp.arrayBuffer();
     const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
 
