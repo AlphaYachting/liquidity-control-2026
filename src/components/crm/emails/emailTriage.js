@@ -1,4 +1,5 @@
 import { isInternalSender, waitingDaysSince, deriveCustomerFromEmail } from '@/components/crm/emails/emailConfig';
+import { collapseAnsweredGroups } from '@/components/crm/emails/emailThreadGrouping';
 
 /**
  * "Braucht Antwort" — Positiv-Kriterien statt Spam-Blacklist.
@@ -36,7 +37,7 @@ export const triageSort = (a, b) => {
 };
 
 export const buildTriageList = (threads) =>
-  (threads || [])
+  collapseAnsweredGroups(threads)
     .filter(needsReply)
     .map((t) => ({ ...t, _waiting_days: waitingDaysSince(t.last_message_at) }))
     .sort(triageSort);
