@@ -14,6 +14,7 @@ import CustomerContextCard from '@/components/crm/CustomerContextCard';
 import DealInquiryCard from '@/components/crm/DealInquiryCard';
 import CompanyMasterDataCard from '@/components/crm/CompanyMasterDataCard';
 import ProposalHandoffButton from '@/components/crm/ProposalHandoffButton';
+import DealProposalCard from '@/components/crm/DealProposalCard';
 import { PIPELINES, STAGE_LABELS, SOURCE_LABELS, eur, isClosedStage, isWonStage } from '@/components/crm/stages';
 
 export default function CrmDealDetail() {
@@ -148,6 +149,7 @@ export default function CrmDealDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Timeline */}
         <div className="lg:col-span-2 space-y-3">
+          <DealProposalCard deal={deal} activities={activities} onChanged={refreshAll} />
           <DealInquiryCard deal={deal} onChanged={refreshAll} />
           <ActivityComposer dealId={deal.id} onAdded={refreshAll} />
           <div className="border rounded-xl bg-card p-4">
