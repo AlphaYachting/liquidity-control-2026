@@ -59,6 +59,14 @@ export const deriveCustomerFromEmail = (from) => {
   return core.charAt(0).toUpperCase() + core.slice(1);
 };
 
+// Wartezeit in Tagen seit der letzten Nachricht (DB liefert UTC "YYYY-MM-DD HH:MM:SS")
+export const waitingDaysSince = (s) => {
+  if (!s) return null;
+  const d = new Date(String(s).slice(0, 19).replace(' ', 'T') + 'Z');
+  if (isNaN(d.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+};
+
 // Hat nach der letzten Kundennachricht bereits ein Kollege geschrieben?
 // (Nachrichten sind neueste zuerst sortiert)
 export const colleagueRepliedLast = (messages) => {

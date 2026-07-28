@@ -5,7 +5,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Search, Loader2 } from 'lucide-react';
 import { EMAIL_THREAD_STATUSES } from '@/components/crm/emails/emailConfig';
 
-export default function EmailFilterBar({ filters, onChange, onApply, loading }) {
+export default function EmailFilterBar({ filters, onChange, onApply, loading, showStatus = true }) {
   const set = (k, v) => onChange({ ...filters, [k]: v });
   const submit = (e) => { e.preventDefault(); onApply(); };
 
@@ -26,15 +26,17 @@ export default function EmailFilterBar({ filters, onChange, onApply, loading }) 
         placeholder="Kunde…"
         className="h-9 w-40"
       />
-      <Select value={filters.status} onValueChange={(v) => set('status', v)}>
-        <SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Alle Status</SelectItem>
-          {Object.entries(EMAIL_THREAD_STATUSES).map(([k, v]) => (
-            <SelectItem key={k} value={k}>{v.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {showStatus && (
+        <Select value={filters.status} onValueChange={(v) => set('status', v)}>
+          <SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle Status</SelectItem>
+            {Object.entries(EMAIL_THREAD_STATUSES).map(([k, v]) => (
+              <SelectItem key={k} value={k}>{v.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
       <Select value={filters.days} onValueChange={(v) => set('days', v)}>
         <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
         <SelectContent>
