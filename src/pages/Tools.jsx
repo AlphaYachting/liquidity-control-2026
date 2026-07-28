@@ -12,6 +12,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import ToolCostDialog from '@/components/tools/ToolCostDialog';
+import CsvExportButton from '@/components/shared/CsvExportButton';
+
+const DECISION_LABELS = { keep: 'Behalten', cancel: 'Kündigen', review: 'Prüfen', undecided: 'Offen' };
+const EXPORT_COLUMNS = [
+  { key: 'tool_name', label: 'Tool' },
+  { key: 'department', label: 'Abteilung' },
+  { key: 'annual_cost', label: 'Jahreskosten (EUR)' },
+  { key: 'monthly_cost', label: 'Monatlich (EUR)' },
+  { key: 'payment_status', label: 'Zahlung' },
+  { key: 'payment_interval', label: 'Intervall' },
+  { key: 'needed', label: 'Benötigt' },
+  { key: 'customer_recharge', label: 'Weiterverrechnung' },
+  { key: 'decision_status', label: 'Entscheidung' },
+  { key: 'notes', label: 'Notizen' },
+];
 
 const DEPT_LABELS = { design: 'Design', marketing: 'Marketing', programming: 'Programmierung', project_management: 'PM', general: 'Allgemein', other: 'Sonstiges' };
 const DECISION_COLORS = { keep: 'bg-emerald-100 text-emerald-700', cancel: 'bg-red-100 text-red-700', review: 'bg-amber-100 text-amber-700', undecided: 'bg-gray-100 text-gray-500' };
@@ -104,6 +119,15 @@ export default function Tools() {
     )},
   ];
 
+  const exportData = filtered.map((t) => ({
+    ...t,
+    department: DEPT_LABELS[t.department] || t.department || '',
+    annual_cost: t.annual_cost ?? 0,
+    monthly_cost: t.monthly_cost ?? 0,
+    needed: t.needed ? 'Ja' : 'Nein',
+    decision_status: DECISION_LABELS[t.decision_status] || t.decision_status || '',
+  }));
+
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-[400px]" /></div>;
 
   return (
@@ -112,7 +136,12 @@ export default function Tools() {
         title="Toolkosten 2026"
         subtitle={`${filtered.length} Tools`}
         icon={CreditCard}
-        actions={<Button onClick={openNew} size="sm"><Plus className="w-4 h-4 mr-1" />Tool hinzufügen</Button>}
+        actions={
+          <div className="flex gap-2">
+            <CsvExportButton data={exportData} columns={EXPORT_COLUMNS} filename="toolkosten-2026.csv" />
+            <Button onClick={openNew} size="sm"><Plus className="w-4 h-4 mr-1" />Tool hinzufügen</Button>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
