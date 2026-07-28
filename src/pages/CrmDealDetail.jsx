@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Pencil, Trophy, XCircle, Building2, Mail, Phone, User, RotateCcw, Trash2, Linkedin } from 'lucide-react';
+import { Building2, Mail, Phone, User, Linkedin } from 'lucide-react';
 import ActivityTimeline from '@/components/crm/ActivityTimeline';
 import ActivityComposer from '@/components/crm/ActivityComposer';
 import AppointmentSection from '@/components/crm/AppointmentSection';
@@ -13,9 +11,9 @@ import WonLostDialog from '@/components/crm/WonLostDialog';
 import CustomerContextCard from '@/components/crm/CustomerContextCard';
 import DealInquiryCard from '@/components/crm/DealInquiryCard';
 import CompanyMasterDataCard from '@/components/crm/CompanyMasterDataCard';
-import ProposalHandoffButton from '@/components/crm/ProposalHandoffButton';
 import DealProposalCard from '@/components/crm/DealProposalCard';
-import { PIPELINES, STAGE_LABELS, SOURCE_LABELS, eur, isClosedStage, isWonStage } from '@/components/crm/stages';
+import DealDetailHeader from '@/components/crm/DealDetailHeader';
+import { PIPELINES, STAGE_LABELS } from '@/components/crm/stages';
 
 export default function CrmDealDetail() {
   const { dealId } = useParams();
@@ -58,7 +56,6 @@ export default function CrmDealDetail() {
   if (!deal) return <p className="text-sm text-muted-foreground py-10 text-center">Deal nicht gefunden.</p>;
 
   const config = PIPELINES[deal.pipeline];
-  const closed = isClosedStage(deal.stage);
 
   const reopenDeal = async () => {
     await base44.entities.CrmDeal.update(deal.id, { stage: config.stages[0].key, lost_reason: '' });
@@ -90,61 +87,15 @@ export default function CrmDealDetail() {
 
   return (
     <div className="space-y-4 max-w-5xl">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="sm" className="gap-1.5" asChild>
-          <Link to="/crm"><ArrowLeft className="w-4 h-4" /> Pipeline</Link>
-        </Button>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-lg font-bold leading-tight truncate">{deal.title}</h1>
-          <p className="text-xs text-muted-foreground">
-            {config.label} · {SOURCE_LABELS[deal.source] || deal.source}
-            {deal.value_net > 0 && <> · <strong className="text-foreground">{eur(deal.value_net)}</strong> netto ({deal.probability_percent}%)</>}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {!closed && (
-            <>
-              <ProposalHandoffButton deal={deal} onDone={refreshAll} />
-              <Button size="sm" variant="outline" className="gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50" onClick={() => setCloseMode('won')}>
-                <Trophy className="w-3.5 h-3.5" /> Gewonnen
-              </Button>
-              <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50" onClick={() => setCloseMode('lost')}>
-                <XCircle className="w-3.5 h-3.5" /> Verloren
-              </Button>
-            </>
-          )}
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditOpen(true)}>
-            <Pencil className="w-3.5 h-3.5" /> Bearbeiten
-          </Button>
-          <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-red-600" onClick={deleteDeal} title="Deal löschen">
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      </div>
-
-      {closed ? (
-        <div className={`rounded-xl border p-3 text-sm font-medium flex items-center justify-between gap-3 ${
-          isWonStage(deal.stage) ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-700'
-        }`}>
-          <span>
-            {STAGE_LABELS[deal.stage]} am {deal.closed_at ? new Date(deal.closed_at).toLocaleDateString('de-AT') : '—'}
-            {deal.lost_reason && <span className="font-normal"> · Grund: {deal.lost_reason}</span>}
-          </span>
-          <Button size="sm" variant="outline" className="gap-1.5 shrink-0 bg-background" onClick={reopenDeal}>
-            <RotateCcw className="w-3.5 h-3.5" /> Wieder öffnen
-          </Button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Phase:</span>
-          <Select value={deal.stage} onValueChange={changeStage}>
-            <SelectTrigger className="h-8 w-56 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {config.stages.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      <DealDetailHeader
+        deal={deal}
+        onEdit={() => setEditOpen(true)}
+        onClose={setCloseMode}
+        onReopen={reopenDeal}
+        onDelete={deleteDeal}
+        onStageChange={changeStage}
+        onRefresh={refreshAll}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Timeline */}
