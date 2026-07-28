@@ -17,9 +17,13 @@ import { isInternalSender, waitingDaysSince, deriveCustomerFromEmail } from '@/c
  * einmalige Nachrichten, die niemand beantwortet hat und die keiner Zuordnung haben.
  */
 export const needsReply = (t) => {
-  if (t.last_direction !== 'in') return false;
-  if (isInternalSender(t.last_from)) return false;
-  if (!deriveCustomerFromEmail(t.last_from)) return false; // Freemail-/System-Domains fallen raus
+  // Fallback: schlägt die Anreicherung fehl, auf die Thread-Basisdaten zurückfallen,
+  // statt den Thread stillschweigend zu verwerfen (sonst ist die Liste plötzlich leer).
+  const direction = t.last_direction || t.direction;
+  const sender = t.last_from || t.last_inbound_from || t.from;
+  if (direction !== 'in') return false;
+  if (isInternalSender(sender)) return false;
+  if (!deriveCustomerFromEmail(sender)) return false; // Freemail-/System-Domains fallen raus
   const meaningfulCategory = !!t.category && t.category !== 'sonstiges';
   return t.has_outbound === true || (t.message_count || 0) > 1 || !!t.customer || meaningfulCategory;
 };

@@ -31,8 +31,9 @@ export default function CrmEmails() {
         setMode('search');
         setItems(data.results || []);
       } else if (v === 'action') {
-        // Triage nach harten Fakten: letzte Nachricht eingehend, extern, kein System-/Kalender-/Newsletter-Absender
-        const params = { limit: 80, with_reply_state: 1 };
+        // Triage nach harten Fakten. Serverseitig auf offene Threads vorfiltern —
+        // kleinere Menge = zuverlässigere Anreicherung pro Thread.
+        const params = { limit: 40, status: 'offen', with_reply_state: 1 };
         if (f.customer.trim()) params.customer = f.customer.trim();
         if (f.days !== 'all') params.days = f.days;
         const data = await emailApi('threads', { params });

@@ -25,10 +25,17 @@ Deno.serve(async (req) => {
       const { with_reply_state: _drop, ...listParams } = params;
       const listing = await emailDbGet('threads', listParams);
       const results = listing.results || [];
-      for (let i = 0; i < results.length; i += 10) {
-        await Promise.all(results.slice(i, i + 10).map(async (t: any) => {
+      for (let i = 0; i < results.length; i += 6) {
+        await Promise.all(results.slice(i, i + 6).map(async (t: any) => {
           try {
-            const detail = await emailDbGet('thread', { id: t.id, msgs: 12 });
+            let detail;
+            try {
+              detail = await emailDbGet('thread', { id: t.id, msgs: 12 });
+            } catch (_first) {
+              // ein Fehlschlag darf den Thread nicht unsichtbar machen -> einmal erneut versuchen
+              await new Promise((r) => setTimeout(r, 300));
+              detail = await emailDbGet('thread', { id: t.id, msgs: 12 });
+            }
             const msgs = detail.messages || [];
             const last = msgs[0];
             // Letzter Kunden-Absender (für Kundenableitung aus der Domain im Frontend)
@@ -47,7 +54,11 @@ Deno.serve(async (req) => {
               const lastOut = msgs.find((m: any) => m.direction === 'out');
               t.last_to = last.to || (last.direction === 'in' ? (lastOut?.from || '') : (lastIn?.from || ''));
             }
-          } catch (_e) { /* Anreicherung optional */ }
+          } catch (_e) {
+            // Anreicherung endgültig fehlgeschlagen -> kennzeichnen, damit das Frontend
+            // auf die Thread-Basisdaten zurückfallen kann statt den Thread zu verwerfen
+            t.enrich_failed = true;
+          }
         }));
       }
       return Response.json(listing);
