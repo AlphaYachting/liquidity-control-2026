@@ -31,13 +31,19 @@ Deno.serve(async (req) => {
             const detail = await emailDbGet('thread', { id: t.id, msgs: 6 });
             const msgs = detail.messages || [];
             const last = msgs[0];
-            if (last) {
-              t.last_from = last.from || '';
-              t.last_direction = last.direction || '';
-            }
             // Letzter Kunden-Absender (für Kundenableitung aus der Domain im Frontend)
             const lastIn = msgs.find((m: any) => m.direction === 'in');
             if (lastIn) t.last_inbound_from = lastIn.from || '';
+            if (last) {
+              t.last_from = last.from || '';
+              t.last_from_name = last.from_name || '';
+              t.last_direction = last.direction || '';
+              // Empfänger ableiten: die DB liefert kein "to"-Feld —
+              // eingehend => unser Kollege im Thread (letzter ausgehender Absender),
+              // ausgehend => der Kunde (letzter eingehender Absender)
+              const lastOut = msgs.find((m: any) => m.direction === 'out');
+              t.last_to = last.to || (last.direction === 'in' ? (lastOut?.from || '') : (lastIn?.from || ''));
+            }
           } catch (_e) { /* Anreicherung optional */ }
         }));
       }

@@ -43,6 +43,11 @@ export default function EmailThreadList({ mode, items, selectedId, onSelect, loa
                 ? `${item.from_name || item.from || ''}`
                 : `${item.customer || deriveCustomerFromEmail(item.last_inbound_from) || deriveCustomerFromEmail(item.last_from) || 'Kunde unbekannt'} · ${item.message_count || 0} Nachrichten`}
             </p>
+            {(mode === 'search' ? item.to : item.last_to) && (
+              <p className="text-[11px] text-muted-foreground truncate">
+                <span className="font-medium">An:</span> {mode === 'search' ? item.to : item.last_to}
+              </p>
+            )}
             {(item.preview || item.summary) && (
               <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{item.preview || item.summary}</p>
             )}
