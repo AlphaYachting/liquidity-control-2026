@@ -10,7 +10,8 @@ import { isInternalSender, waitingDaysSince, deriveCustomerFromEmail } from '@/c
  *  4. Der Thread ist als Geschäftskonversation belegt — d.h. mindestens eines davon:
  *     • wir haben in diesem Verlauf schon einmal geantwortet (has_outbound)
  *     • der Verlauf hat mehr als eine Nachricht (echter Dialog)
- *     • die KI-Auswertung hat einen Kunden oder eine Kategorie zugeordnet
+ *     • die KI-Auswertung hat einen Kunden oder eine inhaltliche Kategorie zugeordnet
+ *       ("sonstiges" zählt NICHT — das bekommt jeder Newsletter)
  *
  * Punkt 4 ist der entscheidende Filter: Spam, Phishing und Newsletter sind
  * einmalige Nachrichten, die niemand beantwortet hat und die keiner Zuordnung haben.
@@ -19,9 +20,8 @@ export const needsReply = (t) => {
   if (t.last_direction !== 'in') return false;
   if (isInternalSender(t.last_from)) return false;
   if (!deriveCustomerFromEmail(t.last_from)) return false; // Freemail-/System-Domains fallen raus
-  const isBusinessConversation =
-    t.has_outbound === true || (t.message_count || 0) > 1 || !!t.customer || !!t.category;
-  return isBusinessConversation;
+  const meaningfulCategory = !!t.category && t.category !== 'sonstiges';
+  return t.has_outbound === true || (t.message_count || 0) > 1 || !!t.customer || meaningfulCategory;
 };
 
 // Reklamationen zuerst, danach längste Wartezeit oben
