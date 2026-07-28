@@ -55,7 +55,7 @@ export default function EmailThreadList({ mode, items, selectedId, onSelect, loa
               {dir && <Badge variant="outline" className={`text-[9px] px-1.5 py-0 border-0 ${dir.color}`}>{dir.label}</Badge>}
               {cat && <Badge variant="outline" className={`text-[9px] px-1.5 py-0 border-0 ${cat.color}`}>{cat.label}</Badge>}
               {st && <Badge variant="outline" className={`text-[9px] px-1.5 py-0 border-0 ${st.color}`}>{st.label}</Badge>}
-              {item.status === 'offen' && item._waiting_days != null && (
+              {item._waiting_days != null && (
                 <Badge variant="outline" className={`text-[9px] px-1.5 py-0 border-0 gap-1 ${
                   item._waiting_days > 3 ? 'bg-red-100 text-red-700' : item._waiting_days >= 1 ? 'bg-amber-100 text-amber-700' : 'bg-muted text-muted-foreground'
                 }`}>

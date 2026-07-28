@@ -6,16 +6,7 @@ import EmailFilterBar from '@/components/crm/emails/EmailFilterBar';
 import EmailThreadList from '@/components/crm/emails/EmailThreadList';
 import EmailThreadDetail from '@/components/crm/emails/EmailThreadDetail';
 import EmailViewToggle from '@/components/crm/emails/EmailViewToggle';
-import { waitingDaysSince } from '@/components/crm/emails/emailConfig';
-
-// Triage-Sortierung: Reklamationen zuerst, dann Offen vor "Wartet auf Kunde", dann längste Wartezeit oben
-const urgencySort = (a, b) => {
-  const rek = (t) => (t.category === 'reklamation' ? 0 : 1);
-  if (rek(a) !== rek(b)) return rek(a) - rek(b);
-  const st = (t) => (t.status === 'offen' ? 0 : 1);
-  if (st(a) !== st(b)) return st(a) - st(b);
-  return (b._waiting_days || 0) - (a._waiting_days || 0);
-};
+import { buildTriageList } from '@/components/crm/emails/emailTriage';
 
 export default function CrmEmails() {
   const [filters, setFilters] = useState({ q: '', customer: '', status: 'all', days: '30', direction: 'all' });
@@ -40,21 +31,13 @@ export default function CrmEmails() {
         setMode('search');
         setItems(data.results || []);
       } else if (v === 'action') {
-        // Triage: nur ausgewertete Kunden-Threads, die Handlung brauchen — System-/Rausch-Mails haben keinen Status und fallen automatisch raus
-        const base = { limit: 100 };
-        if (f.customer.trim()) base.customer = f.customer.trim();
-        if (f.days !== 'all') base.days = f.days;
-        const [open, waiting] = await Promise.all([
-          emailApi('threads', { params: { ...base, status: 'offen' } }),
-          emailApi('threads', { params: { ...base, status: 'wartet_auf_kunde' } }),
-        ]);
-        const seen = new Set();
-        const merged = [...(open.results || []), ...(waiting.results || [])]
-          .filter((t) => !seen.has(t.id) && seen.add(t.id))
-          .map((t) => ({ ...t, _waiting_days: waitingDaysSince(t.last_message_at) }))
-          .sort(urgencySort);
+        // Triage nach harten Fakten: letzte Nachricht eingehend, extern, kein System-/Kalender-/Newsletter-Absender
+        const params = { limit: 80, with_reply_state: 1 };
+        if (f.customer.trim()) params.customer = f.customer.trim();
+        if (f.days !== 'all') params.days = f.days;
+        const data = await emailApi('threads', { params });
         setMode('threads');
-        setItems(merged);
+        setItems(buildTriageList(data.results));
       } else {
         const params = { limit: 50, with_reply_state: 1 };
         if (f.customer.trim()) params.customer = f.customer.trim();
@@ -110,8 +93,15 @@ export default function CrmEmails() {
         <EmailViewToggle
           view={view}
           onChange={setView}
-          actionCount={view === 'action' && !loadingList ? items.filter((t) => t.status === 'offen').length : undefined}
+          actionCount={view === 'action' && !loadingList ? items.length : undefined}
         />
+        {view === 'action' && (
+          <p className="text-[11px] text-muted-foreground max-w-xl">
+            Kriterien: letzte Nachricht im Verlauf ist <strong>eingehend</strong> und von einem <strong>externen Absender</strong>.
+            System-, Aufgaben-, Kalender- und Newsletter-Mails sind ausgeschlossen. Sobald wir oder ein Kollege geantwortet haben,
+            verschwindet der Thread. Reihenfolge: Reklamationen zuerst, danach längste Wartezeit.
+          </p>
+        )}
       </div>
 
       <EmailFilterBar filters={filters} onChange={setFilters} onApply={() => load()} loading={loadingList} showStatus={view !== 'action'} />
