@@ -74,8 +74,19 @@ export default function CrmBoard() {
       <div className="flex flex-wrap items-center gap-3">
         <Tabs value={pipeline} onValueChange={setPipeline}>
           <TabsList>
-            <TabsTrigger value="new_business">Neukunden</TabsTrigger>
-            <TabsTrigger value="existing_customer">Bestandskunden</TabsTrigger>
+            {['new_business', 'existing_customer'].map(p => {
+              const newCount = deals.filter(d => d.pipeline === p && !d.seen_at && !isClosedStage(d.stage)).length;
+              return (
+                <TabsTrigger key={p} value={p} className="gap-1.5">
+                  {PIPELINES[p].label}
+                  {newCount > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+                      {newCount}
+                    </span>
+                  )}
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
         </Tabs>
         <div className="flex gap-2 text-xs ml-auto">

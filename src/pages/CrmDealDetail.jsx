@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -13,6 +13,7 @@ import WonLostDialog from '@/components/crm/WonLostDialog';
 import CustomerContextCard from '@/components/crm/CustomerContextCard';
 import DealInquiryCard from '@/components/crm/DealInquiryCard';
 import CompanyMasterDataCard from '@/components/crm/CompanyMasterDataCard';
+import ProposalHandoffButton from '@/components/crm/ProposalHandoffButton';
 import { PIPELINES, STAGE_LABELS, SOURCE_LABELS, eur, isClosedStage, isWonStage } from '@/components/crm/stages';
 
 export default function CrmDealDetail() {
@@ -34,6 +35,16 @@ export default function CrmDealDetail() {
     queryKey: ['crm-appointments', dealId],
     queryFn: () => base44.entities.CrmAppointment.filter({ deal_id: dealId }, '-scheduled_at', 50),
   });
+
+  // Beim ersten Öffnen als "gesehen" markieren — entfernt die NEU-Markierung in der Pipeline
+  useEffect(() => {
+    if (deal && !deal.seen_at) {
+      base44.entities.CrmDeal.update(deal.id, { seen_at: new Date().toISOString() }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['crm-deals'] });
+        queryClient.invalidateQueries({ queryKey: ['crm-new-deals'] });
+      });
+    }
+  }, [deal?.id, deal?.seen_at]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshAll = () => {
     queryClient.invalidateQueries({ queryKey: ['crm-deal', dealId] });
@@ -92,6 +103,7 @@ export default function CrmDealDetail() {
         <div className="flex gap-2">
           {!closed && (
             <>
+              <ProposalHandoffButton deal={deal} onDone={refreshAll} />
               <Button size="sm" variant="outline" className="gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50" onClick={() => setCloseMode('won')}>
                 <Trophy className="w-3.5 h-3.5" /> Gewonnen
               </Button>

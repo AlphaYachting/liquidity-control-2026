@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useUnlinkedOrdersCount } from '@/hooks/useUnlinkedOrdersCount';
 import { usePendingDunningCount } from '@/hooks/usePendingDunningCount';
 import { useCrmInboxCount } from '@/hooks/useCrmInboxCount';
+import { useNewDealsCount } from '@/hooks/useNewDealsCount';
 import { useEmailActionCount } from '@/hooks/useEmailActionCount';
 import { useEmailEscalations } from '@/hooks/useEmailEscalations';
 
@@ -86,6 +87,7 @@ export default function Sidebar() {
   const unlinkedCount = useUnlinkedOrdersCount();
   const pendingDunningCount = usePendingDunningCount();
   const crmInboxCount = useCrmInboxCount();
+  const newDealsCount = useNewDealsCount();
   const emailActionCount = useEmailActionCount();
   const commAlertCount = useEmailEscalations().data?.length || 0;
   const [collapsed, setCollapsed] = useState(false);
@@ -101,6 +103,7 @@ export default function Sidebar() {
     const active = isActive(item.path);
     const badgeCount = item.path === '/confirmed-orders' ? unlinkedCount
       : item.path === '/receivables' ? pendingDunningCount
+      : item.path === '/crm' ? newDealsCount
       : item.path === '/crm/inbox' ? crmInboxCount
       : item.path === '/crm/emails' ? emailActionCount
       : item.path === '/crm/alerts' ? commAlertCount : 0;

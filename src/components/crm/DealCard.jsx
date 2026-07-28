@@ -15,7 +15,14 @@ export default function DealCard({ deal, onClick }) {
       className="w-full text-left bg-card border rounded-lg p-3 shadow-sm hover:shadow-md hover:border-primary/40 transition-all space-y-1.5"
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold leading-tight">{deal.title}</p>
+        <p className="text-sm font-semibold leading-tight">
+          {!deal.seen_at && (
+            <span className="inline-block align-middle mr-1.5 px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-bold uppercase tracking-wide">
+              Neu
+            </span>
+          )}
+          {deal.title}
+        </p>
         {deal.value_net > 0 && (
           <span className="text-xs font-bold text-foreground shrink-0">{eur(deal.value_net)}</span>
         )}
