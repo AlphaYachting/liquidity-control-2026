@@ -97,9 +97,10 @@ export default function CrmEmails() {
         />
         {view === 'action' && (
           <p className="text-[11px] text-muted-foreground max-w-xl">
-            Kriterien: letzte Nachricht im Verlauf ist <strong>eingehend</strong> und von einem <strong>externen Absender</strong>.
-            System-, Aufgaben-, Kalender- und Newsletter-Mails sind ausgeschlossen. Sobald wir oder ein Kollege geantwortet haben,
-            verschwindet der Thread. Reihenfolge: Reklamationen zuerst, danach längste Wartezeit.
+            Kriterien: letzte Nachricht ist <strong>eingehend</strong>, von einer <strong>externen Firmendomain</strong>, und der
+            Verlauf ist als Geschäftskonversation belegt (wir haben schon geantwortet, es gibt mehrere Nachrichten, oder Kunde/Kategorie
+            ist zugeordnet). Spam, Newsletter und System-Mails erfüllen das nicht. Sobald geantwortet wurde, verschwindet der Thread.
+            Reihenfolge: Reklamationen zuerst, danach längste Wartezeit.
           </p>
         )}
       </div>

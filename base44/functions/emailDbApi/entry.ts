@@ -28,12 +28,15 @@ Deno.serve(async (req) => {
       for (let i = 0; i < results.length; i += 10) {
         await Promise.all(results.slice(i, i + 10).map(async (t: any) => {
           try {
-            const detail = await emailDbGet('thread', { id: t.id, msgs: 6 });
+            const detail = await emailDbGet('thread', { id: t.id, msgs: 12 });
             const msgs = detail.messages || [];
             const last = msgs[0];
             // Letzter Kunden-Absender (für Kundenableitung aus der Domain im Frontend)
             const lastIn = msgs.find((m: any) => m.direction === 'in');
             if (lastIn) t.last_inbound_from = lastIn.from || '';
+            // Haben WIR in diesem Verlauf jemals geschrieben? Wichtigstes Relevanz-Signal
+            // (echte Geschäftskonversation vs. Spam/Newsletter, den niemand beantwortet hat)
+            t.has_outbound = msgs.some((m: any) => m.direction === 'out');
             if (last) {
               t.last_from = last.from || '';
               t.last_from_name = last.from_name || '';
