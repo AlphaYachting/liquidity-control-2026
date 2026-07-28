@@ -11,6 +11,24 @@ const SYSTEM_DOMAINS = ['awork.com', 'brevo.com', 'm.brevo.com', 'sevdesk.de', '
   'google.com', 'microsoft.com', 'linkedin.com', 'mailchimp.com', 'atlassian.com', 'base44.com',
   'paypal.com', 'stripe.com', 'amazonses.com', 'facebookmail.com', 'instagram.com'];
 
+const FREEMAIL = ['gmail.com', 'gmx.at', 'gmx.net', 'gmx.de', 'outlook.com', 'hotmail.com', 'yahoo.com', 'yahoo.de', 'icloud.com', 'aon.at', 'a1.net', 'web.de', 't-online.de', 'live.com', 'me.com', 'proton.me', 'protonmail.com'];
+const norm = (s) => String(s || '').toLowerCase().replace(/gmbh|g\.m\.b\.h\.|e\.u\.|kg|og|ag|d\.o\.o\.|holding|&|und/g, '').replace(/[^a-z0-9äöüß]/g, '').trim();
+
+// Duplikat-Prüfung: existiert in der Pipeline bereits ein offener Deal zu diesem Kontakt/dieser Firma?
+function findDuplicateDeal(openDeals, { contactEmail, senderDomain, companyName }) {
+  const email = String(contactEmail || '').toLowerCase().trim();
+  const company = norm(companyName);
+  const domainUsable = senderDomain && !FREEMAIL.includes(senderDomain);
+  return openDeals.find((d) => {
+    const dEmail = String(d.contact_email || '').toLowerCase().trim();
+    if (email && dEmail && email === dEmail) return true;
+    if (domainUsable && dEmail.endsWith('@' + senderDomain)) return true;
+    const dCompany = norm(d.company_name || d.linked_customer_name);
+    if (company && dCompany && company.length >= 4 && (dCompany === company || dCompany.includes(company) || company.includes(dCompany))) return true;
+    return false;
+  });
+}
+
 async function markChecked(db, thread, reason) {
   await db.CrmInboxItem.create({
     source: 'email',
@@ -44,6 +62,11 @@ Deno.serve(async (req) => {
     // 3. Bestandskunden für die Neukunde/Bestandskunde-Einordnung
     const projects = await db.LiquidityProject.list('-updated_date', 500);
     const customers = [...new Set(projects.map((p) => p.customer).filter(Boolean))];
+
+    // 3b. Offene Deals für die Duplikat-Prüfung
+    const allDeals = await db.CrmDeal.list('-updated_date', 500);
+    const CLOSED = ['won', 'lost', 'ordered', 'declined'];
+    const openDeals = allDeals.filter((d) => !CLOSED.includes(d.stage));
 
     let llmCalls = 0;
     const stats = { threads_new: threads.length, checked: 0, inquiries: 0, deals_created: 0, needs_review: 0, errors: [] };
@@ -149,6 +172,17 @@ Extrahiere bei einer Anfrage die Kontaktdaten AUS DEM TEXT (nichts erfinden). co
 
         stats.inquiries++;
         const matchedCustomer = analysis.is_existing_customer && customers.includes(analysis.matched_customer) ? analysis.matched_customer : '';
+
+        // Duplikat-Prüfung gegen offene Deals in der Pipeline
+        const duplicate = findDuplicateDeal(openDeals, {
+          contactEmail: analysis.contact_email || firstIn.from,
+          senderDomain: domain,
+          companyName: analysis.company_name || matchedCustomer,
+        });
+        const dupNote = duplicate
+          ? `⚠️ MÖGLICHES DUPLIKAT: Offener Deal "${duplicate.title}" (${duplicate.company_name || duplicate.contact_name || '—'}) existiert bereits in der Pipeline — bitte vor dem Anlegen prüfen.\n\n`
+          : '';
+
         const inboxItem = await db.CrmInboxItem.create({
           source: 'email',
           email_message_id: `thread:${t.id}`,
@@ -156,12 +190,15 @@ Extrahiere bei einer Anfrage die Kontaktdaten AUS DEM TEXT (nichts erfinden). co
           sender_email: analysis.contact_email || firstIn.from || '',
           sender_phone: analysis.contact_phone || '',
           subject: (t.subject || '').slice(0, 200),
-          body: `${analysis.inquiry_summary || ''}\n\n---\n${bodyText.slice(0, 2000)}`.trim(),
+          body: `${dupNote}${analysis.inquiry_summary || ''}\n\n---\n${bodyText.slice(0, 2000)}`.trim(),
           received_at: firstIn.received_at ? new Date(String(firstIn.received_at).slice(0, 19).replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString(),
           suggested_pipeline: matchedCustomer ? 'existing_customer' : 'new_business',
           matched_customer_name: matchedCustomer,
           status: 'new',
         });
+
+        // Bei möglichem Duplikat KEINEN Deal automatisch anlegen — bleibt zur manuellen Prüfung im Posteingang
+        if (duplicate) { stats.duplicates_flagged = (stats.duplicates_flagged || 0) + 1; stats.needs_review++; continue; }
 
         if (analysis.confidence !== 'hoch') { stats.needs_review++; continue; }
 
@@ -178,6 +215,7 @@ Extrahiere bei einer Anfrage die Kontaktdaten AUS DEM TEXT (nichts erfinden). co
           description: `${analysis.inquiry_summary || ''}\n\nOriginal-Anfrage:\n${bodyText.slice(0, 2000)}`.trim(),
           linked_customer_name: matchedCustomer,
         });
+        openDeals.push(deal); // im selben Lauf erkannte Anfragen ebenfalls gegen Duplikate absichern
         await db.CrmInboxItem.update(inboxItem.id, { status: 'converted', linked_deal_id: deal.id });
         await db.CrmActivity.create({
           deal_id: deal.id,
