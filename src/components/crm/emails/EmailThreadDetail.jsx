@@ -6,6 +6,7 @@ import { Loader2, Reply, AlertTriangle, Mail } from 'lucide-react';
 import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, DIRECTION_META, formatMailDate, colleagueRepliedLast, deriveCustomerFromEmail } from '@/components/crm/emails/emailConfig';
 import ThreadAnalysisPanel from '@/components/crm/emails/ThreadAnalysisPanel';
 import ReplyDraftPanel from '@/components/crm/emails/ReplyDraftPanel';
+import ThreadDoneButton from '@/components/crm/emails/ThreadDoneButton';
 
 export default function EmailThreadDetail({ thread, loading, onRefresh }) {
   if (loading) {
@@ -47,11 +48,14 @@ export default function EmailThreadDetail({ thread, loading, onRefresh }) {
                 {formatMailDate(t.first_message_at)} bis {formatMailDate(t.last_message_at)}
               </p>
             </div>
-            {replyHref && (
-              <Button size="sm" variant="outline" asChild className="gap-2 shrink-0">
-                <a href={replyHref}><Reply className="w-3.5 h-3.5" /> Antworten</a>
-              </Button>
-            )}
+            <div className="flex items-start gap-2 shrink-0">
+              {replyHref && (
+                <Button size="sm" variant="outline" asChild className="gap-2">
+                  <a href={replyHref}><Reply className="w-3.5 h-3.5" /> Antworten</a>
+                </Button>
+              )}
+              <ThreadDoneButton threadId={t.id} status={t.status} onChanged={onRefresh} />
+            </div>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap mt-1">
             {cat && <Badge variant="outline" className={`text-[10px] border-0 ${cat.color}`}>{cat.label}</Badge>}
