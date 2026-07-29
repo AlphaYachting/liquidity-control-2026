@@ -112,6 +112,7 @@
         "analysis_review",
         "mapping_review",
         "config_ready",
+        "rendering",
         "rendered",
         "error"
       ],
@@ -160,6 +161,11 @@
     "pdf_url": {
       "type": "string",
       "description": "Fertiges Angebots-PDF vom Render-Service"
+    },
+    "pdf_generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt der letzten erfolgreichen PDF-Erzeugung durch den Render-Service"
     },
     "version": {
       "type": "number",
