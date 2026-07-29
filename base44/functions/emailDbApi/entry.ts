@@ -1,6 +1,18 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { emailDbGet, emailDbEnrich } from '../../shared/emailDb.ts';
 
+// "AW: Re: Fwd: Feedback" -> "feedback" (gleiche Logik wie im Frontend-Grouping)
+function normalizeSubject(s: string) {
+  let out = String(s || '').toLowerCase().trim();
+  let prev;
+  do {
+    prev = out;
+    out = out.replace(/^\s*(re|aw|fw|fwd|wg|antw|antwort)\s*(\[\d+\])?\s*:\s*/i, '');
+    out = out.replace(/^\s*\[external\]\s*/i, '');
+  } while (out !== prev);
+  return out.trim();
+}
+
 // Proxy zur zentralen E-Mail-Datenbank (rico-office.at).
 // Aktionen: health | search | threads | thread (lesend), enrich (Auswertung zurückschreiben).
 Deno.serve(async (req) => {
@@ -62,6 +74,44 @@ Deno.serve(async (req) => {
         }));
       }
       return Response.json(listing);
+    }
+
+    // Thread-Detail: zusammengehörige Geschwister-Threads (gleicher normalisierter Betreff)
+    // finden und deren Nachrichten in EINE Konversation zusammenführen.
+    if (action === 'thread') {
+      const detail = await emailDbGet('thread', params);
+      const subj = normalizeSubject(detail?.thread?.subject);
+      if (subj.length >= 6) {
+        try {
+          const search = await emailDbGet('search', { q: subj, limit: 30 });
+          const siblingIds = [...new Set((search.results || [])
+            .filter((r: any) => r.thread_id && r.thread_id !== detail.thread.id && normalizeSubject(r.subject) === subj)
+            .map((r: any) => r.thread_id))].slice(0, 5);
+          if (siblingIds.length) {
+            detail.messages = detail.messages || [];
+            const seen = new Set(detail.messages.map((m: any) => m.id));
+            const related: any[] = [];
+            for (const sid of siblingIds) {
+              try {
+                const sib = await emailDbGet('thread', { id: sid, msgs: params.msgs || 15, full: params.full });
+                related.push({
+                  id: sid,
+                  subject: sib.thread?.subject,
+                  message_count: sib.thread?.message_count,
+                  last_message_at: sib.thread?.last_message_at,
+                });
+                (sib.messages || []).forEach((m: any) => {
+                  if (!seen.has(m.id)) { seen.add(m.id); detail.messages.push(m); }
+                });
+              } catch (_e) { /* einzelner Geschwister-Thread darf das Detail nicht brechen */ }
+            }
+            // neueste zuerst (Frontend verlässt sich darauf)
+            detail.messages.sort((a: any, b: any) => String(b.received_at || '').localeCompare(String(a.received_at || '')));
+            detail.related_threads = related;
+          }
+        } catch (_e) { /* Zusammenführung ist Best-Effort — Basisdetail immer liefern */ }
+      }
+      return Response.json(detail);
     }
 
     return Response.json(await emailDbGet(path, params));

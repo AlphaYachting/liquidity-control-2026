@@ -2,7 +2,8 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Reply, AlertTriangle, Mail } from 'lucide-react';
+import { Loader2, Reply, AlertTriangle, Mail, Users, Link2 } from 'lucide-react';
+import { extractRecipients, collectParticipants } from '@/components/crm/emails/messageRecipients';
 import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, DIRECTION_META, formatMailDate, colleagueRepliedLast, deriveCustomerFromEmail } from '@/components/crm/emails/emailConfig';
 import ThreadAnalysisPanel from '@/components/crm/emails/ThreadAnalysisPanel';
 import ReplyDraftPanel from '@/components/crm/emails/ReplyDraftPanel';
@@ -35,6 +36,8 @@ export default function EmailThreadDetail({ thread, loading, onRefresh }) {
   const replyHref = lastInbound
     ? `mailto:${lastInbound.from}?subject=${encodeURIComponent('Re: ' + (t.subject || ''))}`
     : null;
+  const participants = collectParticipants(messages);
+  const relatedThreads = thread.related_threads || [];
 
   return (
     <div className="space-y-3">
@@ -71,7 +74,30 @@ export default function EmailThreadDetail({ thread, loading, onRefresh }) {
               </Badge>
             )}
             {t.project_id && <Badge variant="outline" className="text-[10px]">Projekt {t.project_id}</Badge>}
+            {relatedThreads.length > 0 && (
+              <Badge variant="outline" className="text-[10px] border-0 bg-violet-100 text-violet-700 gap-1">
+                <Link2 className="w-3 h-3" /> Zusammengeführt aus {relatedThreads.length + 1} Verläufen
+              </Badge>
+            )}
           </div>
+          {participants.length > 1 && (
+            <div className="flex items-start gap-1.5 mt-2">
+              <Users className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+              <div className="flex items-center gap-1 flex-wrap">
+                {participants.map((p) => (
+                  <span
+                    key={p.email}
+                    title={p.email}
+                    className={`text-[10px] rounded-full px-2 py-0.5 ${
+                      p.direction === 'in' ? 'bg-blue-50 text-blue-700' : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {p.name || p.email}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </CardHeader>
         {t.summary && (
           <CardContent className="pt-0">
@@ -90,12 +116,23 @@ export default function EmailThreadDetail({ thread, loading, onRefresh }) {
       <div className="space-y-2">
         {messages.map((m) => {
           const dir = DIRECTION_META[m.direction] || {};
+          const rec = extractRecipients(m);
           return (
             <div key={m.id} className="rounded-lg border">
               <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/30">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold truncate">{m.from_name || m.from}</p>
                   <p className="text-[10px] text-muted-foreground truncate">{m.from}</p>
+                  {rec.to && (
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      <span className="font-medium">An:</span> {rec.to}
+                    </p>
+                  )}
+                  {rec.cc && (
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      <span className="font-medium">CC:</span> {rec.cc}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant="outline" className={`text-[9px] px-1.5 py-0 border-0 ${dir.color || ''}`}>{dir.label || m.direction}</Badge>
