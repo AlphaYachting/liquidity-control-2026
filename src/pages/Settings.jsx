@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Settings as SettingsIcon, User, Shield, Clock } from 'lucide-react';
+import { Settings as SettingsIcon, User, Shield, Clock, Users } from 'lucide-react';
+import TeamScopeSettings from '@/components/settings/TeamScopeSettings';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,12 +27,17 @@ export default function Settings() {
     <div className="space-y-6">
       <PageHeader title="Settings & Mapping" subtitle="Systemkonfiguration" icon={SettingsIcon} />
 
-      <Tabs defaultValue="audit">
+      <Tabs defaultValue="team">
         <TabsList>
+          <TabsTrigger value="team"><Users className="w-4 h-4 mr-1" />Team & Zuständigkeit</TabsTrigger>
           <TabsTrigger value="audit"><Clock className="w-4 h-4 mr-1" />Audit Log</TabsTrigger>
           <TabsTrigger value="roles"><Shield className="w-4 h-4 mr-1" />Rollen</TabsTrigger>
           <TabsTrigger value="mapping"><SettingsIcon className="w-4 h-4 mr-1" />Mapping</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="team" className="mt-4">
+          <TeamScopeSettings />
+        </TabsContent>
 
         <TabsContent value="audit" className="mt-4">
           <DataTable columns={logColumns} data={auditLogs} emptyText="Noch keine Audit-Einträge vorhanden" />

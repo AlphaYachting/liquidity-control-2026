@@ -9,6 +9,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AppLayout from '@/components/layout/AppLayout';
 import AdminRoute from '@/components/layout/AdminRoute';
 import Dashboard from '@/pages/Dashboard';
+import MyDay from '@/pages/MyDay';
 import Projects from '@/pages/Projects';
 import OnlineMarketing from '@/pages/OnlineMarketing';
 import Maintenance from '@/pages/Maintenance';
@@ -88,7 +89,8 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<MyDay />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:projectId" element={<ProjectDetail />} />
         <Route path="/confirmed-orders" element={<ConfirmedOrders />} />

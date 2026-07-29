@@ -1,0 +1,71 @@
+{
+  "name": "TeamMemberProfile",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "E-Mail des App-Nutzers \u2014 Verkn\u00fcpfung zum User-Konto"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Anzeigename im Team"
+    },
+    "pm_aliases": {
+      "type": "array",
+      "description": "Namen, unter denen diese Person in Projekten/Pl\u00e4nen als Verantwortliche/r eingetragen ist (z.B. 'A. Rittler', 'Alfons')",
+      "items": {
+        "type": "string"
+      }
+    },
+    "data_scope": {
+      "type": "string",
+      "enum": [
+        "own",
+        "all"
+      ],
+      "default": "own",
+      "description": "own = nur eigene Projekte/Kunden, all = alles sehen"
+    },
+    "work_areas": {
+      "type": "array",
+      "description": "Aufgabenbereiche \u2014 steuert, welche Arbeitslisten in 'Mein Tag' erscheinen",
+      "items": {
+        "type": "string",
+        "enum": [
+          "projects",
+          "sales",
+          "backoffice",
+          "management"
+        ]
+      }
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_email"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

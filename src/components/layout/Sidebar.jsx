@@ -6,7 +6,7 @@ import {
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
   CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale,
-  KanbanSquare, Inbox, History, Presentation, Mail, Siren
+  KanbanSquare, Inbox, History, Presentation, Mail, Siren, Sun
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
@@ -21,7 +21,8 @@ const navSections = [
   {
     title: null,
     items: [
-      { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+      { path: '/', label: 'Mein Tag', icon: Sun },
+      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban },
       { path: '/next-month-forecast', label: 'Abrechnungsforecast', icon: CalendarCheck },
       { path: '/invoice-ready', label: 'Abrechnungsanweisungen', icon: CheckSquare },
