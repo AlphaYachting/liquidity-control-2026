@@ -158,7 +158,7 @@ export default function Sidebar() {
             </div>
             <div>
               <h1 className="text-sm font-semibold text-sidebar-foreground">Rittler & Co</h1>
-              <p className="text-xs text-sidebar-foreground/50">Liquidity Control 2026</p>
+              <p className="text-xs text-sidebar-foreground/50">Agency Manager</p>
             </div>
           </div>
         )}
