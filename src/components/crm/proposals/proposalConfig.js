@@ -3,6 +3,7 @@ export const PROPOSAL_STATUSES = {
   analysis_review: { label: 'Analyse zur Freigabe', color: 'bg-amber-100 text-amber-700', step: 2 },
   mapping_review: { label: 'Mapping zur Freigabe', color: 'bg-blue-100 text-blue-700', step: 3 },
   config_ready: { label: 'Freigegeben — bereit zum Rendern', color: 'bg-violet-100 text-violet-700', step: 4 },
+  rendering: { label: 'PDF wird erstellt…', color: 'bg-sky-100 text-sky-700', step: 4 },
   rendered: { label: 'PDF erstellt ✓', color: 'bg-emerald-100 text-emerald-600', step: 5 },
   error: { label: 'Fehler', color: 'bg-red-100 text-red-600', step: 0 },
 };
@@ -15,6 +16,7 @@ export const WORKFLOW_STEPS = [
   { key: 'input', label: '1 · Input & Kontext' },
   { key: 'analysis_review', label: '2 · Analyse (Stopp 1)' },
   { key: 'mapping_review', label: '3 · Mapping (Stopp 2)' },
-  { key: 'config_ready', label: '4 · Config' },
+  // statuses: welche Angebots-Status auf diese Stufe fallen (Reihenfolge = Schrittnummer)
+  { key: 'config_ready', label: '4 · Config', statuses: ['config_ready', 'rendering'] },
   { key: 'rendered', label: '5 · PDF' },
 ];

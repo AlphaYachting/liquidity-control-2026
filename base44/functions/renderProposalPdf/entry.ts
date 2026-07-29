@@ -27,6 +27,9 @@ export default async function (req) {
 
     const proposal = await base44.asServiceRole.entities.CrmProposal.get(proposalId);
     if (!proposal) return Response.json({ error: 'Angebot nicht gefunden' }, { status: 404 });
+    if (proposal.status === 'rendering') {
+      return Response.json({ error: 'Es laeuft bereits eine PDF-Erzeugung fuer dieses Angebot.' }, { status: 409 });
+    }
 
     // Config aufloesen: inline oder aus der Datei-URL nachladen
     let configRaw = proposal.config_json;
@@ -62,7 +65,8 @@ export default async function (req) {
     if (!pdfBytes.byteLength) throw new Error('Render-Service lieferte ein leeres PDF.');
 
     const safeName = (proposal.customer_company || proposal.title || 'Angebot').replace(/[^\w\-]+/g, '_').slice(0, 60);
-    const nextVersion = (proposal.version || 1) + 1;
+    // Erstes PDF bleibt Version 1 — erst ein erneutes Rendern zaehlt hoch
+    const nextVersion = proposal.pdf_url ? (proposal.version || 1) + 1 : (proposal.version || 1);
     const file = new File([pdfBytes], `Angebot_${safeName}_v${nextVersion}.pdf`, { type: 'application/pdf' });
     const { file_url } = await base44.asServiceRole.integrations.Core.UploadFile({ file });
 
@@ -78,8 +82,11 @@ export default async function (req) {
   } catch (error) {
     if (base44 && proposalId) {
       try {
+        // Nicht auf 'error' (step 0) setzen: die Detailseite blendet dann alle Panels aus
+        // und das Angebot waere ohne Rueckweg unbedienbar. Zurueck auf config_ready,
+        // damit "PDF erzeugen" erneut ausgeloest werden kann — nur die Meldung wird gefuellt.
         await base44.asServiceRole.entities.CrmProposal.update(proposalId, {
-          status: 'error',
+          status: 'config_ready',
           error_message: String(error.message || error).slice(0, 900),
         });
       } catch (_e) { /* Statusschreiben darf die Fehlerantwort nicht verdecken */ }

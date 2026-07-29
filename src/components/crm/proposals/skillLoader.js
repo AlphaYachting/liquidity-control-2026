@@ -43,8 +43,9 @@ async function loadDocs(query) {
 
 // Loads SKILL.md + all references of a variant (incl. shared docs) as one rules block.
 export async function loadSkillRules(variant) {
+  // Existenz pruefen, nicht Wahrheitswert: ein leeres Template ist ein gueltiger Cache-Treffer
   const cached = getCached(variant);
-  if (cached) return cached;
+  if (cached !== null) return cached;
   const docs = await loadDocs({ skill_variant: variant, include_in_prompt: true });
   const skillFirst = [...docs].sort((a, b) =>
     (a.doc_type === 'skill' ? 0 : 1) - (b.doc_type === 'skill' ? 0 : 1));
@@ -56,7 +57,7 @@ export async function loadSkillRules(variant) {
 export async function loadConfigTemplate(variant) {
   const key = `tpl_${variant}`;
   const cached = getCached(key);
-  if (cached) return cached;
+  if (cached !== null) return cached;
   const docs = await loadDocs({ skill_variant: variant, doc_type: 'config_template' });
   return setCached(key, docs[0] ? await fetchText(docs[0].file_url, docs[0].file_name) : '');
 }
