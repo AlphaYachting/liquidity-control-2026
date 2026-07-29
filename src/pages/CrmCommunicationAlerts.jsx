@@ -53,7 +53,7 @@ export default function CrmCommunicationAlerts() {
             <EscalationInterventionCard
               key={t.id}
               thread={t}
-              linkedProjects={projectsForCustomer(t.customer_normalized || t.customer)}
+              linkedProjects={projectsForCustomer(t.customer_label)}
             />
           ))}
         </div>

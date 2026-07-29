@@ -6,14 +6,16 @@ import { emailApi } from '@/components/crm/emails/emailApi';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Sparkles, Loader2, FolderKanban, Mail, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Sparkles, Loader2, FolderKanban, Mail, CheckCircle2, ChevronDown, ChevronUp, User } from 'lucide-react';
 import { formatMailDate } from '@/components/crm/emails/emailConfig';
+import EscalationThreadPreview from '@/components/crm/emails/EscalationThreadPreview';
 
 // Eskalations-Alert mit KI-generiertem Einschreitungsvorschlag (on demand).
 export default function EscalationInterventionCard({ thread, linkedProjects = [] }) {
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState(null);
+  const [showPreview, setShowPreview] = useState(true);
   const queryClient = useQueryClient();
 
   // Alert als erledigt markieren: Status in der E-Mail-DB setzen, Eskalation aufheben
@@ -76,10 +78,17 @@ Liefere: (1) Kern des Problems in 1-2 Sätzen. (2) Dringlichkeit (hoch/mittel/ni
           <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-sm">{thread.customer_normalized || 'Unbekannter Absender'}</span>
+              <span className="font-semibold text-sm">{thread.customer_label || 'Unbekannter Absender'}</span>
               <span className="text-xs text-muted-foreground">{formatMailDate(thread.last_message_at).slice(0, 10)}</span>
             </div>
             <p className="text-sm font-medium mt-0.5">{thread.subject || '(kein Betreff)'}</p>
+            <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground mt-1">
+              <User className="w-3 h-3 shrink-0" />
+              <span>{thread.external_from || thread.last_from || 'Absender unbekannt'}</span>
+              {thread.last_from_name && <span>({thread.last_from_name})</span>}
+              {thread.last_to && <span>· an {thread.last_to}</span>}
+              {thread.message_count > 0 && <span>· {thread.message_count} Nachrichten</span>}
+            </div>
             {thread.summary && <p className="text-xs text-muted-foreground mt-1">{thread.summary}</p>}
             {linkedProjects.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap mt-2">
@@ -105,6 +114,21 @@ Liefere: (1) Kern des Problems in 1-2 Sätzen. (2) Dringlichkeit (hoch/mittel/ni
               <Mail className="w-3 h-3" /> Zur E-Mail-Zentrale
             </Link>
           </div>
+        </div>
+
+        <div>
+          <button
+            onClick={() => setShowPreview(!showPreview)}
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            {showPreview ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {showPreview ? 'Vorschau ausblenden' : 'E-Mail-Vorschau anzeigen'}
+          </button>
+          {showPreview && (
+            <div className="mt-2">
+              <EscalationThreadPreview threadId={thread.id} />
+            </div>
+          )}
         </div>
 
         {error && <p className="text-xs text-red-600">{error}</p>}
