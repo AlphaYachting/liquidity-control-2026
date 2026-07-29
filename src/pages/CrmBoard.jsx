@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -10,6 +10,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import DealCard from '@/components/crm/DealCard';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import { PIPELINES, eur, isClosedStage } from '@/components/crm/stages';
+import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
 
 export default function CrmBoard() {
