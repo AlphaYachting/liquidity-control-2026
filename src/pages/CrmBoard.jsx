@@ -19,6 +19,8 @@ export default function CrmBoard() {
   const [pipeline, setPipeline] = useState('new_business');
   const [formOpen, setFormOpen] = useState(false);
   const [showClosed, setShowClosed] = useState(null);
+  const lastDragEnd = useRef(0);
+  const { toast } = useToast();
 
   const { data: deals = [], isLoading } = useQuery({
     queryKey: ['crm-deals'],
@@ -38,14 +40,31 @@ export default function CrmBoard() {
   const weightedValue = openDeals.reduce((s, d) => s + (d.value_net || 0) * (d.probability_percent || 0) / 100, 0);
 
   const onDragEnd = async (result) => {
+    lastDragEnd.current = Date.now();
     if (!result.destination) return;
     const dealId = result.draggableId;
     const newStage = result.destination.droppableId;
-    if (result.source.droppableId === newStage) return;
+    const oldStage = result.source.droppableId;
+    if (oldStage === newStage) return;
     queryClient.setQueryData(['crm-deals'], (old = []) =>
       old.map(d => d.id === dealId ? { ...d, stage: newStage } : d));
-    await base44.entities.CrmDeal.update(dealId, { stage: newStage });
-    queryClient.invalidateQueries({ queryKey: ['crm-deals'] });
+    try {
+      await base44.entities.CrmDeal.update(dealId, { stage: newStage });
+      queryClient.invalidateQueries({ queryKey: ['crm-deals'] });
+    } catch (err) {
+      queryClient.setQueryData(['crm-deals'], (old = []) =>
+        old.map(d => d.id === dealId ? { ...d, stage: oldStage } : d));
+      toast({
+        variant: 'destructive',
+        title: 'Verschieben fehlgeschlagen',
+        description: 'Der Deal konnte nicht gespeichert werden und wurde zurückgesetzt.',
+      });
+    }
+  };
+
+  const openDeal = (dealId) => {
+    if (Date.now() - lastDragEnd.current < 300) return;
+    navigate(`/crm/deals/${dealId}`);
   };
 
   return (
@@ -143,7 +162,7 @@ export default function CrmBoard() {
                           <Draggable key={deal.id} draggableId={deal.id} index={idx} disableInteractiveElementBlocking>
                             {(dragProvided) => (
                               <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} {...dragProvided.dragHandleProps}>
-                                <DealCard deal={deal} onClick={() => navigate(`/crm/deals/${deal.id}`)} />
+                                <DealCard deal={deal} onClick={() => openDeal(deal.id)} />
                               </div>
                             )}
                           </Draggable>
