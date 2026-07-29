@@ -2,6 +2,7 @@ import React from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Phone, Mail, PenLine, UserPlus, Trash2 } from 'lucide-react';
+import InboxItemBody from '@/components/crm/InboxItemBody';
 
 const SOURCE_META = {
   phone_ai: { icon: Phone, label: 'Telefon-KI', color: 'bg-violet-100 text-violet-600' },
@@ -41,7 +42,7 @@ export default function InboxItemCard({ item, onConvert, onChanged }) {
           )}
         </div>
       </div>
-      {item.body && <p className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-4 pl-12">{item.body}</p>}
+      <InboxItemBody item={item} />
       <div className="flex gap-2 pl-12">
         <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onConvert(item)}>
           <UserPlus className="w-3.5 h-3.5" /> Lead / Deal anlegen
