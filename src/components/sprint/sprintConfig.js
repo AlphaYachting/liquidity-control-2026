@@ -1,11 +1,29 @@
 // Zentrale Konfiguration des Sprint-Moduls (Design-System Rittler & Co)
+// Zwei getrennte Achsen: A = Marke/Aktion (Pink), B = Status/Zeit (nie Pink).
 export const RITTLER = {
+  // ACHSE A — Marke / Aktion
   pink: '#ff3764',
-  green: '#45d085',
+  pink700: '#d12d52',
+  // Basis
   black: '#2d2d2d',
-  grayLight: '#f5f5f5',
-  grayMid: '#999999',
-  yellow: '#f5a623',
+  white: '#ffffff',
+  surface: '#f5f5f5',
+  line: '#e0e0e0',
+  textSecondary: '#6b6b6b',
+  decorGray: '#999999', // nur dekorativ, nie Text, nie Status
+};
+
+// ACHSE B — Status / Zeit. Erscheint nie in Pink und nie auf einer anklickbaren Form.
+export const STATUS_COLORS = {
+  neutral: '#6b6b6b',
+  attention: '#9c5b00',
+  attentionSurface: '#f5eee2',
+  critical: '#c8003a',
+  criticalSurface: '#f8e0e7',
+  done: '#45d085',
+  doneText: '#1e7a4c',
+  doneSurface: '#e9f9f0',
+  frozen: '#2d2d2d',
 };
 
 export const MILESTONE_STATES = ['input', 'produktion', 'pruefung', 'kundenfeedback', 'freigegeben'];

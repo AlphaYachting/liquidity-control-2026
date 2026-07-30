@@ -47,11 +47,11 @@ export default function SprintDetail() {
         <h1 className="text-2xl font-extrabold uppercase tracking-tight text-[#2d2d2d]">
           {project?.title || 'Projekt'}
         </h1>
-        <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm text-[#999999]">
+        <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm text-[#6b6b6b]">
           <span>Sprint <strong className="text-[#2d2d2d]">{sprint.size}</strong> ({SPRINT_SIZES[sprint.size]?.subtitle})</span>
           <span>Liefertermin <strong className="text-[#2d2d2d]">{fmtDate(sprint.delivery_date)}</strong></span>
           {restDays !== null && (
-            <span>Restlaufzeit <strong className={restDays < 7 ? 'text-[#ff3764]' : 'text-[#2d2d2d]'}>{restDays} Tage</strong></span>
+            <span>Restlaufzeit <strong className={restDays < 0 ? 'text-[#c8003a]' : restDays < 7 ? 'text-[#9c5b00]' : 'text-[#2d2d2d]'}>{restDays} Tage</strong></span>
           )}
           <span>Sprintbetrag <strong className="text-[#2d2d2d]">{fmtEUR(sprint.sprint_amount)}</strong></span>
           <span>Sollstunden <strong className="text-[#2d2d2d]">{sprint.target_hours || 0} h</strong></span>
@@ -73,10 +73,10 @@ export default function SprintDetail() {
                   <p className="font-bold text-[#2d2d2d] flex items-center gap-2">
                     <span className="text-xs text-[#ff3764]">{m.order}</span>
                     {m.title}
-                    {locked && <Lock className="w-3.5 h-3.5 text-[#999999]" />}
-                    {m.is_final_milestone && <span className="text-[10px] uppercase tracking-wide text-[#999999]">Final</span>}
+                    {locked && <Lock className="w-3.5 h-3.5 text-[#2d2d2d]" />}
+                    {m.is_final_milestone && <span className="text-[10px] uppercase tracking-wide text-[#6b6b6b]">Final</span>}
                   </p>
-                  <p className="text-xs text-[#999999] mt-0.5">
+                  <p className="text-xs text-[#6b6b6b] mt-0.5">
                     {fmtEUR(m.milestone_amount)}
                     {m.planned_handover ? ` · Plan-Übergabe ${fmtDate(m.planned_handover)}` : ''}
                     {m.feedback_deadline
@@ -92,7 +92,7 @@ export default function SprintDetail() {
           );
         })}
         {milestones.length === 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-[#999999]">
+          <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-[#6b6b6b]">
             Dieser Sprint hat keine Milestones.
           </div>
         )}

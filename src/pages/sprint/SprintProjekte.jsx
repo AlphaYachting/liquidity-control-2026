@@ -44,11 +44,14 @@ export default function SprintProjekte() {
   const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
   const today = todayIso();
 
+  // Statusachse: leerer Kreis = nichts zu tun, Dreieck = Aufmerksamkeit, Quadrat = Handlung nötig
   const ampelFor = (projectSprints) => {
     const running = projectSprints.find((s) => s.status === 'laufend');
-    if (!running) return 'gruen';
-    if (running.delivery_date && running.delivery_date < today) return 'pink';
-    return 'gruen';
+    if (!running || !running.delivery_date) return { status: 'plan', hint: 'Im Plan' };
+    const rest = Math.round((new Date(running.delivery_date) - new Date(today)) / 86400000);
+    if (rest < 0) return { status: 'critical', hint: 'Liefertermin überschritten' };
+    if (rest <= 7) return { status: 'attention', hint: `Liefertermin in ${rest} Tagen` };
+    return { status: 'plan', hint: 'Im Plan' };
   };
 
   return (
@@ -81,20 +84,23 @@ export default function SprintProjekte() {
           {projects.map((p) => {
             const projectSprints = sprints.filter((s) => s.project_id === p.id);
             const active = projectSprints.find((s) => s.status === 'laufend') || projectSprints.find((s) => s.status === 'geplant');
+            const ampel = ampelFor(projectSprints);
             return (
               <div key={p.id} className="bg-white rounded-lg shadow-sm p-4">
                 <div className="flex items-center gap-3">
-                  <Ampelpunkt status={ampelFor(projectSprints)} />
+                  <Ampelpunkt status={ampel.status} />
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-[#2d2d2d]">{p.title}</p>
-                    <p className="text-xs text-[#999999]">{clientById[p.client_id]?.name || '—'} · PM: {p.pm_email} · {p.status}</p>
+                    <p className="text-xs text-[#6b6b6b]">
+                      {clientById[p.client_id]?.name || '—'} · PM: {p.pm_email} · {p.status} · {ampel.hint}
+                    </p>
                   </div>
                   {active ? (
-                    <Link to={`/sprint/sprints/${active.id}`} className="text-sm font-semibold text-[#ff3764] hover:underline">
+                    <Link to={`/sprint/sprints/${active.id}`} className="text-sm font-semibold text-[#d12d52] hover:underline">
                       Sprint {active.size} · bis {fmtDate(active.delivery_date)}
                     </Link>
                   ) : (
-                    <span className="text-xs text-[#999999]">Kein laufender Sprint</span>
+                    <span className="text-xs text-[#6b6b6b]">Kein laufender Sprint</span>
                   )}
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setProjectDialog({ open: true, project: p })}>
                     <Pencil className="w-3.5 h-3.5" />
@@ -103,7 +109,7 @@ export default function SprintProjekte() {
                 {projectSprints.length > 1 && (
                   <div className="flex flex-wrap gap-2 mt-2 pl-5">
                     {projectSprints.map((s) => (
-                      <Link key={s.id} to={`/sprint/sprints/${s.id}`} className="text-[11px] px-2 py-0.5 rounded bg-[#f5f5f5] text-[#2d2d2d] hover:bg-[#ff3764]/10">
+                      <Link key={s.id} to={`/sprint/sprints/${s.id}`} className="text-[11px] px-2 py-0.5 rounded bg-[#f5f5f5] text-[#2d2d2d] hover:bg-[#e0e0e0]">
                         {s.title || `Sprint ${s.size}`} · {s.status}
                       </Link>
                     ))}
@@ -113,7 +119,7 @@ export default function SprintProjekte() {
             );
           })}
           {projects.length === 0 && (
-            <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-[#999999]">
+            <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-[#6b6b6b]">
               Noch kein Projekt — oben rechts anlegen.
             </div>
           )}
@@ -124,7 +130,7 @@ export default function SprintProjekte() {
             <div key={c.id} className="bg-white rounded-lg shadow-sm p-4 flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-[#2d2d2d]">{c.name}</p>
-                <p className="text-xs text-[#999999]">
+                <p className="text-xs text-[#6b6b6b]">
                   {c.contact_person ? `${c.contact_person} · ` : ''}{c.contact_email}
                   {c.agb_version ? ` · ${c.agb_version}` : ''}
                 </p>
@@ -135,7 +141,7 @@ export default function SprintProjekte() {
             </div>
           ))}
           {clients.length === 0 && (
-            <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-[#999999]">
+            <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-[#6b6b6b]">
               Noch kein Kunde — oben rechts anlegen.
             </div>
           )}

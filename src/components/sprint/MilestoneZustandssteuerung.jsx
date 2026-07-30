@@ -23,14 +23,15 @@ export default function MilestoneZustandssteuerung({ state, phaseDone, onChange 
   return (
     <div className="space-y-4">
       {phaseDone && next && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded border border-[#e5e5e5] bg-[#f5f5f5] px-4 py-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded border border-[#e0e0e0] border-l-4 border-l-[#e0e0e0] bg-[#f5f5f5] px-4 py-3">
           <CheckCheck className="w-4 h-4 text-[#2d2d2d] shrink-0" />
           <p className="flex-1 text-sm text-[#2d2d2d]">
             Alle Aufgaben der Phase {STATE_LABELS[state]} sind erledigt. Weiter zu {STATE_LABELS[next]}?
           </p>
           <Button
+            variant="link"
             size="sm"
-            className="bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded"
+            className="text-[#d12d52] font-bold uppercase px-0 h-auto hover:underline"
             onClick={() => onChange(next)}
           >
             Weiter
@@ -51,14 +52,14 @@ export default function MilestoneZustandssteuerung({ state, phaseDone, onChange 
         {next && (
           <Button
             size="sm"
-            className="bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded"
+            className="bg-[#ff3764] hover:bg-[#d12d52] text-white font-bold uppercase rounded"
             onClick={() => onChange(next)}
           >
             Weiter zu {STATE_LABELS[next]} <ArrowRight className="w-4 h-4" />
           </Button>
         )}
         {state === 'kundenfeedback' && (
-          <p className="text-xs text-[#999999] self-center">
+          <p className="text-xs text-[#6b6b6b] self-center">
             Die Freigabe läuft ausschließlich über die Freigabe-Aktion, nicht über die Kette.
           </p>
         )}

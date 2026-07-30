@@ -9,14 +9,15 @@ import SectionLabel from '@/components/sprint/SectionLabel';
 import ZeitBuchung from '@/components/sprint/ZeitBuchung';
 import { todayIso, fmtDate, TICKET_STATUS_LABELS } from '@/components/sprint/sprintConfig';
 
-const STATUS_DOT = { offen: '#999999', in_arbeit: '#ff3764', wartet: '#f5a623', erledigt: '#45d085' };
+// Statusachse B — nie Pink: offen neutral, in Arbeit schwarz, wartet Bernstein, erledigt Grün
+const STATUS_DOT = { offen: '#6b6b6b', in_arbeit: '#2d2d2d', wartet: '#9c5b00', erledigt: '#45d085' };
 
 function TicketRow({ ticket }) {
   return (
     <Link to={`/sprint/milestones/${ticket.milestone_id}`} className="flex items-center gap-3 py-2 border-b border-[#f5f5f5] last:border-0 hover:bg-[#f5f5f5]/60 px-2 -mx-2 rounded">
       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: STATUS_DOT[ticket.status] || '#999999' }} />
       <span className="flex-1 text-sm text-[#2d2d2d]">{ticket.title}</span>
-      <span className="text-xs text-[#999999]">{TICKET_STATUS_LABELS[ticket.status]}</span>
+      <span className="text-xs text-[#6b6b6b]">{TICKET_STATUS_LABELS[ticket.status]}</span>
     </Link>
   );
 }
@@ -88,11 +89,11 @@ export default function SprintHeute() {
         <div className="bg-white rounded-lg shadow-sm p-6">
           <SectionLabel className="mb-2">Mein Focus-Tag</SectionLabel>
           <h2 className="text-xl font-extrabold uppercase text-[#2d2d2d]">{focusProject.title}</h2>
-          {focusClient && <p className="text-sm text-[#999999] mt-0.5">{focusClient.name}</p>}
+          {focusClient && <p className="text-sm text-[#6b6b6b] mt-0.5">{focusClient.name}</p>}
           <div className="mt-4">
             {tickets.length > 0
               ? tickets.map((t) => <TicketRow key={t.id} ticket={t} />)
-              : <p className="text-sm text-[#999999]">Keine offenen Tickets in diesem Projekt.</p>}
+              : <p className="text-sm text-[#6b6b6b]">Keine offenen Tickets in diesem Projekt.</p>}
           </div>
         </div>
       ) : focusDay?.type === 'reaktion' ? (
@@ -102,7 +103,7 @@ export default function SprintHeute() {
           <div className="mt-4">
             {tickets.length > 0
               ? tickets.map((t) => <TicketRow key={t.id} ticket={t} />)
-              : <p className="text-sm text-[#999999]">Keine offenen Tickets.</p>}
+              : <p className="text-sm text-[#6b6b6b]">Keine offenen Tickets.</p>}
           </div>
         </div>
       ) : focusDay?.type === 'abwesend' ? (
@@ -127,14 +128,14 @@ export default function SprintHeute() {
               <Link key={m.id} to={`/sprint/milestones/${m.id}`} className="flex items-center gap-3 py-1.5 hover:bg-[#f5f5f5]/60 px-2 -mx-2 rounded">
                 <span className="text-sm text-[#2d2d2d] flex-1">
                   {m.title}
-                  {!m.feedback_deadline && <span className="text-[11px] text-[#999999] ml-2">geplant</span>}
+                  {!m.feedback_deadline && <span className="text-[11px] text-[#6b6b6b] ml-2">geplant</span>}
                 </span>
                 <span className="text-sm font-semibold text-[#2d2d2d]">{fmtDate(deadlineOf(m))}</span>
               </Link>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-[#999999]">Keine offenen Fristen.</p>
+          <p className="text-sm text-[#6b6b6b]">Keine offenen Fristen.</p>
         )}
       </div>
 

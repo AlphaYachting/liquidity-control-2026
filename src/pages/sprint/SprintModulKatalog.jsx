@@ -52,12 +52,12 @@ export default function SprintModulKatalog() {
                 }`}
               >
                 <span className="font-semibold text-sm">{m.name}</span>
-                <span className={`text-xs ml-2 ${selectedId === m.id ? 'text-white/80' : 'text-[#999999]'}`}>
+                <span className={`text-xs ml-2 ${selectedId === m.id ? 'text-white/80' : 'text-[#6b6b6b]'}`}>
                   {m.target_hours ? `${m.target_hours} h` : ''}{m.standard_price ? ` · ${fmtEUR(m.standard_price)}` : ''}
                 </span>
               </button>
             ))}
-            {modules.length === 0 && <p className="text-sm text-[#999999]">Noch kein Modul — unten das erste anlegen.</p>}
+            {modules.length === 0 && <p className="text-sm text-[#6b6b6b]">Noch kein Modul — unten das erste anlegen.</p>}
           </div>
           <div className="flex flex-col sm:flex-row gap-2 mt-4">
             <Input placeholder="Modulname, z. B. Landingpage" value={newName} onChange={(e) => setNewName(e.target.value)} className="flex-1" />
@@ -72,7 +72,7 @@ export default function SprintModulKatalog() {
         {selected ? (
           <ModulTemplateEditor key={selected.id} module={selected} />
         ) : (
-          <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-[#999999]">
+          <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-[#6b6b6b]">
             Modul links auswählen, um die Pflichtkette zu bearbeiten.
           </div>
         )}

@@ -56,6 +56,10 @@ export default function SprintPlanung() {
   const projectById = Object.fromEntries(projects.map((p) => [p.id, p]));
   const entryFor = (email, day) => focusDays.find((f) => f.person_email === email && f.day === day);
 
+  // Keine Projektfarben: das Projekt erscheint als Kürzel in Text, die Farbachse bleibt dem Status
+  const kuerzel = (title = '') =>
+    (title.split(/\s+/).filter(Boolean).map((w) => w[0]).join('') || title.slice(0, 4)).toUpperCase().slice(0, 4);
+
   const fmtHeader = (isoDay) => {
     const d = new Date(isoDay);
     return `${d.getDate()}.${d.getMonth() + 1}.`;
@@ -82,10 +86,10 @@ export default function SprintPlanung() {
         <table className="w-full min-w-[720px] border-separate border-spacing-1">
           <thead>
             <tr>
-              <th className="text-left text-[11px] font-bold uppercase tracking-[2px] text-[#ff3764] px-2 pb-2">Person</th>
+              <th className="text-left text-[11px] font-bold uppercase tracking-[2px] text-[#d12d52] px-2 pb-2">Person</th>
               {days.map((d, i) => (
                 <th key={d} className="text-center text-xs font-semibold text-[#2d2d2d] pb-2">
-                  {DAY_LABELS[i]} <span className="text-[#999999] font-normal">{fmtHeader(d)}</span>
+                  {DAY_LABELS[i]} <span className="text-[#6b6b6b] font-normal">{fmtHeader(d)}</span>
                 </th>
               ))}
             </tr>
@@ -107,23 +111,26 @@ export default function SprintPlanung() {
                       <button
                         type="button"
                         onClick={() => setDialog({ personEmail: p.email, day, existing: entry })}
+                        title={entry?.type === 'focus' ? project?.title : undefined}
                         className={`w-full h-14 rounded text-[11px] font-semibold px-1 transition-colors ${
                           entry?.type === 'focus'
-                            ? 'bg-[#ff3764]/10 text-[#2d2d2d] border border-[#ff3764]/40 hover:bg-[#ff3764]/20'
+                            ? 'bg-[#f5f5f5] text-[#2d2d2d] border border-[#e0e0e0] hover:bg-[#e0e0e0]'
                             : entry?.type === 'reaktion'
-                            ? 'bg-[repeating-linear-gradient(45deg,#f5f5f5,#f5f5f5_6px,#e8e8e8_6px,#e8e8e8_12px)] text-[#999999] border border-gray-200'
+                            ? 'bg-[repeating-linear-gradient(45deg,#f5f5f5,#f5f5f5_6px,#e8e8e8_6px,#e8e8e8_12px)] text-[#6b6b6b] border border-[#e0e0e0]'
                             : entry?.type === 'abwesend'
-                            ? 'bg-[#f5f5f5] text-[#999999] border border-gray-200 line-through'
-                            : 'bg-white border border-dashed border-gray-200 text-[#999999] hover:border-[#ff3764]/50'
+                            ? 'bg-[#f5f5f5] text-[#6b6b6b] border border-[#e0e0e0] line-through'
+                            : 'bg-white border border-dashed border-[#e0e0e0] text-[#6b6b6b] hover:border-[#2d2d2d]'
                         }`}
                       >
-                        {entry?.type === 'focus' ? (project?.title || 'Focus') : entry?.type === 'reaktion' ? 'Reaktion' : entry?.type === 'abwesend' ? 'Abwesend' : '+'}
+                        {entry?.type === 'focus'
+                          ? (project ? kuerzel(project.title) : 'Focus')
+                          : entry?.type === 'reaktion' ? 'Reaktion' : entry?.type === 'abwesend' ? 'Abwesend' : '+'}
                       </button>
                     </td>
                   );
                 })}
                 <td className="text-center text-xs font-semibold whitespace-nowrap px-2">
-                  <span className={assigned > capacity ? 'text-[#ff3764]' : 'text-[#2d2d2d]'}>
+                  <span className={assigned > capacity ? 'text-[#c8003a]' : 'text-[#2d2d2d]'}>
                     {assigned}/{capacity}
                   </span>
                 </td>
@@ -132,7 +139,7 @@ export default function SprintPlanung() {
             })}
             {members.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-sm text-[#999999] text-center py-8">
+                <td colSpan={7} className="text-sm text-[#6b6b6b] text-center py-8">
                   Kein aktives Teammitglied im Personenstamm.
                 </td>
               </tr>

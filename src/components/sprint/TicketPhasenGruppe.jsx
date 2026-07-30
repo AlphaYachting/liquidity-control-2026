@@ -17,9 +17,9 @@ export default function TicketPhasenGruppe({ phase, tickets, currentState, membe
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-2 px-3 py-2 text-left"
       >
-        {open ? <ChevronDown className="w-4 h-4 text-[#999999]" /> : <ChevronRight className="w-4 h-4 text-[#999999]" />}
+        {open ? <ChevronDown className="w-4 h-4 text-[#6b6b6b]" /> : <ChevronRight className="w-4 h-4 text-[#6b6b6b]" />}
         <span className="text-xs font-bold uppercase tracking-wide text-[#2d2d2d]">{STATE_LABELS[phase]}</span>
-        <span className="text-xs text-[#999999]">{doneCount}/{tickets.length} erledigt</span>
+        <span className="text-xs text-[#6b6b6b]">{doneCount}/{tickets.length} erledigt</span>
       </button>
 
       {open && (
@@ -31,9 +31,13 @@ export default function TicketPhasenGruppe({ phase, tickets, currentState, membe
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[#2d2d2d] flex items-center gap-1.5">
                     {t.title}
-                    {t.blocks_others && <AlertTriangle className="w-3.5 h-3.5 text-[#f5a623]" title="Blockiert andere Aufgaben" />}
+                    {t.blocks_others && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ color: '#9c5b00', backgroundColor: '#f5eee2' }}>
+                        <AlertTriangle className="w-3 h-3" /> Blockiert
+                      </span>
+                    )}
                   </p>
-                  <p className="text-[11px] text-[#999999]">
+                  <p className="text-[11px] text-[#6b6b6b]">
                     {t.role || '—'} · {t.origin}{t.target_hours ? ` · ${t.target_hours} h` : ''}
                   </p>
                 </div>
@@ -57,7 +61,7 @@ export default function TicketPhasenGruppe({ phase, tickets, currentState, membe
               </div>
             );
           })}
-          {tickets.length === 0 && <p className="text-sm text-[#999999] px-1 py-2">Keine Aufgaben in dieser Phase.</p>}
+          {tickets.length === 0 && <p className="text-sm text-[#6b6b6b] px-1 py-2">Keine Aufgaben in dieser Phase.</p>}
         </div>
       )}
     </div>

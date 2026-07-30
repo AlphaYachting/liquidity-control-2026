@@ -92,7 +92,7 @@ export default function AddOnKatalog() {
       </div>
 
       {!isProcessOwner && (
-        <p className="text-xs text-[#999999] mb-3">
+        <p className="text-xs text-[#6b6b6b] mb-3">
           Bausteine nimmt der Prozessverantwortliche in den Katalog auf.
         </p>
       )}
@@ -103,22 +103,22 @@ export default function AddOnKatalog() {
           return (
             <div key={b.id} className="bg-[#f5f5f5] rounded p-3">
               <p className="font-semibold text-sm text-[#2d2d2d]">{b.name}</p>
-              {b.description && <p className="text-xs text-[#999999] mt-0.5">{b.description}</p>}
+              {b.description && <p className="text-xs text-[#6b6b6b] mt-0.5">{b.description}</p>}
               <p className="text-xs text-[#2d2d2d] mt-1.5">{b.target_hours} h · {fmtEUR(b.price)}</p>
               {tickets.length > 0 && (
                 <ul className="mt-1.5 space-y-0.5">
                   {tickets.map((t) => (
-                    <li key={t.id} className="text-[11px] text-[#999999]">
+                    <li key={t.id} className="text-[11px] text-[#6b6b6b]">
                       {t.title} · {t.role} · {t.target_hours} h
                     </li>
                   ))}
                 </ul>
               )}
-              <p className="text-[11px] text-[#999999] mt-1">Aufgenommen von {b.approved_by}</p>
+              <p className="text-[11px] text-[#6b6b6b] mt-1">Aufgenommen von {b.approved_by}</p>
             </div>
           );
         })}
-        {blocks.length === 0 && <p className="text-sm text-[#999999]">Noch keine Zusatzbausteine im Katalog.</p>}
+        {blocks.length === 0 && <p className="text-sm text-[#6b6b6b]">Noch keine Zusatzbausteine im Katalog.</p>}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -139,11 +139,11 @@ export default function AddOnKatalog() {
                 rows={3} value={form.tickets} onChange={set('tickets')}
                 placeholder={'Titel | Rolle | Stunden | Phase\nShooting durchführen | Media | 4 | produktion'}
               />
-              <p className="text-[11px] text-[#999999] mt-1">
+              <p className="text-[11px] text-[#6b6b6b] mt-1">
                 Rollen: {ROLES.join(', ')} · Phasen: {PHASES.join(', ')}
               </p>
             </div>
-            <p className="text-xs text-[#999999]">Aufgenommen von {member?.name || '—'}</p>
+            <p className="text-xs text-[#6b6b6b]">Aufgenommen von {member?.name || '—'}</p>
             <Button
               className="w-full bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded"
               disabled={saving || !valid} onClick={handleSave}

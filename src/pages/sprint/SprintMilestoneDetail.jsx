@@ -7,6 +7,7 @@ import { Lock, ArrowLeft } from 'lucide-react';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import MilestoneZustandssteuerung from '@/components/sprint/MilestoneZustandssteuerung';
 import TicketPhasenGruppe from '@/components/sprint/TicketPhasenGruppe';
+import CountdownLeiste from '@/components/sprint/CountdownLeiste';
 import { STATE_LABELS, fmtEUR, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { computeFeedbackDeadline } from '@/lib/sprint/deadlines';
 
@@ -84,7 +85,7 @@ export default function SprintMilestoneDetail() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
-      <Link to={`/sprint/sprints/${milestone.sprint_id}`} className="inline-flex items-center gap-1.5 text-sm text-[#999999] hover:text-[#2d2d2d]">
+      <Link to={`/sprint/sprints/${milestone.sprint_id}`} className="inline-flex items-center gap-1.5 text-sm text-[#6b6b6b] hover:text-[#2d2d2d]">
         <ArrowLeft className="w-4 h-4" /> {sprint?.title || 'Zurück zum Sprint'}
       </Link>
 
@@ -92,21 +93,26 @@ export default function SprintMilestoneDetail() {
         <SectionLabel className="mb-1">Milestone {milestone.order}{milestone.is_final_milestone ? ' · Final' : ''}</SectionLabel>
         <h1 className="text-2xl font-extrabold uppercase tracking-tight text-[#2d2d2d] flex items-center gap-2">
           {milestone.title}
-          {locked && <Lock className="w-5 h-5 text-[#999999]" />}
+          {locked && <Lock className="w-5 h-5 text-[#6b6b6b]" />}
         </h1>
-        <p className="text-sm text-[#999999] mt-1">
+        <p className="text-sm text-[#6b6b6b] mt-1">
           Etappenbetrag {fmtEUR(milestone.milestone_amount)} · Plan-Übergabe {fmtDate(milestone.planned_handover)} · Plan-Freeze {fmtDate(milestone.planned_freeze)}
         </p>
-        {milestone.feedback_deadline && (
-          <p className="text-sm text-[#2d2d2d] mt-0.5">
-            Übergeben am {fmtDate(milestone.handover_date)} · Feedbackschluss {fmtDate(milestone.feedback_deadline)}
-            {milestone.deadline_pulled_forward ? ' (auf den Liefertermin vorgezogen)' : ''}
-          </p>
-        )}
+        <div className="mt-4 max-w-md">
+          <CountdownLeiste
+            handoverDate={milestone.handover_date || milestone.planned_handover}
+            deadline={milestone.feedback_deadline || milestone.planned_freeze}
+            state={milestone.state}
+            approvedAt={milestone.updated_date}
+          />
+          {milestone.deadline_pulled_forward && (
+            <p className="text-xs text-[#6b6b6b] mt-1">Frist auf den Liefertermin vorgezogen.</p>
+          )}
+        </div>
 
         <div className="mt-5">
           {locked ? (
-            <div className="bg-[#f5f5f5] rounded p-4 text-sm text-[#2d2d2d]">
+            <div className="rounded p-4 text-sm text-[#2d2d2d] border-l-4" style={{ borderColor: '#2d2d2d', backgroundColor: '#f5f5f5' }}>
               Am {fmtDate(milestone.updated_date)} freigegeben. Inhalte sind gesperrt; Aufgaben der Phase
               Kundenfeedback bleiben abschließbar, damit der Livegang möglich ist.
             </div>
@@ -136,11 +142,11 @@ export default function SprintMilestoneDetail() {
             />
           ))}
         </div>
-        {tickets.length === 0 && <p className="text-sm text-[#999999] mt-2">Keine Aufgaben in diesem Milestone.</p>}
+        {tickets.length === 0 && <p className="text-sm text-[#6b6b6b] mt-2">Keine Aufgaben in diesem Milestone.</p>}
       </div>
 
       {milestone.state === 'kundenfeedback' && (
-        <p className="text-xs text-[#999999]">
+        <p className="text-xs text-[#6b6b6b]">
           Freigabe, Fristmails und Teilrechnung folgen in Block B. Aktueller Zustand: {STATE_LABELS[milestone.state]}.
         </p>
       )}

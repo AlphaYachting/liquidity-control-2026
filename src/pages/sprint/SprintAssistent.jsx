@@ -149,7 +149,7 @@ export default function SprintAssistent() {
       <h1 className="text-2xl font-extrabold uppercase tracking-tight text-[#2d2d2d]">Sprint anlegen</h1>
 
       <div>
-        <div className="flex justify-between text-xs font-semibold uppercase tracking-wide text-[#999999] mb-1.5">
+        <div className="flex justify-between text-xs font-semibold uppercase tracking-wide text-[#6b6b6b] mb-1.5">
           <span className={step >= 1 ? 'text-[#ff3764]' : ''}>1 · Rahmen</span>
           <span className={step >= 2 ? 'text-[#ff3764]' : ''}>2 · Module</span>
           <span className={step >= 3 ? 'text-[#ff3764]' : ''}>3 · Übersicht</span>
@@ -182,7 +182,7 @@ export default function SprintAssistent() {
                     }`}
                   >
                     <div className="text-2xl font-extrabold text-[#2d2d2d]">{s.label}</div>
-                    <div className="text-xs text-[#999999] mt-1">{s.subtitle}</div>
+                    <div className="text-xs text-[#6b6b6b] mt-1">{s.subtitle}</div>
                   </button>
                 ))}
               </div>
@@ -195,7 +195,7 @@ export default function SprintAssistent() {
                 <Input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0" />
               </div>
             </div>
-            <p className="text-xs text-[#999999]">
+            <p className="text-xs text-[#6b6b6b]">
               Der Sprintbetrag ergibt sich aus den gewählten Modulen und Bausteinen abzüglich Nachlass.
             </p>
           </div>
@@ -210,10 +210,10 @@ export default function SprintAssistent() {
             <SectionLabel>Übersicht</SectionLabel>
             <div className="text-sm text-[#2d2d2d]">
               <p className="font-bold">{project?.title} · Sprint {size}</p>
-              <p className="text-[#999999]">
+              <p className="text-[#6b6b6b]">
                 {fmtDate(startDate)} bis {fmtDate(addWeeks(startDate, SPRINT_SIZES[size]?.weeks || 0))} · Liefertermin {fmtDate(deliveryDate)} · {fmtEUR(sprintAmount)}
               </p>
-              <p className="text-[#999999]">
+              <p className="text-[#6b6b6b]">
                 {kennzahlen.hours} Sollstunden · {kennzahlen.focusDays} Focus-Tage (aus dem Katalog gerechnet)
               </p>
             </div>
@@ -234,10 +234,10 @@ export default function SprintAssistent() {
                   <span className="text-xs font-bold text-[#ff3764]">{idx + 1}</span>
                   <span className="flex-1 min-w-[180px] text-sm font-semibold text-[#2d2d2d]">
                     {m.name}
-                    {idx === selected.length - 1 && <span className="text-[11px] text-[#999999] font-normal ml-2">(finaler Milestone)</span>}
+                    {idx === selected.length - 1 && <span className="text-[11px] text-[#6b6b6b] font-normal ml-2">(finaler Milestone)</span>}
                   </span>
                   {plan?.deliverable && (
-                    <span className="text-xs text-[#999999]">
+                    <span className="text-xs text-[#6b6b6b]">
                       Übergabe {fmtDate(plan.plan[idx].planned_handover)} · Freeze {fmtDate(plan.plan[idx].planned_freeze)}
                     </span>
                   )}

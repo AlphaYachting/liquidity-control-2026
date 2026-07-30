@@ -67,24 +67,24 @@ export default function ModulTemplateEditor({ module }) {
       <div className="space-y-2">
         {templates.map((t, idx) => (
           <div key={t.id} className="flex items-center gap-2 bg-[#f5f5f5] rounded px-3 py-2">
-            <span className="text-xs text-[#999999] w-5">{idx + 1}.</span>
+            <span className="text-xs text-[#6b6b6b] w-5">{idx + 1}.</span>
             <span className="flex-1 text-sm text-[#2d2d2d] font-medium">{t.title}</span>
-            <span className="text-xs text-[#999999]">{t.role}</span>
-            <span className="text-[11px] text-[#999999] uppercase">{PHASES.find((p) => p.value === t.milestone_state)?.label || '—'}</span>
-            {t.target_hours > 0 && <span className="text-xs text-[#999999]">{t.target_hours} h</span>}
+            <span className="text-xs text-[#6b6b6b]">{t.role}</span>
+            <span className="text-[11px] text-[#6b6b6b] uppercase">{PHASES.find((p) => p.value === t.milestone_state)?.label || '—'}</span>
+            {t.target_hours > 0 && <span className="text-xs text-[#6b6b6b]">{t.target_hours} h</span>}
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleMove(idx, -1)} disabled={idx === 0}>
               <ArrowUp className="w-3.5 h-3.5" />
             </Button>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleMove(idx, 1)} disabled={idx === templates.length - 1}>
               <ArrowDown className="w-3.5 h-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-[#999999] hover:text-[#ff3764]" onClick={() => handleDelete(t)}>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-[#6b6b6b] hover:text-[#ff3764]" onClick={() => handleDelete(t)}>
               <Trash2 className="w-3.5 h-3.5" />
             </Button>
           </div>
         ))}
         {templates.length === 0 && (
-          <p className="text-sm text-[#999999]">Noch keine Ticketvorlagen — unten die erste anlegen.</p>
+          <p className="text-sm text-[#6b6b6b]">Noch keine Ticketvorlagen — unten die erste anlegen.</p>
         )}
       </div>
 
