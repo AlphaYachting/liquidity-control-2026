@@ -13,6 +13,8 @@ import Fortschrittszaehler from '@/components/sprint/Fortschrittszaehler';
 import TicketPhasenGruppe from '@/components/sprint/TicketPhasenGruppe';
 import AufgabenFilter from '@/components/sprint/AufgabenFilter';
 import MilestoneAktionsleiste from '@/components/sprint/MilestoneAktionsleiste';
+import FreigabePanel from '@/components/sprint/FreigabePanel';
+import { performFreigabe } from '@/lib/sprint/freigabe';
 import { STATE_LABELS, RITTLER, STATUS_COLORS, fmtEUR, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { computeFeedbackDeadline } from '@/lib/sprint/deadlines';
 import { sprintStatus } from '@/lib/sprint/status';
@@ -32,16 +34,18 @@ export default function SprintMilestoneDetail() {
     queryKey: ['milestoneDetail', milestoneId],
     queryFn: async () => {
       const milestone = await base44.entities.Milestone.get(milestoneId);
-      const [sprint, tickets, members, settings, siblings] = await Promise.all([
+      const [sprint, tickets, members, settings, siblings, notifications, feedbacks] = await Promise.all([
         base44.entities.Sprint.get(milestone.sprint_id).catch(() => null),
         base44.entities.Ticket.filter({ milestone_id: milestoneId }, 'order', 300),
         base44.entities.TeamMember.filter({ active: true }, 'name', 100),
         base44.entities.Setting.filter({ group: 'fristen' }, 'key', 100),
         base44.entities.Milestone.filter({ sprint_id: milestone.sprint_id }, 'order', 50),
+        base44.entities.NotificationLog.filter({ milestone_id: milestoneId }, '-sent_at', 50),
+        base44.entities.Feedback.filter({ milestone_id: milestoneId }, '-received_at', 50),
       ]);
       const project = sprint ? await base44.entities.Project.get(sprint.project_id).catch(() => null) : null;
       const client = project ? await base44.entities.Client.get(project.client_id).catch(() => null) : null;
-      return { milestone, sprint, tickets, members, settings, siblings, project, client };
+      return { milestone, sprint, tickets, members, settings, siblings, project, client, notifications, feedbacks };
     },
   });
 
@@ -56,7 +60,7 @@ export default function SprintMilestoneDetail() {
     );
   }
 
-  const { milestone, sprint, tickets, members, settings, siblings, project, client } = data;
+  const { milestone, sprint, tickets, members, settings, siblings, project, client, notifications, feedbacks } = data;
   const locked = milestone.state === 'freigegeben';
   const showCountdown = milestone.state === 'kundenfeedback' || locked;
 
@@ -106,6 +110,30 @@ export default function SprintMilestoneDetail() {
       patch.deadline_pulled_forward = res.deadline_pulled_forward;
     }
     await base44.entities.Milestone.update(milestone.id, patch);
+    // A1 — Übergabemail wird vorgeschlagen und protokolliert; sie trägt Punkt 2 der Freigabe.
+    if (target === 'kundenfeedback' && !notifications.some((n) => n.type === 'A1')) {
+      await base44.entities.NotificationLog.create({
+        type: 'A1',
+        milestone_id: milestone.id,
+        sprint_id: sprint?.id,
+        project_id: sprint?.project_id,
+        recipient: client?.contact_email || '',
+        sent_at: new Date().toISOString(),
+        subject: `Übergabe: ${milestone.title}`,
+        body: `Der Stand zu "${milestone.title}" liegt zur Durchsicht vor. Rückmeldung bitte bis ${patch.feedback_deadline || '—'}.`,
+        status: 'vorgeschlagen',
+      });
+    }
+    refresh();
+  };
+
+  const handleLinks = async (links) => {
+    await base44.entities.Milestone.update(milestone.id, { deliverable_links: links });
+    refresh();
+  };
+
+  const handleFreigabe = async (source) => {
+    await performFreigabe({ milestone, sprint, client, siblings, tickets, source, approvalType: 'aktiv' });
     refresh();
   };
 
@@ -225,6 +253,17 @@ export default function SprintMilestoneDetail() {
             <p className="text-sm mt-2" style={{ color: RITTLER.textSecondary }}>Keine Aufgaben in diesem Milestone.</p>
           )}
         </div>
+
+        {milestone.state === 'kundenfeedback' && (
+          <FreigabePanel
+            milestone={milestone}
+            tickets={tickets}
+            notifications={notifications}
+            feedbacks={feedbacks}
+            onLinksChange={handleLinks}
+            onFreigeben={handleFreigabe}
+          />
+        )}
       </div>
 
       {!locked && (
