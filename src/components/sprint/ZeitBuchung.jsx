@@ -9,10 +9,10 @@ import { todayIso } from '@/components/sprint/sprintConfig';
 
 // Zeitbuchung auf Projektebene — reiner Indikator, nie Abrechnungsgrundlage.
 // Ist ein Focus-Tag gesetzt, ist das Projekt vorbelegt und NICHT änderbar.
-export default function ZeitBuchung({ userEmail, fixedProjectId, fixedProjectTitle, projects = [] }) {
+export default function ZeitBuchung({ userEmail, fixedProjectId, fixedProjectTitle, projects = [], standardHours = 8 }) {
   const { toast } = useToast();
   const [projectId, setProjectId] = useState('');
-  const [hours, setHours] = useState('');
+  const [hours, setHours] = useState(String(standardHours));
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -27,9 +27,10 @@ export default function ZeitBuchung({ userEmail, fixedProjectId, fixedProjectTit
       entry_date: todayIso(),
       hours: Number(hours),
       note,
+      source: 'bestaetigt',
     });
     setSaving(false);
-    setHours('');
+    setHours(String(standardHours));
     setNote('');
     toast({ description: 'Zeit gebucht.' });
   };

@@ -3,7 +3,7 @@ import { MILESTONE_STATES, STATE_LABELS_SHORT } from '@/components/sprint/sprint
 
 // K2 — Zustandskette: fünf Milestone-Zustände als waagrechte Kette.
 // Erledigte Schritte pink gefüllt, aktueller pink umrandet mit Punkt, kommende grau.
-export default function Zustandskette({ state, compact = false }) {
+export default function Zustandskette({ state, compact = false, onSelect }) {
   const currentIdx = MILESTONE_STATES.indexOf(state);
 
   return (
@@ -21,7 +21,11 @@ export default function Zustandskette({ state, compact = false }) {
             )}
             <div className="flex flex-col items-center gap-1">
               <div
-                className="w-5 h-5 rounded-full flex items-center justify-center border-2"
+                role={onSelect ? 'button' : undefined}
+                onClick={onSelect && Math.abs(idx - currentIdx) === 1 && idx <= 3 ? () => onSelect(s) : undefined}
+                className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${
+                  onSelect && Math.abs(idx - currentIdx) === 1 && idx <= 3 ? 'cursor-pointer hover:scale-110 transition-transform' : ''
+                }`}
                 style={{
                   borderColor: done || current ? '#ff3764' : '#e5e5e5',
                   backgroundColor: done ? '#ff3764' : '#ffffff',

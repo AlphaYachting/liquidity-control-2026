@@ -14,6 +14,13 @@ export default function ModulTemplateEditor({ module }) {
   const [newTitle, setNewTitle] = useState('');
   const [newRole, setNewRole] = useState('Konzept');
   const [newHours, setNewHours] = useState('');
+  const [newPhase, setNewPhase] = useState('produktion');
+  const PHASES = [
+    { value: 'input', label: 'Input' },
+    { value: 'produktion', label: 'Produktion' },
+    { value: 'pruefung', label: 'Interne Prüfung' },
+    { value: 'kundenfeedback', label: 'Kundenfeedback' },
+  ];
 
   const { data: templates = [] } = useQuery({
     queryKey: ['ticketTemplates', module.id],
@@ -30,6 +37,8 @@ export default function ModulTemplateEditor({ module }) {
       title: newTitle,
       role: newRole,
       target_hours: Number(newHours) || 0,
+      milestone_state: newPhase,
+      blocks_others: false,
     });
     setNewTitle(''); setNewHours('');
     refresh();
@@ -61,6 +70,7 @@ export default function ModulTemplateEditor({ module }) {
             <span className="text-xs text-[#999999] w-5">{idx + 1}.</span>
             <span className="flex-1 text-sm text-[#2d2d2d] font-medium">{t.title}</span>
             <span className="text-xs text-[#999999]">{t.role}</span>
+            <span className="text-[11px] text-[#999999] uppercase">{PHASES.find((p) => p.value === t.milestone_state)?.label || '—'}</span>
             {t.target_hours > 0 && <span className="text-xs text-[#999999]">{t.target_hours} h</span>}
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleMove(idx, -1)} disabled={idx === 0}>
               <ArrowUp className="w-3.5 h-3.5" />
@@ -83,6 +93,10 @@ export default function ModulTemplateEditor({ module }) {
         <Select value={newRole} onValueChange={setNewRole}>
           <SelectTrigger className="sm:w-32"><SelectValue /></SelectTrigger>
           <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={newPhase} onValueChange={setNewPhase}>
+          <SelectTrigger className="sm:w-40"><SelectValue /></SelectTrigger>
+          <SelectContent>{PHASES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
         </Select>
         <Input type="number" placeholder="Soll-h" className="sm:w-24" value={newHours} onChange={(e) => setNewHours(e.target.value)} />
         <Button className="bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded" disabled={!newTitle} onClick={handleAdd}>

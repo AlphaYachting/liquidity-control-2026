@@ -31,11 +31,14 @@ export default function SprintHeute() {
     queryKey: ['sprintHeute', email, today],
     enabled: !!email,
     queryFn: async () => {
-      const [focusDays, projects, clients, milestones] = await Promise.all([
+      const [focusDays, projects, clients, milestones, myTickets, settings, sprints] = await Promise.all([
         base44.entities.FocusDay.filter({ person_email: email, day: today }),
         base44.entities.Project.list('-created_date', 200),
         base44.entities.Client.list('-created_date', 200),
         base44.entities.Milestone.list('-created_date', 500),
+        base44.entities.Ticket.filter({ assignee_email: email }, 'order', 500),
+        base44.entities.Setting.filter({ group: 'kapazitaet' }, 'key', 50),
+        base44.entities.Sprint.list('-created_date', 500),
       ]);
       const focusDay = focusDays[0] || null;
       let tickets = [];
@@ -43,10 +46,14 @@ export default function SprintHeute() {
         const all = await base44.entities.Ticket.filter({ project_id: focusDay.project_id }, 'order', 500);
         tickets = all.filter((t) => t.status !== 'erledigt' && (!t.assignee_email || t.assignee_email === email));
       } else if (focusDay?.type === 'reaktion') {
-        const all = await base44.entities.Ticket.filter({ assignee_email: email }, 'order', 500);
-        tickets = all.filter((t) => t.status !== 'erledigt');
+        tickets = myTickets.filter((t) => t.status !== 'erledigt');
       }
-      return { focusDay, projects, clients, tickets, milestones };
+      const standardHours = Number(settings.find((s) => s.key === 'standard_day_hours')?.value) || 8;
+      const myProjectIds = new Set([
+        ...myTickets.map((t) => t.project_id),
+        ...projects.filter((p) => p.pm_email === email).map((p) => p.id),
+      ]);
+      return { focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints };
     },
   });
 
@@ -60,13 +67,17 @@ export default function SprintHeute() {
     );
   }
 
-  const { focusDay, projects, clients, tickets, milestones } = data;
+  const { focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints } = data;
+  const sprintProject = Object.fromEntries(sprints.map((s) => [s.id, s.project_id]));
   const focusProject = focusDay?.project_id ? projects.find((p) => p.id === focusDay.project_id) : null;
   const focusClient = focusProject ? clients.find((c) => c.id === focusProject.client_id) : null;
 
+  // Solange die Etappe nicht beim Kunden liegt, trägt das geplante Freeze-Datum die Frist
+  const deadlineOf = (m) => m.feedback_deadline || m.planned_freeze;
   const deadlines = milestones
-    .filter((m) => m.feedback_deadline && m.state !== 'freigegeben' && m.feedback_deadline >= today)
-    .sort((a, b) => a.feedback_deadline.localeCompare(b.feedback_deadline))
+    .filter((m) => m.state !== 'freigegeben' && deadlineOf(m) && deadlineOf(m) >= today
+      && myProjectIds.has(sprintProject[m.sprint_id]))
+    .sort((a, b) => deadlineOf(a).localeCompare(deadlineOf(b)))
     .slice(0, 3);
 
   return (
@@ -114,8 +125,11 @@ export default function SprintHeute() {
           <div className="space-y-1">
             {deadlines.map((m) => (
               <Link key={m.id} to={`/sprint/milestones/${m.id}`} className="flex items-center gap-3 py-1.5 hover:bg-[#f5f5f5]/60 px-2 -mx-2 rounded">
-                <span className="text-sm text-[#2d2d2d] flex-1">{m.title}</span>
-                <span className="text-sm font-semibold text-[#ff3764]">{fmtDate(m.feedback_deadline)}</span>
+                <span className="text-sm text-[#2d2d2d] flex-1">
+                  {m.title}
+                  {!m.feedback_deadline && <span className="text-[11px] text-[#999999] ml-2">geplant</span>}
+                </span>
+                <span className="text-sm font-semibold text-[#2d2d2d]">{fmtDate(deadlineOf(m))}</span>
               </Link>
             ))}
           </div>
@@ -129,6 +143,7 @@ export default function SprintHeute() {
         fixedProjectId={focusDay?.type === 'focus' ? focusDay.project_id : null}
         fixedProjectTitle={focusProject?.title}
         projects={projects.filter((p) => p.status === 'aktiv')}
+        standardHours={standardHours}
       />
     </div>
   );

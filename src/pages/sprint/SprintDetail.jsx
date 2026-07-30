@@ -54,6 +54,8 @@ export default function SprintDetail() {
             <span>Restlaufzeit <strong className={restDays < 7 ? 'text-[#ff3764]' : 'text-[#2d2d2d]'}>{restDays} Tage</strong></span>
           )}
           <span>Sprintbetrag <strong className="text-[#2d2d2d]">{fmtEUR(sprint.sprint_amount)}</strong></span>
+          <span>Sollstunden <strong className="text-[#2d2d2d]">{sprint.target_hours || 0} h</strong></span>
+          <span>Focus-Tage <strong className="text-[#2d2d2d]">{sprint.planned_focus_days || 0}</strong></span>
           <span>Status: {sprint.status}</span>
         </div>
       </div>
@@ -76,7 +78,10 @@ export default function SprintDetail() {
                   </p>
                   <p className="text-xs text-[#999999] mt-0.5">
                     {fmtEUR(m.milestone_amount)}
-                    {m.feedback_deadline ? ` · Feedback bis ${fmtDate(m.feedback_deadline)}` : ''}
+                    {m.planned_handover ? ` · Plan-Übergabe ${fmtDate(m.planned_handover)}` : ''}
+                    {m.feedback_deadline
+                      ? ` · Feedback bis ${fmtDate(m.feedback_deadline)}`
+                      : m.planned_freeze ? ` · Plan-Freeze ${fmtDate(m.planned_freeze)}` : ''}
                   </p>
                 </div>
                 <div className="md:w-[340px]">

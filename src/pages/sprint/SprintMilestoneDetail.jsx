@@ -2,17 +2,17 @@ import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Lock, ArrowLeft } from 'lucide-react';
 import SectionLabel from '@/components/sprint/SectionLabel';
-import Zustandskette from '@/components/sprint/Zustandskette';
-import {
-  MILESTONE_STATES, STATE_LABELS, TICKET_STATUSES, TICKET_STATUS_LABELS, fmtEUR, fmtDate,
-} from '@/components/sprint/sprintConfig';
+import MilestoneZustandssteuerung from '@/components/sprint/MilestoneZustandssteuerung';
+import TicketPhasenGruppe from '@/components/sprint/TicketPhasenGruppe';
+import { STATE_LABELS, fmtEUR, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
+import { computeFeedbackDeadline } from '@/lib/sprint/deadlines';
 
-// S5 — Milestone-Detail: Tickets, Zustandswechsel. "Freigegeben" ist Endzustand ohne Rückweg.
+const PHASES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
+
+// S5 — Milestone-Detail: Zustandssteuerung, Fristenrechnung, Tickets nach Phase.
 export default function SprintMilestoneDetail() {
   const { milestoneId } = useParams();
   const qc = useQueryClient();
@@ -21,11 +21,13 @@ export default function SprintMilestoneDetail() {
     queryKey: ['milestoneDetail', milestoneId],
     queryFn: async () => {
       const milestone = await base44.entities.Milestone.get(milestoneId);
-      const [sprint, tickets] = await Promise.all([
+      const [sprint, tickets, members, settings] = await Promise.all([
         base44.entities.Sprint.get(milestone.sprint_id).catch(() => null),
         base44.entities.Ticket.filter({ milestone_id: milestoneId }, 'order', 300),
+        base44.entities.TeamMember.filter({ active: true }, 'name', 100),
+        base44.entities.Setting.filter({ group: 'fristen' }, 'key', 100),
       ]);
-      return { milestone, sprint, tickets };
+      return { milestone, sprint, tickets, members, settings };
     },
   });
 
@@ -40,21 +42,43 @@ export default function SprintMilestoneDetail() {
     );
   }
 
-  const { milestone, sprint, tickets } = data;
+  const { milestone, sprint, tickets, members, settings } = data;
   const locked = milestone.state === 'freigegeben';
-  const stateIdx = MILESTONE_STATES.indexOf(milestone.state);
-  const nextState = stateIdx < MILESTONE_STATES.length - 1 ? MILESTONE_STATES[stateIdx + 1] : null;
 
-  const handleAdvance = async () => {
-    if (!nextState) return;
-    if (nextState === 'freigegeben') return; // Freigabe läuft über die Freigabe-Logik (Block B)
-    await base44.entities.Milestone.update(milestone.id, { state: nextState });
+  const phaseTickets = tickets.filter((t) => (t.milestone_state || 'produktion') === milestone.state);
+  const phaseDone = phaseTickets.length > 0 && phaseTickets.every((t) => t.status === 'erledigt');
+
+  const handleStateChange = async (target) => {
+    const patch = { state: target };
+    // Beim Wechsel nach "kundenfeedback" läuft die Fristenrechnung
+    if (target === 'kundenfeedback' && sprint) {
+      const res = computeFeedbackDeadline({
+        handoverDate: todayIso(),
+        size: sprint.size,
+        settings,
+        isFinal: milestone.is_final_milestone,
+        deliveryDate: sprint.delivery_date,
+      });
+      if (res.error) {
+        window.alert(`${res.error}. Bitte Liefertermin im Sprint anpassen.`);
+        return;
+      }
+      patch.handover_date = res.handover_date;
+      patch.feedback_deadline = res.feedback_deadline;
+      patch.prewarning_date = res.prewarning_date || null;
+      patch.deadline_pulled_forward = res.deadline_pulled_forward;
+    }
+    await base44.entities.Milestone.update(milestone.id, patch);
     refresh();
   };
 
   const handleTicketStatus = async (ticket, status) => {
-    if (locked) return;
     await base44.entities.Ticket.update(ticket.id, { status, last_status_change: new Date().toISOString() });
+    refresh();
+  };
+
+  const handleAssignee = async (ticket, email) => {
+    await base44.entities.Ticket.update(ticket.id, { assignee_email: email });
     refresh();
   };
 
@@ -64,59 +88,62 @@ export default function SprintMilestoneDetail() {
         <ArrowLeft className="w-4 h-4" /> {sprint?.title || 'Zurück zum Sprint'}
       </Link>
 
-      <div className={`bg-white rounded-lg shadow-sm p-6 ${locked ? 'opacity-70' : ''}`}>
+      <div className="bg-white rounded-lg shadow-sm p-6">
         <SectionLabel className="mb-1">Milestone {milestone.order}{milestone.is_final_milestone ? ' · Final' : ''}</SectionLabel>
         <h1 className="text-2xl font-extrabold uppercase tracking-tight text-[#2d2d2d] flex items-center gap-2">
           {milestone.title}
           {locked && <Lock className="w-5 h-5 text-[#999999]" />}
         </h1>
         <p className="text-sm text-[#999999] mt-1">
-          Etappenbetrag {fmtEUR(milestone.milestone_amount)}
-          {milestone.feedback_deadline ? ` · Feedback bis ${fmtDate(milestone.feedback_deadline)}` : ''}
+          Etappenbetrag {fmtEUR(milestone.milestone_amount)} · Plan-Übergabe {fmtDate(milestone.planned_handover)} · Plan-Freeze {fmtDate(milestone.planned_freeze)}
         </p>
-        <div className="max-w-md mt-5">
-          <Zustandskette state={milestone.state} />
-        </div>
-
-        {locked ? (
-          <div className="mt-5 bg-[#f5f5f5] rounded p-4 text-sm text-[#2d2d2d]">
-            Am {fmtDate(milestone.updated_date)} freigegeben. Änderungen nur über Change Request.
-          </div>
-        ) : (
-          nextState && nextState !== 'freigegeben' && (
-            <Button
-              className="mt-5 bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded"
-              onClick={handleAdvance}
-            >
-              Weiter zu „{STATE_LABELS[nextState]}"
-            </Button>
-          )
+        {milestone.feedback_deadline && (
+          <p className="text-sm text-[#2d2d2d] mt-0.5">
+            Übergeben am {fmtDate(milestone.handover_date)} · Feedbackschluss {fmtDate(milestone.feedback_deadline)}
+            {milestone.deadline_pulled_forward ? ' (auf den Liefertermin vorgezogen)' : ''}
+          </p>
         )}
+
+        <div className="mt-5">
+          {locked ? (
+            <div className="bg-[#f5f5f5] rounded p-4 text-sm text-[#2d2d2d]">
+              Am {fmtDate(milestone.updated_date)} freigegeben. Inhalte sind gesperrt; Aufgaben der Phase
+              Kundenfeedback bleiben abschließbar, damit der Livegang möglich ist.
+            </div>
+          ) : (
+            <MilestoneZustandssteuerung
+              state={milestone.state}
+              phaseDone={phaseDone}
+              onChange={handleStateChange}
+            />
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm p-5">
-        <SectionLabel className="mb-3">Tickets ({tickets.length})</SectionLabel>
+        <SectionLabel className="mb-3">Aufgaben ({tickets.length})</SectionLabel>
         <div className="space-y-2">
-          {tickets.map((t) => (
-            <div key={t.id} className={`flex flex-col sm:flex-row sm:items-center gap-2 rounded px-3 py-2 ${locked ? 'bg-[#f5f5f5] opacity-60' : 'bg-[#f5f5f5]'}`}>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[#2d2d2d]">{t.title}</p>
-                <p className="text-[11px] text-[#999999]">
-                  {t.role || '—'}{t.assignee_email ? ` · ${t.assignee_email}` : ''} · {t.origin}
-                  {t.target_hours ? ` · ${t.target_hours} h` : ''}
-                </p>
-              </div>
-              <Select value={t.status} onValueChange={(v) => handleTicketStatus(t, v)} disabled={locked}>
-                <SelectTrigger className="sm:w-36 h-8 bg-white"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {TICKET_STATUSES.map((s) => <SelectItem key={s} value={s}>{TICKET_STATUS_LABELS[s]}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+          {PHASES.map((phase) => (
+            <TicketPhasenGruppe
+              key={phase}
+              phase={phase}
+              currentState={milestone.state}
+              tickets={tickets.filter((t) => (t.milestone_state || 'produktion') === phase)}
+              members={members}
+              locked={locked}
+              onStatus={handleTicketStatus}
+              onAssignee={handleAssignee}
+            />
           ))}
-          {tickets.length === 0 && <p className="text-sm text-[#999999]">Keine Tickets in diesem Milestone.</p>}
         </div>
+        {tickets.length === 0 && <p className="text-sm text-[#999999] mt-2">Keine Aufgaben in diesem Milestone.</p>}
       </div>
+
+      {milestone.state === 'kundenfeedback' && (
+        <p className="text-xs text-[#999999]">
+          Freigabe, Fristmails und Teilrechnung folgen in Block B. Aktueller Zustand: {STATE_LABELS[milestone.state]}.
+        </p>
+      )}
     </div>
   );
 }

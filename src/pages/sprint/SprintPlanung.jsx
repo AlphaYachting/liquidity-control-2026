@@ -32,12 +32,12 @@ export default function SprintPlanung() {
   const { data, isLoading } = useQuery({
     queryKey: ['sprintPlanung', days[0]],
     queryFn: async () => {
-      const [profiles, projects, focusDays] = await Promise.all([
-        base44.entities.TeamMemberProfile.filter({ is_active: true }, 'display_name', 100),
+      const [members, projects, focusDays] = await Promise.all([
+        base44.entities.TeamMember.filter({ active: true }, 'name', 100),
         base44.entities.Project.list('-created_date', 200),
         base44.entities.FocusDay.filter({ day: { $gte: days[0], $lte: days[4] } }, 'day', 500),
       ]);
-      return { profiles, projects, focusDays };
+      return { members, projects, focusDays };
     },
   });
 
@@ -52,7 +52,7 @@ export default function SprintPlanung() {
     );
   }
 
-  const { profiles, projects, focusDays } = data;
+  const { members, projects, focusDays } = data;
   const projectById = Object.fromEntries(projects.map((p) => [p.id, p]));
   const entryFor = (email, day) => focusDays.find((f) => f.person_email === email && f.day === day);
 
@@ -91,19 +91,22 @@ export default function SprintPlanung() {
             </tr>
           </thead>
           <tbody>
-            {profiles.map((p) => (
+            {members.map((p) => {
+              const assigned = days.filter((d) => entryFor(p.email, d)?.type === 'focus').length;
+              const capacity = p.weekly_focus_days || 4;
+              return (
               <tr key={p.id}>
                 <td className="text-sm font-medium text-[#2d2d2d] px-2 whitespace-nowrap">
-                  {p.display_name || p.user_email}
+                  {p.name}
                 </td>
                 {days.map((day) => {
-                  const entry = entryFor(p.user_email, day);
+                  const entry = entryFor(p.email, day);
                   const project = entry?.project_id ? projectById[entry.project_id] : null;
                   return (
                     <td key={day}>
                       <button
                         type="button"
-                        onClick={() => setDialog({ personEmail: p.user_email, day, existing: entry })}
+                        onClick={() => setDialog({ personEmail: p.email, day, existing: entry })}
                         className={`w-full h-14 rounded text-[11px] font-semibold px-1 transition-colors ${
                           entry?.type === 'focus'
                             ? 'bg-[#ff3764]/10 text-[#2d2d2d] border border-[#ff3764]/40 hover:bg-[#ff3764]/20'
@@ -119,12 +122,18 @@ export default function SprintPlanung() {
                     </td>
                   );
                 })}
+                <td className="text-center text-xs font-semibold whitespace-nowrap px-2">
+                  <span className={assigned > capacity ? 'text-[#ff3764]' : 'text-[#2d2d2d]'}>
+                    {assigned}/{capacity}
+                  </span>
+                </td>
               </tr>
-            ))}
-            {profiles.length === 0 && (
+              );
+            })}
+            {members.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-sm text-[#999999] text-center py-8">
-                  Keine aktiven Teammitglieder — in den Einstellungen unter Team anlegen.
+                <td colSpan={7} className="text-sm text-[#999999] text-center py-8">
+                  Kein aktives Teammitglied im Personenstamm.
                 </td>
               </tr>
             )}

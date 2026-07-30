@@ -6,9 +6,12 @@ import SectionLabel from '@/components/sprint/SectionLabel';
 import { fmtEUR } from '@/components/sprint/sprintConfig';
 
 // Schritt 2 des Sprint-Assistenten: Module wählen → Milestones, Etappenbeträge, Zusatzbausteine
-export default function StepModule({ modules, addOns, selected, setSelected, sprintAmount }) {
-  const sum = selected.reduce((s, m) => s + (Number(m.amount) || 0), 0);
-  const diff = (Number(sprintAmount) || 0) - sum;
+// Etappenbetrag = Modulpreis plus die Preise der gewählten Zusatzbausteine
+export const milestoneAmount = (m, addOns) =>
+  (Number(m.amount) || 0) + m.addon_ids.reduce((s, id) => s + (Number(addOns.find((a) => a.id === id)?.price) || 0), 0);
+
+export default function StepModule({ modules, addOns, selected, setSelected, discount = 0 }) {
+  const sum = selected.reduce((s, m) => s + milestoneAmount(m, addOns), 0);
 
   const addModule = (mod) => {
     setSelected([...selected, { key: `${mod.id}-${Date.now()}`, module_template_id: mod.id, name: mod.name, amount: mod.standard_price || '', addon_ids: [] }]);
@@ -53,10 +56,15 @@ export default function StepModule({ modules, addOns, selected, setSelected, spr
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-[#ff3764]">{idx + 1}</span>
                 <span className="flex-1 font-semibold text-sm text-[#2d2d2d]">{m.name}</span>
-                <Input
-                  type="number" placeholder="Etappenbetrag €" className="w-40 bg-white"
-                  value={m.amount} onChange={(e) => setAmount(idx, e.target.value)}
-                />
+                <div className="text-right">
+                  <Input
+                    type="number" placeholder="Etappenbetrag €" className="w-40 bg-white"
+                    value={m.amount} onChange={(e) => setAmount(idx, e.target.value)}
+                  />
+                  {milestoneAmount(m, addOns) !== (Number(m.amount) || 0) && (
+                    <p className="text-[11px] text-[#999999] mt-1">mit Bausteinen {fmtEUR(milestoneAmount(m, addOns))}</p>
+                  )}
+                </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-[#999999] hover:text-[#ff3764]" onClick={() => removeAt(idx)}>
                   <X className="w-4 h-4" />
                 </Button>
@@ -84,10 +92,11 @@ export default function StepModule({ modules, addOns, selected, setSelected, spr
         </div>
       </div>
 
-      <div className={`rounded p-3 text-sm font-semibold ${diff === 0 && selected.length ? 'bg-[#45d085]/10 text-[#2d2d2d]' : 'bg-[#f5a623]/10 text-[#2d2d2d]'}`}>
-        Etappensumme: {fmtEUR(sum)} von {fmtEUR(Number(sprintAmount) || 0)}
-        {diff !== 0 && <span className="text-[#ff3764]"> — Differenz {fmtEUR(diff)}</span>}
-        {diff === 0 && selected.length > 0 && <span className="text-[#45d085]"> ✓ stimmt mit Sprintbetrag überein</span>}
+      <div className="rounded p-3 text-sm font-semibold bg-[#f5f5f5] text-[#2d2d2d]">
+        Etappensumme {fmtEUR(sum)}
+        {Number(discount) > 0 && <span className="text-[#999999] font-normal"> − Nachlass {fmtEUR(Number(discount))}</span>}
+        <span className="text-[#999999] font-normal"> = Sprintbetrag </span>
+        {fmtEUR(sum - (Number(discount) || 0))}
       </div>
     </div>
   );

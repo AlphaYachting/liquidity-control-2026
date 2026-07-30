@@ -6,11 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertTriangle } from 'lucide-react';
 import SectionLabel from '@/components/sprint/SectionLabel';
-import StepModule from '@/components/sprint/assistent/StepModule';
+import StepModule, { milestoneAmount } from '@/components/sprint/assistent/StepModule';
 import { SPRINT_SIZES, fmtEUR, fmtDate, addWeeks } from '@/components/sprint/sprintConfig';
+import { planSprintDeadlines } from '@/lib/sprint/deadlines';
+import { resolveAssignee } from '@/lib/sprint/assignment';
 
-// S6 — Sprint anlegen: Assistent in drei Schritten mit Fortschrittsbalken
+// S6 — Sprint anlegen: Beträge, Kennzahlen und alle Plantermine werden gerechnet, nicht getippt.
 export default function SprintAssistent() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -18,22 +21,25 @@ export default function SprintAssistent() {
   const [size, setSize] = useState('');
   const [startDate, setStartDate] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
-  const [amount, setAmount] = useState('');
+  const [discount, setDiscount] = useState('');
   const [selected, setSelected] = useState([]);
   const [creating, setCreating] = useState(false);
 
   const { data } = useQuery({
     queryKey: ['sprintAssistentData'],
     queryFn: async () => {
-      const [projects, modules, addOns] = await Promise.all([
+      const [projects, modules, addOns, members, settings] = await Promise.all([
         base44.entities.Project.list('-created_date', 200),
         base44.entities.ModuleTemplate.list('-created_date', 200),
         base44.entities.AddOnBlock.list('-created_date', 200),
+        base44.entities.TeamMember.filter({ active: true }, 'name', 100),
+        base44.entities.Setting.filter({ group: 'fristen' }, 'key', 100),
       ]);
       return {
         projects: projects.filter((p) => p.status === 'aktiv'),
         modules: modules.filter((m) => m.active !== false),
         addOns: addOns.filter((a) => a.active !== false),
+        members, settings,
       };
     },
   });
@@ -41,13 +47,30 @@ export default function SprintAssistent() {
   const projects = data?.projects || [];
   const modules = data?.modules || [];
   const addOns = data?.addOns || [];
+  const members = data?.members || [];
+  const settings = data?.settings || [];
   const project = projects.find((p) => p.id === projectId);
 
-  const step1Valid = projectId && size && startDate && deliveryDate && Number(amount) > 0;
-  const sum = selected.reduce((s, m) => s + (Number(m.amount) || 0), 0);
-  const step2Valid = selected.length > 0 && sum === Number(amount);
+  const step1Valid = projectId && size && startDate && deliveryDate;
+  const etappenSumme = selected.reduce((s, m) => s + milestoneAmount(m, addOns), 0);
+  const sprintAmount = etappenSumme - (Number(discount) || 0);
+  const step2Valid = selected.length > 0 && sprintAmount > 0;
+
+  // Kennzahlen aus dem Katalog rechnen — nie von Hand eintragen
+  const kennzahlen = selected.reduce((acc, m) => {
+    const mod = modules.find((x) => x.id === m.module_template_id);
+    const addonHours = m.addon_ids.reduce((s, id) => s + (Number(addOns.find((a) => a.id === id)?.target_hours) || 0), 0);
+    acc.hours += (Number(mod?.target_hours) || 0) + addonHours;
+    acc.focusDays += Number(mod?.target_focus_days) || 0;
+    return acc;
+  }, { hours: 0, focusDays: 0 });
+
+  const plan = step1Valid && selected.length
+    ? planSprintDeadlines({ startDate, deliveryDate, size, milestoneCount: selected.length, settings })
+    : null;
 
   const handleCreate = async () => {
+    if (!plan?.deliverable) return;
     setCreating(true);
     const now = new Date().toISOString();
     const sprint = await base44.entities.Sprint.create({
@@ -57,20 +80,28 @@ export default function SprintAssistent() {
       start_date: startDate,
       end_date: addWeeks(startDate, SPRINT_SIZES[size].weeks),
       delivery_date: deliveryDate,
-      sprint_amount: Number(amount),
+      sprint_amount: sprintAmount,
+      discount: Number(discount) || 0,
+      target_hours: kennzahlen.hours,
+      planned_focus_days: kennzahlen.focusDays,
       status: 'geplant',
       successor_offered: false,
     });
 
     for (let i = 0; i < selected.length; i++) {
       const sel = selected[i];
+      const mod = modules.find((x) => x.id === sel.module_template_id);
       const milestone = await base44.entities.Milestone.create({
         sprint_id: sprint.id,
         order: i + 1,
         module_template_id: sel.module_template_id,
         title: sel.name,
         state: 'input',
-        milestone_amount: Number(sel.amount) || 0,
+        milestone_amount: milestoneAmount(sel, addOns),
+        planned_handover: plan.plan[i].planned_handover,
+        planned_freeze: plan.plan[i].planned_freeze,
+        deadline_pulled_forward: plan.plan[i].pulled_forward,
+        planned_focus_days: Number(mod?.target_focus_days) || 0,
         is_final_milestone: i === selected.length - 1,
         invoice_triggered: false,
       });
@@ -82,19 +113,28 @@ export default function SprintAssistent() {
         order: idx + 1,
         title: t.title,
         role: t.role,
+        assignee_email: resolveAssignee(t.role, members),
+        milestone_state: t.milestone_state || 'produktion',
+        blocks_others: t.blocks_others || false,
         status: 'offen',
         origin: 'pflicht',
         target_hours: t.target_hours || 0,
         last_status_change: now,
       }));
-      let orderOffset = tickets.length;
+
+      let order = tickets.length;
       for (const addonId of sel.addon_ids) {
-        const block = addOns.find((a) => a.id === addonId);
-        (block?.ticket_titles || []).forEach((title) => {
-          orderOffset += 1;
+        const addonTickets = await base44.entities.AddOnTicketTemplate.filter({ add_on_block_id: addonId }, 'order', 100);
+        addonTickets.forEach((t) => {
+          order += 1;
           tickets.push({
-            milestone_id: milestone.id, project_id: projectId, order: orderOffset,
-            title, status: 'offen', origin: 'addon', last_status_change: now,
+            milestone_id: milestone.id, project_id: projectId, order,
+            title: t.title, role: t.role,
+            assignee_email: resolveAssignee(t.role, members),
+            milestone_state: t.milestone_state || 'produktion',
+            blocks_others: t.blocks_others || false,
+            status: 'offen', origin: 'addon',
+            target_hours: t.target_hours || 0, last_status_change: now,
           });
         });
       }
@@ -108,7 +148,6 @@ export default function SprintAssistent() {
     <div className="max-w-[1200px] mx-auto space-y-5">
       <h1 className="text-2xl font-extrabold uppercase tracking-tight text-[#2d2d2d]">Sprint anlegen</h1>
 
-      {/* Fortschrittsbalken */}
       <div>
         <div className="flex justify-between text-xs font-semibold uppercase tracking-wide text-[#999999] mb-1.5">
           <span className={step >= 1 ? 'text-[#ff3764]' : ''}>1 · Rahmen</span>
@@ -151,13 +190,19 @@ export default function SprintAssistent() {
             <div className="grid sm:grid-cols-3 gap-4 max-w-2xl">
               <div><Label>Startdatum</Label><Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></div>
               <div><Label>Liefertermin</Label><Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} /></div>
-              <div><Label>Sprintbetrag netto (EUR)</Label><Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+              <div>
+                <Label>Nachlass (EUR)</Label>
+                <Input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0" />
+              </div>
             </div>
+            <p className="text-xs text-[#999999]">
+              Der Sprintbetrag ergibt sich aus den gewählten Modulen und Bausteinen abzüglich Nachlass.
+            </p>
           </div>
         )}
 
         {step === 2 && (
-          <StepModule modules={modules} addOns={addOns} selected={selected} setSelected={setSelected} sprintAmount={amount} />
+          <StepModule modules={modules} addOns={addOns} selected={selected} setSelected={setSelected} discount={discount} />
         )}
 
         {step === 3 && (
@@ -166,19 +211,37 @@ export default function SprintAssistent() {
             <div className="text-sm text-[#2d2d2d]">
               <p className="font-bold">{project?.title} · Sprint {size}</p>
               <p className="text-[#999999]">
-                {fmtDate(startDate)} bis {fmtDate(addWeeks(startDate, SPRINT_SIZES[size]?.weeks || 0))} · Liefertermin {fmtDate(deliveryDate)} · {fmtEUR(Number(amount))}
+                {fmtDate(startDate)} bis {fmtDate(addWeeks(startDate, SPRINT_SIZES[size]?.weeks || 0))} · Liefertermin {fmtDate(deliveryDate)} · {fmtEUR(sprintAmount)}
+              </p>
+              <p className="text-[#999999]">
+                {kennzahlen.hours} Sollstunden · {kennzahlen.focusDays} Focus-Tage (aus dem Katalog gerechnet)
               </p>
             </div>
+
+            {plan && !plan.deliverable && (
+              <div className="flex gap-3 rounded border border-[#ff3764] bg-[#ff3764]/5 p-4">
+                <AlertTriangle className="w-5 h-5 text-[#ff3764] shrink-0" />
+                <div className="text-sm text-[#2d2d2d]">
+                  <p className="font-bold">Sprint nicht lieferbar</p>
+                  <p>{plan.reason} Frühester realistischer Liefertermin: {fmtDate(plan.suggestedDelivery)}.</p>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               {selected.map((m, idx) => (
-                <div key={m.key} className="flex items-center gap-3 bg-[#f5f5f5] rounded px-4 py-3">
+                <div key={m.key} className="flex flex-wrap items-center gap-3 bg-[#f5f5f5] rounded px-4 py-3">
                   <span className="text-xs font-bold text-[#ff3764]">{idx + 1}</span>
-                  <span className="flex-1 text-sm font-semibold text-[#2d2d2d]">
+                  <span className="flex-1 min-w-[180px] text-sm font-semibold text-[#2d2d2d]">
                     {m.name}
                     {idx === selected.length - 1 && <span className="text-[11px] text-[#999999] font-normal ml-2">(finaler Milestone)</span>}
                   </span>
-                  {m.addon_ids.length > 0 && <span className="text-xs text-[#999999]">{m.addon_ids.length} Add-on(s)</span>}
-                  <span className="text-sm font-bold text-[#2d2d2d]">{fmtEUR(Number(m.amount))}</span>
+                  {plan?.deliverable && (
+                    <span className="text-xs text-[#999999]">
+                      Übergabe {fmtDate(plan.plan[idx].planned_handover)} · Freeze {fmtDate(plan.plan[idx].planned_freeze)}
+                    </span>
+                  )}
+                  <span className="text-sm font-bold text-[#2d2d2d]">{fmtEUR(milestoneAmount(m, addOns))}</span>
                 </div>
               ))}
             </div>
@@ -200,7 +263,7 @@ export default function SprintAssistent() {
           ) : (
             <Button
               className="bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded"
-              disabled={creating} onClick={handleCreate}
+              disabled={creating || !plan?.deliverable} onClick={handleCreate}
             >
               {creating ? 'Legt an…' : 'Sprint anlegen'}
             </Button>
