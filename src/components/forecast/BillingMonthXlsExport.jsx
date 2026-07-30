@@ -1,4 +1,5 @@
 import React from 'react';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 
@@ -17,46 +18,65 @@ const INSTR_TYPE_LABELS = {
 };
 const PLAN_TYPE_LABELS = { AZ: 'Anzahlung', TR: 'Teilrechnung', ER: 'Schlussrechnung' };
 
-const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const num = (v) => `<td style="mso-number-format:'#,##0.00'" align="right">${Number(v) || 0}</td>`;
-const cell = (v) => `<td>${esc(v)}</td>`;
-
 // Exportiert die Abrechnungsdaten EINES Monats (Anweisungen + Rechnungsplanung)
-// als Excel-kompatible .xls-Datei.
+// als modernes Excel-Workbook (.xlsx) mit zwei Arbeitsblättern.
 export default function BillingMonthXlsExport({ monthStr, monthLabel, instructions, plans, projectsById, allInstructions }) {
   const handleExport = () => {
-    const instrRows = instructions.map((i) => `<tr>${cell(i.customer_name)}${cell(i.project_name)}${cell(INSTR_TYPE_LABELS[i.invoice_type] || i.invoice_type)}${num(i.instruction_amount_net)}${num(i.instruction_amount_gross)}${cell(INSTR_STATUS_LABELS[i.status] || i.status)}${cell(i.planned_invoice_date)}${cell(i.invoice_instruction_text || i.invoice_reason)}</tr>`).join('');
+    const wb = XLSX.utils.book_new();
+
+    const instrRows = instructions.map((i) => ({
+      'Kunde': i.customer_name || '',
+      'Projekt': i.project_name || '',
+      'Typ': INSTR_TYPE_LABELS[i.invoice_type] || i.invoice_type || '',
+      'Netto': Number(i.instruction_amount_net) || 0,
+      'Brutto': Number(i.instruction_amount_gross) || 0,
+      'Status': INSTR_STATUS_LABELS[i.status] || i.status || '',
+      'Datum': i.planned_invoice_date || '',
+      'Anweisungstext': i.invoice_instruction_text || i.invoice_reason || '',
+    }));
+    instrRows.push({
+      'Kunde': 'SUMME', 'Projekt': '', 'Typ': '',
+      'Netto': instructions.reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0),
+      'Brutto': instructions.reduce((s, i) => s + (Number(i.instruction_amount_gross) || 0), 0),
+      'Status': '', 'Datum': '', 'Anweisungstext': '',
+    });
 
     const planRows = plans.map((p) => {
       const proj = projectsById[p.project_id];
       const linked = p.linked_billing_instruction_id ? (allInstructions || []).find((i) => i.id === p.linked_billing_instruction_id) : null;
-      return `<tr>${cell(proj?.customer || p.assigned_pm)}${cell(proj?.project_name)}${cell(PLAN_TYPE_LABELS[p.planned_invoice_type] || p.planned_invoice_type)}${num(p.planned_percent)}${num(p.planned_amount_net)}${num(p.planned_amount_gross)}${cell(PLAN_STATUS_LABELS[p.billing_status] || p.billing_status)}${cell(p.linked_billing_instruction_id ? 'ja' : 'nein')}${cell(linked?.planned_invoice_date)}${cell(p.invoice_reason || p.internal_note)}</tr>`;
-    }).join('');
+      return {
+        'Kunde': proj?.customer || p.assigned_pm || '',
+        'Projekt': proj?.project_name || '',
+        'Typ': PLAN_TYPE_LABELS[p.planned_invoice_type] || p.planned_invoice_type || '',
+        '%': Number(p.planned_percent) || 0,
+        'Netto': Number(p.planned_amount_net) || 0,
+        'Brutto': Number(p.planned_amount_gross) || 0,
+        'Status': PLAN_STATUS_LABELS[p.billing_status] || p.billing_status || '',
+        'Anweisung erstellt': p.linked_billing_instruction_id ? 'ja' : 'nein',
+        'Anweisungsdatum': linked?.planned_invoice_date || '',
+        'Grund': p.invoice_reason || p.internal_note || '',
+      };
+    });
+    planRows.push({
+      'Kunde': 'SUMME', 'Projekt': '', 'Typ': '', '%': '',
+      'Netto': plans.reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0),
+      'Brutto': plans.reduce((s, p) => s + (Number(p.planned_amount_gross) || 0), 0),
+      'Status': '', 'Anweisung erstellt': '', 'Anweisungsdatum': '', 'Grund': '',
+    });
 
-    const totalInstr = instructions.reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0);
-    const totalPlans = plans.reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0);
+    const wsInstr = XLSX.utils.json_to_sheet(instrRows);
+    wsInstr['!cols'] = [{ wch: 24 }, { wch: 28 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 50 }];
+    const wsPlans = XLSX.utils.json_to_sheet(planRows);
+    wsPlans['!cols'] = [{ wch: 24 }, { wch: 28 }, { wch: 16 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 50 }];
 
-    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>
-<h2>Abrechnungsforecast ${esc(monthLabel)}</h2>
-<h3>Abrechnungsanweisungen (${instructions.length}) — Summe netto: ${totalInstr.toFixed(2)}</h3>
-<table border="1"><tr><th>Kunde</th><th>Projekt</th><th>Typ</th><th>Netto</th><th>Brutto</th><th>Status</th><th>Datum</th><th>Anweisungstext</th></tr>${instrRows}</table>
-<br/>
-<h3>Rechnungsplanung (${plans.length}) — Summe netto: ${totalPlans.toFixed(2)}</h3>
-<table border="1"><tr><th>Kunde</th><th>Projekt</th><th>Typ</th><th>%</th><th>Netto</th><th>Brutto</th><th>Status</th><th>Anweisung erstellt</th><th>Anweisungsdatum</th><th>Grund</th></tr>${planRows}</table>
-</body></html>`;
-
-    const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Abrechnungsforecast_${monthStr}.xls`;
-    a.click();
-    URL.revokeObjectURL(url);
+    XLSX.utils.book_append_sheet(wb, wsInstr, 'Anweisungen');
+    XLSX.utils.book_append_sheet(wb, wsPlans, 'Rechnungsplanung');
+    XLSX.writeFile(wb, `Abrechnungsforecast_${monthStr}.xlsx`);
   };
 
   return (
     <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={handleExport}>
-      <Download className="w-3.5 h-3.5" /> XLS-Export
+      <Download className="w-3.5 h-3.5" /> Excel-Export
     </Button>
   );
 }
