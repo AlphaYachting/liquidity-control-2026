@@ -6,7 +6,8 @@ import {
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
   CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale,
-  KanbanSquare, Inbox, History, Presentation, Mail, Siren, Sun
+  KanbanSquare, Inbox, History, Presentation, Mail, Siren, Sun,
+  Rocket, CalendarRange, Gauge, Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
@@ -29,6 +30,15 @@ const navSections = [
       { path: '/customer-risk', label: 'Kundenrisiko', icon: Users },
       { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock },
       { path: '/escalation-alerts', label: 'Eskalations-Alerts', icon: AlertTriangle },
+    ],
+  },
+  {
+    title: 'Sprint-Modul',
+    items: [
+      { path: '/sprint', label: 'Heute', icon: Rocket },
+      { path: '/sprint/projekte', label: 'Projekte', icon: Layers },
+      { path: '/sprint/planung', label: 'Planung', icon: CalendarRange },
+      { path: '/sprint/steuerung', label: 'Steuerung', icon: Gauge },
     ],
   },
   {
@@ -96,6 +106,8 @@ export default function Sidebar() {
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/';
+    if (path === '/sprint') return location.pathname === '/sprint';
+    if (path === '/sprint/projekte') return /^\/sprint\/(projekte|katalog|neu|sprints|milestones)/.test(location.pathname);
     return location.pathname.startsWith(path);
   };
 

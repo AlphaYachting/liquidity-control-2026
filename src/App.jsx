@@ -62,6 +62,14 @@ import RestructuringBacklog from '@/pages/RestructuringBacklog';
 import RestructuringWip from '@/pages/RestructuringWip';
 import RestructuringCoverage from '@/pages/RestructuringCoverage';
 import RestructuringSetup from '@/pages/RestructuringSetup';
+import SprintHeute from '@/pages/sprint/SprintHeute';
+import SprintProjekte from '@/pages/sprint/SprintProjekte';
+import SprintModulKatalog from '@/pages/sprint/SprintModulKatalog';
+import SprintAssistent from '@/pages/sprint/SprintAssistent';
+import SprintDetail from '@/pages/sprint/SprintDetail';
+import SprintMilestoneDetail from '@/pages/sprint/SprintMilestoneDetail';
+import SprintPlanung from '@/pages/sprint/SprintPlanung';
+import SprintSteuerung from '@/pages/sprint/SprintSteuerung';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -134,6 +142,14 @@ const AuthenticatedApp = () => {
         <Route path="/operational-reset" element={<AdminRoute><OperationalReset /></AdminRoute>} />
         <Route path="/sevdesk-reimport" element={<AdminRoute><SevdeskReimport /></AdminRoute>} />
         <Route path="/audit-trail" element={<AdminRoute><AuditTrail /></AdminRoute>} />
+        <Route path="/sprint" element={<SprintHeute />} />
+        <Route path="/sprint/projekte" element={<SprintProjekte />} />
+        <Route path="/sprint/katalog" element={<SprintModulKatalog />} />
+        <Route path="/sprint/neu" element={<SprintAssistent />} />
+        <Route path="/sprint/sprints/:sprintId" element={<SprintDetail />} />
+        <Route path="/sprint/milestones/:milestoneId" element={<SprintMilestoneDetail />} />
+        <Route path="/sprint/planung" element={<SprintPlanung />} />
+        <Route path="/sprint/steuerung" element={<SprintSteuerung />} />
         <Route path="/restructuring" element={<AdminRoute><RestructuringLayout /></AdminRoute>}>
           <Route index element={<RestructuringCockpit />} />
           <Route path="liquidity" element={<Restructuring13Week />} />

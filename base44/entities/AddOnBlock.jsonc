@@ -1,0 +1,39 @@
+{
+  "name": "AddOnBlock",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "z. B. Fotoshooting, Textredaktion extern, \u00dcbersetzung"
+    },
+    "description": {
+      "type": "string"
+    },
+    "target_hours": {
+      "type": "number"
+    },
+    "price": {
+      "type": "number"
+    },
+    "ticket_titles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tickets, die dieser Baustein mitbringt"
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "wer den Baustein in den Katalog aufgenommen hat"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "target_hours",
+    "price"
+  ]
+}

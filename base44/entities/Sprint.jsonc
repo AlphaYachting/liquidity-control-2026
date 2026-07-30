@@ -1,0 +1,66 @@
+{
+  "name": "Sprint",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "size": {
+      "type": "string",
+      "enum": [
+        "S",
+        "M",
+        "L"
+      ]
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "delivery_date": {
+      "type": "string",
+      "format": "date",
+      "description": "vertraglich zugesagter Liefertermin"
+    },
+    "sprint_amount": {
+      "type": "number",
+      "description": "Netto in EUR"
+    },
+    "planned_focus_days": {
+      "type": "number",
+      "description": "kalkulierte Focus-Tage gesamt"
+    },
+    "target_hours": {
+      "type": "number",
+      "description": "Sollstunden nur als Indikator f\u00fcr Warnsignal W1"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "geplant",
+        "laufend",
+        "geliefert",
+        "abgeschlossen"
+      ],
+      "default": "geplant"
+    },
+    "successor_offered": {
+      "type": "boolean",
+      "default": false,
+      "description": "Folgesprint bereits angeboten \u2014 Basis f\u00fcr W4"
+    }
+  },
+  "required": [
+    "project_id",
+    "size",
+    "start_date",
+    "delivery_date"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "TimeEntry",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "person_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "entry_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "hours": {
+      "type": "number"
+    },
+    "note": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "person_email",
+    "entry_date",
+    "hours"
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "name": "Milestone",
+  "type": "object",
+  "properties": {
+    "sprint_id": {
+      "type": "string"
+    },
+    "order": {
+      "type": "number",
+      "description": "Reihenfolge im Sprint, beginnend bei 1"
+    },
+    "module_template_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "input",
+        "produktion",
+        "pruefung",
+        "kundenfeedback",
+        "freigegeben"
+      ],
+      "default": "input"
+    },
+    "milestone_amount": {
+      "type": "number",
+      "description": "Etappenbetrag netto, l\u00f6st bei Freigabe die Teilrechnung aus"
+    },
+    "handover_date": {
+      "type": "string",
+      "format": "date",
+      "description": "\u00dcbergabe an Kunden = Start des Feedbackfensters"
+    },
+    "feedback_deadline": {
+      "type": "string",
+      "format": "date",
+      "description": "FREEZE-Datum"
+    },
+    "prewarning_date": {
+      "type": "string",
+      "format": "date",
+      "description": "automatisch berechnet"
+    },
+    "planned_delivery": {
+      "type": "string",
+      "format": "date"
+    },
+    "is_final_milestone": {
+      "type": "boolean",
+      "default": false,
+      "description": "letzter Milestone im Sprint = Projekt-Feedbackschluss nach au\u00dfen"
+    },
+    "planned_focus_days": {
+      "type": "number"
+    },
+    "invoice_triggered": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "sprint_id",
+    "order",
+    "title",
+    "state"
+  ]
+}

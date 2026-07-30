@@ -1,0 +1,50 @@
+{
+  "name": "ChangeRequest",
+  "type": "object",
+  "properties": {
+    "origin_milestone_id": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "proposed_hours": {
+      "type": "number"
+    },
+    "proposed_price": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "erfasst",
+        "bepreist",
+        "an_kunden",
+        "beauftragt",
+        "abgelehnt"
+      ],
+      "default": "erfasst"
+    },
+    "target": {
+      "type": "string",
+      "enum": [
+        "aktueller_sprint",
+        "folgesprint",
+        "offen"
+      ],
+      "default": "offen"
+    },
+    "released_by": {
+      "type": "string",
+      "description": "PM, der die Bepreisung freigegeben hat"
+    }
+  },
+  "required": [
+    "origin_milestone_id",
+    "project_id",
+    "description"
+  ]
+}

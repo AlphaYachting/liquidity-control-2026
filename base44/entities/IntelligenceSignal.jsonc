@@ -1,0 +1,58 @@
+{
+  "name": "IntelligenceSignal",
+  "type": "object",
+  "properties": {
+    "signal_type": {
+      "type": "string",
+      "enum": [
+        "W1",
+        "W2",
+        "W3",
+        "W4"
+      ]
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "milestone_id": {
+      "type": "string"
+    },
+    "ticket_id": {
+      "type": "string"
+    },
+    "triggered_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "hinweis",
+        "warnung",
+        "kritisch"
+      ],
+      "default": "warnung"
+    },
+    "recommendation": {
+      "type": "string",
+      "description": "konkrete Handlung mit Adressat"
+    },
+    "responsible": {
+      "type": "string",
+      "format": "email"
+    },
+    "resolved": {
+      "type": "boolean",
+      "default": false
+    },
+    "resolved_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "signal_type",
+    "triggered_at",
+    "recommendation"
+  ]
+}

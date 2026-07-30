@@ -1,0 +1,36 @@
+{
+  "name": "Approval",
+  "type": "object",
+  "properties": {
+    "milestone_id": {
+      "type": "string"
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "approval_type": {
+      "type": "string",
+      "enum": [
+        "aktiv",
+        "stillschweigend"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "description": "z. B. E-Mail-Antwort vom 12.08., telefonisch best\u00e4tigt, Fristablauf"
+    },
+    "frozen_state": {
+      "type": "string",
+      "description": "archivierter Stand: Ticketliste, Dateilinks, Notizen als Text/JSON"
+    },
+    "approved_amount": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "milestone_id",
+    "approved_at",
+    "approval_type"
+  ]
+}

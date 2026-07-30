@@ -1,0 +1,35 @@
+{
+  "name": "FocusDay",
+  "type": "object",
+  "properties": {
+    "person_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "day": {
+      "type": "string",
+      "format": "date"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "leer bei Reaktionstag oder Abwesenheit"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "focus",
+        "reaktion",
+        "abwesend"
+      ],
+      "default": "focus"
+    },
+    "note": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "person_email",
+    "day",
+    "type"
+  ]
+}

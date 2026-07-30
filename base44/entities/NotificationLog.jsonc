@@ -1,0 +1,57 @@
+{
+  "name": "NotificationLog",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "B1",
+        "B2",
+        "B3",
+        "B4"
+      ]
+    },
+    "milestone_id": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "recipient": {
+      "type": "string"
+    },
+    "sent_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "vorgeschlagen",
+        "freigegeben",
+        "versendet",
+        "verworfen"
+      ],
+      "default": "versendet"
+    },
+    "released_by": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "sent_at"
+  ]
+}

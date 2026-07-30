@@ -1,0 +1,31 @@
+{
+  "name": "Client",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "contact_person": {
+      "type": "string"
+    },
+    "contact_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "billing_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "agb_version": {
+      "type": "string",
+      "description": "AGB-Fassung, der der Kunde zugestimmt hat \u2014 tr\u00e4gt die stillschweigende Freigabe"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "contact_email"
+  ]
+}

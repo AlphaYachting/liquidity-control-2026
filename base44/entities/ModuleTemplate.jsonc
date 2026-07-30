@@ -1,0 +1,30 @@
+{
+  "name": "ModuleTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "z. B. Landingpage, Social-Media-Audit, Logoentwicklung"
+    },
+    "description": {
+      "type": "string"
+    },
+    "target_hours": {
+      "type": "number",
+      "description": "kalkulierter Sollaufwand"
+    },
+    "target_focus_days": {
+      "type": "number"
+    },
+    "standard_price": {
+      "type": "number"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

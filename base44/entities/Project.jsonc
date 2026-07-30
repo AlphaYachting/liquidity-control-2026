@@ -1,0 +1,35 @@
+{
+  "name": "Project",
+  "type": "object",
+  "properties": {
+    "client_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "pm_email": {
+      "type": "string",
+      "format": "email",
+      "description": "verantwortlicher Projektmanager"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "aktiv",
+        "pausiert",
+        "abgeschlossen"
+      ],
+      "default": "aktiv"
+    },
+    "total_budget": {
+      "type": "number",
+      "description": "Netto in EUR \u00fcber alle Sprints"
+    }
+  },
+  "required": [
+    "client_id",
+    "title",
+    "pm_email"
+  ]
+}

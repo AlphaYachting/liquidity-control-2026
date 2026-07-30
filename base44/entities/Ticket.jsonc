@@ -1,0 +1,75 @@
+{
+  "name": "Ticket",
+  "type": "object",
+  "properties": {
+    "milestone_id": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "denormalisiert, damit Zeitbuchung und Heute-Ansicht ohne Joins auskommen"
+    },
+    "order": {
+      "type": "number"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "assignee_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "Beratung",
+        "Konzept",
+        "Text",
+        "Grafik",
+        "Web",
+        "Media",
+        "QS"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "offen",
+        "in_arbeit",
+        "wartet",
+        "erledigt"
+      ],
+      "default": "offen"
+    },
+    "last_status_change": {
+      "type": "string",
+      "format": "date-time",
+      "description": "tr\u00e4gt Warnsignal W3 \u2014 bei jedem Statuswechsel setzen"
+    },
+    "origin": {
+      "type": "string",
+      "enum": [
+        "pflicht",
+        "addon",
+        "change_request"
+      ],
+      "default": "pflicht"
+    },
+    "target_hours": {
+      "type": "number"
+    },
+    "blocks_others": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "milestone_id",
+    "project_id",
+    "title",
+    "status"
+  ]
+}
