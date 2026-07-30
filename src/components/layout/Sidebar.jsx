@@ -128,7 +128,7 @@ export default function Sidebar() {
         onClick={() => setMobileOpen(false)}
         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200
           ${active
-            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md shadow-sidebar-primary/20'
+            ? 'bg-sidebar-accent text-sidebar-foreground font-bold border-l-[3px] border-l-[#ff3764]'
             : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent'
           }
           ${collapsed ? 'justify-center' : ''}`}
@@ -233,7 +233,7 @@ export default function Sidebar() {
       )}
 
       <aside className={`
-        fixed md:sticky top-0 left-0 h-screen bg-sidebar z-50 transition-all duration-300 flex-shrink-0
+        fixed md:sticky top-0 left-0 h-screen bg-sidebar border-r border-sidebar-border z-50 transition-all duration-300 flex-shrink-0
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         ${collapsed ? 'w-16' : 'w-64'}
       `}>

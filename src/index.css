@@ -38,14 +38,14 @@
     --warning-foreground: 0 0% 100%;
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 220 14% 96%;
-    --sidebar-primary: 221 83% 53%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 18%;
+    --sidebar-primary: 344 100% 61%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 40% 18%;
-    --sidebar-accent-foreground: 220 14% 96%;
-    --sidebar-border: 222 40% 18%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 18%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: 0 0% 18%;
   }
 
   .dark {
