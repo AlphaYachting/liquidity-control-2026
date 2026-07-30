@@ -7,20 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import ZeitBuchung from '@/components/sprint/ZeitBuchung';
-import { todayIso, fmtDate, TICKET_STATUS_LABELS } from '@/components/sprint/sprintConfig';
-
-// Statusachse B — nie Pink: offen neutral, in Arbeit schwarz, wartet Bernstein, erledigt Grün
-const STATUS_DOT = { offen: '#6b6b6b', in_arbeit: '#2d2d2d', wartet: '#9c5b00', erledigt: '#45d085' };
-
-function TicketRow({ ticket }) {
-  return (
-    <Link to={`/sprint/milestones/${ticket.milestone_id}`} className="flex items-center gap-3 py-2 border-b border-[#f5f5f5] last:border-0 hover:bg-[#f5f5f5]/60 px-2 -mx-2 rounded">
-      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: STATUS_DOT[ticket.status] || '#999999' }} />
-      <span className="flex-1 text-sm text-[#2d2d2d]">{ticket.title}</span>
-      <span className="text-xs text-[#6b6b6b]">{TICKET_STATUS_LABELS[ticket.status]}</span>
-    </Link>
-  );
-}
+import HeuteAufgabenliste from '@/components/sprint/HeuteAufgabenliste';
+import Fortschrittszaehler from '@/components/sprint/Fortschrittszaehler';
+import { todayIso, fmtDate } from '@/components/sprint/sprintConfig';
 
 // S1 — HEUTE: Focus-Tag-Ansicht des angemeldeten Nutzers
 export default function SprintHeute() {
@@ -45,9 +34,9 @@ export default function SprintHeute() {
       let tickets = [];
       if (focusDay?.type === 'focus' && focusDay.project_id) {
         const all = await base44.entities.Ticket.filter({ project_id: focusDay.project_id }, 'order', 500);
-        tickets = all.filter((t) => t.status !== 'erledigt' && (!t.assignee_email || t.assignee_email === email));
+        tickets = all.filter((t) => !t.assignee_email || t.assignee_email === email);
       } else if (focusDay?.type === 'reaktion') {
-        tickets = myTickets.filter((t) => t.status !== 'erledigt');
+        tickets = myTickets;
       }
       const standardHours = Number(settings.find((s) => s.key === 'standard_day_hours')?.value) || 8;
       const myProjectIds = new Set([
@@ -74,6 +63,7 @@ export default function SprintHeute() {
   const focusClient = focusProject ? clients.find((c) => c.id === focusProject.client_id) : null;
 
   // Solange die Etappe nicht beim Kunden liegt, trägt das geplante Freeze-Datum die Frist
+  const doneCount = tickets.filter((t) => t.status === 'erledigt').length;
   const deadlineOf = (m) => m.feedback_deadline || m.planned_freeze;
   const deadlines = milestones
     .filter((m) => m.state !== 'freigegeben' && deadlineOf(m) && deadlineOf(m) >= today
@@ -90,20 +80,32 @@ export default function SprintHeute() {
           <SectionLabel className="mb-2">Mein Focus-Tag</SectionLabel>
           <h2 className="text-xl font-extrabold uppercase text-[#2d2d2d]">{focusProject.title}</h2>
           {focusClient && <p className="text-sm text-[#6b6b6b] mt-0.5">{focusClient.name}</p>}
+          <Fortschrittszaehler
+            className="mt-4 max-w-md"
+            done={doneCount}
+            total={tickets.length}
+            goalLabel="bis zum Tagesende"
+          />
           <div className="mt-4">
-            {tickets.length > 0
-              ? tickets.map((t) => <TicketRow key={t.id} ticket={t} />)
-              : <p className="text-sm text-[#6b6b6b]">Keine offenen Tickets in diesem Projekt.</p>}
+            <HeuteAufgabenliste
+              tickets={tickets}
+              projectTitle={focusProject.title}
+              emptyText="Keine Aufgaben in diesem Projekt."
+            />
           </div>
         </div>
       ) : focusDay?.type === 'reaktion' ? (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <SectionLabel className="mb-2">Reaktionstag</SectionLabel>
           <h2 className="text-xl font-extrabold uppercase text-[#2d2d2d]">Reaktionstag — kein Projektfokus</h2>
+          <Fortschrittszaehler
+            className="mt-4 max-w-md"
+            done={doneCount}
+            total={tickets.length}
+            goalLabel="bis zum Tagesende"
+          />
           <div className="mt-4">
-            {tickets.length > 0
-              ? tickets.map((t) => <TicketRow key={t.id} ticket={t} />)
-              : <p className="text-sm text-[#6b6b6b]">Keine offenen Tickets.</p>}
+            <HeuteAufgabenliste tickets={tickets} emptyText="Keine Aufgaben zugewiesen." />
           </div>
         </div>
       ) : focusDay?.type === 'abwesend' ? (
@@ -135,7 +137,7 @@ export default function SprintHeute() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-[#6b6b6b]">Keine offenen Fristen.</p>
+          <p className="text-sm text-[#6b6b6b]">Alles im Plan — keine Frist in Sicht.</p>
         )}
       </div>
 

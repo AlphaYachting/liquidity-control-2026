@@ -37,19 +37,23 @@ export default function CountdownLeiste({ handoverDate, deadline, state, approve
   const { Icon } = stage;
 
   return (
-    <div className={className}>
-      <div className="flex items-center justify-between text-[11px] mb-1" style={{ color: RITTLER.textSecondary }}>
-        <span>{handoverDate ? `Übergabe ${fmtDate(handoverDate)}` : 'Übergabe offen'}</span>
-        <span className="font-semibold uppercase tracking-wide" style={{ color: RITTLER.black }}>
-          {deadline ? `Freeze ${fmtDate(deadline)}` : 'Freeze offen'}
-        </span>
-      </div>
-      <div className="relative h-2 rounded-sm" style={{ backgroundColor: RITTLER.line }}>
-        <div className="h-2 rounded-sm" style={{ width: `${stage.pct}%`, backgroundColor: stage.color }} />
-        <div className="absolute top-[-3px] right-0 w-[2px] h-[14px]" style={{ backgroundColor: RITTLER.black }} />
+    <div className={`flex items-start gap-4 ${className}`}>
+      <div className="flex-1 min-w-[140px]">
+        <div className="relative h-2 rounded" style={{ backgroundColor: RITTLER.line }}>
+          <div className="h-2 rounded" style={{ width: `${stage.pct}%`, backgroundColor: stage.color }} />
+          <div className="absolute top-[-3px] right-0 w-[2px] h-[14px]" style={{ backgroundColor: RITTLER.black }} />
+        </div>
+        <div className="flex items-start justify-between text-[12px] mt-1">
+          <span style={{ color: RITTLER.textSecondary }}>
+            {handoverDate ? `Übergabe ${fmtDate(handoverDate)}` : 'Übergabe offen'}
+          </span>
+          <span className="font-semibold uppercase tracking-wide text-right" style={{ color: RITTLER.black }}>
+            {deadline ? `Freeze ${fmtDate(deadline)}` : 'Freeze offen'}
+          </span>
+        </div>
       </div>
       <p
-        className={`flex items-center gap-1.5 mt-1.5 text-base ${stage.bold ? 'font-extrabold' : 'font-bold'}`}
+        className={`flex items-center gap-1.5 text-base whitespace-nowrap ${stage.bold ? 'font-extrabold' : 'font-bold'}`}
         style={{ color: stage.text }}
       >
         <Icon className="w-4 h-4 shrink-0" />

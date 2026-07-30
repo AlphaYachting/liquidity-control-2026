@@ -8,6 +8,7 @@ import SectionLabel from '@/components/sprint/SectionLabel';
 import MilestoneZustandssteuerung from '@/components/sprint/MilestoneZustandssteuerung';
 import TicketPhasenGruppe from '@/components/sprint/TicketPhasenGruppe';
 import CountdownLeiste from '@/components/sprint/CountdownLeiste';
+import Fortschrittszaehler from '@/components/sprint/Fortschrittszaehler';
 import { STATE_LABELS, fmtEUR, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { computeFeedbackDeadline } from '@/lib/sprint/deadlines';
 
@@ -98,7 +99,7 @@ export default function SprintMilestoneDetail() {
         <p className="text-sm text-[#6b6b6b] mt-1">
           Etappenbetrag {fmtEUR(milestone.milestone_amount)} · Plan-Übergabe {fmtDate(milestone.planned_handover)} · Plan-Freeze {fmtDate(milestone.planned_freeze)}
         </p>
-        <div className="mt-4 max-w-md">
+        <div className="mt-4 max-w-xl">
           <CountdownLeiste
             handoverDate={milestone.handover_date || milestone.planned_handover}
             deadline={milestone.feedback_deadline || milestone.planned_freeze}
@@ -112,7 +113,7 @@ export default function SprintMilestoneDetail() {
 
         <div className="mt-5">
           {locked ? (
-            <div className="rounded p-4 text-sm text-[#2d2d2d] border-l-4" style={{ borderColor: '#2d2d2d', backgroundColor: '#f5f5f5' }}>
+            <div className="rounded p-4 text-sm text-[#2d2d2d] border-l-4" style={{ borderColor: '#1e7a4c', backgroundColor: '#e9f9f0' }}>
               Am {fmtDate(milestone.updated_date)} freigegeben. Inhalte sind gesperrt; Aufgaben der Phase
               Kundenfeedback bleiben abschließbar, damit der Livegang möglich ist.
             </div>
@@ -127,7 +128,13 @@ export default function SprintMilestoneDetail() {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm p-5">
-        <SectionLabel className="mb-3">Aufgaben ({tickets.length})</SectionLabel>
+        <SectionLabel className="mb-3">Aufgaben</SectionLabel>
+        <Fortschrittszaehler
+          className="mb-4 max-w-md"
+          done={phaseTickets.filter((t) => t.status === 'erledigt').length}
+          total={phaseTickets.length}
+          goalLabel="bis zur Übergabe"
+        />
         <div className="space-y-2">
           {PHASES.map((phase) => (
             <TicketPhasenGruppe

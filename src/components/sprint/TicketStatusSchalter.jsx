@@ -4,10 +4,11 @@ import { TICKET_STATUS_LABELS } from '@/components/sprint/sprintConfig';
 
 // Ein-Klick-Statusschalter statt Select-Feld — Statusachse B, kein Pink.
 const OPTIONS = [
-  { key: 'offen', Icon: Circle, active: 'bg-[#6b6b6b] text-white border-[#6b6b6b]' },
-  { key: 'in_arbeit', Icon: Play, active: 'bg-[#2d2d2d] text-white border-[#2d2d2d]' },
+  { key: 'offen', Icon: Circle, active: 'bg-[#e0e0e0] text-[#2d2d2d] border-[#e0e0e0]' },
+  { key: 'in_arbeit', Icon: Play, active: 'bg-[#6b6b6b] text-white border-[#6b6b6b]' },
   { key: 'wartet', Icon: Clock, active: 'bg-[#9c5b00] text-white border-[#9c5b00]' },
-  { key: 'erledigt', Icon: Check, active: 'bg-[#45d085] text-[#12351f] border-[#45d085]' },
+  // Grün ist dem Etappenabschluss vorbehalten — erledigte Aufgaben sind schwarz mit Häkchen
+  { key: 'erledigt', Icon: Check, active: 'bg-[#2d2d2d] text-white border-[#2d2d2d]' },
 ];
 
 export default function TicketStatusSchalter({ value, onChange, disabled }) {

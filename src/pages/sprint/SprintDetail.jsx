@@ -3,9 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Lock } from 'lucide-react';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import Zustandskette from '@/components/sprint/Zustandskette';
+import SprintFortschrittsband from '@/components/sprint/SprintFortschrittsband';
+import Abschlusskarte from '@/components/sprint/Abschlusskarte';
+import Fortschrittszaehler from '@/components/sprint/Fortschrittszaehler';
 import { fmtDate, fmtEUR, todayIso, SPRINT_SIZES } from '@/components/sprint/sprintConfig';
 
 // S4 — Sprint-Detail: Kopf + Milestones als Karten mit Zustandskette
@@ -21,7 +23,16 @@ export default function SprintDetail() {
         base44.entities.Milestone.filter({ sprint_id: sprintId }, 'order', 100),
       ]);
       const client = project ? await base44.entities.Client.get(project.client_id).catch(() => null) : null;
-      return { sprint, project, client, milestones };
+      const milestoneIds = milestones.map((m) => m.id);
+      const [tickets, approvals] = await Promise.all([
+        milestoneIds.length
+          ? base44.entities.Ticket.filter({ milestone_id: { $in: milestoneIds } }, 'order', 1000)
+          : Promise.resolve([]),
+        milestoneIds.length
+          ? base44.entities.Approval.filter({ milestone_id: { $in: milestoneIds } }, '-approved_at', 200)
+          : Promise.resolve([]),
+      ]);
+      return { sprint, project, client, milestones, tickets, approvals };
     },
   });
 
@@ -34,7 +45,9 @@ export default function SprintDetail() {
     );
   }
 
-  const { sprint, project, client, milestones } = data;
+  const { sprint, project, client, milestones, tickets, approvals } = data;
+  const approvalOf = (id) => approvals.find((a) => a.milestone_id === id);
+  const ticketsOf = (id) => tickets.filter((t) => t.milestone_id === id);
   const today = todayIso();
   const restDays = sprint.delivery_date
     ? Math.ceil((new Date(sprint.delivery_date) - new Date(today)) / 86400000)
@@ -60,22 +73,33 @@ export default function SprintDetail() {
         </div>
       </div>
 
+      <SprintFortschrittsband sprint={sprint} milestones={milestones} />
+
       <div className="space-y-3">
         {milestones.map((m) => {
           const locked = m.state === 'freigegeben';
+          const mTickets = ticketsOf(m.id);
+          if (locked) {
+            return <Abschlusskarte key={m.id} milestone={m} approval={approvalOf(m.id)} />;
+          }
           return (
             <Link
               key={m.id} to={`/sprint/milestones/${m.id}`}
-              className={`block bg-white rounded-lg shadow-sm p-5 hover:shadow-md transition-shadow ${locked ? 'opacity-60' : ''}`}
+              className="block bg-white rounded-lg shadow-sm p-5 hover:shadow-md transition-shadow"
             >
               <div className="flex flex-col md:flex-row md:items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-[#2d2d2d] flex items-center gap-2">
                     <span className="text-xs text-[#ff3764]">{m.order}</span>
                     {m.title}
-                    {locked && <Lock className="w-3.5 h-3.5 text-[#2d2d2d]" />}
                     {m.is_final_milestone && <span className="text-[10px] uppercase tracking-wide text-[#6b6b6b]">Final</span>}
                   </p>
+                  <Fortschrittszaehler
+                    className="mt-2 max-w-sm"
+                    done={mTickets.filter((t) => t.status === 'erledigt').length}
+                    total={mTickets.length}
+                    goalLabel="bis zur Übergabe"
+                  />
                   <p className="text-xs text-[#6b6b6b] mt-0.5">
                     {fmtEUR(m.milestone_amount)}
                     {m.planned_handover ? ` · Plan-Übergabe ${fmtDate(m.planned_handover)}` : ''}

@@ -114,17 +114,18 @@ export default function SprintPlanung() {
                         title={entry?.type === 'focus' ? project?.title : undefined}
                         className={`w-full h-14 rounded text-[11px] font-semibold px-1 transition-colors ${
                           entry?.type === 'focus'
-                            ? 'bg-[#f5f5f5] text-[#2d2d2d] border border-[#e0e0e0] hover:bg-[#e0e0e0]'
+                            ? 'bg-[#f5f5f5] text-[#2d2d2d] font-bold border border-[#e0e0e0] hover:bg-[#e0e0e0]'
                             : entry?.type === 'reaktion'
-                            ? 'bg-[repeating-linear-gradient(45deg,#f5f5f5,#f5f5f5_6px,#e8e8e8_6px,#e8e8e8_12px)] text-[#6b6b6b] border border-[#e0e0e0]'
+                            ? 'bg-[#e0e0e0] text-[#6b6b6b] uppercase tracking-wide'
                             : entry?.type === 'abwesend'
-                            ? 'bg-[#f5f5f5] text-[#6b6b6b] border border-[#e0e0e0] line-through'
+                            ? 'bg-white text-[#6b6b6b] uppercase tracking-wide border border-dashed border-[#e0e0e0]'
                             : 'bg-white border border-dashed border-[#e0e0e0] text-[#6b6b6b] hover:border-[#2d2d2d]'
                         }`}
                       >
                         {entry?.type === 'focus'
                           ? (project ? kuerzel(project.title) : 'Focus')
                           : entry?.type === 'reaktion' ? 'Reaktion' : entry?.type === 'abwesend' ? 'Abwesend' : '+'}
+                        {/* U9: Projekte werden über Text unterschieden, nicht über Farbe */}
                       </button>
                     </td>
                   );
