@@ -63,6 +63,7 @@ import RestructuringWip from '@/pages/RestructuringWip';
 import RestructuringCoverage from '@/pages/RestructuringCoverage';
 import RestructuringSetup from '@/pages/RestructuringSetup';
 import SprintHeute from '@/pages/sprint/SprintHeute';
+import SprintUebersicht from '@/pages/sprint/SprintUebersicht';
 import SprintProjekte from '@/pages/sprint/SprintProjekte';
 import SprintModulKatalog from '@/pages/sprint/SprintModulKatalog';
 import SprintAssistent from '@/pages/sprint/SprintAssistent';
@@ -143,6 +144,7 @@ const AuthenticatedApp = () => {
         <Route path="/sevdesk-reimport" element={<AdminRoute><SevdeskReimport /></AdminRoute>} />
         <Route path="/audit-trail" element={<AdminRoute><AuditTrail /></AdminRoute>} />
         <Route path="/sprint" element={<SprintHeute />} />
+        <Route path="/sprint/uebersicht" element={<SprintUebersicht />} />
         <Route path="/sprint/projekte" element={<SprintProjekte />} />
         <Route path="/sprint/katalog" element={<SprintModulKatalog />} />
         <Route path="/sprint/neu" element={<SprintAssistent />} />

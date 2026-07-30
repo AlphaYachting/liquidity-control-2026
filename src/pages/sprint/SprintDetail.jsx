@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import SprintKopf from '@/components/sprint/SprintKopf';
 import EtappenZeile from '@/components/sprint/EtappenZeile';
+import { sprintStatus } from '@/lib/sprint/status';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
 export default function SprintDetail() {
@@ -46,10 +47,7 @@ export default function SprintDetail() {
 
   const { sprint, project, client, milestones, tickets, members, timeEntries, focusDays } = data;
 
-  const inRange = (d) =>
-    d && (!sprint.start_date || d >= sprint.start_date) && (!sprint.delivery_date || d <= sprint.delivery_date);
-  const bookedHours = timeEntries.filter((t) => inRange(t.entry_date)).reduce((s, t) => s + (t.hours || 0), 0);
-  const plannedFocusUsed = focusDays.filter((f) => inRange(f.day)).length;
+  const status = sprintStatus({ sprint, milestones, tickets, timeEntries, focusDays });
 
   const peopleOf = (milestoneId) => {
     const emails = [...new Set(
@@ -65,8 +63,7 @@ export default function SprintDetail() {
         project={project}
         client={client}
         milestones={milestones}
-        bookedHours={bookedHours}
-        plannedFocusUsed={plannedFocusUsed}
+        status={status}
       />
 
       <div>

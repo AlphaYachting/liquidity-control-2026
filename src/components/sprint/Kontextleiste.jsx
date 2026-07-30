@@ -1,37 +1,30 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { RITTLER, STATUS_COLORS, fmtEUR, fmtDate, todayIso, SPRINT_SIZES } from '@/components/sprint/sprintConfig';
+import { RITTLER, STATUS_COLORS, fmtEUR, fmtDate, SPRINT_SIZES } from '@/components/sprint/sprintConfig';
 
-const daysUntil = (iso) => {
-  if (!iso) return null;
-  return Math.round((new Date(iso) - new Date(todayIso())) / 86400000);
-};
-
-// U10 — Projektkontext bleibt beim Scrollen stehen: Kunde, Projekt, Sprint,
-// Etappenfortschritt, fakturierter Wert und Lieferfrist.
-export default function Kontextleiste({ sprint, project, client, milestones, currentMilestoneId }) {
-  const total = milestones.length;
-  const released = milestones.filter((m) => m.state === 'freigegeben');
-  const invoiced = released.reduce((s, m) => s + (m.milestone_amount || 0), 0);
+// U10/X2 — Projektkontext bleibt beim Scrollen stehen. Kunde ist die Überschrift,
+// alle abgeleiteten Werte kommen aus sprintStatus (X1).
+export default function Kontextleiste({ sprint, project, client, milestones, currentMilestoneId, status }) {
   const currentIdx = milestones.findIndex((m) => m.id === currentMilestoneId);
-  const rest = daysUntil(sprint?.delivery_date);
+  const rest = status.daysToDelivery;
   const critical = rest !== null && rest < 7;
 
   return (
     <div className="sticky top-0 z-30 bg-white border-b" style={{ borderColor: RITTLER.line }}>
       <div className="max-w-[1200px] mx-auto px-4 py-3">
-        <div className="flex items-center gap-2 text-[13px]">
-          <Link to={`/sprint/sprints/${sprint?.id}`} className="text-[#6b6b6b] hover:text-[#2d2d2d]">
+        <div className="flex items-center gap-2 min-w-0">
+          <Link to={`/sprint/sprints/${sprint?.id}`} style={{ color: RITTLER.textSecondary }} className="hover:text-[#2d2d2d]">
             <ArrowLeft className="w-4 h-4" />
           </Link>
-          <span style={{ color: RITTLER.textSecondary }}>{client?.name || '—'}</span>
-          <span style={{ color: RITTLER.line }}>·</span>
-          <span style={{ color: RITTLER.textSecondary }}>{project?.title || '—'}</span>
-          <span style={{ color: RITTLER.line }}>·</span>
-          <span className="font-bold uppercase" style={{ color: RITTLER.black }}>
-            {sprint?.title || 'Sprint'} ({SPRINT_SIZES[sprint?.size]?.label || '—'})
-          </span>
+          <div className="min-w-0">
+            <p className="text-base font-bold uppercase truncate" style={{ color: RITTLER.black }}>
+              {client?.name || 'Kunde'}
+            </p>
+            <p className="text-[13px] truncate" style={{ color: RITTLER.textSecondary }}>
+              {project?.title || 'Projekt'} · {sprint?.title || 'Sprint'} · {SPRINT_SIZES[sprint?.size]?.label || sprint?.size}
+            </p>
+          </div>
         </div>
 
         <div className="mt-2 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
@@ -53,16 +46,16 @@ export default function Kontextleiste({ sprint, project, client, milestones, cur
                   />
                 );
               })}
-              {total === 0 && <div className="flex-1 h-3 rounded-[2px]" style={{ border: `1px solid ${RITTLER.line}` }} />}
+              {milestones.length === 0 && <div className="flex-1 h-3 rounded-[2px]" style={{ border: `1px solid ${RITTLER.line}` }} />}
             </div>
           </div>
 
           <div className="md:flex-1">
             <p className="text-[15px] font-bold" style={{ color: RITTLER.black }}>
-              Etappe {currentIdx >= 0 ? currentIdx + 1 : '—'} von {total}
+              Etappe {currentIdx >= 0 ? currentIdx + 1 : '—'} von {status.milestoneCount}
             </p>
-            <p className="text-[15px] font-bold hidden md:block" style={{ color: invoiced > 0 ? STATUS_COLORS.doneText : RITTLER.black }}>
-              {fmtEUR(invoiced)} von {fmtEUR(sprint?.sprint_amount)} fakturiert
+            <p className="text-[15px] font-bold hidden md:block" style={{ color: status.invoicedAmount > 0 ? STATUS_COLORS.doneText : RITTLER.black }}>
+              {fmtEUR(status.invoicedAmount)} von {fmtEUR(status.sprintAmount)} fakturiert
             </p>
           </div>
 

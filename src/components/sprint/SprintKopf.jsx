@@ -2,51 +2,36 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import KennzahlFeld from '@/components/sprint/KennzahlFeld';
-import { RITTLER, STATUS_COLORS, SPRINT_SIZES, fmtDate, fmtEUR, todayIso } from '@/components/sprint/sprintConfig';
+import { RITTLER, STATUS_COLORS, SPRINT_SIZES, fmtDate, fmtEUR } from '@/components/sprint/sprintConfig';
 
-const daysUntil = (iso) => (iso ? Math.ceil((new Date(iso) - new Date(todayIso())) / 86400000) : null);
 const shortDate = (d) => (d ? fmtDate(d).slice(0, 6) : '—');
 
-// W1 — Kopf und Fortschritt in einer Karte; der Sprint ist die Überschrift.
-export default function SprintKopf({ sprint, project, client, milestones, bookedHours = 0, plannedFocusUsed = 0 }) {
-  const released = milestones.filter((m) => m.state === 'freigegeben');
-  const invoiced = released.reduce((s, m) => s + (m.milestone_amount || 0), 0);
-  const restDays = daysUntil(sprint.delivery_date);
-
-  // Nächste Frist: früheste noch offene Plan-Übergabe oder Plan-Freeze
-  const deadlines = milestones
-    .filter((m) => m.state !== 'freigegeben')
-    .flatMap((m) => [
-      m.handover_date ? null : { date: m.planned_handover, label: 'Übergabe', m },
-      { date: m.feedback_deadline || m.planned_freeze, label: 'Freeze', m },
-    ])
-    .filter((d) => d && d.date)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const next = deadlines[0];
-  const nextDays = next ? daysUntil(next.date) : null;
-
-  const targetHours = sprint.target_hours || 0;
-  const overrun = targetHours > 0 && bookedHours > targetHours * 0.7 && released.length < milestones.length / 2;
+// W1/X2 — Kunde ist die Überschrift, Projekt und Sprint stehen darunter.
+// Alle abgeleiteten Werte kommen aus sprintStatus (X1).
+export default function SprintKopf({ sprint, project, client, milestones, status }) {
+  const restDays = status.daysToDelivery;
+  const next = status.nextDeadline;
+  const overrun = status.ampel === 'attention' && status.hoursTarget > 0 && status.hoursBooked > 0.7 * status.hoursTarget;
 
   return (
     <div className="bg-white rounded-lg border border-[#e0e0e0] p-6">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-2 text-[13px]" style={{ color: RITTLER.textSecondary }}>
-          <Link to="/sprint/projekte" className="hover:text-[#2d2d2d]"><ArrowLeft className="w-4 h-4" /></Link>
-          <span className="uppercase">{client?.name || 'Kunde'}</span>
-          <span>·</span>
-          <span className="uppercase">{project?.title || 'Projekt'}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <Link to="/sprint/projekte" className="hover:text-[#2d2d2d]" style={{ color: RITTLER.textSecondary }}>
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold uppercase truncate" style={{ color: RITTLER.black }}>
+              {client?.name || 'Kunde'}
+            </h1>
+            <p className="text-[13px] truncate" style={{ color: RITTLER.textSecondary }}>
+              {project?.title || 'Projekt'} · {sprint.title || `Sprint ${sprint.size}`} · {SPRINT_SIZES[sprint.size]?.label || sprint.size} · {sprint.status}
+            </p>
+          </div>
         </div>
         {/* Platz für den Timer — auf allen Seiten an derselben Stelle */}
         <div className="hidden lg:block w-[160px] h-[56px] shrink-0" aria-hidden="true" />
       </div>
-
-      <h1 className="text-[28px] leading-tight font-extrabold uppercase tracking-tight mt-2" style={{ color: RITTLER.black }}>
-        {sprint.title || `Sprint ${sprint.size}`}
-      </h1>
-      <p className="text-sm" style={{ color: RITTLER.textSecondary }}>
-        {sprint.size} · {SPRINT_SIZES[sprint.size]?.subtitle} · {sprint.status}
-      </p>
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-5">
         <div className="flex items-center gap-2">
@@ -71,15 +56,15 @@ export default function SprintKopf({ sprint, project, client, milestones, booked
         </div>
         <div>
           <p className="text-[15px] font-bold" style={{ color: RITTLER.black }}>
-            {released.length} von {milestones.length} abgeschlossen
+            {status.releasedCount} von {status.milestoneCount} abgeschlossen
           </p>
-          <p className="text-[15px] font-bold" style={{ color: invoiced > 0 ? STATUS_COLORS.doneText : RITTLER.black }}>
-            {fmtEUR(invoiced)} von {fmtEUR(sprint.sprint_amount)} fakturiert
+          <p className="text-[15px] font-bold" style={{ color: status.invoicedAmount > 0 ? STATUS_COLORS.doneText : RITTLER.black }}>
+            {fmtEUR(status.invoicedAmount)} von {fmtEUR(status.sprintAmount)} fakturiert
           </p>
         </div>
       </div>
 
-      <div className="flex flex-wrap mt-5 border rounded-md divide-x" style={{ borderColor: RITTLER.line, borderRightColor: RITTLER.line }}>
+      <div className="flex flex-wrap mt-5 border rounded-md divide-x" style={{ borderColor: RITTLER.line }}>
         <KennzahlFeld
           label="Lieferung"
           value={fmtDate(sprint.delivery_date)}
@@ -88,14 +73,14 @@ export default function SprintKopf({ sprint, project, client, milestones, booked
         />
         <KennzahlFeld
           label="Nächste Frist"
-          value={next ? `${next.label} ${shortDate(next.date)}` : '—'}
-          valueColor={nextDays !== null && nextDays < 0 ? STATUS_COLORS.critical : undefined}
-          hint={nextDays === null ? '' : nextDays >= 0 ? `in ${nextDays} Tagen` : `${-nextDays} Tage überschritten`}
-          tooltip={next ? next.m.title : undefined}
+          value={next ? `${next.label} ${shortDate(next.datum)}` : '—'}
+          valueColor={next && next.tageRest < 0 ? STATUS_COLORS.critical : undefined}
+          hint={!next ? '' : next.tageRest >= 0 ? `in ${next.tageRest} Tagen` : `${-next.tageRest} Tage überschritten`}
+          tooltip={next ? milestones.find((m) => m.id === next.milestoneId)?.title : undefined}
         />
         <KennzahlFeld
           label="Zeit"
-          value={`${Math.round(bookedHours)} h von ${targetHours} h`}
+          value={`${Math.round(status.hoursBooked)} h von ${status.hoursTarget} h`}
           valueColor={overrun ? STATUS_COLORS.attention : undefined}
           hint={overrun ? 'Überzugsrisiko' : 'Indikator'}
           hintColor={overrun ? STATUS_COLORS.attention : undefined}
@@ -103,10 +88,12 @@ export default function SprintKopf({ sprint, project, client, milestones, booked
         />
         <KennzahlFeld
           label="Focus-Tage"
-          value={`${plannedFocusUsed} von ${sprint.planned_focus_days || 0}`}
+          value={`${status.focusDaysPlanned} von ${status.focusDaysTotal}`}
           hint="verplant"
         />
       </div>
+
+      <p className="text-[13px] mt-3" style={{ color: RITTLER.textSecondary }}>{status.ampelGrund}</p>
     </div>
   );
 }

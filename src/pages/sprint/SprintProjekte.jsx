@@ -90,9 +90,11 @@ export default function SprintProjekte() {
                 <div className="flex items-center gap-3">
                   <Ampelpunkt status={ampel.status} />
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-[#2d2d2d]">{p.title}</p>
-                    <p className="text-xs text-[#6b6b6b]">
-                      {clientById[p.client_id]?.name || '—'} · PM: {p.pm_email} · {p.status} · {ampel.hint}
+                    <p className="text-base font-bold uppercase text-[#2d2d2d] truncate">
+                      {clientById[p.client_id]?.name || 'Kunde'}
+                    </p>
+                    <p className="text-[13px] text-[#6b6b6b] truncate">
+                      {p.title}{active ? ` · ${active.title || `Sprint ${active.size}`} · ${active.size}` : ''} · PM: {p.pm_email} · {ampel.hint}
                     </p>
                   </div>
                   {active ? (

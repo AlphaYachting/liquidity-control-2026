@@ -15,6 +15,7 @@ import AufgabenFilter from '@/components/sprint/AufgabenFilter';
 import MilestoneAktionsleiste from '@/components/sprint/MilestoneAktionsleiste';
 import { STATE_LABELS, RITTLER, STATUS_COLORS, fmtEUR, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { computeFeedbackDeadline } from '@/lib/sprint/deadlines';
+import { sprintStatus } from '@/lib/sprint/status';
 
 const PHASES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
 const WORK_PHASES = ['input', 'produktion', 'pruefung'];
@@ -126,6 +127,7 @@ export default function SprintMilestoneDetail() {
         client={client}
         milestones={siblings}
         currentMilestoneId={milestone.id}
+        status={sprintStatus({ sprint, milestones: siblings })}
       />
 
       <div className="flex-1 max-w-[1200px] w-full mx-auto px-4 py-5 space-y-4">

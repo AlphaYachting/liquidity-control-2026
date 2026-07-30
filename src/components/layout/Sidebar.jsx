@@ -35,6 +35,7 @@ const navSections = [
   {
     title: 'Sprint-Modul',
     items: [
+      { path: '/sprint/uebersicht', label: 'Übersicht', icon: Gauge },
       { path: '/sprint', label: 'Heute', icon: Rocket },
       { path: '/sprint/projekte', label: 'Projekte', icon: Layers },
       { path: '/sprint/planung', label: 'Planung', icon: CalendarRange },
