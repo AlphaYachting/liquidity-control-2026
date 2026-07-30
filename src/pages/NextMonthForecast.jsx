@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, getMonthLabel } from '@/lib/liquidityUtils';
 import { calculateNextMonthBillable } from '@/lib/reconciliationUtils';
 import ProjectDetailSlideOver from '@/components/projects/ProjectDetailSlideOver';
+import BillingMonthXlsExport from '@/components/forecast/BillingMonthXlsExport';
 
 const WORK_STATUS_COLORS = {
   not_started: 'bg-gray-100 text-gray-600',
@@ -200,6 +201,11 @@ export default function NextMonthForecast() {
         <div className="text-xs font-semibold uppercase tracking-wide text-blue-700 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse inline-block" />
           Laufender Monat — {curMonthLabel}
+          <span className="ml-auto">
+            <BillingMonthXlsExport monthStr={curMonthStr} monthLabel={curMonthLabel}
+              instructions={curMonthInstructions} plans={curMonthPlans}
+              projectsById={projectsById} allInstructions={instructions} />
+          </span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KpiCard title="Rechnungsplanung" value={formatCurrency(totalCurPlansNet)} variant="info"
@@ -224,6 +230,11 @@ export default function NextMonthForecast() {
         <div className="text-xs font-semibold uppercase tracking-wide text-amber-700 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
           Nächster Monat — {nextMonthLabel}
+          <span className="ml-auto">
+            <BillingMonthXlsExport monthStr={nextMonthStr} monthLabel={nextMonthLabel}
+              instructions={nextMonthInstructions} plans={nextMonthPlans}
+              projectsById={projectsById} allInstructions={instructions} />
+          </span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KpiCard title="Rechnungsplanung" value={formatCurrency(totalNextPlansNet)} variant="info"
