@@ -35,30 +35,33 @@ export default function Kontextleiste({ sprint, project, client, milestones, cur
         </div>
 
         <div className="mt-2 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
-          <div className="flex gap-[2px] md:w-56">
-            {milestones.map((m) => {
-              const done = m.state === 'freigegeben';
-              const running = !done && m.id === currentMilestoneId;
-              return (
-                <div
-                  key={m.id}
-                  title={m.title}
-                  className="flex-1 h-3 rounded-sm"
-                  style={{
-                    backgroundColor: done ? STATUS_COLORS.done : running ? RITTLER.white : RITTLER.line,
-                    border: running ? `2px solid ${RITTLER.pink}` : undefined,
-                  }}
-                />
-              );
-            })}
-            {total === 0 && <div className="flex-1 h-3 rounded-sm" style={{ backgroundColor: RITTLER.line }} />}
+          <div className="flex items-center gap-2 md:w-64">
+            <span className="text-[11px] uppercase tracking-[1px]" style={{ color: RITTLER.textSecondary }}>Etappen</span>
+            <div className="flex gap-[2px] flex-1">
+              {milestones.map((m) => {
+                const done = m.state === 'freigegeben';
+                const running = !done && m.id === currentMilestoneId;
+                return (
+                  <div
+                    key={m.id}
+                    title={m.title}
+                    className="flex-1 h-3 rounded-[2px]"
+                    style={{
+                      backgroundColor: done ? STATUS_COLORS.done : RITTLER.white,
+                      border: done ? undefined : running ? `2px solid ${RITTLER.pink}` : `1px solid ${RITTLER.line}`,
+                    }}
+                  />
+                );
+              })}
+              {total === 0 && <div className="flex-1 h-3 rounded-[2px]" style={{ border: `1px solid ${RITTLER.line}` }} />}
+            </div>
           </div>
 
           <div className="md:flex-1">
             <p className="text-[15px] font-bold" style={{ color: RITTLER.black }}>
               Etappe {currentIdx >= 0 ? currentIdx + 1 : '—'} von {total}
             </p>
-            <p className="text-[15px] font-bold hidden md:block" style={{ color: STATUS_COLORS.doneText }}>
+            <p className="text-[15px] font-bold hidden md:block" style={{ color: invoiced > 0 ? STATUS_COLORS.doneText : RITTLER.black }}>
               {fmtEUR(invoiced)} von {fmtEUR(sprint?.sprint_amount)} fakturiert
             </p>
           </div>

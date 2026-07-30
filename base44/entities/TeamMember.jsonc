@@ -38,6 +38,20 @@
         ]
       }
     },
+    "color": {
+      "type": "string",
+      "enum": [
+        "#2E5AAC",
+        "#1F6F6B",
+        "#5B3E96",
+        "#8A4B2A",
+        "#465A70",
+        "#7A2E5E",
+        "#145C86",
+        "#33415C"
+      ],
+      "description": "Personenfarbe \u2014 lebt ausschlie\u00dflich in der Fl\u00e4che des K\u00fcrzel-Chips"
+    },
     "weekly_focus_days": {
       "type": "number",
       "default": 4,

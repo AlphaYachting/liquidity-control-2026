@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -11,6 +11,7 @@ import Planlinie from '@/components/sprint/Planlinie';
 import CountdownLeiste from '@/components/sprint/CountdownLeiste';
 import Fortschrittszaehler from '@/components/sprint/Fortschrittszaehler';
 import TicketPhasenGruppe from '@/components/sprint/TicketPhasenGruppe';
+import AufgabenFilter from '@/components/sprint/AufgabenFilter';
 import MilestoneAktionsleiste from '@/components/sprint/MilestoneAktionsleiste';
 import { STATE_LABELS, RITTLER, STATUS_COLORS, fmtEUR, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { computeFeedbackDeadline } from '@/lib/sprint/deadlines';
@@ -22,6 +23,9 @@ const WORK_PHASES = ['input', 'produktion', 'pruefung'];
 export default function SprintMilestoneDetail() {
   const { milestoneId } = useParams();
   const qc = useQueryClient();
+  const [filter, setFilter] = useState('alle');
+
+  const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => base44.auth.me() });
 
   const { data, isLoading } = useQuery({
     queryKey: ['milestoneDetail', milestoneId],
@@ -58,6 +62,19 @@ export default function SprintMilestoneDetail() {
   // U12/B4 — Zähler und Balken beziehen sich auf ALLE Arbeitsaufgaben der Etappe
   const workTickets = tickets.filter((t) => WORK_PHASES.includes(t.milestone_state || 'produktion'));
   const workDone = workTickets.filter((t) => t.status === 'erledigt').length;
+
+  // V4 — Filter verändert nie den Fortschrittszähler, nur die sichtbaren Zeilen.
+  const myEmail = me?.email;
+  const counts = {
+    alle: tickets.length,
+    meine: tickets.filter((t) => t.assignee_email && t.assignee_email === myEmail).length,
+    offen_zuweisung: tickets.filter((t) => !t.assignee_email).length,
+  };
+  const matchesFilter = (t) => {
+    if (filter === 'meine') return t.assignee_email && t.assignee_email === myEmail;
+    if (filter === 'offen_zuweisung') return !t.assignee_email;
+    return true;
+  };
 
   // B5/U13 — offene Aufgaben der aktuellen oder einer früheren Phase
   const currentPhaseIdx = PHASES.indexOf(milestone.state);
@@ -112,7 +129,7 @@ export default function SprintMilestoneDetail() {
       />
 
       <div className="flex-1 max-w-[1200px] w-full mx-auto px-4 py-5 space-y-4">
-        <div className="bg-white rounded-lg shadow-sm p-5">
+        <div className="bg-white rounded-lg border border-[#e0e0e0] p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
               <SectionLabel className="mb-1">
@@ -174,7 +191,7 @@ export default function SprintMilestoneDetail() {
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm p-5">
+        <div className="bg-white rounded-lg border border-[#e0e0e0] p-5">
           <SectionLabel className="mb-3">Aufgaben</SectionLabel>
           <Fortschrittszaehler
             className="mb-3"
@@ -182,19 +199,25 @@ export default function SprintMilestoneDetail() {
             total={workTickets.length}
             goalLabel="bis zur Übergabe"
           />
-          <div>
-            {PHASES.map((phase) => (
-              <TicketPhasenGruppe
-                key={phase}
-                phase={phase}
-                currentState={milestone.state}
-                tickets={tickets.filter((t) => (t.milestone_state || 'produktion') === phase)}
-                members={members}
-                locked={locked}
-                onStatus={handleTicketStatus}
-                onAssignee={handleAssignee}
-              />
-            ))}
+          <AufgabenFilter value={filter} onChange={setFilter} counts={counts} />
+          <div className="mt-4">
+            {PHASES.map((phase) => {
+              const phaseTickets = tickets.filter((t) => (t.milestone_state || 'produktion') === phase);
+              return (
+                <TicketPhasenGruppe
+                  key={phase}
+                  phase={phase}
+                  currentState={milestone.state}
+                  tickets={phaseTickets}
+                  visibleTickets={phaseTickets.filter(matchesFilter)}
+                  members={members}
+                  currentUserEmail={myEmail}
+                  locked={locked}
+                  onStatus={handleTicketStatus}
+                  onAssignee={handleAssignee}
+                />
+              );
+            })}
           </div>
           {tickets.length === 0 && (
             <p className="text-sm mt-2" style={{ color: RITTLER.textSecondary }}>Keine Aufgaben in diesem Milestone.</p>
