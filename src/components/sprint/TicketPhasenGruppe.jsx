@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
-import {
-  TICKET_STATUSES, TICKET_STATUS_LABELS, STATE_LABELS,
-} from '@/components/sprint/sprintConfig';
+import { STATE_LABELS } from '@/components/sprint/sprintConfig';
+import TicketStatusSchalter from '@/components/sprint/TicketStatusSchalter';
 
 // Tickets nach Phase gruppiert — die Gruppe des aktuellen Zustands ist aufgeklappt.
 export default function TicketPhasenGruppe({ phase, tickets, currentState, members, locked, onStatus, onAssignee }) {
@@ -52,12 +51,7 @@ export default function TicketPhasenGruppe({ phase, tickets, currentState, membe
                     {members.map((m) => <SelectItem key={m.email} value={m.email}>{m.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Select value={t.status} onValueChange={(v) => onStatus(t, v)} disabled={!editable}>
-                  <SelectTrigger className="lg:w-36 h-8 bg-white"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {TICKET_STATUSES.map((s) => <SelectItem key={s} value={s}>{TICKET_STATUS_LABELS[s]}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <TicketStatusSchalter value={t.status} onChange={(s) => onStatus(t, s)} disabled={!editable} />
               </div>
             );
           })}
