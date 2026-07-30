@@ -1,20 +1,24 @@
 import React from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Lock, ArrowLeft } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import SectionLabel from '@/components/sprint/SectionLabel';
-import MilestoneZustandssteuerung from '@/components/sprint/MilestoneZustandssteuerung';
-import TicketPhasenGruppe from '@/components/sprint/TicketPhasenGruppe';
+import Kontextleiste from '@/components/sprint/Kontextleiste';
+import Zustandskette from '@/components/sprint/Zustandskette';
+import Planlinie from '@/components/sprint/Planlinie';
 import CountdownLeiste from '@/components/sprint/CountdownLeiste';
 import Fortschrittszaehler from '@/components/sprint/Fortschrittszaehler';
-import { STATE_LABELS, fmtEUR, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
+import TicketPhasenGruppe from '@/components/sprint/TicketPhasenGruppe';
+import MilestoneAktionsleiste from '@/components/sprint/MilestoneAktionsleiste';
+import { STATE_LABELS, RITTLER, STATUS_COLORS, fmtEUR, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { computeFeedbackDeadline } from '@/lib/sprint/deadlines';
 
 const PHASES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
+const WORK_PHASES = ['input', 'produktion', 'pruefung'];
 
-// S5 — Milestone-Detail: Zustandssteuerung, Fristenrechnung, Tickets nach Phase.
+// S5 — Etappenseite: Kontextleiste, kompakter Kopf, ruhige Aufgabenliste, Aktionsleiste.
 export default function SprintMilestoneDetail() {
   const { milestoneId } = useParams();
   const qc = useQueryClient();
@@ -23,13 +27,16 @@ export default function SprintMilestoneDetail() {
     queryKey: ['milestoneDetail', milestoneId],
     queryFn: async () => {
       const milestone = await base44.entities.Milestone.get(milestoneId);
-      const [sprint, tickets, members, settings] = await Promise.all([
+      const [sprint, tickets, members, settings, siblings] = await Promise.all([
         base44.entities.Sprint.get(milestone.sprint_id).catch(() => null),
         base44.entities.Ticket.filter({ milestone_id: milestoneId }, 'order', 300),
         base44.entities.TeamMember.filter({ active: true }, 'name', 100),
         base44.entities.Setting.filter({ group: 'fristen' }, 'key', 100),
+        base44.entities.Milestone.filter({ sprint_id: milestone.sprint_id }, 'order', 50),
       ]);
-      return { milestone, sprint, tickets, members, settings };
+      const project = sprint ? await base44.entities.Project.get(sprint.project_id).catch(() => null) : null;
+      const client = project ? await base44.entities.Client.get(project.client_id).catch(() => null) : null;
+      return { milestone, sprint, tickets, members, settings, siblings, project, client };
     },
   });
 
@@ -44,15 +51,25 @@ export default function SprintMilestoneDetail() {
     );
   }
 
-  const { milestone, sprint, tickets, members, settings } = data;
+  const { milestone, sprint, tickets, members, settings, siblings, project, client } = data;
   const locked = milestone.state === 'freigegeben';
+  const showCountdown = milestone.state === 'kundenfeedback' || locked;
 
-  const phaseTickets = tickets.filter((t) => (t.milestone_state || 'produktion') === milestone.state);
-  const phaseDone = phaseTickets.length > 0 && phaseTickets.every((t) => t.status === 'erledigt');
+  // U12/B4 — Zähler und Balken beziehen sich auf ALLE Arbeitsaufgaben der Etappe
+  const workTickets = tickets.filter((t) => WORK_PHASES.includes(t.milestone_state || 'produktion'));
+  const workDone = workTickets.filter((t) => t.status === 'erledigt').length;
+
+  // B5/U13 — offene Aufgaben der aktuellen oder einer früheren Phase
+  const currentPhaseIdx = PHASES.indexOf(milestone.state);
+  const openBefore = PHASES.slice(0, currentPhaseIdx + 1)
+    .map((phase) => ({
+      phase,
+      count: tickets.filter((t) => (t.milestone_state || 'produktion') === phase && t.status !== 'erledigt').length,
+    }))
+    .find((p) => p.count > 0) || null;
 
   const handleStateChange = async (target) => {
     const patch = { state: target };
-    // Beim Wechsel nach "kundenfeedback" läuft die Fristenrechnung
     if (target === 'kundenfeedback' && sprint) {
       const res = computeFeedbackDeadline({
         handoverDate: todayIso(),
@@ -85,77 +102,112 @@ export default function SprintMilestoneDetail() {
   };
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-5">
-      <Link to={`/sprint/sprints/${milestone.sprint_id}`} className="inline-flex items-center gap-1.5 text-sm text-[#6b6b6b] hover:text-[#2d2d2d]">
-        <ArrowLeft className="w-4 h-4" /> {sprint?.title || 'Zurück zum Sprint'}
-      </Link>
+    <div className="-m-4 md:-m-6 flex flex-col min-h-[calc(100vh-2rem)]">
+      <Kontextleiste
+        sprint={sprint}
+        project={project}
+        client={client}
+        milestones={siblings}
+        currentMilestoneId={milestone.id}
+      />
 
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <SectionLabel className="mb-1">Milestone {milestone.order}{milestone.is_final_milestone ? ' · Final' : ''}</SectionLabel>
-        <h1 className="text-2xl font-extrabold uppercase tracking-tight text-[#2d2d2d] flex items-center gap-2">
-          {milestone.title}
-          {locked && <Lock className="w-5 h-5 text-[#6b6b6b]" />}
-        </h1>
-        <p className="text-sm text-[#6b6b6b] mt-1">
-          Etappenbetrag {fmtEUR(milestone.milestone_amount)} · Plan-Übergabe {fmtDate(milestone.planned_handover)} · Plan-Freeze {fmtDate(milestone.planned_freeze)}
-        </p>
-        <div className="mt-4 max-w-xl">
-          <CountdownLeiste
-            handoverDate={milestone.handover_date || milestone.planned_handover}
-            deadline={milestone.feedback_deadline || milestone.planned_freeze}
-            state={milestone.state}
-            approvedAt={milestone.updated_date}
-          />
-          {milestone.deadline_pulled_forward && (
-            <p className="text-xs text-[#6b6b6b] mt-1">Frist auf den Liefertermin vorgezogen.</p>
+      <div className="flex-1 max-w-[1200px] w-full mx-auto px-4 py-5 space-y-4">
+        <div className="bg-white rounded-lg shadow-sm p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <SectionLabel className="mb-1">
+                Milestone {milestone.order}{milestone.is_final_milestone ? ' · Final' : ''}
+              </SectionLabel>
+              <h1 className="text-2xl font-extrabold uppercase tracking-tight" style={{ color: RITTLER.black }}>
+                {milestone.title}
+              </h1>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-2xl font-bold" style={{ color: RITTLER.black }}>{fmtEUR(milestone.milestone_amount)}</p>
+              <p className="text-[13px]" style={{ color: locked ? STATUS_COLORS.doneText : RITTLER.textSecondary }}>
+                {locked ? `am ${fmtDate(milestone.invoiced_at || milestone.updated_date)} fakturiert` : 'wird bei Freigabe fällig'}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 max-w-xl">
+            <Zustandskette state={milestone.state} />
+          </div>
+
+          <div className="mt-5">
+            {showCountdown ? (
+              <div className="max-w-xl">
+                <CountdownLeiste
+                  handoverDate={milestone.handover_date || milestone.planned_handover}
+                  deadline={milestone.feedback_deadline || milestone.planned_freeze}
+                  state={milestone.state}
+                  approvedAt={milestone.updated_date}
+                />
+                {milestone.deadline_pulled_forward && (
+                  <p className="text-xs mt-1" style={{ color: RITTLER.textSecondary }}>
+                    Frist auf den Liefertermin vorgezogen.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <Planlinie
+                className="max-w-xl"
+                handover={milestone.planned_handover}
+                freeze={milestone.planned_freeze}
+                delivery={sprint?.delivery_date}
+              />
+            )}
+          </div>
+
+          {openBefore && !locked && PHASES.indexOf(openBefore.phase) < currentPhaseIdx && (
+            <p className="flex items-center gap-2 text-sm mt-4" style={{ color: STATUS_COLORS.attention }}>
+              <AlertTriangle className="w-4 h-4" />
+              {openBefore.count} {openBefore.count === 1 ? 'Aufgabe' : 'Aufgaben'} aus {STATE_LABELS[openBefore.phase]} offen
+            </p>
           )}
-        </div>
 
-        <div className="mt-5">
-          {locked ? (
-            <div className="rounded p-4 text-sm text-[#2d2d2d] border-l-4" style={{ borderColor: '#1e7a4c', backgroundColor: '#e9f9f0' }}>
-              Am {fmtDate(milestone.updated_date)} freigegeben. Inhalte sind gesperrt; Aufgaben der Phase
+          {locked && (
+            <div className="mt-4 rounded p-4 text-sm border-l-4" style={{ borderColor: STATUS_COLORS.doneText, backgroundColor: STATUS_COLORS.doneSurface, color: RITTLER.black }}>
+              Am {fmtDate(milestone.updated_date)} freigegeben. Inhalte bleiben lesbar; Aufgaben der Phase
               Kundenfeedback bleiben abschließbar, damit der Livegang möglich ist.
             </div>
-          ) : (
-            <MilestoneZustandssteuerung
-              state={milestone.state}
-              phaseDone={phaseDone}
-              onChange={handleStateChange}
-            />
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-5">
+          <SectionLabel className="mb-3">Aufgaben</SectionLabel>
+          <Fortschrittszaehler
+            className="mb-3"
+            done={workDone}
+            total={workTickets.length}
+            goalLabel="bis zur Übergabe"
+          />
+          <div>
+            {PHASES.map((phase) => (
+              <TicketPhasenGruppe
+                key={phase}
+                phase={phase}
+                currentState={milestone.state}
+                tickets={tickets.filter((t) => (t.milestone_state || 'produktion') === phase)}
+                members={members}
+                locked={locked}
+                onStatus={handleTicketStatus}
+                onAssignee={handleAssignee}
+              />
+            ))}
+          </div>
+          {tickets.length === 0 && (
+            <p className="text-sm mt-2" style={{ color: RITTLER.textSecondary }}>Keine Aufgaben in diesem Milestone.</p>
           )}
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm p-5">
-        <SectionLabel className="mb-3">Aufgaben</SectionLabel>
-        <Fortschrittszaehler
-          className="mb-4 max-w-md"
-          done={phaseTickets.filter((t) => t.status === 'erledigt').length}
-          total={phaseTickets.length}
-          goalLabel="bis zur Übergabe"
+      {!locked && (
+        <MilestoneAktionsleiste
+          state={milestone.state}
+          openBefore={openBefore}
+          onChange={handleStateChange}
         />
-        <div className="space-y-2">
-          {PHASES.map((phase) => (
-            <TicketPhasenGruppe
-              key={phase}
-              phase={phase}
-              currentState={milestone.state}
-              tickets={tickets.filter((t) => (t.milestone_state || 'produktion') === phase)}
-              members={members}
-              locked={locked}
-              onStatus={handleTicketStatus}
-              onAssignee={handleAssignee}
-            />
-          ))}
-        </div>
-        {tickets.length === 0 && <p className="text-sm text-[#6b6b6b] mt-2">Keine Aufgaben in diesem Milestone.</p>}
-      </div>
-
-      {milestone.state === 'kundenfeedback' && (
-        <p className="text-xs text-[#6b6b6b]">
-          Freigabe, Fristmails und Teilrechnung folgen in Block B. Aktueller Zustand: {STATE_LABELS[milestone.state]}.
-        </p>
       )}
     </div>
   );

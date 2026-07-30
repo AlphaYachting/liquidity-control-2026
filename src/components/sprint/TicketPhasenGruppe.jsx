@@ -1,61 +1,47 @@
 import React, { useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
-import { STATE_LABELS } from '@/components/sprint/sprintConfig';
-import TicketStatusSchalter from '@/components/sprint/TicketStatusSchalter';
+import { ChevronDown, ChevronRight, Check } from 'lucide-react';
+import { STATE_LABELS, RITTLER } from '@/components/sprint/sprintConfig';
+import TicketZeile from '@/components/sprint/TicketZeile';
 
-// Tickets nach Phase gruppiert — die Gruppe des aktuellen Zustands ist aufgeklappt.
+// U12 — nur die Gruppe des aktuellen Zustands ist offen; Erledigtes verdichtet sich,
+// die Leistungsangabe bleibt in der Kopfzeile sichtbar.
 export default function TicketPhasenGruppe({ phase, tickets, currentState, members, locked, onStatus, onAssignee }) {
   const [open, setOpen] = useState(phase === currentState);
   const doneCount = tickets.filter((t) => t.status === 'erledigt').length;
+  const allDone = tickets.length > 0 && doneCount === tickets.length;
 
   return (
-    <div className="rounded border border-[#e5e5e5]">
+    <div className="border-b border-[#e0e0e0] last:border-0">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left"
+        className="w-full flex items-center gap-2 py-2.5 text-left"
       >
         {open ? <ChevronDown className="w-4 h-4 text-[#6b6b6b]" /> : <ChevronRight className="w-4 h-4 text-[#6b6b6b]" />}
-        <span className="text-xs font-bold uppercase tracking-wide text-[#2d2d2d]">{STATE_LABELS[phase]}</span>
-        <span className="text-xs text-[#6b6b6b]">{doneCount}/{tickets.length} erledigt</span>
+        <span className="text-xs font-bold uppercase tracking-wide flex-1" style={{ color: RITTLER.black }}>
+          {STATE_LABELS[phase]}
+        </span>
+        <span className="text-sm font-semibold flex items-center gap-1" style={{ color: allDone ? RITTLER.black : RITTLER.textSecondary }}>
+          {doneCount} von {tickets.length}
+          {allDone && <> · geschafft <Check className="w-3.5 h-3.5" strokeWidth={3} /></>}
+        </span>
       </button>
 
       {open && (
-        <div className="p-2 space-y-2 border-t border-[#e5e5e5]">
-          {tickets.map((t) => {
-            const editable = !locked || t.milestone_state === 'kundenfeedback';
-            return (
-              <div key={t.id} className="flex flex-col lg:flex-row lg:items-center gap-2 rounded bg-[#f5f5f5] px-3 py-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#2d2d2d] flex items-center gap-1.5">
-                    {t.title}
-                    {t.blocks_others && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ color: '#9c5b00', backgroundColor: '#f5eee2' }}>
-                        <AlertTriangle className="w-3 h-3" /> Blockiert
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-[11px] text-[#6b6b6b]">
-                    {t.role || '—'} · {t.origin}{t.target_hours ? ` · ${t.target_hours} h` : ''}
-                  </p>
-                </div>
-                <Select
-                  value={t.assignee_email || 'none'}
-                  onValueChange={(v) => onAssignee(t, v === 'none' ? '' : v)}
-                  disabled={locked}
-                >
-                  <SelectTrigger className="lg:w-56 h-8 bg-white"><SelectValue placeholder="Verantwortlich" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Kein Verantwortlicher</SelectItem>
-                    {members.map((m) => <SelectItem key={m.email} value={m.email}>{m.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <TicketStatusSchalter value={t.status} onChange={(s) => onStatus(t, s)} disabled={!editable} />
-              </div>
-            );
-          })}
-          {tickets.length === 0 && <p className="text-sm text-[#6b6b6b] px-1 py-2">Keine Aufgaben in dieser Phase.</p>}
+        <div className="pb-2 pl-6">
+          {tickets.map((t) => (
+            <TicketZeile
+              key={t.id}
+              ticket={t}
+              members={members}
+              editable={!locked || t.milestone_state === 'kundenfeedback'}
+              onStatus={onStatus}
+              onAssignee={onAssignee}
+            />
+          ))}
+          {tickets.length === 0 && (
+            <p className="text-sm py-2" style={{ color: RITTLER.textSecondary }}>Keine Aufgaben in dieser Phase.</p>
+          )}
         </div>
       )}
     </div>

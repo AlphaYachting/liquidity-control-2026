@@ -1,6 +1,6 @@
 import React from 'react';
 import { Check, Lock } from 'lucide-react';
-import { MILESTONE_STATES, STATE_LABELS_SHORT, RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
+import { MILESTONE_STATES, STATE_LABELS, RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 
 // K2 — Zustandskette. Erledigte Schritte wirken solider als kommende, nie blasser:
 // schwarzer Punkt mit Häkchen, dickerer Verbinder, Label in vollem Schwarz.
@@ -42,7 +42,7 @@ export default function Zustandskette({ state, compact = false, onSelect }) {
                 <button
                   type="button"
                   tabIndex={clickable ? 0 : -1}
-                  aria-label={STATE_LABELS_SHORT[s]}
+                  aria-label={STATE_LABELS[s]}
                   onClick={clickable ? () => onSelect(s) : undefined}
                   disabled={!clickable}
                   className={`rounded-full flex items-center justify-center ${clickable ? 'cursor-pointer' : 'cursor-default'} focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2`}
@@ -60,11 +60,11 @@ export default function Zustandskette({ state, compact = false, onSelect }) {
               </div>
               {!compact && (
                 <span
-                  className={`text-[10px] uppercase tracking-wide flex items-center gap-0.5 ${current || finalReleased ? 'font-bold' : 'font-normal'}`}
+                  className={`text-[10px] uppercase tracking-wide flex items-start gap-0.5 text-center max-w-[68px] leading-tight ${current || finalReleased ? 'font-bold' : 'font-normal'}`}
                   style={{ color: labelColor }}
                 >
-                  {finalReleased && <Lock className="w-2.5 h-2.5" />}
-                  {STATE_LABELS_SHORT[s]}
+                  {finalReleased && <Lock className="w-2.5 h-2.5 mt-[1px] shrink-0" />}
+                  {STATE_LABELS[s]}
                 </span>
               )}
             </div>
