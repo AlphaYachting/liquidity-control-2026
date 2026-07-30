@@ -1,0 +1,56 @@
+{
+  "name": "TeamMember",
+  "type": "object",
+  "properties": {
+    "email": {
+      "type": "string",
+      "format": "email"
+    },
+    "name": {
+      "type": "string"
+    },
+    "system_role": {
+      "type": "string",
+      "enum": [
+        "teammitglied",
+        "pm",
+        "gf"
+      ],
+      "default": "teammitglied"
+    },
+    "process_owner": {
+      "type": "boolean",
+      "default": false,
+      "description": "darf Bausteine in den Katalog aufnehmen"
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Beratung",
+          "Konzept",
+          "Text",
+          "Grafik",
+          "Web",
+          "Media",
+          "QS"
+        ]
+      }
+    },
+    "weekly_focus_days": {
+      "type": "number",
+      "default": 4,
+      "description": "Nenner der Auslastungsrechnung"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "email",
+    "name",
+    "system_role"
+  ]
+}

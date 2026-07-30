@@ -20,6 +20,10 @@
     "milestone_id": {
       "type": "string"
     },
+    "sprint_id": {
+      "type": "string",
+      "description": "A5 ist sprintbezogen"
+    },
     "project_id": {
       "type": "string"
     },

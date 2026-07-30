@@ -1,0 +1,38 @@
+{
+  "name": "Feedback",
+  "type": "object",
+  "properties": {
+    "milestone_id": {
+      "type": "string"
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "channel": {
+      "type": "string",
+      "enum": [
+        "mail",
+        "telefon",
+        "termin",
+        "sonstiges"
+      ],
+      "default": "mail"
+    },
+    "text": {
+      "type": "string"
+    },
+    "fits_scope": {
+      "type": "boolean",
+      "default": true,
+      "description": "false = wandert in die CR-Liste"
+    },
+    "converted_cr_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "milestone_id",
+    "received_at"
+  ]
+}

@@ -10,6 +10,11 @@
       "type": "string",
       "format": "date"
     },
+    "until": {
+      "type": "string",
+      "format": "date",
+      "description": "Enddatum bei mehrt\u00e4giger Zuweisung, z. B. Urlaubswoche"
+    },
     "project_id": {
       "type": "string",
       "description": "leer bei Reaktionstag oder Abwesenheit"

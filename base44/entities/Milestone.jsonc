@@ -30,24 +30,35 @@
       "type": "number",
       "description": "Etappenbetrag netto, l\u00f6st bei Freigabe die Teilrechnung aus"
     },
+    "planned_handover": {
+      "type": "string",
+      "format": "date",
+      "description": "beim Sprintanlegen r\u00fcckw\u00e4rts vom Liefertermin gerechnet"
+    },
+    "planned_freeze": {
+      "type": "string",
+      "format": "date",
+      "description": "geplantes FREEZE-Datum \u2014 tr\u00e4gt die Liquidit\u00e4tsvorschau ab Tag 1"
+    },
     "handover_date": {
       "type": "string",
       "format": "date",
-      "description": "\u00dcbergabe an Kunden = Start des Feedbackfensters"
+      "description": "tats\u00e4chliche \u00dcbergabe an Kunden = Start des Feedbackfensters"
     },
     "feedback_deadline": {
       "type": "string",
       "format": "date",
-      "description": "FREEZE-Datum"
+      "description": "tats\u00e4chliches FREEZE-Datum"
     },
     "prewarning_date": {
       "type": "string",
       "format": "date",
       "description": "automatisch berechnet"
     },
-    "planned_delivery": {
-      "type": "string",
-      "format": "date"
+    "deadline_pulled_forward": {
+      "type": "boolean",
+      "default": false,
+      "description": "Frist wurde auf die Obergrenze vorgezogen, um den Liefertermin zu halten"
     },
     "is_final_milestone": {
       "type": "boolean",
@@ -57,9 +68,21 @@
     "planned_focus_days": {
       "type": "number"
     },
+    "deliverable_links": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Beweiskette der Freigabe"
+    },
     "invoice_triggered": {
       "type": "boolean",
       "default": false
+    },
+    "invoiced_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "an die Rechnungslegung \u00fcbergeben \u2014 f\u00fcr den SEF-Abgleich"
     }
   },
   "required": [

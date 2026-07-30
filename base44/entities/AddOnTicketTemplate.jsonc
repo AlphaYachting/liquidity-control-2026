@@ -1,8 +1,8 @@
 {
-  "name": "TicketTemplate",
+  "name": "AddOnTicketTemplate",
   "type": "object",
   "properties": {
-    "module_template_id": {
+    "add_on_block_id": {
       "type": "string"
     },
     "order": {
@@ -34,16 +34,15 @@
         "pruefung",
         "kundenfeedback"
       ],
-      "description": "in welchem Milestone-Zustand dieses Ticket bearbeitet wird"
+      "default": "produktion"
     },
     "blocks_others": {
       "type": "boolean",
-      "default": false,
-      "description": "blockiert andere Aufgaben, wenn es liegen bleibt"
+      "default": false
     }
   },
   "required": [
-    "module_template_id",
+    "add_on_block_id",
     "order",
     "title"
   ]

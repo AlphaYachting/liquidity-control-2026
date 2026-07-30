@@ -26,6 +26,10 @@
     },
     "approved_amount": {
       "type": "number"
+    },
+    "agb_version": {
+      "type": "string",
+      "description": "welche AGB-Fassung zum Freigabezeitpunkt galt"
     }
   },
   "required": [

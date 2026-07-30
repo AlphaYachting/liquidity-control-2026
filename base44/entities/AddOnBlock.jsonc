@@ -15,16 +15,9 @@
     "price": {
       "type": "number"
     },
-    "ticket_titles": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Tickets, die dieser Baustein mitbringt"
-    },
     "approved_by": {
       "type": "string",
-      "description": "wer den Baustein in den Katalog aufgenommen hat"
+      "description": "automatisch der angemeldete Prozessverantwortliche"
     },
     "active": {
       "type": "boolean",

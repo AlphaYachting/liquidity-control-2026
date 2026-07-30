@@ -18,6 +18,15 @@
     },
     "note": {
       "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "bestaetigt",
+        "korrigiert"
+      ],
+      "default": "bestaetigt",
+      "description": "Wochenbest\u00e4tigung oder nachtr\u00e4gliche Korrektur"
     }
   },
   "required": [

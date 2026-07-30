@@ -33,13 +33,18 @@
       "type": "number",
       "description": "Netto in EUR"
     },
+    "discount": {
+      "type": "number",
+      "default": 0,
+      "description": "Nachlass in EUR \u2014 statt R\u00fcckrechnung der Etappenbetr\u00e4ge"
+    },
     "planned_focus_days": {
       "type": "number",
-      "description": "kalkulierte Focus-Tage gesamt"
+      "description": "aus den Modulvorlagen gerechnet, nicht editierbar"
     },
     "target_hours": {
       "type": "number",
-      "description": "Sollstunden nur als Indikator f\u00fcr Warnsignal W1"
+      "description": "aus den Modulvorlagen gerechnet \u2014 Nenner f\u00fcr Warnsignal W1"
     },
     "status": {
       "type": "string",

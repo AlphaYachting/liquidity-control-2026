@@ -34,6 +34,17 @@
         "QS"
       ]
     },
+    "milestone_state": {
+      "type": "string",
+      "enum": [
+        "input",
+        "produktion",
+        "pruefung",
+        "kundenfeedback"
+      ],
+      "default": "produktion",
+      "description": "Phase, in der das Ticket bearbeitet wird \u2014 tr\u00e4gt den Zustandsautomaten und die Livegang-Ausnahme"
+    },
     "status": {
       "type": "string",
       "enum": [
