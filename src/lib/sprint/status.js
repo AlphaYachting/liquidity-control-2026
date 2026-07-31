@@ -102,7 +102,7 @@ export function sprintStatus({ sprint, milestones = [], tickets = [], timeEntrie
     milestoneIndex,
     milestoneCount: ordered.length,
     releasedCount: released.length,
-    invoicedAmount: released.reduce((s, m) => s + (m.milestone_amount || 0), 0),
+    releasedAmount: released.reduce((s, m) => s + (m.milestone_amount || 0), 0),
     sprintAmount: sprint?.sprint_amount || 0,
     nextDeadline,
     daysToDelivery: sprint?.delivery_date ? dayDiff(sprint.delivery_date, today) : null,

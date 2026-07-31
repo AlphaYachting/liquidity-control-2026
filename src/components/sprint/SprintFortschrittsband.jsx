@@ -6,7 +6,7 @@ export default function SprintFortschrittsband({ sprint, milestones }) {
   const total = milestones.length;
   const released = milestones.filter((m) => m.state === 'freigegeben');
   const allDone = total > 0 && released.length === total;
-  const invoiced = released.reduce((sum, m) => sum + (m.milestone_amount || 0), 0);
+  const releasedAmount = released.reduce((sum, m) => sum + (m.milestone_amount || 0), 0);
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-5">
@@ -32,7 +32,7 @@ export default function SprintFortschrittsband({ sprint, milestones }) {
         {allDone ? 'Sprint abgeschlossen' : `${released.length} von ${total} Etappen abgeschlossen`}
       </p>
       <p className="text-base font-bold" style={{ color: STATUS_COLORS.doneText }}>
-        {fmtEUR(invoiced)} von {fmtEUR(sprint.sprint_amount)} fakturiert
+        {fmtEUR(releasedAmount)} von {fmtEUR(sprint.sprint_amount)} freigegeben
       </p>
     </div>
   );

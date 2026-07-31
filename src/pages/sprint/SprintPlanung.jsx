@@ -96,8 +96,10 @@ export default function SprintPlanung() {
           </thead>
           <tbody>
             {members.map((p) => {
-              const assigned = days.filter((d) => entryFor(p.email, d)?.type === 'focus').length;
-              const capacity = p.weekly_focus_days || 4;
+              // S3 — Focus + Reaktion binden Kapazität; Abwesenheiten verkleinern den Nenner.
+              const assigned = days.filter((d) => ['focus', 'reaktion'].includes(entryFor(p.email, d)?.type)).length;
+              const absent = days.filter((d) => entryFor(p.email, d)?.type === 'abwesend').length;
+              const capacity = Math.max(0, (p.weekly_focus_days || 4) - absent);
               return (
               <tr key={p.id}>
                 <td className="text-sm font-medium text-[#2d2d2d] px-2 whitespace-nowrap">
@@ -132,7 +134,7 @@ export default function SprintPlanung() {
                 })}
                 <td className="text-center text-xs font-semibold whitespace-nowrap px-2">
                   <span className={assigned > capacity ? 'text-[#c8003a]' : 'text-[#2d2d2d]'}>
-                    {assigned}/{capacity}
+                    {assigned} von {capacity}
                   </span>
                 </td>
               </tr>

@@ -71,8 +71,8 @@ export default function ProjektZeile({ sprint, project, client, milestones, stat
         </div>
 
         <div className="hidden lg:block w-[150px] shrink-0 text-right">
-          <p className="text-[15px] font-bold" style={{ color: status.invoicedAmount > 0 ? STATUS_COLORS.doneText : RITTLER.black }}>
-            {fmtEUR(status.invoicedAmount)} von {fmtEUR(status.sprintAmount)}
+          <p className="text-[15px] font-bold" style={{ color: status.releasedAmount > 0 ? STATUS_COLORS.doneText : RITTLER.black }}>
+            {fmtEUR(status.releasedAmount)} von {fmtEUR(status.sprintAmount)}
           </p>
         </div>
       </div>

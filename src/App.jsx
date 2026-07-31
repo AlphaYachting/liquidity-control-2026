@@ -71,6 +71,7 @@ import SprintDetail from '@/pages/sprint/SprintDetail';
 import SprintMilestoneDetail from '@/pages/sprint/SprintMilestoneDetail';
 import SprintPlanung from '@/pages/sprint/SprintPlanung';
 import SprintSteuerung from '@/pages/sprint/SprintSteuerung';
+import SprintRechnungsuebergabe from '@/pages/sprint/SprintRechnungsuebergabe';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -152,6 +153,7 @@ const AuthenticatedApp = () => {
         <Route path="/sprint/milestones/:milestoneId" element={<SprintMilestoneDetail />} />
         <Route path="/sprint/planung" element={<SprintPlanung />} />
         <Route path="/sprint/steuerung" element={<SprintSteuerung />} />
+        <Route path="/sprint/rechnungsuebergabe" element={<SprintRechnungsuebergabe />} />
         <Route path="/restructuring" element={<AdminRoute><RestructuringLayout /></AdminRoute>}>
           <Route index element={<RestructuringCockpit />} />
           <Route path="liquidity" element={<Restructuring13Week />} />

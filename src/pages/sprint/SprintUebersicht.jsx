@@ -102,17 +102,22 @@ export default function SprintUebersicht() {
       || (a.sprint.delivery_date || '').localeCompare(b.sprint.delivery_date || ''));
 
   // Block 1 — Wochenbilanz
-  const releasedThisWeek = milestones.filter((m) => m.state === 'freigegeben' && (m.invoiced_at || m.updated_date || '').slice(0, 10) >= weekStart);
+  const releasedThisWeek = milestones.filter((m) => m.state === 'freigegeben' && (m.released_at || m.updated_date || '').slice(0, 10) >= weekStart);
   const doneThisWeek = tickets.filter((t) => t.status === 'erledigt' && (t.last_status_change || '').slice(0, 10) >= weekStart);
 
   // Block 4 — Unternehmenszahlen
+  // S3 — Focus- UND Reaktionstage binden Kapazität; Abwesenheiten verkleinern den Nenner.
   const capacity = (weeks) => {
     const end = new Date(today);
     end.setDate(end.getDate() + weeks * 7);
     const endIso = end.toISOString().slice(0, 10);
-    const planned = focusDays.filter((f) => f.type === 'focus' && f.day >= today && f.day <= endIso).length;
-    const available = members.reduce((s, m) => s + (m.weekly_focus_days || 4) * weeks, 0);
-    return available > 0 ? Math.round((planned / available) * 100) : 0;
+    const inRange = (f) => f.day >= today && f.day <= endIso;
+    const focus = focusDays.filter((f) => f.type === 'focus' && inRange(f)).length;
+    const reaktion = focusDays.filter((f) => f.type === 'reaktion' && inRange(f)).length;
+    const abwesend = focusDays.filter((f) => f.type === 'abwesend' && inRange(f)).length;
+    const available = members.reduce((s, m) => s + (m.weekly_focus_days || 4) * weeks, 0) - abwesend;
+    const pct = available > 0 ? Math.round(((focus + reaktion) / available) * 100) : 0;
+    return { pct, focus, reaktion, available: Math.max(0, available) };
   };
 
   const liquiditaetMap = {};

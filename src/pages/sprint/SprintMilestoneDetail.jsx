@@ -133,8 +133,9 @@ export default function SprintMilestoneDetail() {
   };
 
   const handleFreigabe = async (source) => {
-    await performFreigabe({ milestone, sprint, client, siblings, tickets, source, approvalType: 'aktiv' });
+    const res = await performFreigabe({ milestone, sprint, client, siblings, tickets, source, approvalType: 'aktiv' });
     refresh();
+    return res;
   };
 
   const handleTicketStatus = async (ticket, status) => {
@@ -172,8 +173,13 @@ export default function SprintMilestoneDetail() {
             <div className="text-right shrink-0">
               <p className="text-2xl font-bold" style={{ color: RITTLER.black }}>{fmtEUR(milestone.milestone_amount)}</p>
               <p className="text-[13px]" style={{ color: locked ? STATUS_COLORS.doneText : RITTLER.textSecondary }}>
-                {locked ? `am ${fmtDate(milestone.invoiced_at || milestone.updated_date)} fakturiert` : 'wird bei Freigabe fällig'}
+                {locked ? `am ${fmtDate(milestone.released_at || milestone.updated_date)} freigegeben` : 'wird bei Freigabe fällig'}
               </p>
+              {locked && (
+                <p className="text-[13px]" style={{ color: milestone.invoiced_at ? STATUS_COLORS.doneText : '#9c5b00' }}>
+                  {milestone.invoiced_at ? `in SEF erfasst am ${fmtDate(milestone.invoiced_at)}` : 'noch nicht in SEF erfasst'}
+                </p>
+              )}
             </div>
           </div>
 
@@ -215,7 +221,7 @@ export default function SprintMilestoneDetail() {
 
           {locked && (
             <div className="mt-4 rounded p-4 text-sm border-l-4" style={{ borderColor: STATUS_COLORS.doneText, backgroundColor: STATUS_COLORS.doneSurface, color: RITTLER.black }}>
-              Am {fmtDate(milestone.updated_date)} freigegeben. Inhalte bleiben lesbar; Aufgaben der Phase
+              Am {fmtDate(milestone.released_at || milestone.updated_date)} freigegeben. Inhalte bleiben lesbar; Aufgaben der Phase
               Kundenfeedback bleiben abschließbar, damit der Livegang möglich ist.
             </div>
           )}

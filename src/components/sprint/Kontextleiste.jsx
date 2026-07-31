@@ -54,8 +54,8 @@ export default function Kontextleiste({ sprint, project, client, milestones, cur
             <p className="text-[15px] font-bold" style={{ color: RITTLER.black }}>
               Etappe {currentIdx >= 0 ? currentIdx + 1 : '—'} von {status.milestoneCount}
             </p>
-            <p className="text-[15px] font-bold hidden md:block" style={{ color: status.invoicedAmount > 0 ? STATUS_COLORS.doneText : RITTLER.black }}>
-              {fmtEUR(status.invoicedAmount)} von {fmtEUR(status.sprintAmount)} fakturiert
+            <p className="text-[15px] font-bold hidden md:block" style={{ color: status.releasedAmount > 0 ? STATUS_COLORS.doneText : RITTLER.black }}>
+              {fmtEUR(status.releasedAmount)} von {fmtEUR(status.sprintAmount)} freigegeben
             </p>
           </div>
 

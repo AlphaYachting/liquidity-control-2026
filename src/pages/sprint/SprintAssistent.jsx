@@ -11,6 +11,7 @@ import SectionLabel from '@/components/sprint/SectionLabel';
 import StepModule, { milestoneAmount } from '@/components/sprint/assistent/StepModule';
 import { SPRINT_SIZES, fmtEUR, fmtDate, addWeeks } from '@/components/sprint/sprintConfig';
 import { planSprintDeadlines } from '@/lib/sprint/deadlines';
+import { verteileNachlass } from '@/lib/sprint/nachlass';
 import { resolveAssignee } from '@/lib/sprint/assignment';
 
 // S6 — Sprint anlegen: Beträge, Kennzahlen und alle Plantermine werden gerechnet, nicht getippt.
@@ -24,6 +25,7 @@ export default function SprintAssistent() {
   const [discount, setDiscount] = useState('');
   const [selected, setSelected] = useState([]);
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   const { data } = useQuery({
     queryKey: ['sprintAssistentData'],
@@ -53,7 +55,9 @@ export default function SprintAssistent() {
 
   const step1Valid = projectId && size && startDate && deliveryDate;
   const etappenSumme = selected.reduce((s, m) => s + milestoneAmount(m, addOns), 0);
-  const sprintAmount = etappenSumme - (Number(discount) || 0);
+  const sprintAmount = Math.round(etappenSumme - (Number(discount) || 0));
+  // S1 — Nachlass anteilig eingerechnet: Summe der Etappenbeträge = Sprintbetrag
+  const nettoBetraege = verteileNachlass(selected.map((m) => milestoneAmount(m, addOns)), Number(discount) || 0);
   const step2Valid = selected.length > 0 && sprintAmount > 0;
 
   // Kennzahlen aus dem Katalog rechnen — nie von Hand eintragen
@@ -71,6 +75,12 @@ export default function SprintAssistent() {
 
   const handleCreate = async () => {
     if (!plan?.deliverable) return;
+    const nettoSumme = nettoBetraege.reduce((s, n) => s + n, 0);
+    if (nettoSumme !== sprintAmount) {
+      setCreateError(`Die Etappenbeträge (${fmtEUR(nettoSumme)}) ergeben nicht den Sprintbetrag (${fmtEUR(sprintAmount)}). Der Sprint wurde nicht angelegt.`);
+      return;
+    }
+    setCreateError('');
     setCreating(true);
     const now = new Date().toISOString();
     const sprint = await base44.entities.Sprint.create({
@@ -97,13 +107,13 @@ export default function SprintAssistent() {
         module_template_id: sel.module_template_id,
         title: sel.name,
         state: 'input',
-        milestone_amount: milestoneAmount(sel, addOns),
+        milestone_amount: nettoBetraege[i],
         planned_handover: plan.plan[i].planned_handover,
         planned_freeze: plan.plan[i].planned_freeze,
         deadline_pulled_forward: plan.plan[i].pulled_forward,
         planned_focus_days: Number(mod?.target_focus_days) || 0,
         is_final_milestone: i === selected.length - 1,
-        invoice_triggered: false,
+        released: false,
       });
 
       const templates = await base44.entities.TicketTemplate.filter({ module_template_id: sel.module_template_id }, 'order', 200);
@@ -241,10 +251,15 @@ export default function SprintAssistent() {
                       Übergabe {fmtDate(plan.plan[idx].planned_handover)} · Freeze {fmtDate(plan.plan[idx].planned_freeze)}
                     </span>
                   )}
-                  <span className="text-sm font-bold text-[#2d2d2d]">{fmtEUR(milestoneAmount(m, addOns))}</span>
+                  <span className="text-sm font-bold text-[#2d2d2d]">{fmtEUR(nettoBetraege[idx])}</span>
                 </div>
               ))}
             </div>
+
+            {Number(discount) > 0 && (
+              <p className="text-[13px] text-[#6b6b6b]">Nachlass {fmtEUR(Number(discount))} bereits eingerechnet.</p>
+            )}
+            {createError && <p className="text-sm text-[#c8003a]">{createError}</p>}
           </div>
         )}
 

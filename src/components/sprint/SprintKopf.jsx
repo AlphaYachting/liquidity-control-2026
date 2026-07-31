@@ -58,8 +58,8 @@ export default function SprintKopf({ sprint, project, client, milestones, status
           <p className="text-[15px] font-bold" style={{ color: RITTLER.black }}>
             {status.releasedCount} von {status.milestoneCount} abgeschlossen
           </p>
-          <p className="text-[15px] font-bold" style={{ color: status.invoicedAmount > 0 ? STATUS_COLORS.doneText : RITTLER.black }}>
-            {fmtEUR(status.invoicedAmount)} von {fmtEUR(status.sprintAmount)} fakturiert
+          <p className="text-[15px] font-bold" style={{ color: status.releasedAmount > 0 ? STATUS_COLORS.doneText : RITTLER.black }}>
+            {fmtEUR(status.releasedAmount)} von {fmtEUR(status.sprintAmount)} freigegeben
           </p>
         </div>
       </div>

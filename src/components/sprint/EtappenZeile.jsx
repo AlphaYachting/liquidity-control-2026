@@ -41,7 +41,7 @@ export default function EtappenZeile({ milestone: m, tickets, people, currentUse
           </div>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             <span className="text-[15px] font-bold" style={{ color: released ? STATUS_COLORS.doneText : RITTLER.black }}>
-              {fmtEUR(m.milestone_amount)}{released ? ' fakturiert' : ''}
+              {fmtEUR(m.milestone_amount)}{released ? ' freigegeben' : ''}
             </span>
             <span className="text-[13px]" style={{ color: RITTLER.textSecondary }}>
               Übergabe {shortDate(m.handover_date || m.planned_handover)} · Freeze {shortDate(m.feedback_deadline || m.planned_freeze)}

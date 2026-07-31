@@ -16,6 +16,7 @@ export default function FreigabePanel({ milestone, tickets, notifications, feedb
   const [source, setSource] = useState('');
   const [ask, setAsk] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [serverError, setServerError] = useState('');
 
   const items = freigabeVoraussetzungen({ milestone, tickets, notifications, feedbacks, source });
   const blocker = items.find((i) => i.blocking && !i.ok);
@@ -23,9 +24,10 @@ export default function FreigabePanel({ milestone, tickets, notifications, feedb
 
   const freigeben = async () => {
     setBusy(true);
-    await onFreigeben(source.trim());
+    const res = await onFreigeben(source.trim());
     setBusy(false);
     setAsk(false);
+    setServerError(res && res.ok === false ? res.error : '');
   };
 
   return (
@@ -66,6 +68,9 @@ export default function FreigabePanel({ milestone, tickets, notifications, feedb
           <p className="text-sm mt-2" style={{ color: RITTLER.textSecondary }}>
             Noch offen: {blocker.text}.
           </p>
+        )}
+        {serverError && (
+          <p className="text-sm mt-2" style={{ color: STATUS_COLORS.critical }}>{serverError}</p>
         )}
       </div>
 

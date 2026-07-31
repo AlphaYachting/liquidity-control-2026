@@ -52,28 +52,56 @@ export function freigabeVoraussetzungen({ milestone, tickets = [], notifications
   ];
 }
 
-// Alles Folgende läuft ohne weiteren Klick. Eine Rücknahme gibt es nicht.
+// S4 — idempotent: läuft die Freigabe doppelt (zwei Klicks, Retry, zwei Tabs),
+// entsteht trotzdem genau eine Approval. Eine Rücknahme gibt es nicht.
 export async function performFreigabe({ milestone, sprint, client, siblings = [], tickets = [], source, approvalType = 'aktiv' }) {
+  // 1. Frischen Stand laden — nicht dem übergebenen Objekt vertrauen.
+  const fresh = await base44.entities.Milestone.get(milestone.id);
+  if (fresh.state === 'freigegeben') {
+    return { ok: false, error: 'Etappe ist bereits freigegeben' };
+  }
+
+  // 2. Existiert bereits eine Approval, ist die Freigabe schon gelaufen.
+  const existing = await base44.entities.Approval.filter({ milestone_id: milestone.id }, '-approved_at', 1);
+  if (existing.length > 0) {
+    return { ok: false, error: 'Etappe ist bereits freigegeben' };
+  }
+
+  // 3. Voraussetzungen hier erneut prüfen, nicht nur im Panel.
+  const [notifications, feedbacks] = await Promise.all([
+    base44.entities.NotificationLog.filter({ milestone_id: milestone.id }, '-sent_at', 50),
+    base44.entities.Feedback.filter({ milestone_id: milestone.id }, '-received_at', 50),
+  ]);
+  const blocker = freigabeVoraussetzungen({ milestone: fresh, tickets, notifications, feedbacks, source })
+    .find((i) => i.blocking && !i.ok);
+  if (blocker) {
+    return { ok: false, error: blocker.text };
+  }
+
   const now = new Date().toISOString();
 
   await base44.entities.Approval.create({
     milestone_id: milestone.id,
+    sprint_id: sprint?.id || '',
+    project_id: sprint?.project_id || '',
     approved_at: now,
     approval_type: approvalType,
     source,
     frozen_state: JSON.stringify({
-      titel: milestone.title,
-      lieferstand: milestone.deliverable_links || [],
+      titel: fresh.title,
+      lieferstand: fresh.deliverable_links || [],
       aufgaben: tickets.map((t) => ({ titel: t.title, status: t.status, rolle: t.role })),
     }),
-    approved_amount: milestone.milestone_amount || 0,
+    approved_amount: fresh.milestone_amount || 0,
     agb_version: client?.agb_version || '',
   });
 
+  // S2 — Freigabe heißt freigegeben, nicht fakturiert. invoiced_at wird erst
+  // gesetzt, wenn die Etappe tatsächlich in SEF erfasst ist (Rechnungsübergabe).
   await base44.entities.Milestone.update(milestone.id, {
     state: 'freigegeben',
-    invoice_triggered: true,
-    invoiced_at: now,
+    released: true,
+    released_at: now,
   });
 
   // A4 — Freigabebestätigung an den Kunden: wird vorgeschlagen, ein Mensch versendet sie.
@@ -84,8 +112,8 @@ export async function performFreigabe({ milestone, sprint, client, siblings = []
     project_id: sprint?.project_id,
     recipient: client?.contact_email || '',
     sent_at: now,
-    subject: `Freigabe bestätigt: ${milestone.title}`,
-    body: `Die Etappe "${milestone.title}" wurde am ${new Date(now).toLocaleDateString('de-AT')} freigegeben. Quelle: ${source}. Die Lieferung folgt wie vereinbart.`,
+    subject: `Freigabe bestätigt: ${fresh.title}`,
+    body: `Die Etappe "${fresh.title}" wurde am ${new Date(now).toLocaleDateString('de-AT')} freigegeben. Quelle: ${source}. Die Lieferung folgt wie vereinbart.`,
     status: 'vorgeschlagen',
   });
 
@@ -93,4 +121,6 @@ export async function performFreigabe({ milestone, sprint, client, siblings = []
   if (restOffen === 0 && sprint && sprint.status !== 'abgeschlossen') {
     await base44.entities.Sprint.update(sprint.id, { status: 'geliefert' });
   }
+
+  return { ok: true };
 }
