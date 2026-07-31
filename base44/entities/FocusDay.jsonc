@@ -19,6 +19,9 @@
       "type": "string",
       "description": "leer bei Reaktionstag oder Abwesenheit"
     },
+    "sprint_id": {
+      "type": "string"
+    },
     "type": {
       "type": "string",
       "enum": [

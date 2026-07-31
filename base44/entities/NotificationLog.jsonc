@@ -48,7 +48,7 @@
         "versendet",
         "verworfen"
       ],
-      "default": "versendet"
+      "default": "vorgeschlagen"
     },
     "released_by": {
       "type": "string"
@@ -56,6 +56,7 @@
   },
   "required": [
     "type",
-    "sent_at"
+    "sent_at",
+    "recipient"
   ]
 }

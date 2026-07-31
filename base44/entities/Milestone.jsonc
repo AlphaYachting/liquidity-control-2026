@@ -55,6 +55,11 @@
       "format": "date",
       "description": "automatisch berechnet"
     },
+    "suppress_prewarning_mail": {
+      "type": "boolean",
+      "default": false,
+      "description": "Vorwarnung unterdr\u00fccken, wenn sie auf den \u00dcbergabetag fiele"
+    },
     "deadline_pulled_forward": {
       "type": "boolean",
       "default": false,
@@ -75,20 +80,28 @@
       },
       "description": "Beweiskette der Freigabe"
     },
-    "invoice_triggered": {
+    "released": {
       "type": "boolean",
-      "default": false
+      "default": false,
+      "description": "Freigabe erteilt \u2014 die Etappe ist abrechnungsbereit"
+    },
+    "released_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt der Freigabe"
     },
     "invoiced_at": {
       "type": "string",
       "format": "date-time",
-      "description": "an die Rechnungslegung \u00fcbergeben \u2014 f\u00fcr den SEF-Abgleich"
+      "description": "tats\u00e4chlich in SEF erfasst"
     }
   },
   "required": [
     "sprint_id",
     "order",
     "title",
-    "state"
+    "state",
+    "milestone_amount",
+    "planned_freeze"
   ]
 }

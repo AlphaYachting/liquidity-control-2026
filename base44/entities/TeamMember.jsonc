@@ -65,6 +65,7 @@
   "required": [
     "email",
     "name",
-    "system_role"
+    "system_role",
+    "roles"
   ]
 }

@@ -26,6 +26,7 @@
   },
   "required": [
     "name",
-    "contact_email"
+    "contact_email",
+    "agb_version"
   ]
 }

@@ -5,6 +5,12 @@
     "milestone_id": {
       "type": "string"
     },
+    "sprint_id": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
     "approved_at": {
       "type": "string",
       "format": "date-time"
@@ -35,6 +41,8 @@
   "required": [
     "milestone_id",
     "approved_at",
-    "approval_type"
+    "approval_type",
+    "approved_amount",
+    "source"
   ]
 }

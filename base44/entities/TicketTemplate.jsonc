@@ -34,6 +34,7 @@
         "pruefung",
         "kundenfeedback"
       ],
+      "default": "produktion",
       "description": "in welchem Milestone-Zustand dieses Ticket bearbeitet wird"
     },
     "blocks_others": {
@@ -45,6 +46,9 @@
   "required": [
     "module_template_id",
     "order",
-    "title"
+    "title",
+    "role",
+    "target_hours",
+    "milestone_state"
   ]
 }

@@ -36,7 +36,7 @@
     "discount": {
       "type": "number",
       "default": 0,
-      "description": "Nachlass in EUR \u2014 statt R\u00fcckrechnung der Etappenbetr\u00e4ge"
+      "description": "Nachlass in EUR \u2014 nur informativ, bereits in die Etappenbetr\u00e4ge eingerechnet"
     },
     "planned_focus_days": {
       "type": "number",

@@ -72,6 +72,11 @@
     "target_hours": {
       "type": "number"
     },
+    "planned_for": {
+      "type": "string",
+      "format": "date",
+      "description": "f\u00fcr welchen Tag eingeplant"
+    },
     "blocks_others": {
       "type": "boolean",
       "default": false

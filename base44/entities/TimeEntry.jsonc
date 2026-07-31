@@ -5,6 +5,9 @@
     "project_id": {
       "type": "string"
     },
+    "sprint_id": {
+      "type": "string"
+    },
     "person_email": {
       "type": "string",
       "format": "email"
