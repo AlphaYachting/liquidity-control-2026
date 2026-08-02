@@ -1,0 +1,79 @@
+{
+  "name": "SprintDailyRun",
+  "type": "object",
+  "properties": {
+    "run_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Tag des Laufs (Europe/Vienna)"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duration_ms": {
+      "type": "number"
+    },
+    "trigger": {
+      "type": "string",
+      "enum": [
+        "automatisch",
+        "manuell"
+      ],
+      "default": "automatisch"
+    },
+    "triggered_by": {
+      "type": "string",
+      "description": "E-Mail bei manuellem Start"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "erfolgreich",
+        "mit_fehlern"
+      ],
+      "default": "erfolgreich"
+    },
+    "steps": {
+      "type": "array",
+      "description": "je Schritt die Anzahl verarbeiteter Objekte",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "processed": {
+            "type": "number",
+            "default": 0
+          },
+          "detail": {
+            "type": "string"
+          },
+          "failed": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "description": "Fehler im Klartext",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "run_date",
+    "started_at"
+  ]
+}

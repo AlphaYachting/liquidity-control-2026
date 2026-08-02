@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Receipt } from 'lucide-react';
 import Wochenbilanz from '@/components/sprint/Wochenbilanz';
+import TageslaufPanel from '@/components/sprint/TageslaufPanel';
 
 // S9 — Steuerung: die Wochenbilanz steht vor allen Warnungen und Auslastungszahlen.
 export default function SprintSteuerung() {
@@ -23,12 +24,7 @@ export default function SprintSteuerung() {
         <ArrowRight className="w-4 h-4 text-[#6b6b6b]" />
       </Link>
 
-      <div className="bg-white rounded-lg shadow-sm p-10 text-center">
-        <p className="text-sm text-[#6b6b6b]">
-          Auslastung, Liquiditätsvorschau, Sprint-Pipeline und Warnsignale folgen, sobald die
-          Freigabe- und Rechnungslogik steht.
-        </p>
-      </div>
+      <TageslaufPanel />
     </div>
   );
 }
