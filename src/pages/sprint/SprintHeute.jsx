@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import ZeitBuchung from '@/components/sprint/ZeitBuchung';
 import HeuteAufgabenliste from '@/components/sprint/HeuteAufgabenliste';
+import HeuteFristen from '@/components/sprint/HeuteFristen';
+import HeutePmBlock from '@/components/sprint/HeutePmBlock';
 import Fortschrittszaehler from '@/components/sprint/Fortschrittszaehler';
-import { todayIso, fmtDate } from '@/components/sprint/sprintConfig';
+import { todayIso } from '@/components/sprint/sprintConfig';
 
 // S1 — HEUTE: Focus-Tag-Ansicht des angemeldeten Nutzers
 export default function SprintHeute() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const email = user?.email;
   const today = todayIso();
 
@@ -21,7 +24,7 @@ export default function SprintHeute() {
     queryKey: ['sprintHeute', email, today],
     enabled: !!email,
     queryFn: async () => {
-      const [focusDays, projects, clients, milestones, myTickets, settings, sprints] = await Promise.all([
+      const [focusDays, projects, clients, milestones, myTickets, settings, sprints, todayEntries] = await Promise.all([
         base44.entities.FocusDay.filter({ person_email: email, day: today }),
         base44.entities.Project.list('-created_date', 200),
         base44.entities.Client.list('-created_date', 200),
@@ -29,6 +32,7 @@ export default function SprintHeute() {
         base44.entities.Ticket.filter({ assignee_email: email }, 'order', 500),
         base44.entities.Setting.filter({ group: 'kapazitaet' }, 'key', 50),
         base44.entities.Sprint.list('-created_date', 500),
+        base44.entities.TimeEntry.filter({ person_email: email, entry_date: today }),
       ]);
       const focusDay = focusDays[0] || null;
       let tickets = [];
@@ -43,9 +47,16 @@ export default function SprintHeute() {
         ...myTickets.map((t) => t.project_id),
         ...projects.filter((p) => p.pm_email === email).map((p) => p.id),
       ]);
-      return { focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints };
+      return { focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints, todayEntries };
     },
   });
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['sprintHeute'] });
+
+  const handleStatusChange = async (ticket, status) => {
+    await base44.entities.Ticket.update(ticket.id, { status, last_status_change: new Date().toISOString() });
+    refresh();
+  };
 
   if (isLoading || !data) {
     return (
@@ -57,19 +68,41 @@ export default function SprintHeute() {
     );
   }
 
-  const { focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints } = data;
+  const { focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints, todayEntries } = data;
   const sprintProject = Object.fromEntries(sprints.map((s) => [s.id, s.project_id]));
-  const focusProject = focusDay?.project_id ? projects.find((p) => p.id === focusDay.project_id) : null;
-  const focusClient = focusProject ? clients.find((c) => c.id === focusProject.client_id) : null;
+  const projectById = Object.fromEntries(projects.map((p) => [p.id, p]));
+  const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
+  const milestoneById = Object.fromEntries(milestones.map((m) => [m.id, m]));
+  const projectTitleById = Object.fromEntries(projects.map((p) => [p.id, p.title]));
+  const focusProject = focusDay?.project_id ? projectById[focusDay.project_id] : null;
+  const focusClient = focusProject ? clientById[focusProject.client_id] : null;
 
   // Solange die Etappe nicht beim Kunden liegt, trägt das geplante Freeze-Datum die Frist
   const doneCount = tickets.filter((t) => t.status === 'erledigt').length;
   const deadlineOf = (m) => m.feedback_deadline || m.planned_freeze;
+  const daysUntil = (d) => Math.round((new Date(d) - new Date(today)) / 86400000);
   const deadlines = milestones
     .filter((m) => m.state !== 'freigegeben' && deadlineOf(m) && deadlineOf(m) >= today
       && myProjectIds.has(sprintProject[m.sprint_id]))
     .sort((a, b) => deadlineOf(a).localeCompare(deadlineOf(b)))
-    .slice(0, 3);
+    .slice(0, 3)
+    .map((m) => {
+      const project = projectById[sprintProject[m.sprint_id]];
+      return {
+        m,
+        project,
+        client: project ? clientById[project.client_id] : null,
+        days: daysUntil(deadlineOf(m)),
+        planned: !m.feedback_deadline,
+        deadline: deadlineOf(m),
+      };
+    });
+
+  const listeProps = {
+    milestoneById,
+    projectById,
+    onStatusChange: handleStatusChange,
+  };
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
@@ -91,6 +124,7 @@ export default function SprintHeute() {
               tickets={tickets}
               projectTitle={focusProject.title}
               emptyText="Keine Aufgaben in diesem Projekt."
+              {...listeProps}
             />
           </div>
         </div>
@@ -105,7 +139,12 @@ export default function SprintHeute() {
             goalLabel="bis zum Tagesende"
           />
           <div className="mt-4">
-            <HeuteAufgabenliste tickets={tickets} emptyText="Keine Aufgaben zugewiesen." />
+            <HeuteAufgabenliste
+              tickets={tickets}
+              emptyText="Keine Aufgaben zugewiesen."
+              showProject
+              {...listeProps}
+            />
           </div>
         </div>
       ) : focusDay?.type === 'abwesend' ? (
@@ -122,24 +161,16 @@ export default function SprintHeute() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-sm p-5">
-        <SectionLabel className="mb-3">Meine nächsten drei Fristen</SectionLabel>
-        {deadlines.length > 0 ? (
-          <div className="space-y-1">
-            {deadlines.map((m) => (
-              <Link key={m.id} to={`/sprint/milestones/${m.id}`} className="flex items-center gap-3 py-1.5 hover:bg-[#f5f5f5]/60 px-2 -mx-2 rounded">
-                <span className="text-sm text-[#2d2d2d] flex-1">
-                  {m.title}
-                  {!m.feedback_deadline && <span className="text-[11px] text-[#6b6b6b] ml-2">geplant</span>}
-                </span>
-                <span className="text-sm font-semibold text-[#2d2d2d]">{fmtDate(deadlineOf(m))}</span>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-[#6b6b6b]">Alles im Plan — keine Frist in Sicht.</p>
-        )}
-      </div>
+      <HeutePmBlock
+        email={email}
+        milestones={milestones}
+        sprints={sprints}
+        projects={projects}
+        clients={clients}
+        today={today}
+      />
+
+      <HeuteFristen deadlines={deadlines} />
 
       <ZeitBuchung
         userEmail={email}
@@ -147,6 +178,9 @@ export default function SprintHeute() {
         fixedProjectTitle={focusProject?.title}
         projects={projects.filter((p) => p.status === 'aktiv')}
         standardHours={standardHours}
+        todayEntries={todayEntries}
+        projectTitleById={projectTitleById}
+        onBooked={refresh}
       />
     </div>
   );
