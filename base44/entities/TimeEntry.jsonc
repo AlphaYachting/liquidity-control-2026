@@ -5,6 +5,9 @@
     "project_id": {
       "type": "string"
     },
+    "client_id": {
+      "type": "string"
+    },
     "sprint_id": {
       "type": "string"
     },
@@ -21,6 +24,34 @@
     },
     "note": {
       "type": "string"
+    },
+    "kategorie": {
+      "type": "string",
+      "enum": [
+        "sprint",
+        "support",
+        "aufwand",
+        "paket",
+        "intern"
+      ],
+      "description": "Abrechnungsmodell des Projekts zum Buchungszeitpunkt \u2014 wird mitgeschrieben, nie sp\u00e4ter abgeleitet"
+    },
+    "abrechenbar": {
+      "type": "boolean",
+      "default": true
+    },
+    "abrechnungsstatus": {
+      "type": "string",
+      "enum": [
+        "offen",
+        "abgerechnet",
+        "verworfen"
+      ],
+      "default": "offen"
+    },
+    "stundensatz": {
+      "type": "number",
+      "description": "nur bei Kategorie 'aufwand' gesetzt"
     },
     "source": {
       "type": "string",

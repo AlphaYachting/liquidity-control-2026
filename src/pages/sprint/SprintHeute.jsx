@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import SectionLabel from '@/components/sprint/SectionLabel';
-import ZeitBuchung from '@/components/sprint/ZeitBuchung';
+import HeuteGebucht from '@/components/sprint/HeuteGebucht';
 import HeuteAufgabenliste from '@/components/sprint/HeuteAufgabenliste';
 import HeuteFristen from '@/components/sprint/HeuteFristen';
 import HeutePmBlock from '@/components/sprint/HeutePmBlock';
@@ -172,16 +172,7 @@ export default function SprintHeute() {
 
       <HeuteFristen deadlines={deadlines} />
 
-      <ZeitBuchung
-        userEmail={email}
-        fixedProjectId={focusDay?.type === 'focus' ? focusDay.project_id : null}
-        fixedProjectTitle={focusProject?.title}
-        projects={projects.filter((p) => p.status === 'aktiv')}
-        standardHours={standardHours}
-        todayEntries={todayEntries}
-        projectTitleById={projectTitleById}
-        onBooked={refresh}
-      />
+      <HeuteGebucht entries={todayEntries} projectTitleById={projectTitleById} />
     </div>
   );
 }

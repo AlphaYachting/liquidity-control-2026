@@ -1,81 +1,122 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { todayIso } from '@/components/sprint/sprintConfig';
+import { ermittleBuchungsfelder } from './buchungsfelder';
 
-const KEY = 'sprint_timer';
+const KEY = 'sprint_timer_cache';
+const MAX_MINUTEN = 600; // 10 Stunden
 
-const read = () => {
+// localStorage ist nur Zwischenspeicher für die Anzeige — Quelle ist immer die Datenbank.
+const cacheRead = (email) => {
   try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : null;
+    const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
+    return raw && raw.person_email === email ? raw : undefined;
   } catch {
-    return null;
+    return undefined;
   }
 };
+const cacheWrite = (timer) => {
+  if (timer) localStorage.setItem(KEY, JSON.stringify(timer));
+  else localStorage.removeItem(KEY);
+};
 
-// Läuft der Timer, überlebt er Seitenwechsel und Reload — er hängt am Browser, nicht an einer Seite.
-export function useTimer() {
-  const [timer, setTimer] = useState(read);
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    if (!timer) return;
-    const i = setInterval(() => setTick((t) => t + 1), 1000);
-    return () => clearInterval(i);
-  }, [timer]);
-
-  useEffect(() => {
-    const sync = () => setTimer(read());
-    window.addEventListener('storage', sync);
-    window.addEventListener('sprint-timer-changed', sync);
-    return () => {
-      window.removeEventListener('storage', sync);
-      window.removeEventListener('sprint-timer-changed', sync);
-    };
-  }, []);
-
-  const write = (value) => {
-    if (value) localStorage.setItem(KEY, JSON.stringify(value));
-    else localStorage.removeItem(KEY);
-    setTimer(value);
-    window.dispatchEvent(new Event('sprint-timer-changed'));
-  };
-
-  const start = useCallback((project, kuerzel) => {
-    write({
-      project_id: project.id,
-      project_title: project.title,
-      kuerzel: kuerzel || '',
-      started_at: new Date().toISOString(),
-    });
-  }, []);
-
-  const cancel = useCallback(() => write(null), []);
-
-  const elapsedMinutes = timer
-    ? Math.max(0, Math.floor((Date.now() - new Date(timer.started_at).getTime()) / 60000))
-    : 0;
-
-  // Beim Stoppen entsteht eine Zeitbuchung auf Viertelstunden gerundet, mindestens 0,25 h.
-  const stop = useCallback(async (userEmail, note = '') => {
-    if (!timer) return;
-    const hours = Math.max(0.25, Math.round((elapsedMinutes / 60) * 4) / 4);
-    await base44.entities.TimeEntry.create({
-      project_id: timer.project_id,
-      person_email: userEmail,
-      entry_date: todayIso(),
-      hours,
-      note,
-      source: 'bestaetigt',
-    });
-    write(null);
-    return hours;
-  }, [timer, elapsedMinutes]);
-
-  const label = `${Math.floor(elapsedMinutes / 60)}:${String(elapsedMinutes % 60).padStart(2, '0')}`;
-
-  return { timer, running: !!timer, elapsedMinutes, label, start, stop, cancel, tick };
-}
+const minutenSeit = (iso) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+export const stundenAus = (minuten) => Math.max(0.25, Math.round((minuten / 60) * 4) / 4);
+export const zeitLabel = (minuten) => `${Math.floor(minuten / 60)}:${String(minuten % 60).padStart(2, '0')}`;
 
 export const kuerzelOf = (name = '') =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '—';
+
+const laufendeVon = async (email) => {
+  const rows = await base44.entities.LaufendeZeitbuchung.filter({ person_email: email }, '-gestartet_am', 1);
+  return rows[0] || null;
+};
+
+// Eine Buchung aus Stunden erzeugen — die Pflichtfelder werden immer mitgeschrieben.
+export async function bucheZeit({ projectId, email, hours, note = '' }) {
+  const felder = await ermittleBuchungsfelder(projectId);
+  return base44.entities.TimeEntry.create({
+    ...felder,
+    person_email: email,
+    entry_date: todayIso(),
+    hours,
+    note,
+    source: 'bestaetigt',
+  });
+}
+
+export function useTimer(email) {
+  const qc = useQueryClient();
+  const [, setTick] = useState(0);
+
+  const { data: timer } = useQuery({
+    queryKey: ['laufendeZeitbuchung', email],
+    enabled: !!email,
+    initialData: () => cacheRead(email),
+    queryFn: async () => {
+      const t = await laufendeVon(email);
+      cacheWrite(t);
+      return t;
+    },
+  });
+
+  const running = !!timer;
+  const elapsedMinutes = running ? minutenSeit(timer.gestartet_am) : 0;
+
+  useEffect(() => {
+    if (!running) return;
+    const i = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(i);
+  }, [running]);
+
+  const refresh = useCallback(() => qc.invalidateQueries({ queryKey: ['laufendeZeitbuchung', email] }), [qc, email]);
+
+  const stop = useCallback(async (note = '') => {
+    const aktuell = await laufendeVon(email);
+    if (!aktuell) {
+      await refresh();
+      return null;
+    }
+    const hours = stundenAus(minutenSeit(aktuell.gestartet_am));
+    await bucheZeit({
+      projectId: aktuell.project_id,
+      email,
+      hours,
+      note: [aktuell.notiz, note].filter(Boolean).join(' · '),
+    });
+    await base44.entities.LaufendeZeitbuchung.delete(aktuell.id);
+    cacheWrite(null);
+    await refresh();
+    return { hours, projekt: aktuell.projekt_titel };
+  }, [email, refresh]);
+
+  // Je Person läuft genau ein Timer — ein zweiter Start braucht die ausdrückliche Bestätigung.
+  const start = useCallback(async (project, kuerzel, notiz = '', { force = false } = {}) => {
+    const bestehend = await laufendeVon(email);
+    if (bestehend && !force) return { conflict: bestehend };
+    if (bestehend) await stop();
+
+    const felder = await ermittleBuchungsfelder(project.id);
+    const neu = await base44.entities.LaufendeZeitbuchung.create({
+      person_email: email,
+      client_id: felder.client_id,
+      project_id: project.id,
+      sprint_id: felder.sprint_id,
+      gestartet_am: new Date().toISOString(),
+      notiz,
+      projekt_titel: project.title,
+      kuerzel: kuerzel || '',
+    });
+    cacheWrite(neu);
+    await refresh();
+    return { started: neu };
+  }, [email, refresh, stop]);
+
+  // Zehn Stunden sind die Grenze — danach stoppt das System selbst.
+  useEffect(() => {
+    if (running && elapsedMinutes >= MAX_MINUTEN) stop('automatisch gestoppt');
+  }, [running, elapsedMinutes, stop]);
+
+  return { timer, running, elapsedMinutes, label: zeitLabel(elapsedMinutes), start, stop };
+}

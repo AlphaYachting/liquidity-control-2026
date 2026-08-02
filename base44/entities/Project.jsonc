@@ -25,6 +25,26 @@
     "total_budget": {
       "type": "number",
       "description": "Netto in EUR \u00fcber alle Sprints"
+    },
+    "abrechnungsmodell": {
+      "type": "string",
+      "enum": [
+        "sprint",
+        "support",
+        "aufwand",
+        "paket",
+        "intern"
+      ],
+      "default": "sprint",
+      "description": "tr\u00e4gt die Kategorie jeder Zeitbuchung"
+    },
+    "stundensatz": {
+      "type": "number",
+      "description": "nur relevant bei Abrechnung nach Aufwand"
+    },
+    "support_kontingent_stunden": {
+      "type": "number",
+      "description": "monatliches Stundenkontingent bei Support"
     }
   },
   "required": [

@@ -1,0 +1,40 @@
+{
+  "name": "LaufendeZeitbuchung",
+  "type": "object",
+  "properties": {
+    "person_email": {
+      "type": "string",
+      "format": "email",
+      "description": "je Person l\u00e4uft genau ein Timer"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "sprint_id": {
+      "type": "string"
+    },
+    "gestartet_am": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notiz": {
+      "type": "string"
+    },
+    "projekt_titel": {
+      "type": "string",
+      "description": "nur f\u00fcr die Anzeige des laufenden Timers"
+    },
+    "kuerzel": {
+      "type": "string",
+      "description": "Kundenk\u00fcrzel f\u00fcr die Pille"
+    }
+  },
+  "required": [
+    "person_email",
+    "project_id",
+    "gestartet_am"
+  ]
+}

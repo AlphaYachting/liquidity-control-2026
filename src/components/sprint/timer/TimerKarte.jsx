@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import { Square } from 'lucide-react';
+import { useProjektKontext } from '@/lib/sprint/useProjektKontext';
 import { RITTLER } from '@/components/sprint/sprintConfig';
+import KategorieZeile from './KategorieZeile';
+import BudgetZeile from './BudgetZeile';
 
-// Schmale Karte bei laufendem Timer: Projekt, laufende Zeit, STOPPEN. Nichts weiter.
-export default function TimerKarte({ timer, label, userEmail, onStop }) {
+// Laufender Timer. Außerhalb des Sprint-Moduls nur Projekt, Zeit und STOPPEN.
+export default function TimerKarte({ timer, label, schmal, onStop }) {
   const [busy, setBusy] = useState(false);
+  const { data: kontext } = useProjektKontext(schmal ? null : timer.project_id);
 
   const stoppen = async () => {
     setBusy(true);
-    await onStop(userEmail);
+    await onStop();
     setBusy(false);
   };
 
@@ -17,7 +21,15 @@ export default function TimerKarte({ timer, label, userEmail, onStop }) {
       <p className="text-[11px] font-bold uppercase tracking-[2px]" style={{ color: RITTLER.textSecondary }}>
         Läuft
       </p>
-      <p className="text-[15px] font-bold mt-1" style={{ color: RITTLER.black }}>{timer.project_title}</p>
+      <p className="text-[15px] font-bold mt-1" style={{ color: RITTLER.black }}>
+        {timer.projekt_titel || 'Projekt'}
+      </p>
+      {!schmal && (
+        <>
+          <KategorieZeile kategorie={kontext?.kategorie} />
+          <BudgetZeile budget={kontext?.budget} />
+        </>
+      )}
       <p className="text-[32px] font-bold leading-none mt-3 tabular-nums" style={{ color: RITTLER.black }}>
         {label}
       </p>

@@ -1,60 +1,135 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { Play } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useProjektKontext } from '@/lib/sprint/useProjektKontext';
+import { bucheZeit, zeitLabel } from '@/lib/sprint/useTimer';
 import { RITTLER } from '@/components/sprint/sprintConfig';
-import { kuerzelOf } from '@/lib/sprint/useTimer';
+import ProjektWahl from './ProjektWahl';
+import KategorieZeile from './KategorieZeile';
+import BudgetZeile from './BudgetZeile';
 
-// Ruhezustand: Projekt wählen, Timer startet sofort.
-export default function TimerStart({ onStart }) {
-  const [suche, setSuche] = useState('');
+const REITER = [{ key: 'timer', label: 'Timer' }, { key: 'manuell', label: 'Manuell' }];
 
-  const { data } = useQuery({
-    queryKey: ['timerProjects'],
-    queryFn: async () => {
-      const [projects, clients] = await Promise.all([
-        base44.entities.Project.filter({ status: 'aktiv' }, 'title', 200),
-        base44.entities.Client.list('name', 300),
-      ]);
-      const byId = Object.fromEntries(clients.map((c) => [c.id, c]));
-      return projects.map((p) => ({ ...p, clientName: byId[p.client_id]?.name || '' }));
-    },
-  });
+// Ruhezustand im Sprint-Modul: Timer starten oder Stunden manuell buchen.
+export default function TimerStart({ email, onStart, onBooked }) {
+  const [reiter, setReiter] = useState('timer');
+  const [projekt, setProjekt] = useState(null);
+  const [kuerzel, setKuerzel] = useState('');
+  const [notiz, setNotiz] = useState('');
+  const [stunden, setStunden] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [konflikt, setKonflikt] = useState(null);
 
-  const treffer = (data || []).filter((p) =>
-    `${p.title} ${p.clientName}`.toLowerCase().includes(suche.toLowerCase())
-  );
+  const { data: kontext } = useProjektKontext(projekt?.id);
+
+  const starten = async (force = false) => {
+    setBusy(true);
+    const res = await onStart(projekt, kuerzel, notiz, { force });
+    setBusy(false);
+    if (res?.conflict) setKonflikt(res.conflict);
+  };
+
+  const buchen = async () => {
+    setBusy(true);
+    await bucheZeit({ projectId: projekt.id, email, hours: Number(stunden), note: notiz });
+    setBusy(false);
+    onBooked?.(Number(stunden), projekt.title);
+  };
+
+  if (konflikt) {
+    const seit = zeitLabel(Math.max(0, Math.floor((Date.now() - new Date(konflikt.gestartet_am).getTime()) / 60000)));
+    return (
+      <div className="p-5">
+        <p className="text-sm font-bold" style={{ color: RITTLER.black }}>
+          Timer auf {konflikt.projekt_titel || 'ein anderes Projekt'} läuft seit {seit}. Stoppen und neu starten?
+        </p>
+        <div className="flex gap-2 mt-4">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => { setKonflikt(null); starten(true); }}
+            className="flex-1 h-10 rounded text-white text-sm font-bold uppercase disabled:opacity-60"
+            style={{ backgroundColor: RITTLER.pink }}
+          >
+            Stoppen und neu starten
+          </button>
+          <button
+            type="button"
+            onClick={() => setKonflikt(null)}
+            className="h-10 px-4 rounded border-[1.5px] text-sm font-bold uppercase"
+            style={{ borderColor: RITTLER.black, color: RITTLER.black }}
+          >
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-5">
-      <p className="text-[11px] font-bold uppercase tracking-[2px]" style={{ color: RITTLER.textSecondary }}>
-        Zeit erfassen
-      </p>
-      <Input
-        autoFocus
-        placeholder="Projekt suchen"
-        value={suche}
-        onChange={(e) => setSuche(e.target.value)}
-        className="mt-3"
-      />
-      <div className="mt-3 max-h-[45vh] overflow-auto -mx-1">
-        {treffer.map((p) => (
+      <div className="flex gap-4 border-b mb-4" style={{ borderColor: RITTLER.line }}>
+        {REITER.map((r) => (
           <button
-            key={p.id}
+            key={r.key}
             type="button"
-            onClick={() => onStart(p, kuerzelOf(p.clientName || p.title))}
-            className="w-full text-left px-3 py-2.5 rounded hover:bg-[#f5f5f5]"
+            onClick={() => setReiter(r.key)}
+            className="pb-2 text-[11px] font-bold uppercase tracking-[2px] border-b-2"
+            style={{
+              color: reiter === r.key ? RITTLER.black : RITTLER.textSecondary,
+              borderColor: reiter === r.key ? RITTLER.pink : 'transparent',
+            }}
           >
-            <p className="text-sm font-medium" style={{ color: RITTLER.black }}>{p.title}</p>
-            {p.clientName && (
-              <p className="text-xs" style={{ color: RITTLER.textSecondary }}>{p.clientName}</p>
-            )}
+            {r.label}
           </button>
         ))}
-        {treffer.length === 0 && (
-          <p className="px-3 py-4 text-sm" style={{ color: RITTLER.textSecondary }}>Kein Projekt gefunden.</p>
-        )}
       </div>
+
+      <ProjektWahl
+        selected={projekt}
+        onSelect={(p, k) => { setProjekt(p); setKuerzel(k); }}
+      />
+
+      {projekt && (
+        <div className="mt-3 pt-3 border-t" style={{ borderColor: RITTLER.line }}>
+          <p className="text-sm font-bold" style={{ color: RITTLER.black }}>{projekt.title}</p>
+          <KategorieZeile kategorie={kontext?.kategorie} />
+          <BudgetZeile budget={kontext?.budget} />
+
+          {reiter === 'manuell' && (
+            <Input
+              type="number" step="0.25" min="0" placeholder="Stunden"
+              className="mt-3" value={stunden} onChange={(e) => setStunden(e.target.value)}
+            />
+          )}
+          <Input
+            placeholder="Notiz (optional)"
+            className="mt-2" value={notiz} onChange={(e) => setNotiz(e.target.value)}
+          />
+
+          {reiter === 'timer' ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => starten(false)}
+              className="mt-3 w-full h-11 rounded flex items-center justify-center gap-2 text-white text-sm font-bold uppercase tracking-wide disabled:opacity-60"
+              style={{ backgroundColor: RITTLER.pink }}
+            >
+              <Play className="w-4 h-4" /> Starten
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy || !Number(stunden)}
+              onClick={buchen}
+              className="mt-3 w-full h-11 rounded text-white text-sm font-bold uppercase tracking-wide disabled:opacity-60"
+              style={{ backgroundColor: RITTLER.pink }}
+            >
+              Buchen
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

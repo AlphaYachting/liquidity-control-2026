@@ -13,7 +13,8 @@
       "enum": [
         "fristen",
         "kapazitaet",
-        "versand"
+        "versand",
+        "abrechnung"
       ]
     },
     "label": {

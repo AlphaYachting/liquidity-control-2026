@@ -1,37 +1,47 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Clock } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { useTimer } from '@/lib/sprint/useTimer';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import TimerKarte from './TimerKarte';
 import TimerStart from './TimerStart';
 
-// Sichtbar nur im Sprint-Modul — bei laufendem Timer überall.
+// Im Ruhezustand nur unter /sprint — bei laufendem Timer auf jeder Seite.
 export default function TimerKnopf() {
   const { pathname } = useLocation();
   const imSprintModul = pathname === '/sprint' || pathname.startsWith('/sprint/');
-  const { timer, running, label, start, stop } = useTimer();
+  const { user } = useAuth();
+  const email = user?.email;
+  const { timer, running, label, start, stop } = useTimer(email);
   const [offen, setOffen] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const { data: user } = useQuery({ queryKey: ['currentUser'], queryFn: () => base44.auth.me() });
-
+  if (!email) return null;
   if (!imSprintModul && !running) return null;
 
-  const starten = (project, kuerzel) => {
-    start(project, kuerzel);
-    setOffen(false);
+  const starten = async (project, kuerzel, notiz, opts) => {
+    const res = await start(project, kuerzel, notiz, opts);
+    if (res?.started) setOffen(false);
+    return res;
   };
 
-  const stoppen = async (email) => {
-    const hours = await stop(email || user?.email);
+  const stoppen = async () => {
+    const res = await stop();
     setOffen(false);
-    qc.invalidateQueries();
-    toast({ description: `${hours} h auf ${timer.project_title} gebucht.` });
+    qc.invalidateQueries({ queryKey: ['sprintHeute'] });
+    qc.invalidateQueries({ queryKey: ['projektKontext'] });
+    if (res) toast({ description: `${res.hours} h auf ${res.projekt || 'Projekt'} gebucht.` });
+  };
+
+  const gebucht = (stunden, titel) => {
+    setOffen(false);
+    qc.invalidateQueries({ queryKey: ['sprintHeute'] });
+    qc.invalidateQueries({ queryKey: ['projektKontext'] });
+    toast({ description: `${stunden} h auf ${titel} gebucht.` });
   };
 
   return (
@@ -63,12 +73,12 @@ export default function TimerKnopf() {
         <div className="fixed inset-0 z-50" onClick={() => setOffen(false)}>
           <div className="absolute inset-0 bg-black/25" />
           <div
-            className="absolute left-0 right-0 bottom-0 bg-white rounded-t-xl sm:left-auto sm:bottom-24 sm:right-6 sm:w-[320px] sm:rounded-lg shadow-xl"
+            className="absolute left-0 right-0 bottom-0 bg-white rounded-t-xl sm:left-auto sm:bottom-24 sm:right-6 sm:w-[340px] sm:rounded-lg shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             {running
-              ? <TimerKarte timer={timer} label={label} userEmail={user?.email} onStop={stoppen} />
-              : <TimerStart onStart={starten} />}
+              ? <TimerKarte timer={timer} label={label} schmal={!imSprintModul} onStop={stoppen} />
+              : <TimerStart email={email} onStart={starten} onBooked={gebucht} />}
           </div>
         </div>
       )}
