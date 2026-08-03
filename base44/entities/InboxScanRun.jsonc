@@ -1,0 +1,49 @@
+{
+  "name": "InboxScanRun",
+  "type": "object",
+  "properties": {
+    "run_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "triggered_by": {
+      "type": "string"
+    },
+    "threads_new": {
+      "type": "number",
+      "default": 0
+    },
+    "checked": {
+      "type": "number",
+      "default": 0,
+      "description": "Anzahl gepr\u00fcfter Threads (inkl. deterministischer Vorfilter)"
+    },
+    "llm_calls": {
+      "type": "number",
+      "default": 0
+    },
+    "lead_verdacht": {
+      "type": "number",
+      "default": 0
+    },
+    "form_leads": {
+      "type": "number",
+      "default": 0,
+      "description": "automatisch angelegte Website-Formular-Leads"
+    },
+    "skipped_limit": {
+      "type": "number",
+      "default": 0,
+      "description": "wegen LLM-Limit NICHT gepr\u00fcft \u2014 kommen im n\u00e4chsten Lauf dran"
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "run_at"
+  ]
+}

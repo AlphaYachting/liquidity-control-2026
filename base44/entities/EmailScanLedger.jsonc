@@ -1,0 +1,44 @@
+{
+  "name": "EmailScanLedger",
+  "type": "object",
+  "properties": {
+    "thread_id": {
+      "type": "string"
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "kein_geschaeft",
+        "betrieb",
+        "lead_verdacht",
+        "fehler"
+      ]
+    },
+    "inquiry_type": {
+      "type": "string",
+      "enum": [
+        "angebotsanfrage",
+        "erweiterung_bestandskunde",
+        "laufende_projektkommunikation",
+        "support_stoerung",
+        "verwaltung",
+        "kein_geschaeft"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "inbox_item_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "thread_id",
+    "checked_at",
+    "outcome"
+  ]
+}

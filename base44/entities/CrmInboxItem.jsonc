@@ -33,7 +33,62 @@
     },
     "email_message_id": {
       "type": "string",
-      "description": "Message-ID der Quell-E-Mail (f\u00fcr Postfach-Sync, Duplikatschutz)"
+      "description": "Alt: 'thread:<id>' \u2014 neue Eintr\u00e4ge nutzen thread_id"
+    },
+    "thread_id": {
+      "type": "string",
+      "description": "sauberer Bezug zum E-Mail-Thread in der externen DB"
+    },
+    "inquiry_type": {
+      "type": "string",
+      "enum": [
+        "angebotsanfrage",
+        "erweiterung_bestandskunde",
+        "laufende_projektkommunikation",
+        "support_stoerung",
+        "verwaltung",
+        "kein_geschaeft"
+      ],
+      "description": "Stufe 1 der Einstufung"
+    },
+    "buying_signals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "belegte Kaufsignale im Klartext (Signal \u2014 Textstelle)"
+    },
+    "signal_count": {
+      "type": "number",
+      "default": 0
+    },
+    "lead_strength": {
+      "type": "string",
+      "enum": [
+        "stark",
+        "schwach"
+      ]
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "offen",
+        "lead",
+        "nur_antwort",
+        "verworfen"
+      ],
+      "default": "offen"
+    },
+    "decided_by": {
+      "type": "string"
+    },
+    "decided_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "dismiss_reason": {
+      "type": "string",
+      "description": "Pflicht beim Verwerfen \u2014 flie\u00dft in die n\u00e4chste Einstufung ein"
     },
     "suggested_pipeline": {
       "type": "string",
