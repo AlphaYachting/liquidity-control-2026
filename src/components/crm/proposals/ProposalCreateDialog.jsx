@@ -4,13 +4,9 @@ import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, Sparkles } from 'lucide-react';
-import { SIGNERS } from '@/components/crm/proposals/proposalConfig';
 import { buildLargeTextPatch } from '@/components/crm/proposals/jsonFields';
 import { extractContext } from '@/components/crm/proposals/proposalReasoning';
 import { composeDocsText } from '@/components/crm/proposals/sourceDocs';
@@ -20,9 +16,6 @@ export default function ProposalCreateDialog({ open, onOpenChange }) {
   const navigate = useNavigate();
   const [docs, setDocs] = useState([]);
   const [text, setText] = useState('');
-  const [mode, setMode] = useState('full');
-  const [sprint, setSprint] = useState(false);
-  const [signedBy, setSignedBy] = useState(SIGNERS[0]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -53,14 +46,15 @@ export default function ProposalCreateDialog({ open, onOpenChange }) {
         client_existing_marketing: ctx?.client_existing_marketing || '',
         client_project_scope: ctx?.client_project_scope || '',
         source_documents: docs,
-        mode, sprint_mode: sprint, signed_by: signedBy, status: 'input',
+        status: 'input',
         ...notesPatch,
       });
       setSaving(false);
       onOpenChange(false);
       setText('');
       setDocs([]);
-      navigate(`/crm/proposals/${proposal.id}?autostart=1`);
+      // Weiter zum Typ-Bildschirm (Schritt 0) — dort werden Typ, Sprint und Signatur bestätigt.
+      navigate(`/crm/proposals/${proposal.id}`);
     } catch (e) {
       setError('Anlage fehlgeschlagen: ' + (e?.message || ''));
       setSaving(false);
@@ -105,30 +99,9 @@ export default function ProposalCreateDialog({ open, onOpenChange }) {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-          <div>
-            <Label className="text-xs">Modus</Label>
-            <Tabs value={mode} onValueChange={setMode} className="mt-1">
-              <TabsList className="w-full">
-                <TabsTrigger value="full" className="flex-1 text-xs">Vollversion</TabsTrigger>
-                <TabsTrigger value="short" className="flex-1 text-xs">Kurzform</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          <div>
-            <Label className="text-xs">Signatur</Label>
-            <Select value={signedBy} onValueChange={setSignedBy}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {SIGNERS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2 pb-2">
-            <Switch checked={sprint} onCheckedChange={setSprint} id="sprint" disabled={saving} />
-            <Label htmlFor="sprint" className="text-xs">Sprint (fester Liefertermin)</Label>
-          </div>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          Angebotstyp (Neukunde / Bestand / E-Mail), Sprint und Signatur werden im nächsten Schritt gewählt und bestätigt.
+        </p>
 
         {error && <p className="text-xs text-destructive">{error}</p>}
 
@@ -136,7 +109,7 @@ export default function ProposalCreateDialog({ open, onOpenChange }) {
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Abbrechen</Button>
           <Button onClick={handleCreate} disabled={!hasInput || saving} className="gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {saving ? 'Kontext wird analysiert…' : 'Anlegen & Analyse starten'}
+            {saving ? 'Kontext wird analysiert…' : 'Anlegen & Typ wählen'}
           </Button>
         </div>
       </DialogContent>

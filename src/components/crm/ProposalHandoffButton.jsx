@@ -92,7 +92,6 @@ Regeln:
         client_industry: deal.company_industry || '',
         client_core_business: deal.enrichment_summary || '',
         client_project_scope: deal.description || '',
-        mode: 'full',
         status: 'input',
         source_documents: [
           { doc_type: 'briefing', label: 'Kundenanfrage (aus Pipeline)', text: inquiryText, size_chars: inquiryText.length, added_at: now },
@@ -112,7 +111,8 @@ Regeln:
       });
 
       onDone?.();
-      navigate(`/crm/proposals/${proposal.id}?autostart=1`);
+      // Weiter zum Typ-Bildschirm — kein Autostart, kein fest verdrahteter Modus.
+      navigate(`/crm/proposals/${proposal.id}`);
     } catch (e) {
       setError('Übernahme fehlgeschlagen: ' + (e?.message || ''));
       setWorking(false);

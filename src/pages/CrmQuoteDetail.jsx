@@ -11,6 +11,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Save, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import QuoteItemsEditor from '@/components/crm/quotes/QuoteItemsEditor';
+import EmailOfferPanel from '@/components/crm/quotes/EmailOfferPanel';
 import { QUOTE_STATUS, QUOTE_SOURCE, calcTotals } from '@/components/crm/quotes/quoteConfig';
 
 export default function CrmQuoteDetail() {
@@ -86,6 +87,18 @@ export default function CrmQuoteDetail() {
           </Button>
         </div>
       </div>
+
+      {quote.offer_type === 'email' && (
+        <EmailOfferPanel
+          key={quote.updated_date}
+          quote={quote}
+          onUpdated={() => {
+            queryClient.invalidateQueries({ queryKey: ['crm-quote', quoteId] });
+            queryClient.invalidateQueries({ queryKey: ['crm-email-quotes'] });
+            setForm(null);
+          }}
+        />
+      )}
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">Angebotsdaten</CardTitle></CardHeader>

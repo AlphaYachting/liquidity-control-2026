@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, Sparkles, CheckCircle2, RefreshCw } from 'lucide-react';
-import { PROPOSAL_STATUSES, MODE_LABELS, WORKFLOW_STEPS } from '@/components/crm/proposals/proposalConfig';
+import { PROPOSAL_STATUSES, MODE_LABELS, OFFER_TYPES, workflowSteps, stepForStatus } from '@/components/crm/proposals/proposalConfig';
 import { buildLargeTextPatch, loadLargeText, loadJsonField } from '@/components/crm/proposals/jsonFields';
 import { runAnalysis, runMapping, runConfig, extractContext } from '@/components/crm/proposals/proposalReasoning';
 import { composeNotes } from '@/components/crm/proposals/sourceDocs';
@@ -14,9 +14,12 @@ import MappingView from '@/components/crm/proposals/MappingView';
 import RenderPanel from '@/components/crm/proposals/RenderPanel';
 import CorrectionInput from '@/components/crm/proposals/CorrectionInput';
 import ProgressLog, { analyzeError } from '@/components/crm/proposals/ProgressLog';
+import OfferTypeSelector from '@/components/crm/proposals/OfferTypeSelector';
+import { runEmailOffer } from '@/components/crm/proposals/emailOffer';
 
 export default function CrmProposalDetail() {
   const { proposalId } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState('');
   const [correction, setCorrection] = useState('');
@@ -56,9 +59,10 @@ export default function CrmProposalDetail() {
     loadLargeText(proposal, 'input_text').then((t) => {
       setNotes(t);
       const urlParams = new URLSearchParams(window.location.search);
-      if (!autostartRef.current && urlParams.get('autostart') === '1' && proposal.status === 'input' && (t.trim() || (proposal.source_documents || []).length > 0)) {
+      if (!autostartRef.current && urlParams.get('autostart') === '1' && proposal.type_confirmed_at && proposal.status === 'input' && (t.trim() || (proposal.source_documents || []).length > 0)) {
         autostartRef.current = true;
-        startAnalysis(false, t);
+        if (proposal.offer_type === 'bestand') runMappingStep(false);
+        else startAnalysis(false, t);
       }
     });
   }, [proposal?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -122,18 +126,25 @@ export default function CrmProposalDetail() {
     setBusy(null);
   };
 
-  const approveAnalysisAndMap = async (withCorrection) => {
+  const isBestand = proposal?.offer_type === 'bestand';
+
+  // Typ A: Freigabe der Analyse + Mapping. Typ B (Bestand): startet direkt mit dem
+  // Mapping — der Kundenkontext ersetzt die Analyse, Stopp 1 entfällt.
+  const runMappingStep = async (withCorrection) => {
     setBusy('mapping'); setError(null); setLog([]);
     try {
-      logStep('Analyse-Freigabe wird gespeichert…');
+      const fresh0 = await base44.entities.CrmProposal.get(proposalId);
+      const bestand = fresh0.offer_type === 'bestand';
+      logStep(bestand ? 'Positionen & Preise werden erstellt…' : 'Analyse-Freigabe wird gespeichert…');
       const user = await base44.auth.me().catch(() => null);
-      await base44.entities.CrmProposal.update(proposalId, {
-        mapping_correction: withCorrection ? correction : '',
-        analysis_approved_at: new Date().toISOString(),
-        analysis_approved_by: user?.email || '',
-      });
+      const patch = { mapping_correction: withCorrection ? correction : '' };
+      if (!bestand) {
+        patch.analysis_approved_at = new Date().toISOString();
+        patch.analysis_approved_by = user?.email || '';
+      }
+      await base44.entities.CrmProposal.update(proposalId, patch);
       const fresh = await base44.entities.CrmProposal.get(proposalId);
-      const result = await runMapping(fresh, analysis, logStep);
+      const result = await runMapping(fresh, bestand ? null : analysis, logStep);
       logStep('Mapping-Ergebnis wird gespeichert…');
       const jsonPatch = await buildLargeTextPatch('mapping_json', JSON.stringify(result), 'mapping.json');
       await update({ ...jsonPatch, status: 'mapping_review', error_message: '' });
@@ -156,7 +167,7 @@ export default function CrmProposalDetail() {
         mapping_approved_by: user?.email || '',
       });
       const fresh = await base44.entities.CrmProposal.get(proposalId);
-      const result = await runConfig(fresh, analysis, mapping, logStep);
+      const result = await runConfig(fresh, isBestand ? null : analysis, mapping, logStep);
       logStep('Config wird gespeichert…');
       const jsonPatch = await buildLargeTextPatch('config_json', JSON.stringify(result), 'config.json');
       await update({ ...jsonPatch, status: 'config_ready', error_message: '' });
@@ -168,12 +179,73 @@ export default function CrmProposalDetail() {
     setBusy(null);
   };
 
+  // Typ C: EIN KI-Lauf — Ergebnis wird als CrmQuote gespeichert, das CrmProposal entfällt.
+  const startEmailOffer = async () => {
+    setBusy('email'); setError(null); setLog([]);
+    try {
+      logStep('E-Mail-Angebot wird erstellt (1 KI-Lauf)…');
+      const fresh = await base44.entities.CrmProposal.get(proposalId);
+      const quote = await runEmailOffer(fresh, logStep);
+      logStep('Angebot wird verknüpft…');
+      if (fresh.deal_id) {
+        await base44.entities.CrmDeal.update(fresh.deal_id, { proposal_id: '' }).catch(() => {});
+      }
+      await base44.entities.CrmProposal.delete(proposalId);
+      navigate(`/crm/quotes/${quote.id}`);
+      return;
+    } catch (e) {
+      logFail();
+      setError(analyzeError(e, 'E-Mail-Angebot'));
+    }
+    setBusy(null);
+  };
+
+  // Nach der Typbestätigung startet der passende erste Lauf automatisch.
+  const onTypeConfirmed = async (type) => {
+    if (type === 'email') return startEmailOffer();
+    refresh();
+    const hasInput = notes.trim() || (proposal.source_documents || []).length > 0;
+    if (!hasInput) return;
+    if (type === 'bestand') runMappingStep(false);
+    else startAnalysis(false);
+  };
+
+  // Typwechsel bis zur ersten Freigabe: Analyse & Mapping verwerfen,
+  // Kundenkontext und Quelldokumente behalten.
+  const changeType = async () => {
+    await update({
+      offer_type: null, type_confirmed_at: null, offer_type_reason: '',
+      analysis_json: '', analysis_json_url: '', mapping_json: '', mapping_json_url: '',
+      analysis_correction: '', mapping_correction: '', status: 'input',
+    });
+  };
+
   if (isLoading || !proposal) {
     return <p className="text-sm text-muted-foreground py-10 text-center">Angebot lädt…</p>;
   }
 
+  // Schritt 0 — Angebotstyp wählen & bestätigen. Ohne Bestätigung läuft kein KI-Lauf.
+  if (!proposal.offer_type) {
+    return (
+      <div className="space-y-4 max-w-4xl">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/crm/proposals"><ArrowLeft className="w-4 h-4" /></Link>
+          </Button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-bold truncate">{proposal.title}</h1>
+            <p className="text-xs text-muted-foreground">{proposal.customer_company || '—'} · Schritt 0 — Angebotstyp wählen & bestätigen</p>
+          </div>
+        </div>
+        {(log.length > 0 || error) && <ProgressLog lines={log} error={error} />}
+        <OfferTypeSelector proposal={proposal} busy={!!busy} onConfirmed={onTypeConfirmed} />
+      </div>
+    );
+  }
+
   const st = PROPOSAL_STATUSES[proposal.status] || PROPOSAL_STATUSES.input;
-  const step = st.step;
+  const steps = workflowSteps(proposal.offer_type);
+  const step = stepForStatus(proposal.offer_type, proposal.status);
 
   const correctionBox = (placeholder) => (
     <CorrectionInput
@@ -193,14 +265,19 @@ export default function CrmProposalDetail() {
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold truncate">{proposal.title}</h1>
           <p className="text-xs text-muted-foreground">
-            {proposal.customer_company || '—'} · {MODE_LABELS[proposal.mode]}{proposal.sprint_mode ? ' · Sprint' : ''} · {proposal.signed_by}
+            {proposal.customer_company || '—'} · {OFFER_TYPES[proposal.offer_type]?.label || MODE_LABELS[proposal.mode]}{proposal.sprint_mode ? ' · Sprint' : ''} · {proposal.signed_by}
           </p>
         </div>
+        {!proposal.analysis_approved_at && !proposal.mapping_approved_at && (
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={changeType} disabled={!!busy}>
+            Typ ändern
+          </Button>
+        )}
         <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${st.color}`}>{st.label}</span>
       </div>
 
       <div className="flex gap-1 flex-wrap">
-        {WORKFLOW_STEPS.map((s, i) => (
+        {steps.map((s, i) => (
           <span key={s.key} className={`text-[10px] px-2 py-1 rounded-full font-medium ${
             i + 1 < step ? 'bg-emerald-100 text-emerald-600' : i + 1 === step ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
           }`}>{s.label}</span>
@@ -219,18 +296,20 @@ export default function CrmProposalDetail() {
         onRemoveDocument={removeDocument}
       />
 
-      {step === 1 && (
+      {proposal.status === 'input' && (
         <div className="flex justify-end">
-          <Button onClick={() => startAnalysis(false)} disabled={!!busy || (!notes.trim() && !(proposal.source_documents || []).length)} className="gap-2">
-            {busy === 'analysis' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {busy === 'analysis' ? 'Analyse läuft…' : 'Strategische Analyse starten'}
+          <Button onClick={() => (isBestand ? runMappingStep(false) : startAnalysis(false))} disabled={!!busy || (!notes.trim() && !(proposal.source_documents || []).length)} className="gap-2">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {busy
+              ? (isBestand ? 'Positionen werden erstellt…' : 'Analyse läuft…')
+              : (isBestand ? 'Positionen & Preise erstellen' : 'Strategische Analyse starten')}
           </Button>
         </div>
       )}
 
-      {analysis && step >= 2 && <AnalysisView analysis={analysis} />}
+      {!isBestand && analysis && step >= 2 && <AnalysisView analysis={analysis} />}
 
-      {step === 2 && (
+      {!isBestand && proposal.status === 'analysis_review' && (
         <div className="sticky bottom-3 z-30 border rounded-xl bg-card p-4 space-y-3 shadow-xl">
           <p className="text-xs font-semibold">Stopp 1 — Analyse freigeben oder korrigieren</p>
           {correctionBox('Korrektur zur Analyse (optional) — z.B. anderer Projekttyp, fehlendes Thema, anderes Format…')}
@@ -239,7 +318,7 @@ export default function CrmProposalDetail() {
               {busy === 'analysis' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               Analyse überarbeiten
             </Button>
-            <Button onClick={() => approveAnalysisAndMap(false)} disabled={!!busy} className="gap-2">
+            <Button onClick={() => runMappingStep(false)} disabled={!!busy} className="gap-2">
               {busy === 'mapping' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               {busy === 'mapping' ? 'Mapping läuft…' : 'Freigeben & Mapping erstellen'}
             </Button>
@@ -247,14 +326,22 @@ export default function CrmProposalDetail() {
         </div>
       )}
 
-      {mapping && step >= 3 && <MappingView mapping={mapping} />}
+      {mapping && ['mapping_review', 'config_ready', 'rendering', 'rendered'].includes(proposal.status) && <MappingView mapping={mapping} />}
 
-      {step === 3 && (
+      {proposal.status === 'mapping_review' && (
         <div className="sticky bottom-3 z-30 border rounded-xl bg-card p-4 space-y-3 shadow-xl">
-          <p className="text-xs font-semibold">Stopp 2 — Mapping & Preise freigeben oder korrigieren</p>
+          {(mapping?.sales_gap_hints || []).length > 0 && (
+            <div className="text-xs bg-amber-50 border border-amber-200 rounded-md p-2.5 text-amber-800">
+              <p className="font-semibold mb-1">Verkaufsrelevante Hinweise aus dem Mapping:</p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                {mapping.sales_gap_hints.map((h, i) => <li key={i}>{h}</li>)}
+              </ul>
+            </div>
+          )}
+          <p className="text-xs font-semibold">{isBestand ? 'Stopp — Positionen & Preise freigeben oder korrigieren' : 'Stopp 2 — Mapping & Preise freigeben oder korrigieren'}</p>
           {correctionBox('Korrektur zum Mapping (optional) — z.B. Position streichen, Preis anpassen, Struktur ändern…')}
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => approveAnalysisAndMap(true)} disabled={!!busy || !correction.trim()} className="gap-2">
+            <Button variant="outline" onClick={() => runMappingStep(true)} disabled={!!busy || !correction.trim()} className="gap-2">
               {busy === 'mapping' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               Mapping überarbeiten
             </Button>
@@ -266,7 +353,7 @@ export default function CrmProposalDetail() {
         </div>
       )}
 
-      {step >= 4 && <RenderPanel proposal={proposal} config={config} />}
+      {['config_ready', 'rendering', 'rendered'].includes(proposal.status) && <RenderPanel proposal={proposal} config={config} />}
     </div>
   );
 }
