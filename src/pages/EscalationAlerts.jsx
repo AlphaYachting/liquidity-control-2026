@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
-import EmailEscalationAlerts from '@/components/crm/emails/EmailEscalationAlerts';
 
 const OVERDUE_THRESHOLD_DAYS = 60;
 
@@ -141,8 +140,6 @@ export default function EscalationAlerts() {
         subtitle={`${alerts.length} aktive Warnungen · ${criticalCount} kritisch · ${highCount} hoch`}
         icon={Bell}
       />
-
-      <EmailEscalationAlerts />
 
       {alerts.length === 0 ? (
         <Card className="p-12 text-center">

@@ -160,6 +160,14 @@
     "proposal_id": {
       "type": "string",
       "description": "Verkn\u00fcpftes Angebot im Angebots-Studio (CrmProposal)"
+    },
+    "email_thread_id": {
+      "type": "string",
+      "description": "Thread in der zentralen E-Mail-Datenbank, aus dem der Deal entstanden ist"
+    },
+    "origin_inbox_item_id": {
+      "type": "string",
+      "description": "CrmInboxItem, aus dem der Deal \u00fcbernommen wurde"
     }
   },
   "required": [

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Settings as SettingsIcon, User, Shield, Clock, Users } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Clock, Users, Inbox } from 'lucide-react';
 import TeamScopeSettings from '@/components/settings/TeamScopeSettings';
+import InboxScanSettings from '@/components/settings/InboxScanSettings';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,7 @@ export default function Settings() {
       <Tabs defaultValue="team">
         <TabsList>
           <TabsTrigger value="team"><Users className="w-4 h-4 mr-1" />Team & Zuständigkeit</TabsTrigger>
+          <TabsTrigger value="inbox"><Inbox className="w-4 h-4 mr-1" />Posteingangs-Prüfung</TabsTrigger>
           <TabsTrigger value="audit"><Clock className="w-4 h-4 mr-1" />Audit Log</TabsTrigger>
           <TabsTrigger value="roles"><Shield className="w-4 h-4 mr-1" />Rollen</TabsTrigger>
           <TabsTrigger value="mapping"><SettingsIcon className="w-4 h-4 mr-1" />Mapping</TabsTrigger>
@@ -37,6 +39,10 @@ export default function Settings() {
 
         <TabsContent value="team" className="mt-4">
           <TeamScopeSettings />
+        </TabsContent>
+
+        <TabsContent value="inbox" className="mt-4">
+          <InboxScanSettings />
         </TabsContent>
 
         <TabsContent value="audit" className="mt-4">

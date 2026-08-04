@@ -1,3 +1,6 @@
+// EINE gemeinsame Quelle für Absenderlisten — geteilt mit den Backend-Funktionen.
+import { INTERNAL_DOMAINS, FREEMAIL_DOMAINS, SYSTEM_DOMAINS } from '../../../../base44/shared/senderLists.js';
+
 export const EMAIL_CATEGORIES = {
   abnahme_freigabe: { label: 'Abnahme/Freigabe', color: 'bg-emerald-100 text-emerald-700' },
   rechnung_zahlung: { label: 'Rechnung/Zahlung', color: 'bg-blue-100 text-blue-700' },
@@ -37,14 +40,12 @@ export const formatMailDate = (s) => {
 };
 
 // Kollegen-Erkennung: Absender aus den eigenen Firmen-Domains
-export const INTERNAL_DOMAINS = ['rittler.co', 'rico-office.at'];
+export { INTERNAL_DOMAINS };
 export const isInternalSender = (from) =>
   INTERNAL_DOMAINS.some((d) => String(from || '').toLowerCase().includes('@' + d));
 
-// Freemail-/Provider-Domains, aus denen kein Firmenname ableitbar ist
-const GENERIC_DOMAINS = ['gmail.com', 'gmx.at', 'gmx.net', 'gmx.de', 'outlook.com', 'hotmail.com', 'yahoo.com', 'yahoo.de', 'icloud.com', 'aon.at', 'a1.net', 'web.de', 't-online.de', 'live.com', 'me.com', 'proton.me', 'protonmail.com',
-  // System-/Tool-Absender — keine Kunden
-  'awork.com', 'brevo.com', 'm.brevo.com', 'sevdesk.de', 'sevdesk.com', 'wordpress.com', 'google.com', 'microsoft.com', 'linkedin.com', 'mailchimp.com', 'atlassian.com', 'base44.com'];
+// Domains, aus denen kein Firmenname ableitbar ist (Freemail + System/Tool)
+const GENERIC_DOMAINS = [...FREEMAIL_DOMAINS, ...SYSTEM_DOMAINS];
 
 // Kundenlabel aus der Absender-Domain ableiten (z.B. office@holzbau-maier.at → "Holzbau-maier")
 export const deriveCustomerFromEmail = (from) => {

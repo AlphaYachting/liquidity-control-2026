@@ -35,9 +35,15 @@ export default function CrmDealDetail() {
     queryFn: () => base44.entities.CrmAppointment.filter({ deal_id: dealId }, '-scheduled_at', 50),
   });
 
-  // Beim ersten Öffnen als "gesehen" markieren — entfernt die NEU-Markierung in der Pipeline
+  // Beim ersten Öffnen als "gesehen" markieren — entfernt die NEU-Markierung in der Pipeline.
+  // Erst jetzt startet auch die Web-/LinkedIn-Recherche, nie beim automatischen Anlegen.
   useEffect(() => {
     if (deal && !deal.seen_at) {
+      if (deal.enrichment_status === 'pending') {
+        base44.functions.invoke('enrichCrmLead', { deal_id: deal.id })
+          .then(() => queryClient.invalidateQueries({ queryKey: ['crm-deal', deal.id] }))
+          .catch(() => {});
+      }
       base44.entities.CrmDeal.update(deal.id, { seen_at: new Date().toISOString() }).then(() => {
         queryClient.invalidateQueries({ queryKey: ['crm-deals'] });
         queryClient.invalidateQueries({ queryKey: ['crm-new-deals'] });

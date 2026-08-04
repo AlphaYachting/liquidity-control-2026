@@ -68,6 +68,11 @@ export default function EmailThreadList({ mode, items, selectedId, onSelect, loa
                   <Reply className="w-2.5 h-2.5" /> Kollege hat geantwortet
                 </Badge>
               )}
+              {item.crm_status === 'lead_angelegt' && (
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-0 bg-violet-100 text-violet-700">
+                  → Deal
+                </Badge>
+              )}
               {item.has_attachments && <Paperclip className="w-3 h-3 text-muted-foreground" />}
             </div>
           </button>

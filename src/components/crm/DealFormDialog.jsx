@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PIPELINES, SOURCE_LABELS } from '@/components/crm/stages';
+import { findDuplicateDeal, CLOSED_STAGES } from '../../../base44/shared/crmDuplicate.js';
+import { Link } from 'react-router-dom';
 
 const EMPTY = {
   pipeline: 'new_business', stage: 'new_lead', title: '', company_name: '', contact_name: '',
@@ -17,6 +19,7 @@ const EMPTY = {
 export default function DealFormDialog({ open, onOpenChange, initialData, onSaved }) {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [duplicate, setDuplicate] = useState(null);
   const isEdit = Boolean(initialData?.id);
 
   useEffect(() => {
@@ -25,8 +28,25 @@ export default function DealFormDialog({ open, onOpenChange, initialData, onSave
       // Startphase immer zur Pipeline passend setzen (Bug: Bestandskunden-Deal landete sonst unsichtbar in Neukunden-Phase)
       if (!initialData?.id && !initialData?.stage) merged.stage = PIPELINES[merged.pipeline].stages[0].key;
       setForm(merged);
+      setDuplicate(null);
     }
   }, [open, initialData]);
+
+  // Duplikatprüfung beim Anlegen — Hinweis, keine Sperre
+  useEffect(() => {
+    if (!open || isEdit) return;
+    const email = (form.contact_email || '').trim();
+    const company = (form.company_name || '').trim();
+    if (!email && !company) { setDuplicate(null); return; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const deals = await base44.entities.CrmDeal.list('-updated_date', 300).catch(() => []);
+      const open_ = deals.filter(d => !CLOSED_STAGES.includes(d.stage) && d.id !== initialData?.id);
+      const hit = findDuplicateDeal(open_, { contactEmail: email, companyName: company });
+      if (!cancelled) setDuplicate(hit || null);
+    }, 500);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [open, isEdit, form.contact_email, form.company_name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -126,6 +146,14 @@ export default function DealFormDialog({ open, onOpenChange, initialData, onSave
             <Label className="text-xs">Beschreibung</Label>
             <Textarea rows={3} value={form.description} onChange={e => set('description', e.target.value)} />
           </div>
+          {duplicate && (
+            <div className="border border-amber-200 bg-amber-50 rounded-lg px-3 py-2 text-xs text-amber-800">
+              Es gibt bereits einen offenen Deal zu diesem Kontakt:{' '}
+              <Link to={`/crm/deals/${duplicate.id}`} onClick={() => onOpenChange(false)} className="font-semibold underline">
+                {duplicate.title}
+              </Link>
+            </div>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
             <Button onClick={save} disabled={saving || !form.title.trim()}>

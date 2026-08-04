@@ -1,8 +1,10 @@
-import React from 'react';
-import { base44 } from '@/api/base44Client';
+import React, { useState } from 'react';
+import { Phone, Mail, PenLine, UserPlus, Trash2, MailCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Phone, Mail, PenLine, UserPlus, Trash2 } from 'lucide-react';
 import InboxItemBody from '@/components/crm/InboxItemBody';
+import InboxDismissDialog from '@/components/crm/InboxDismissDialog';
+import { decideInboxItem } from '@/components/crm/inboxDecision';
+import { INQUIRY_TYPE_LABELS, STRENGTH_META, parseSignal } from '@/components/crm/inboxSignals';
 
 const SOURCE_META = {
   phone_ai: { icon: Phone, label: 'Telefon-KI', color: 'bg-violet-100 text-violet-600' },
@@ -13,9 +15,14 @@ const SOURCE_META = {
 export default function InboxItemCard({ item, onConvert, onChanged }) {
   const meta = SOURCE_META[item.source] || SOURCE_META.manual;
   const Icon = meta.icon;
+  const strength = STRENGTH_META[item.lead_strength];
+  const [dismissOpen, setDismissOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const dismiss = async () => {
-    await base44.entities.CrmInboxItem.update(item.id, { status: 'dismissed' });
+  const decide = async (decision, reason = '') => {
+    setBusy(true);
+    await decideInboxItem(item, decision, reason);
+    setBusy(false);
     onChanged?.();
   };
 
@@ -35,22 +42,55 @@ export default function InboxItemCard({ item, onConvert, onChanged }) {
           <p className="text-xs text-muted-foreground">
             {[item.sender_name, item.sender_email, item.sender_phone].filter(Boolean).join(' · ') || 'Unbekannter Absender'}
           </p>
-          {item.matched_customer_name && (
-            <span className="inline-block mt-1 text-[11px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
-              Bestandskunde: {item.matched_customer_name}
-            </span>
+          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+            {strength && (
+              <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${strength.color}`}>
+                {strength.label} · {item.signal_count || 0} Signale
+              </span>
+            )}
+            {item.inquiry_type && (
+              <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                {INQUIRY_TYPE_LABELS[item.inquiry_type] || item.inquiry_type}
+              </span>
+            )}
+            {item.matched_customer_name && (
+              <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
+                Bestandskunde: {item.matched_customer_name}
+              </span>
+            )}
+          </div>
+          {(item.buying_signals || []).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {item.buying_signals.map((raw, i) => {
+                const s = parseSignal(raw);
+                return (
+                  <span key={i} title={s.evidence}
+                    className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
+                    {s.label}
+                  </span>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
       <InboxItemBody item={item} />
-      <div className="flex gap-2 pl-12">
-        <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onConvert(item)}>
-          <UserPlus className="w-3.5 h-3.5" /> Lead / Deal anlegen
+      <div className="flex flex-wrap gap-2 pl-12">
+        <Button size="sm" className="h-8 gap-1.5 text-xs" disabled={busy} onClick={() => onConvert(item)}>
+          <UserPlus className="w-3.5 h-3.5" /> Lead anlegen
         </Button>
-        <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs text-muted-foreground" onClick={dismiss}>
+        <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" disabled={busy}
+          onClick={() => decide('nur_antwort')}>
+          <MailCheck className="w-3.5 h-3.5" /> Kein Lead, beantworten
+        </Button>
+        <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs text-muted-foreground" disabled={busy}
+          onClick={() => setDismissOpen(true)}>
           <Trash2 className="w-3.5 h-3.5" /> Verwerfen
         </Button>
       </div>
+
+      <InboxDismissDialog open={dismissOpen} onOpenChange={setDismissOpen}
+        onConfirm={(reason) => decide('verworfen', reason)} />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import {
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
   CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale,
-  KanbanSquare, Inbox, History, Presentation, Mail, Siren, Sun,
+  KanbanSquare, Inbox, History, Presentation, Mail, Sun,
   Rocket, CalendarRange, Gauge, Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,9 +14,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useUnlinkedOrdersCount } from '@/hooks/useUnlinkedOrdersCount';
 import { usePendingDunningCount } from '@/hooks/usePendingDunningCount';
 import { useCrmInboxCount } from '@/hooks/useCrmInboxCount';
-import { useNewDealsCount } from '@/hooks/useNewDealsCount';
-import { useEmailActionCount } from '@/hooks/useEmailActionCount';
-import { useEmailEscalations } from '@/hooks/useEmailEscalations';
+import { useEmailTriageCount } from '@/hooks/useEmailTriageCount';
 
 const navSections = [
   {
@@ -48,7 +46,6 @@ const navSections = [
       { path: '/crm', label: 'Pipeline', icon: KanbanSquare },
       { path: '/crm/inbox', label: 'Posteingang', icon: Inbox },
       { path: '/crm/emails', label: 'E-Mail-Zentrale', icon: Mail },
-      { path: '/crm/alerts', label: 'Kommunikations-Alerts', icon: Siren },
       { path: '/crm/proposals', label: 'Angebots-Studio', icon: Presentation },
     ],
   },
@@ -99,9 +96,7 @@ export default function Sidebar() {
   const unlinkedCount = useUnlinkedOrdersCount();
   const pendingDunningCount = usePendingDunningCount();
   const crmInboxCount = useCrmInboxCount();
-  const newDealsCount = useNewDealsCount();
-  const emailActionCount = useEmailActionCount();
-  const commAlertCount = useEmailEscalations().data?.length || 0;
+  const emailTriageCount = useEmailTriageCount();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -117,11 +112,9 @@ export default function Sidebar() {
     const active = isActive(item.path);
     const badgeCount = item.path === '/confirmed-orders' ? unlinkedCount
       : item.path === '/receivables' ? pendingDunningCount
-      : item.path === '/crm' ? newDealsCount
       : item.path === '/crm/inbox' ? crmInboxCount
-      : item.path === '/crm/emails' ? emailActionCount
-      : item.path === '/crm/alerts' ? commAlertCount : 0;
-    const badgeColor = item.path === '/crm/alerts' ? 'bg-red-600' : 'bg-amber-500';
+      : item.path === '/crm/emails' ? emailTriageCount : 0;
+    const badgeColor = 'bg-amber-500';
     return (
       <Link
         key={item.path}

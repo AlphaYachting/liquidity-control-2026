@@ -6,7 +6,8 @@ import EmailFilterBar from '@/components/crm/emails/EmailFilterBar';
 import EmailThreadList from '@/components/crm/emails/EmailThreadList';
 import EmailThreadDetail from '@/components/crm/emails/EmailThreadDetail';
 import EmailViewToggle from '@/components/crm/emails/EmailViewToggle';
-import { buildTriageList } from '@/components/crm/emails/emailTriage';
+import { buildTriageList, TRIAGE_PARAMS, TRIAGE_LIMIT } from '@/components/crm/emails/emailTriage';
+import EmailEscalationBand from '@/components/crm/emails/EmailEscalationBand';
 
 export default function CrmEmails() {
   const [filters, setFilters] = useState({ q: '', customer: '', status: 'all', days: '30', direction: 'all' });
@@ -18,6 +19,7 @@ export default function CrmEmails() {
   const [selectedId, setSelectedId] = useState(null);
   const [thread, setThread] = useState(null);
   const [loadingThread, setLoadingThread] = useState(false);
+  const [truncated, setTruncated] = useState(false);
 
   const load = async (f = filters, v = view) => {
     setLoadingList(true); setListError(null);
@@ -33,11 +35,12 @@ export default function CrmEmails() {
       } else if (v === 'action') {
         // Triage nach harten Fakten. Serverseitig auf offene Threads vorfiltern —
         // kleinere Menge = zuverlässigere Anreicherung pro Thread.
-        const params = { limit: 40, status: 'offen', with_reply_state: 1 };
+        const params = { ...TRIAGE_PARAMS };
         if (f.customer.trim()) params.customer = f.customer.trim();
         if (f.days !== 'all') params.days = f.days;
         const data = await emailApi('threads', { params });
         setMode('threads');
+        setTruncated((data.results || []).length >= TRIAGE_LIMIT);
         setItems(buildTriageList(data.results));
       } else {
         const params = { limit: 50, with_reply_state: 1 };
@@ -104,6 +107,8 @@ export default function CrmEmails() {
         <EmailHealthBar />
       </div>
 
+      <EmailEscalationBand />
+
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <EmailViewToggle
           view={view}
@@ -112,9 +117,9 @@ export default function CrmEmails() {
         />
         {view === 'action' && (
           <p className="text-[11px] text-muted-foreground max-w-xl">
-            Kriterien: letzte Nachricht ist <strong>eingehend</strong>, von einer <strong>externen Firmendomain</strong>, und der
+            Kriterien: letzte Nachricht ist <strong>eingehend</strong>, von einem <strong>externen Absender</strong>, und der
             Verlauf ist als Geschäftskonversation belegt (wir haben schon geantwortet, es gibt mehrere Nachrichten, oder Kunde/Kategorie
-            ist zugeordnet). Spam, Newsletter und System-Mails erfüllen das nicht. Sobald geantwortet wurde, verschwindet der Thread.
+            ist zugeordnet). Spam, Newsletter und System-Mails erfüllen das nicht. Sobald geantwortet oder ein Lead angelegt wurde, verschwindet der Thread.
             Reihenfolge: Reklamationen zuerst, danach längste Wartezeit.
           </p>
         )}
@@ -132,6 +137,11 @@ export default function CrmEmails() {
             loading={loadingList}
             error={listError}
           />
+          {view === 'action' && truncated && !loadingList && (
+            <p className="text-[11px] text-muted-foreground mt-2 px-1">
+              Es werden die {TRIAGE_LIMIT} neuesten offenen Konversationen geprüft.
+            </p>
+          )}
         </div>
         <EmailThreadDetail
           thread={thread}

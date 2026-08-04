@@ -1,4 +1,4 @@
-import { isInternalSender, waitingDaysSince, deriveCustomerFromEmail } from '@/components/crm/emails/emailConfig';
+import { isInternalSender, waitingDaysSince } from '@/components/crm/emails/emailConfig';
 import { collapseAnsweredGroups } from '@/components/crm/emails/emailThreadGrouping';
 
 /**
@@ -7,7 +7,7 @@ import { collapseAnsweredGroups } from '@/components/crm/emails/emailThreadGroup
  * Ein Thread landet nur in der Arbeitsliste, wenn ALLE gelten:
  *  1. Die letzte Nachricht im Verlauf ist eingehend ('in')
  *  2. Der Absender ist extern (kein Kollege aus rittler.co / rico-office.at)
- *  3. Die Absender-Domain ist eine echte Firmendomain (kein Freemail-/System-/Tool-Absender)
+ *  3. Der Thread wurde nicht bereits als Lead ins CRM übernommen
  *  4. Der Thread ist als Geschäftskonversation belegt — d.h. mindestens eines davon:
  *     • wir haben in diesem Verlauf schon einmal geantwortet (has_outbound)
  *     • der Verlauf hat mehr als eine Nachricht (echter Dialog)
@@ -24,7 +24,8 @@ export const needsReply = (t) => {
   const sender = t.last_from || t.last_inbound_from || t.from;
   if (direction !== 'in') return false;
   if (isInternalSender(sender)) return false;
-  if (!deriveCustomerFromEmail(sender)) return false; // Freemail-/System-Domains fallen raus
+  // Als Lead übernommene Threads laufen im CRM weiter — nicht mehr in der Arbeitsliste
+  if (t.crm_status === 'lead_angelegt') return false;
   const meaningfulCategory = !!t.category && t.category !== 'sonstiges';
   return t.has_outbound === true || (t.message_count || 0) > 1 || !!t.customer || meaningfulCategory;
 };
@@ -35,6 +36,10 @@ export const triageSort = (a, b) => {
   if (rek(a) !== rek(b)) return rek(a) - rek(b);
   return (b._waiting_days || 0) - (a._waiting_days || 0);
 };
+
+// EINE Parameterquelle für Liste und Zähler
+export const TRIAGE_LIMIT = 150;
+export const TRIAGE_PARAMS = { limit: TRIAGE_LIMIT, status: 'offen', with_reply_state: 1, days: 30 };
 
 export const buildTriageList = (threads) =>
   collapseAnsweredGroups(threads)
