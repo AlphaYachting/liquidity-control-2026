@@ -35,6 +35,10 @@
       ],
       "default": "draft"
     },
+    "offer_type": {
+      "type": "string",
+      "description": "fix 'email' f\u00fcr E-Mail-Angebote aus dem Angebots-Studio"
+    },
     "source": {
       "type": "string",
       "enum": [
@@ -57,6 +61,17 @@
     "intro_text": {
       "type": "string",
       "description": "Anschreiben / Einleitungstext des Angebots"
+    },
+    "email_body": {
+      "type": "string",
+      "description": "Fertiger Mailtext des E-Mail-Angebots"
+    },
+    "excluded": {
+      "type": "array",
+      "description": "Was NICHT enthalten ist (Abgrenzung)",
+      "items": {
+        "type": "string"
+      }
     },
     "items": {
       "type": "array",
@@ -107,6 +122,10 @@
     "valid_until": {
       "type": "string",
       "format": "date"
+    },
+    "sent_at": {
+      "type": "string",
+      "format": "date-time"
     },
     "template_key": {
       "type": "string",

@@ -86,6 +86,11 @@ const MAPPING_SCHEMA = {
     },
     total_net: { type: 'string' },
     total_gross: { type: 'string' },
+    sales_gap_hints: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'Verkaufsrelevante Lücken (nur Typ Bestand): fehlender Retainer, fehlender Markenprüfstand, Employer Branding als Treiber',
+    },
     notes: { type: 'string' },
   },
 };
@@ -189,6 +194,10 @@ export async function runMapping(proposal, analysis, onProgress = () => {}) {
   const correction = proposal.mapping_correction
     ? `\n\nKORREKTUR DES MITARBEITERS (verbindlich einarbeiten):\n${proposal.mapping_correction}`
     : '';
+  // Typ B (Bestand): keine vorgelagerte Analyse — der Kundenkontext-Block ersetzt sie.
+  const analysisBlock = analysis
+    ? `\n\nFREIGEGEBENE STRATEGISCHE ANALYSE (Stopp 1 bestätigt):\n${JSON.stringify(analysis, null, 2)}`
+    : `\n\nHINWEIS — BESTANDSKUNDENANGEBOT (Kurzform): Es gibt KEINE vorgelagerte strategische Analyse. Der Kundenkontext-Block oben ersetzt die freigegebene Analyse. Fällt beim Mapping eine verkaufsrelevante Lücke auf (fehlender Retainer, fehlender Markenprüfstand, Employer Branding als Treiber), gib sie als kurze Sätze im Feld sales_gap_hints zurück — NICHT als eigene Position.`;
   const raw = await base44.integrations.Core.InvokeLLM({
     model: MODEL,
     prompt: `${header(proposal)}
@@ -200,10 +209,7 @@ ${contextBlock(proposal)}
 GESPRÄCHSNOTIZEN:
 """
 ${notes}
-"""
-
-FREIGEGEBENE STRATEGISCHE ANALYSE (Stopp 1 bestätigt):
-${JSON.stringify(analysis, null, 2)}${correction}
+"""${analysisBlock}${correction}
 
 AUFGABE — Step 3 des Skills (Gesprächs-Mapping & Positionsabstimmung):
 1. Gesprächs-Mapping-Tabelle: jede geplante Position einer konkreten Aussage aus dem Gespräch zuordnen; Positionen aus der Gap-Analyse mit Quelle "Gap-Analyse" kennzeichnen. Nichts erfinden.
@@ -242,10 +248,7 @@ GESPRÄCHSNOTIZEN:
 ${notes}
 """
 
-FREIGEGEBENE ANALYSE (Stopp 1):
-${JSON.stringify(analysis, null, 2)}
-
-FREIGEGEBENES MAPPING & POSITIONEN (Stopp 2):
+${analysis ? `FREIGEGEBENE ANALYSE (Stopp 1):\n${JSON.stringify(analysis, null, 2)}\n\n` : ''}FREIGEGEBENES MAPPING & POSITIONEN (Stopp 2):
 ${JSON.stringify(mapping, null, 2)}
 
 AUFGABE — Step 4 des Skills: Erzeuge die FINALE Config als JSON-Objekt im Feld "config".

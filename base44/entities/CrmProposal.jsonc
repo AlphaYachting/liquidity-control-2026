@@ -16,14 +16,45 @@
     "contact_person": {
       "type": "string"
     },
+    "offer_type": {
+      "type": "string",
+      "enum": [
+        "neukunde",
+        "bestand",
+        "email"
+      ],
+      "description": "Angebotstyp \u2014 vor dem Start gew\u00e4hlt und best\u00e4tigt"
+    },
+    "offer_type_reason": {
+      "type": "string",
+      "description": "Begr\u00fcndung der Typwahl (Empfehlung oder manuell)"
+    },
+    "type_confirmed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt der Typbest\u00e4tigung \u2014 ohne sie l\u00e4uft kein KI-Lauf"
+    },
+    "sent_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "accepted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "declined_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "mode": {
       "type": "string",
       "enum": [
         "full",
-        "short"
+        "short",
+        "email"
       ],
       "default": "full",
-      "description": "Vollversion oder Kurzform des Skills"
+      "description": "Abgeleitetes Feld (neukunde->full, bestand->short, email->email) f\u00fcr Skill- und Template-Auswahl"
     },
     "sprint_mode": {
       "type": "boolean",

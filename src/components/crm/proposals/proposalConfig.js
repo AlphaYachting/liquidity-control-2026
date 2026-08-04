@@ -8,7 +8,14 @@ export const PROPOSAL_STATUSES = {
   error: { label: 'Fehler', color: 'bg-red-100 text-red-600', step: 0 },
 };
 
-export const MODE_LABELS = { full: 'Vollversion', short: 'Kurzform' };
+export const MODE_LABELS = { full: 'Vollversion', short: 'Kurzform', email: 'E-Mail' };
+
+// Drei Angebotstypen — mode ist das abgeleitete Feld für Skill- und Template-Auswahl.
+export const OFFER_TYPES = {
+  neukunde: { label: 'Neukunde', chip: 'bg-violet-100 text-violet-700', mode: 'full' },
+  bestand: { label: 'Bestand', chip: 'bg-blue-100 text-blue-700', mode: 'short' },
+  email: { label: 'E-Mail', chip: 'bg-amber-100 text-amber-700', mode: 'email' },
+};
 
 export const SIGNERS = ['Alfons Rittler', 'Sebastian Haslinger'];
 
@@ -20,3 +27,22 @@ export const WORKFLOW_STEPS = [
   { key: 'config_ready', label: '4 · Config', statuses: ['config_ready', 'rendering'] },
   { key: 'rendered', label: '5 · PDF' },
 ];
+
+// Typ B (Bestand) hat keinen Analyse-Schritt — je Typ eine eigene Stufenfolge,
+// keine leeren oder übersprungenen Stufen.
+export const WORKFLOW_STEPS_BESTAND = [
+  { key: 'input', label: '1 · Input & Kontext' },
+  { key: 'mapping_review', label: '2 · Positionen & Preise (Stopp)' },
+  { key: 'config_ready', label: '3 · Config', statuses: ['config_ready', 'rendering'] },
+  { key: 'rendered', label: '4 · PDF' },
+];
+
+export function workflowSteps(offerType) {
+  return offerType === 'bestand' ? WORKFLOW_STEPS_BESTAND : WORKFLOW_STEPS;
+}
+
+export function stepForStatus(offerType, status) {
+  const steps = workflowSteps(offerType);
+  const idx = steps.findIndex(s => s.key === status || (s.statuses || []).includes(status));
+  return idx >= 0 ? idx + 1 : (PROPOSAL_STATUSES[status]?.step ?? 1);
+}
