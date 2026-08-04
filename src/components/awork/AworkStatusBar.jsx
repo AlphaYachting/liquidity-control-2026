@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, Link2, Loader2, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import { formatDistanceToNow, differenceInHours } from 'date-fns';
 import { de } from 'date-fns/locale';
+import AworkLastBookers from '@/components/awork/AworkLastBookers';
 
 /**
  * Upgraded awork status card — status-first, sync-secondary.
@@ -184,6 +185,9 @@ export default function AworkStatusBar({ order, data, taskStats, snapshot, onSel
           </span>
         )}
       </div>
+
+      {/* Wer hat zuletzt gebucht — Ansprechpersonen für Fertigstellungs-Einschätzung */}
+      <AworkLastBookers aworkProjectId={src.awork_project_id} />
 
       {/* Sync freshness footer */}
       <div className="flex items-center justify-between text-xs border-t border-blue-100 pt-2">

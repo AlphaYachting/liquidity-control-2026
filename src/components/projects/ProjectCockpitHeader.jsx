@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, FolderKanban, Trash2, Archive, RotateCcw } from 'lucide-react';
+import { ArrowLeft, FolderKanban, Trash2, Archive, RotateCcw, UserCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import StatusBadge from '@/components/shared/StatusBadge';
 import CommunicationStatusBadge from '@/components/crm/emails/CommunicationStatusBadge';
@@ -60,6 +60,12 @@ export default function ProjectCockpitHeader({ project, embedded, onBack, onUpda
 
       {/* Untere Zeile: Status-Badges */}
       <div className={`flex items-center gap-2 flex-wrap mt-3 ${!embedded ? 'pl-[52px]' : ''}`}>
+        <span className={`inline-flex items-center gap-1 text-xs rounded-md px-2 py-1 border font-medium ${
+          project.project_manager ? 'bg-indigo-50 text-indigo-800 border-indigo-200' : 'bg-muted text-muted-foreground border-border'
+        }`}>
+          <UserCircle2 className="w-3.5 h-3.5" />
+          Verantwortlich: {project.project_manager || 'nicht hinterlegt'}
+        </span>
         <StatusBadge status={project.status} />
         <CommunicationStatusBadge customer={project.customer} />
         <select
