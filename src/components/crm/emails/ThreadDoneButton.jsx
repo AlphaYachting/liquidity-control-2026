@@ -14,7 +14,7 @@ export default function ThreadDoneButton({ threadId, status, onChanged }) {
     setSaving(true); setError(null);
     try {
       await emailApi('enrich', { thread_id: threadId, fields: { status: newStatus } });
-      onChanged?.();
+      onChanged?.(newStatus);
     } catch (e) {
       setError(e?.response?.data?.error || e?.message || 'Speichern fehlgeschlagen');
     }

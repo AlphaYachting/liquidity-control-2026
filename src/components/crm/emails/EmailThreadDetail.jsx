@@ -9,7 +9,7 @@ import ThreadAnalysisPanel from '@/components/crm/emails/ThreadAnalysisPanel';
 import ReplyDraftPanel from '@/components/crm/emails/ReplyDraftPanel';
 import ThreadDoneButton from '@/components/crm/emails/ThreadDoneButton';
 
-export default function EmailThreadDetail({ thread, loading, onRefresh }) {
+export default function EmailThreadDetail({ thread, loading, onRefresh, onStatusChanged }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
@@ -57,7 +57,11 @@ export default function EmailThreadDetail({ thread, loading, onRefresh }) {
                   <a href={replyHref}><Reply className="w-3.5 h-3.5" /> Antworten</a>
                 </Button>
               )}
-              <ThreadDoneButton threadId={t.id} status={t.status} onChanged={onRefresh} />
+              <ThreadDoneButton
+                threadId={t.id}
+                status={t.status}
+                onChanged={(newStatus) => (onStatusChanged ? onStatusChanged(t.id, newStatus) : onRefresh?.())}
+              />
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap mt-1">

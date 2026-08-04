@@ -62,6 +62,20 @@ export default function CrmEmails() {
     if (threadParam) openThread(threadParam);
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Statuswechsel (erledigt / wieder öffnen) ohne Komplett-Reload:
+  // Detailansicht und Liste werden lokal aktualisiert.
+  const applyStatusChange = (threadId, newStatus) => {
+    setThread((prev) =>
+      prev?.thread?.id === threadId ? { ...prev, thread: { ...prev.thread, status: newStatus } } : prev
+    );
+    setItems((prev) => {
+      if (mode === 'search') return prev;
+      // Arbeitsliste "Braucht Antwort": erledigte Threads verschwinden sofort
+      if (view === 'action' && newStatus !== 'offen') return prev.filter((t) => t.id !== threadId);
+      return prev.map((t) => (t.id === threadId ? { ...t, status: newStatus } : t));
+    });
+  };
+
   const openThread = async (threadId) => {
     if (!threadId) return;
     setSelectedId(threadId);
@@ -123,6 +137,7 @@ export default function CrmEmails() {
           thread={thread}
           loading={loadingThread}
           onRefresh={() => { openThread(selectedId); load(); }}
+          onStatusChanged={applyStatusChange}
         />
       </div>
     </div>
