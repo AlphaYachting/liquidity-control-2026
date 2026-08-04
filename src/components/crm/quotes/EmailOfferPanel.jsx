@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Loader2, Mail, Copy, CheckCircle2 } from 'lucide-react';
 
@@ -11,6 +12,7 @@ const eur = (v) => new Intl.NumberFormat('de-AT', { style: 'currency', currency:
 // Bei Freigabe: status='sent', Aktivität am Deal, Deal-Phase wechseln, Mail öffnen oder kopieren.
 export default function EmailOfferPanel({ quote, onUpdated }) {
   const [body, setBody] = useState(quote.email_body || '');
+  const [to, setTo] = useState(quote.contact_email || '');
   const [working, setWorking] = useState(false);
   const [copied, setCopied] = useState(false);
   const [hintNet, setHintNet] = useState(0);
@@ -27,6 +29,7 @@ export default function EmailOfferPanel({ quote, onUpdated }) {
   const release = async () => {
     await base44.entities.CrmQuote.update(quote.id, {
       email_body: body,
+      contact_email: to.trim(),
       status: 'sent',
       sent_at: new Date().toISOString(),
     });
@@ -52,7 +55,7 @@ export default function EmailOfferPanel({ quote, onUpdated }) {
     setWorking(true);
     if (!isSent) await release();
     setWorking(false);
-    window.location.href = `mailto:${quote.contact_email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:${to.trim()}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const copyText = async () => {
@@ -88,6 +91,17 @@ export default function EmailOfferPanel({ quote, onUpdated }) {
             Größerer Betrag — Kurzform mit Dokument erwägen.
           </p>
         )}
+        {/* Ohne Adressat öffnet das Mailprogramm ins Leere — deshalb Pflichtfeld */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold w-8 shrink-0">An</label>
+          <Input
+            type="email"
+            value={to}
+            onChange={e => setTo(e.target.value)}
+            placeholder="empfaenger@firma.at"
+            className={`h-8 text-sm ${!to.trim() ? 'border-amber-300' : ''}`}
+          />
+        </div>
         <Textarea
           value={body}
           onChange={e => setBody(e.target.value)}
@@ -111,7 +125,7 @@ export default function EmailOfferPanel({ quote, onUpdated }) {
               {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
               {copied ? 'Kopiert' : isSent ? 'Text kopieren' : 'Freigeben & kopieren'}
             </Button>
-            <Button onClick={openMail} disabled={working || !body.trim()} className="gap-2">
+            <Button onClick={openMail} disabled={working || !body.trim() || !to.trim()} className="gap-2">
               {working ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
               {isSent ? 'Mail öffnen' : 'Freigeben & Mail öffnen'}
             </Button>

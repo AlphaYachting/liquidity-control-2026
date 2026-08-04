@@ -75,7 +75,8 @@ export default function DealDetailHeader({ deal, onEdit, onClose, onReopen, onDe
                   </SelectContent>
                 </Select>
               </div>
-              <ProposalHandoffButton deal={deal} onDone={onRefresh} />
+              {/* Verknüpftes Angebot? Dann führt nur die Angebotskarte weiter — kein zweites Angebot aus Versehen. */}
+              {!deal.proposal_id && !deal.quote_id && <ProposalHandoffButton deal={deal} onDone={onRefresh} />}
             </>
           )}
 

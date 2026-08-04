@@ -8,13 +8,13 @@ import { eur } from '@/components/crm/stages';
 // Ein Klick: Anfrage → Angebots-Studio inkl. automatischer KI-Vorkalkulation.
 // Die Vorkalkulation wird als eigenes Quell-Dokument ins Angebot gelegt und
 // fließt so direkt in die Analyse/Angebotserstellung ein.
-export default function ProposalHandoffButton({ deal, onDone }) {
+export default function ProposalHandoffButton({ deal, onDone, forceNew = false, label }) {
   const navigate = useNavigate();
   const [working, setWorking] = useState(false);
   const [step, setStep] = useState('');
   const [error, setError] = useState(null);
 
-  if (deal.proposal_id) {
+  if (deal.proposal_id && !forceNew) {
     return (
       <Button size="sm" variant="outline" className="gap-1.5" asChild>
         <Link to={`/crm/proposals/${deal.proposal_id}`}>
@@ -99,7 +99,7 @@ Regeln:
         ],
       });
 
-      const patch = { proposal_id: proposal.id, next_step: 'Angebot im Angebots-Studio fertigstellen' };
+      const patch = { proposal_id: proposal.id, quote_id: '', next_step: 'Angebot im Angebots-Studio fertigstellen' };
       if (!deal.value_net && calc.total_net > 0) patch.value_net = Math.round(calc.total_net);
       await base44.entities.CrmDeal.update(deal.id, patch);
       await base44.entities.CrmActivity.create({
@@ -121,9 +121,9 @@ Regeln:
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button size="sm" className="gap-1.5" onClick={handoff} disabled={working}>
+      <Button size="sm" variant={forceNew ? 'outline' : 'default'} className="gap-1.5" onClick={handoff} disabled={working}>
         {working ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Presentation className="w-3.5 h-3.5" />}
-        {working ? step : 'Ins Angebots-Studio'}
+        {working ? step : (label || 'Ins Angebots-Studio')}
       </Button>
       {error && <p className="text-[11px] text-destructive">{error}</p>}
     </div>

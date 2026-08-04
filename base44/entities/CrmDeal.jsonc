@@ -161,6 +161,10 @@
       "type": "string",
       "description": "Verkn\u00fcpftes Angebot im Angebots-Studio (CrmProposal)"
     },
+    "quote_id": {
+      "type": "string",
+      "description": "Verkn\u00fcpftes E-Mail-Angebot (CrmQuote)"
+    },
     "email_thread_id": {
       "type": "string",
       "description": "Thread in der zentralen E-Mail-Datenbank, aus dem der Deal entstanden ist"

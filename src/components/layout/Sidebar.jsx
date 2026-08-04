@@ -15,6 +15,7 @@ import { useUnlinkedOrdersCount } from '@/hooks/useUnlinkedOrdersCount';
 import { usePendingDunningCount } from '@/hooks/usePendingDunningCount';
 import { useCrmInboxCount } from '@/hooks/useCrmInboxCount';
 import { useEmailTriageCount } from '@/hooks/useEmailTriageCount';
+import { useEmailEscalations } from '@/hooks/useEmailEscalations';
 
 const navSections = [
   {
@@ -97,6 +98,7 @@ export default function Sidebar() {
   const pendingDunningCount = usePendingDunningCount();
   const crmInboxCount = useCrmInboxCount();
   const emailTriageCount = useEmailTriageCount();
+  const escalationCount = useEmailEscalations().data?.length || 0;
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -114,7 +116,8 @@ export default function Sidebar() {
       : item.path === '/receivables' ? pendingDunningCount
       : item.path === '/crm/inbox' ? crmInboxCount
       : item.path === '/crm/emails' ? emailTriageCount : 0;
-    const badgeColor = 'bg-amber-500';
+    // roter Zähler = Kunden-Eskalationen, hat im eingeklappten Zustand Vorrang
+    const alertCount = item.path === '/crm/emails' ? escalationCount : 0;
     return (
       <Link
         key={item.path}
@@ -130,12 +133,21 @@ export default function Sidebar() {
       >
         <Icon className="w-4 h-4 flex-shrink-0" />
         {!collapsed && <span className="truncate flex-1">{item.label}</span>}
-        {badgeCount > 0 && (
+        {(badgeCount > 0 || alertCount > 0) && (
           collapsed ? (
-            <span className={`absolute ml-6 -mt-4 w-2 h-2 rounded-full ${badgeColor}`} />
+            <span className={`absolute ml-6 -mt-4 w-2 h-2 rounded-full ${alertCount > 0 ? 'bg-red-600' : 'bg-amber-500'}`} />
           ) : (
-            <span className={`flex-shrink-0 min-w-[20px] h-5 px-1.5 rounded-full ${badgeColor} text-white text-[11px] font-semibold flex items-center justify-center`}>
-              {badgeCount}
+            <span className="flex-shrink-0 flex items-center gap-1">
+              {badgeCount > 0 && (
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[11px] font-semibold flex items-center justify-center">
+                  {badgeCount}
+                </span>
+              )}
+              {alertCount > 0 && (
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[11px] font-semibold flex items-center justify-center" title="Kunden-Eskalationen">
+                  {alertCount}
+                </span>
+              )}
             </span>
           )
         )}

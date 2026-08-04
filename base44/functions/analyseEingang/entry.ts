@@ -33,8 +33,20 @@ Deno.serve(async (req) => {
     };
 
     // 1. Ledger: bereits geprüfte Threads überspringen
+    // Ein Fehlversuch sperrt den Thread NICHT — erst ab dem dritten wird er übersprungen.
     const ledger = await db.EmailScanLedger.list('-checked_at', 3000);
-    const seen = new Set(ledger.map((l) => String(l.thread_id)).filter(Boolean));
+    const failEntries = new Map<string, any>();
+    const seen = new Set<string>();
+    for (const l of ledger) {
+      const id = String(l.thread_id || '');
+      if (!id) continue;
+      if (l.outcome === 'fehler') {
+        if (!failEntries.has(id)) failEntries.set(id, l);
+        if ((l.fail_count || 0) >= 3) seen.add(id);
+      } else {
+        seen.add(id);
+      }
+    }
 
     const listing = await emailDbGet('threads', { days, limit: 150 });
     const threads = (listing.results || []).filter((t) => !seen.has(String(t.id)));
@@ -254,8 +266,25 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
           inquiry_type: r.inquiry_type, inbox_item_id: item.id,
         });
       } catch (e) {
+        // Kein "geprüft"-Vermerk: der Thread kommt im nächsten Lauf wieder dran.
+        // Nur der Fehlerzähler wächst, damit ein dauerhaft defekter Thread irgendwann ruht.
         stats.errors.push(`Thread ${t.id}: ${e.message}`);
-        await note(t.id, 'fehler', e.message).catch(() => {});
+        try {
+          const prev = failEntries.get(String(t.id));
+          if (prev) {
+            await db.EmailScanLedger.update(prev.id, {
+              checked_at: new Date().toISOString(),
+              reason: String(e.message || '').slice(0, 500),
+              fail_count: (prev.fail_count || 0) + 1,
+            });
+          } else {
+            const created = await db.EmailScanLedger.create({
+              thread_id: String(t.id), checked_at: new Date().toISOString(),
+              outcome: 'fehler', reason: String(e.message || '').slice(0, 500), fail_count: 1,
+            });
+            failEntries.set(String(t.id), created);
+          }
+        } catch (_) { /* Protokollierung darf den Lauf nicht stoppen */ }
       }
     }
 

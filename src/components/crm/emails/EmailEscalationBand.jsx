@@ -9,7 +9,7 @@ import EscalationInterventionCard from '@/components/crm/emails/EscalationInterv
 // eigene Seite "Kommunikations-Alerts".
 export default function EmailEscalationBand() {
   const { data: threads = [], isLoading } = useEmailEscalations();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true); // liegen Eskalationen vor, sind sie sofort lesbar
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
     queryFn: () => base44.entities.LiquidityProject.list(),

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { Inbox, PenLine, ArrowLeft, MailQuestion } from 'lucide-react';
+import { PenLine, ArrowLeft, MailQuestion, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 import InboxItemCard from '@/components/crm/InboxItemCard';
@@ -16,6 +16,7 @@ export default function CrmInbox() {
   const queryClient = useQueryClient();
   const [captureOpen, setCaptureOpen] = useState(false);
   const [convertItem, setConvertItem] = useState(null);
+  const [backchannelWarning, setBackchannelWarning] = useState(null);
 
   const { data: rawItems = [], isLoading } = useQuery({
     queryKey: ['crm-inbox'],
@@ -52,11 +53,17 @@ export default function CrmInbox() {
       content: `Quelle: ${convertItem.source === 'phone_ai' ? 'Telefon-KI' : convertItem.source === 'email' ? 'E-Mail' : 'Manuell'}\n${convertItem.body || ''}`.trim(),
       activity_date: new Date().toISOString(),
     });
-    await markThreadAsLead(threadId, deal.id);
+    const back = await markThreadAsLead(threadId, deal.id);
     // Recherche erst jetzt — nie beim automatischen Erkennen
     base44.functions.invoke('enrichCrmLead', { deal_id: deal.id }).catch(() => {});
     setConvertItem(null);
     refresh();
+    // Der Lead bleibt in jedem Fall bestehen — schlägt nur der Rückkanal fehl,
+    // bleibt der Nutzer hier und sieht den Hinweis.
+    if (!back.ok) {
+      setBackchannelWarning({ subject: convertItem.subject || 'Anfrage', dealId: deal.id });
+      return;
+    }
     navigate(`/crm/deals/${deal.id}`);
   };
 
@@ -76,6 +83,18 @@ export default function CrmInbox() {
           </div>
         }
       />
+
+      {backchannelWarning && (
+        <div className="border border-amber-200 bg-amber-50 rounded-xl px-4 py-3 text-xs text-amber-800 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <p className="flex-1">
+            Der Lead zu „{backchannelWarning.subject}" wurde angelegt, aber der Thread konnte in der
+            E-Mail-Zentrale nicht als übernommen markiert werden — er bleibt dort in „Braucht Antwort" stehen.{' '}
+            <Link to={`/crm/deals/${backchannelWarning.dealId}`} className="font-semibold underline">Deal öffnen</Link>
+          </p>
+          <button onClick={() => setBackchannelWarning(null)} className="text-amber-700 font-semibold shrink-0">Ausblenden</button>
+        </div>
+      )}
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground py-10 text-center">Posteingang lädt…</p>

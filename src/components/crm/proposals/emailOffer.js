@@ -1,6 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { loadSkillRules } from '@/components/crm/proposals/skillLoader';
-import { loadLargeText, unwrapLLM } from '@/components/crm/proposals/jsonFields';
+import { loadLargeText, unwrapLLM, buildLargeTextPatch } from '@/components/crm/proposals/jsonFields';
 import { composeNotes } from '@/components/crm/proposals/sourceDocs';
 
 const MODEL = 'claude_sonnet_4_6';
@@ -83,6 +83,12 @@ Gib zusätzlich strukturiert zurück: positions[] (title, description, price_net
 
   onProgress('Ergebnis wird als Angebot gespeichert…');
   const result = unwrapLLM(raw);
+  // Quelltext vollständig erhalten — bei langen Notizen als Datei auslagern
+  const sourcePatch = await buildLargeTextPatch('source_text', notes, 'angebotsquelle.txt');
+  // Empfänger aus dem Deal übernehmen, damit die Mail nicht ohne Adressat öffnet
+  const deal = proposal.deal_id
+    ? await base44.entities.CrmDeal.get(proposal.deal_id).catch(() => null)
+    : null;
   const positions = result?.positions || [];
   const totalNet = result?.total_net || positions.reduce((s, p) => s + (p.price_net || 0), 0);
   const totalGross = result?.total_gross || Math.round(totalNet * 1.2 * 100) / 100;
@@ -91,8 +97,10 @@ Gib zusätzlich strukturiert zurück: positions[] (title, description, price_net
     deal_id: proposal.deal_id || '',
     title: proposal.title || `E-Mail-Angebot ${proposal.customer_company || ''}`.trim(),
     customer_name: proposal.customer_company || '',
-    contact_name: proposal.contact_person || '',
+    contact_name: proposal.contact_person || deal?.contact_name || '',
+    contact_email: deal?.contact_email || '',
     offer_type: 'email',
+    source: 'transcript',
     status: 'draft',
     items: positions.map((p, i) => ({
       position: i + 1,
@@ -109,7 +117,7 @@ Gib zusätzlich strukturiert zurück: positions[] (title, description, price_net
     excluded: result?.excluded || [],
     valid_until: validIso,
     email_body: result?.email_body || '',
-    source_text: notes.slice(0, 8000),
+    ...sourcePatch,
     notes: result?.timeline ? `Termin: ${result.timeline}` : '',
   });
 }

@@ -37,8 +37,16 @@ export const WORKFLOW_STEPS_BESTAND = [
   { key: 'rendered', label: '4 · PDF' },
 ];
 
+// Typ C (E-Mail) läuft in einem Zug: Input, dann der Freigabe-Stopp am Mailtext.
+export const WORKFLOW_STEPS_EMAIL = [
+  { key: 'input', label: '1 · Input & Kontext' },
+  { key: 'mapping_review', label: '2 · E-Mail-Angebot (Stopp)' },
+];
+
 export function workflowSteps(offerType) {
-  return offerType === 'bestand' ? WORKFLOW_STEPS_BESTAND : WORKFLOW_STEPS;
+  if (offerType === 'bestand') return WORKFLOW_STEPS_BESTAND;
+  if (offerType === 'email') return WORKFLOW_STEPS_EMAIL;
+  return WORKFLOW_STEPS;
 }
 
 export function stepForStatus(offerType, status) {

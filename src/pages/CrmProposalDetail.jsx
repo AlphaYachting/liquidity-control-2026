@@ -186,9 +186,15 @@ export default function CrmProposalDetail() {
       logStep('E-Mail-Angebot wird erstellt (1 KI-Lauf)…');
       const fresh = await base44.entities.CrmProposal.get(proposalId);
       const quote = await runEmailOffer(fresh, logStep);
-      logStep('Angebot wird verknüpft…');
+      logStep('Angebot wird mit dem Deal verknüpft…');
+      // Erst den Deal verknüpfen, dann das Angebots-Studio-Objekt löschen —
+      // so bleibt bei einem Fehler nichts Verwaistes zurück.
       if (fresh.deal_id) {
-        await base44.entities.CrmDeal.update(fresh.deal_id, { proposal_id: '' }).catch(() => {});
+        await base44.entities.CrmDeal.update(fresh.deal_id, {
+          quote_id: quote.id,
+          proposal_id: '',
+          next_step: 'E-Mail-Angebot freigeben und senden',
+        });
       }
       await base44.entities.CrmProposal.delete(proposalId);
       navigate(`/crm/quotes/${quote.id}`);

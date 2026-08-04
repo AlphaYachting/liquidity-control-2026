@@ -32,6 +32,11 @@
     "reason": {
       "type": "string"
     },
+    "fail_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Fehlversuche \u2014 erst ab 3 wird der Thread dauerhaft \u00fcbersprungen"
+    },
     "inbox_item_id": {
       "type": "string"
     }

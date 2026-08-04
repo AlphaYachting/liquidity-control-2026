@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Presentation, ExternalLink, FileText, Mail, BellRing } from 'lucide-react';
 import OfferEmailDialog from '@/components/crm/OfferEmailDialog';
+import DealQuoteCard from '@/components/crm/DealQuoteCard';
+import ProposalHandoffButton from '@/components/crm/ProposalHandoffButton';
 
 const STATUS_META = {
   input: { label: 'In Vorbereitung', color: 'bg-muted text-muted-foreground' },
@@ -27,6 +29,7 @@ export default function DealProposalCard({ deal, activities, onChanged }) {
     enabled: Boolean(deal.proposal_id),
   });
 
+  if (!deal.proposal_id && deal.quote_id) return <DealQuoteCard deal={deal} onChanged={onChanged} />;
   if (!deal.proposal_id) return null;
 
   const emailActivities = (activities || []).filter(
@@ -76,6 +79,7 @@ export default function DealProposalCard({ deal, activities, onChanged }) {
             <BellRing className="w-3.5 h-3.5" /> Nachfassen
           </Button>
         )}
+        <ProposalHandoffButton deal={deal} onDone={onChanged} forceNew label="Weiteres Angebot anlegen" />
       </div>
 
       {proposal && (

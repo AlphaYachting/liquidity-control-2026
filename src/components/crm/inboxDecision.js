@@ -9,11 +9,16 @@ export const threadIdOf = (item) =>
 // Rückkanal in die zentrale E-Mail-Datenbank: der Thread ist als Lead erledigt.
 // Nimmt die DB die Felder nicht an, darf das die Lead-Anlage nicht verhindern.
 export async function markThreadAsLead(threadId, dealId) {
-  if (!threadId) return;
-  await emailApi('enrich', {
-    thread_id: threadId,
-    fields: { crm_status: 'lead_angelegt', crm_deal_id: dealId, status: 'beantwortet' },
-  }).catch(() => {});
+  if (!threadId) return { ok: true };
+  try {
+    await emailApi('enrich', {
+      thread_id: threadId,
+      fields: { crm_status: 'lead_angelegt', crm_deal_id: dealId, status: 'beantwortet' },
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e?.message || 'unbekannter Fehler' };
+  }
 }
 
 // "Kein Lead, beantworten" bzw. "Verwerfen" — der Eintrag verlässt den Posteingang.
