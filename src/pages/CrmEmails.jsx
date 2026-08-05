@@ -6,7 +6,8 @@ import EmailFilterBar from '@/components/crm/emails/EmailFilterBar';
 import EmailThreadList from '@/components/crm/emails/EmailThreadList';
 import EmailThreadDetail from '@/components/crm/emails/EmailThreadDetail';
 import EmailViewToggle from '@/components/crm/emails/EmailViewToggle';
-import { buildTriageList, TRIAGE_PARAMS, TRIAGE_LIMIT } from '@/components/crm/emails/emailTriage';
+import { buildTriageList } from '@/components/crm/emails/emailTriage';
+import { loadWorkQueueThreads } from '@/components/crm/emails/emailWorkQueueSource';
 
 export default function CrmEmails() {
   const [filters, setFilters] = useState({ q: '', customer: '', status: 'all', days: '30', direction: 'all' });
@@ -32,15 +33,16 @@ export default function CrmEmails() {
         setMode('search');
         setItems(data.results || []);
       } else if (v === 'action') {
-        // Triage nach harten Fakten. Serverseitig auf offene Threads vorfiltern —
-        // kleinere Menge = zuverlässigere Anreicherung pro Thread.
-        const params = { ...TRIAGE_PARAMS };
-        if (f.customer.trim()) params.customer = f.customer.trim();
-        if (f.days !== 'all') params.days = f.days;
-        const data = await emailApi('threads', { params });
+        // Arbeitsliste aus dem eigenen Verlaufs-Index — vollständig, unabhängig
+        // vom 100er-Fenster der E-Mail-Datenbank.
+        let rows = await loadWorkQueueThreads(f.days);
+        if (f.customer.trim()) {
+          const needle = f.customer.trim().toLowerCase();
+          rows = rows.filter((t) => `${t.customer || ''} ${t.last_from || ''}`.toLowerCase().includes(needle));
+        }
         setMode('threads');
-        setTruncated((data.results || []).length >= TRIAGE_LIMIT);
-        setItems(buildTriageList(data.results));
+        setTruncated(false);
+        setItems(buildTriageList(rows));
       } else {
         const params = { limit: 50, with_reply_state: 1 };
         if (f.customer.trim()) params.customer = f.customer.trim();
@@ -136,9 +138,7 @@ export default function CrmEmails() {
             error={listError}
           />
           {view === 'action' && truncated && !loadingList && (
-            <p className="text-[11px] text-muted-foreground mt-2 px-1">
-              Es werden die {TRIAGE_LIMIT} neuesten offenen Konversationen geprüft.
-            </p>
+            <p className="text-[11px] text-muted-foreground mt-2 px-1">Es werden die 300 jüngsten offenen Konversationen angezeigt.</p>
           )}
         </div>
         <EmailThreadDetail

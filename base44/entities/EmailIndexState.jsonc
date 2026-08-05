@@ -1,0 +1,31 @@
+{
+  "name": "EmailIndexState",
+  "type": "object",
+  "properties": {
+    "backfill_cursor": {
+      "type": "number",
+      "description": "n\u00e4chste zu pr\u00fcfende Verlaufs-ID beim historischen Nachlauf (l\u00e4uft abw\u00e4rts)"
+    },
+    "max_thread_id": {
+      "type": "number",
+      "description": "h\u00f6chste bisher gesehene Verlaufs-ID"
+    },
+    "last_window_run_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_backfill_run_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "indexed_total": {
+      "type": "number",
+      "default": 0
+    },
+    "backfill_done": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": []
+}
