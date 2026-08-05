@@ -8,8 +8,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, Sparkles } from 'lucide-react';
 import { buildLargeTextPatch } from '@/components/crm/proposals/jsonFields';
-import { extractContext } from '@/components/crm/proposals/proposalReasoning';
-import { composeDocsText } from '@/components/crm/proposals/sourceDocs';
 import SourceDocumentsPanel from '@/components/crm/proposals/SourceDocumentsPanel';
 
 export default function ProposalCreateDialog({ open, onOpenChange }) {
@@ -24,27 +22,11 @@ export default function ProposalCreateDialog({ open, onOpenChange }) {
   const handleCreate = async () => {
     setSaving(true); setError(null);
     try {
-      const docsText = await composeDocsText(docs);
-      const combined = [docsText, text.trim()].filter(Boolean).join('\n\n');
-      // Kontext-Extraktion mit gekürztem Text; bei Fehler trotzdem anlegen —
-      // die Detailseite zieht den Kontext vor der Analyse automatisch nach.
-      let ctx = null;
-      try {
-        ctx = await extractContext(combined.slice(0, 30000));
-      } catch {
-        ctx = null;
-      }
+      // Keine Kontext-Extraktion beim Anlegen — sie läuft genau einmal,
+      // am Anfang des ersten echten KI-Laufs (und setzt dort auch den Titel).
       const notesPatch = await buildLargeTextPatch('input_text', text, 'gespraechsnotizen.txt');
       const proposal = await base44.entities.CrmProposal.create({
-        title: ctx?.proposal_title || ctx?.customer_company || 'Neues Angebot',
-        customer_company: ctx?.customer_company || '',
-        contact_person: ctx?.contact_person || '',
-        client_core_business: ctx?.client_core_business || '',
-        client_industry: ctx?.client_industry || '',
-        client_target_audience: ctx?.client_target_audience || '',
-        client_usp: ctx?.client_usp || '',
-        client_existing_marketing: ctx?.client_existing_marketing || '',
-        client_project_scope: ctx?.client_project_scope || '',
+        title: 'Neues Angebot',
         source_documents: docs,
         status: 'input',
         ...notesPatch,
@@ -109,7 +91,7 @@ export default function ProposalCreateDialog({ open, onOpenChange }) {
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Abbrechen</Button>
           <Button onClick={handleCreate} disabled={!hasInput || saving} className="gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {saving ? 'Kontext wird analysiert…' : 'Anlegen & Typ wählen'}
+            {saving ? 'Wird angelegt…' : 'Anlegen & Typ wählen'}
           </Button>
         </div>
       </DialogContent>

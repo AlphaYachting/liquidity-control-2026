@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -16,6 +16,9 @@ import CorrectionInput from '@/components/crm/proposals/CorrectionInput';
 import ProgressLog, { analyzeError } from '@/components/crm/proposals/ProgressLog';
 import OfferTypeSelector from '@/components/crm/proposals/OfferTypeSelector';
 import { runEmailOffer } from '@/components/crm/proposals/emailOffer';
+import SourceDocumentsPanel from '@/components/crm/proposals/SourceDocumentsPanel';
+import PrecalcButton from '@/components/crm/proposals/PrecalcButton';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function CrmProposalDetail() {
   const { proposalId } = useParams();
@@ -53,18 +56,10 @@ export default function CrmProposalDetail() {
     enabled: !!proposal,
   });
 
-  const autostartRef = useRef(false);
+  // Kein Autostart: Läufe starten ausschließlich über den Startknopf.
   useEffect(() => {
     if (!proposal) return;
-    loadLargeText(proposal, 'input_text').then((t) => {
-      setNotes(t);
-      const urlParams = new URLSearchParams(window.location.search);
-      if (!autostartRef.current && urlParams.get('autostart') === '1' && proposal.type_confirmed_at && proposal.status === 'input' && (t.trim() || (proposal.source_documents || []).length > 0)) {
-        autostartRef.current = true;
-        if (proposal.offer_type === 'bestand') runMappingStep(false);
-        else startAnalysis(false, t);
-      }
-    });
+    loadLargeText(proposal, 'input_text').then(setNotes);
   }, [proposal?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['crm-proposal', proposalId] });
@@ -89,6 +84,34 @@ export default function CrmProposalDetail() {
     await update({ source_documents: (proposal.source_documents || []).filter((_, i) => i !== idx) });
   };
 
+  const saveNotes = async () => {
+    setBusy('save');
+    await update(await buildLargeTextPatch('input_text', notes, 'gespraechsnotizen.txt'));
+    setBusy(null);
+  };
+
+  // Vorläufige Titel aus Handoff/Anlage — werden beim ersten Lauf durch den KI-Titel ersetzt.
+  const isProvisionalTitle = (t) => !t || t === 'Neues Angebot' || /^Angebot /.test(t);
+
+  // Kontext-Extraktion läuft genau EINMAL — am Anfang des ersten echten KI-Laufs.
+  const ensureContext = async (inputText) => {
+    let fresh = await base44.entities.CrmProposal.get(proposalId);
+    if (fresh.client_core_business || fresh.client_project_scope) return fresh;
+    logStep('Kundenkontext wird aus den Dokumenten extrahiert…');
+    const composed = await composeNotes(fresh, inputText);
+    const ctx = await extractContext(composed.slice(0, 30000));
+    const ctxPatch = {};
+    ['customer_company', 'contact_person', 'client_core_business', 'client_industry',
+      'client_target_audience', 'client_usp', 'client_existing_marketing', 'client_project_scope']
+      .forEach(f => { if (ctx?.[f] && !fresh[f]) ctxPatch[f] = ctx[f]; });
+    if (ctx?.proposal_title && isProvisionalTitle(fresh.title)) ctxPatch.title = ctx.proposal_title;
+    if (Object.keys(ctxPatch).length > 0) {
+      await base44.entities.CrmProposal.update(proposalId, ctxPatch);
+      fresh = await base44.entities.CrmProposal.get(proposalId);
+    }
+    return fresh;
+  };
+
   const startAnalysis = async (withCorrection, textOverride) => {
     const inputText = textOverride ?? notes;
     setBusy('analysis'); setError(null); setLog([]);
@@ -99,20 +122,7 @@ export default function CrmProposalDetail() {
         ...notesPatch,
         analysis_correction: withCorrection ? correction : '',
       });
-      let fresh = await base44.entities.CrmProposal.get(proposalId);
-      if (!fresh.client_core_business && !fresh.client_project_scope) {
-        logStep('Kundenkontext wird aus den Dokumenten extrahiert…');
-        const composed = await composeNotes(fresh, inputText);
-        const ctx = await extractContext(composed.slice(0, 30000));
-        const ctxPatch = {};
-        ['customer_company', 'contact_person', 'client_core_business', 'client_industry',
-          'client_target_audience', 'client_usp', 'client_existing_marketing', 'client_project_scope']
-          .forEach(f => { if (ctx?.[f] && !fresh[f]) ctxPatch[f] = ctx[f]; });
-        if (Object.keys(ctxPatch).length > 0) {
-          await base44.entities.CrmProposal.update(proposalId, ctxPatch);
-          fresh = await base44.entities.CrmProposal.get(proposalId);
-        }
-      }
+      const fresh = await ensureContext(inputText);
       const result = await runAnalysis(fresh, logStep);
       logStep('Analyse-Ergebnis wird gespeichert…');
       const jsonPatch = await buildLargeTextPatch('analysis_json', JSON.stringify(result), 'analysis.json');
@@ -143,7 +153,8 @@ export default function CrmProposalDetail() {
         patch.analysis_approved_by = user?.email || '';
       }
       await base44.entities.CrmProposal.update(proposalId, patch);
-      const fresh = await base44.entities.CrmProposal.get(proposalId);
+      // Kontext-Extraktion beim ersten echten Lauf (Typ B startet hier)
+      const fresh = await ensureContext(notes);
       const result = await runMapping(fresh, bestand ? null : analysis, logStep);
       logStep('Mapping-Ergebnis wird gespeichert…');
       const jsonPatch = await buildLargeTextPatch('mapping_json', JSON.stringify(result), 'mapping.json');
@@ -206,15 +217,11 @@ export default function CrmProposalDetail() {
     setBusy(null);
   };
 
-  // Nach der Typbestätigung startet der passende erste Lauf automatisch.
-  const onTypeConfirmed = async (type) => {
-    if (type === 'email') return startEmailOffer();
-    refresh();
-    const hasInput = notes.trim() || (proposal.source_documents || []).length > 0;
-    if (!hasInput) return;
-    if (type === 'bestand') runMappingStep(false);
-    else startAnalysis(false);
-  };
+  const isEmail = proposal?.offer_type === 'email';
+
+  // Nach der Typbestätigung startet KEIN Lauf — der Start erfolgt ausschließlich
+  // über den Startknopf auf dem Eingangsbildschirm. Erst sammeln, dann rechnen.
+  const onTypeConfirmed = () => refresh();
 
   // Typwechsel bis zur ersten Freigabe: Analyse & Mapping verwerfen,
   // Kundenkontext und Quelldokumente behalten.
@@ -244,6 +251,33 @@ export default function CrmProposalDetail() {
           </div>
         </div>
         {(log.length > 0 || error) && <ProgressLog lines={log} error={error} />}
+
+        {/* Quellen VOR der Typwahl — Transkript & Co. lassen sich hinzufügen, bevor irgendetwas rechnet */}
+        <SourceDocumentsPanel
+          title="Quellen — Transkript, Kunden-E-Mails, Sprachmemo, Briefing"
+          hint="Alles, was die KI lesen soll, jetzt hinzufügen — es läuft noch kein Lauf."
+          types={['transcript', 'email', 'voice_memo', 'briefing']}
+          documents={proposal.source_documents || []}
+          onAdd={addDocument}
+          onRemove={removeDocument}
+          disabled={!!busy}
+        />
+        <div className="border rounded-xl bg-card p-4 space-y-2">
+          <p className="text-xs font-semibold">Manuelle Notizen (optional)</p>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Zusätzliche eigene Notizen — Dokumente bitte oben als Anhang hinzufügen…"
+            className="min-h-[90px] text-sm"
+            disabled={!!busy}
+          />
+          <div className="flex justify-end">
+            <Button size="sm" variant="outline" onClick={saveNotes} disabled={!!busy}>
+              {busy === 'save' ? 'Speichert…' : 'Notizen speichern'}
+            </Button>
+          </div>
+        </div>
+
         <OfferTypeSelector proposal={proposal} busy={!!busy} onConfirmed={onTypeConfirmed} />
       </div>
     );
@@ -303,13 +337,25 @@ export default function CrmProposalDetail() {
       />
 
       {proposal.status === 'input' && (
-        <div className="flex justify-end">
-          <Button onClick={() => (isBestand ? runMappingStep(false) : startAnalysis(false))} disabled={!!busy || (!notes.trim() && !(proposal.source_documents || []).length)} className="gap-2">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {busy
-              ? (isBestand ? 'Positionen werden erstellt…' : 'Analyse läuft…')
-              : (isBestand ? 'Positionen & Preise erstellen' : 'Strategische Analyse starten')}
-          </Button>
+        <div className="space-y-2">
+          <p className="text-[11px] text-muted-foreground text-right">
+            Gelesen werden: {(proposal.source_documents || []).length} Dokument{(proposal.source_documents || []).length === 1 ? '' : 'e'}
+            {(proposal.source_documents || []).length > 0 ? ` (${(proposal.source_documents || []).map((d) => d.label).join(', ')})` : ''} und {notes.trim().length} Zeichen Notizen.
+            {' '}Fehlt ein Transkript oder eine Kunden-E-Mail — jetzt hinzufügen, später fließt sie nicht mehr in die Analyse ein.
+          </p>
+          <div className="flex justify-end gap-2 flex-wrap">
+            <PrecalcButton proposal={proposal} notes={notes} disabled={!!busy} onAdd={addDocument} />
+            <Button
+              onClick={() => (isEmail ? startEmailOffer() : isBestand ? runMappingStep(false) : startAnalysis(false))}
+              disabled={!!busy || (!notes.trim() && !(proposal.source_documents || []).length)}
+              className="gap-2"
+            >
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {busy
+                ? (isEmail ? 'E-Mail-Angebot wird erstellt…' : isBestand ? 'Positionen werden erstellt…' : 'Analyse läuft…')
+                : (isEmail ? 'E-Mail-Angebot erstellen' : isBestand ? 'Positionen & Preise erstellen' : 'Strategische Analyse starten')}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -359,7 +405,7 @@ export default function CrmProposalDetail() {
         </div>
       )}
 
-      {['config_ready', 'rendering', 'rendered'].includes(proposal.status) && <RenderPanel proposal={proposal} config={config} />}
+      {['config_ready', 'rendering', 'rendered'].includes(proposal.status) && <RenderPanel proposal={proposal} config={config} onRefresh={refresh} />}
     </div>
   );
 }

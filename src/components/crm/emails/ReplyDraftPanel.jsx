@@ -67,6 +67,21 @@ ${convo}
 
   const mailtoHref = `mailto:${recipient}?subject=${encodeURIComponent('Re: ' + (thread.subject || ''))}&body=${encodeURIComponent(draft)}`;
 
+  // Beim Öffnen im Mailprogramm den Entwurf in der Deal-Historie protokollieren,
+  // sofern der Thread mit einem Deal verknüpft ist.
+  const openInMail = async () => {
+    if (thread.crm_deal_id) {
+      await base44.entities.CrmActivity.create({
+        deal_id: thread.crm_deal_id,
+        activity_type: 'email',
+        title: `Antwortentwurf an ${recipient} — Re: ${thread.subject || ''}`,
+        content: draft,
+        activity_date: new Date().toISOString(),
+      }).catch(() => {});
+    }
+    window.location.href = mailtoHref;
+  };
+
   const copyDraft = async () => {
     await navigator.clipboard.writeText(draft);
     setCopied(true);
@@ -134,8 +149,8 @@ ${convo}
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? 'Kopiert' : 'Kopieren'}
               </Button>
-              <Button size="sm" asChild className="gap-2">
-                <a href={mailtoHref}><Mail className="w-3.5 h-3.5" /> Im E-Mail-Programm öffnen</a>
+              <Button size="sm" onClick={openInMail} className="gap-2">
+                <Mail className="w-3.5 h-3.5" /> Im E-Mail-Programm öffnen
               </Button>
             </div>
           </div>

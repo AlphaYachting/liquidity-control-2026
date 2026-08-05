@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
+import { base44 } from '@/api/base44Client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, FileText, ChevronDown, ChevronRight } from 'lucide-react';
+import { Download, FileText, Loader2, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
 
-export default function RenderPanel({ proposal, config }) {
+export default function RenderPanel({ proposal, config, onRefresh }) {
   const [showConfig, setShowConfig] = useState(false);
+  const [rendering, setRendering] = useState(false);
+  const [error, setError] = useState(null);
+
+  // E-Mail-Angebote haben bewusst kein PDF — kein Renderbereich.
+  if (proposal.offer_type === 'email') return null;
+
   const configStr = config ? JSON.stringify(config, null, 2) : '';
 
   const downloadConfig = () => {
@@ -14,6 +21,23 @@ export default function RenderPanel({ proposal, config }) {
     a.download = `angebot_config_${proposal.customer_company || proposal.id}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
+  };
+
+  const generatePdf = async () => {
+    setRendering(true); setError(null);
+    try {
+      await base44.functions.invoke('renderProposalPdf', { proposal_id: proposal.id });
+      onRefresh?.();
+    } catch (e) {
+      const status = e?.response?.status;
+      const data = e?.response?.data;
+      setError(status === 503
+        ? 'Render-Dienst nicht konfiguriert — die Secrets PROPOSAL_RENDER_URL und PROPOSAL_RENDER_TOKEN sind nicht gesetzt.'
+        : (data?.details || data?.error || e?.message || 'PDF-Erzeugung fehlgeschlagen.'));
+      // Die Funktion setzt den Status bei Fehlern serverseitig zurück — neu laden
+      onRefresh?.();
+    }
+    setRendering(false);
   };
 
   return (
@@ -26,20 +50,34 @@ export default function RenderPanel({ proposal, config }) {
           <Button variant="outline" size="sm" onClick={downloadConfig} disabled={!config} className="gap-2">
             <Download className="w-3.5 h-3.5" /> Config-JSON herunterladen
           </Button>
-          <Button size="sm" disabled className="gap-2">
-            <FileText className="w-3.5 h-3.5" /> PDF erzeugen
+          <Button size="sm" onClick={generatePdf} disabled={rendering || !config} className="gap-2">
+            {rendering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+            {rendering ? 'PDF wird erstellt…' : proposal.pdf_url ? 'PDF neu erzeugen' : 'PDF erzeugen'}
           </Button>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          Der Python-Render-Service (generate_proposal.py) ist noch nicht verbunden. Bis dahin kann die
-          fertige Config heruntergeladen und manuell (z.B. in claude.ai) gerendert werden. Sobald der
-          Render-Service steht, wird „PDF erzeugen" hier aktiviert.
-        </p>
+
+        {error && <p className="text-xs text-destructive whitespace-pre-wrap">{error}</p>}
+
         {proposal.pdf_url && (
-          <a href={proposal.pdf_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
-            Fertiges PDF öffnen
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2" asChild>
+              <a href={proposal.pdf_url} target="_blank" rel="noreferrer">
+                <ExternalLink className="w-3.5 h-3.5" /> PDF öffnen
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" asChild>
+              <a href={proposal.pdf_url} download>
+                <Download className="w-3.5 h-3.5" /> PDF herunterladen
+              </a>
+            </Button>
+            {proposal.pdf_generated_at && (
+              <span className="text-[11px] text-muted-foreground">
+                Erzeugt am {new Date(proposal.pdf_generated_at).toLocaleString('de-AT')} · Version {proposal.version || 1}
+              </span>
+            )}
+          </div>
         )}
+
         {config && (
           <div>
             <button onClick={() => setShowConfig(s => !s)} className="flex items-center gap-1 text-xs font-medium">

@@ -5,7 +5,8 @@ import { composeNotes } from '@/components/crm/proposals/sourceDocs';
 
 const MODEL = 'claude_sonnet_4_6';
 
-const JSON_HINT = `\n\nWICHTIG ZUM AUSGABEFORMAT: Gib ausschließlich valides JSON gemäß Schema zurück. Verwende innerhalb von Textwerten NIEMALS doppelte Anführungszeichen (") oder typografische Anführungszeichen („ "), sondern ‚einfache' Anführungszeichen — sonst ist das JSON ungültig.`;
+// Kein Anführungszeichen-Verbot im Prompt — die Texte landen im Kundendokument.
+// Defektes JSON repariert ensureShape nachträglich.
 
 // Stellt sicher, dass das Ergebnis dem Schema entspricht. Falls die KI den Inhalt
 // als (ggf. defekten) Text geliefert hat, wird er in einem zweiten Durchgang
@@ -180,7 +181,7 @@ AUFGABE — Step 2 des Skills (Strategische Analyse & Gap-Analyse):
 2. Gap-Analyse gegen references/strategic-checklist.md als Tabelle (Thema / Im Gespräch? / Im Angebot? / Handlung).
 3. Angebotsformat-Empfehlung mit Begründung.
 4. Offene Fragen, die vor dem Mapping geklärt werden sollten.
-ERSTELLE NOCH KEINE Positionen und KEIN PDF — nur die Analyse zur Freigabe.${JSON_HINT}`,
+ERSTELLE NOCH KEINE Positionen und KEIN PDF — nur die Analyse zur Freigabe.`,
     response_json_schema: ANALYSIS_SCHEMA,
   });
   onProgress('KI-Antwort wird geprüft & strukturiert…');
@@ -216,7 +217,7 @@ AUFGABE — Step 3 des Skills (Gesprächs-Mapping & Positionsabstimmung):
 2. Gegencheck: Was ist NICHT im Angebot und warum.
 3. Vollständige Positionen im Format des empfohlenen Angebotsformats mit Preisvorschlag (sales-rules.md Regel 12 für Kalkulation, Retainer-Pflicht beachten).
 4. Preisübersicht mit Summe netto und brutto (20% USt.).
-NOCH KEIN PDF — diese Übersicht geht zur Freigabe (Stopp 2).${JSON_HINT}`,
+NOCH KEIN PDF — diese Übersicht geht zur Freigabe (Stopp 2).`,
     response_json_schema: MAPPING_SCHEMA,
   });
   onProgress('KI-Antwort wird geprüft & strukturiert…');
@@ -256,7 +257,7 @@ AUFGABE — Step 4 des Skills: Erzeuge die FINALE Config als JSON-Objekt im Feld
 - Python-Tupel als JSON-Arrays, None als null, alle Texte final und in Consulting-Qualität gemäß text-quality-rules.md und text-templates.md.
 - SPRINT_MODE = ${proposal.sprint_mode ? 'true (alle SPRINT_*-Felder befüllen gemäß sprint-rules.md)' : 'false'}.
 - SIGNED_BY = "${proposal.signed_by || 'Alfons Rittler'}".
-- Standing Rules strikt beachten (® direkt hinter rittler&co, mittleres Paket nie "empfohlen", Preise grün, PROPOSAL_DATE = ${new Date().toLocaleDateString('de-AT')}).${JSON_HINT}`,
+- Standing Rules strikt beachten (® direkt hinter rittler&co, mittleres Paket nie "empfohlen", Preise grün, PROPOSAL_DATE = ${new Date().toLocaleDateString('de-AT')}).`,
     response_json_schema: CONFIG_SCHEMA,
   });
   onProgress('KI-Antwort wird geprüft & strukturiert…');

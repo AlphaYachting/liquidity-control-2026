@@ -12,6 +12,7 @@ import CustomerContextCard from '@/components/crm/CustomerContextCard';
 import DealInquiryCard from '@/components/crm/DealInquiryCard';
 import CompanyMasterDataCard from '@/components/crm/CompanyMasterDataCard';
 import DealProposalCard from '@/components/crm/DealProposalCard';
+import DealEmailThreadCard from '@/components/crm/DealEmailThreadCard';
 import DealDetailHeader from '@/components/crm/DealDetailHeader';
 import { PIPELINES, STAGE_LABELS } from '@/components/crm/stages';
 
@@ -108,6 +109,7 @@ export default function CrmDealDetail() {
         <div className="lg:col-span-2 space-y-3">
           <DealProposalCard deal={deal} activities={activities} onChanged={refreshAll} />
           <DealInquiryCard deal={deal} onChanged={refreshAll} />
+          <DealEmailThreadCard deal={deal} />
           <ActivityComposer dealId={deal.id} onAdded={refreshAll} />
           <div className="border rounded-xl bg-card p-4">
             <h3 className="text-sm font-semibold mb-3">Aktivitäten-Verlauf</h3>
