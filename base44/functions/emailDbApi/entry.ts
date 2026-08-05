@@ -37,6 +37,24 @@ Deno.serve(async (req) => {
       const { with_reply_state: _drop, ...listParams } = params;
       const listing = await emailDbGet('threads', listParams);
       const results = listing.results || [];
+
+      // Threads ohne KI-Auswertung haben KEINEN Status und fallen daher aus jeder
+      // status-gefilterten Abfrage heraus — sie wären dauerhaft unsichtbar.
+      // Darum das ungefilterte Fenster dazuholen und die unbewerteten ergänzen.
+      if (listParams.status) {
+        try {
+          const { status: _s, ...openParams } = listParams;
+          const fresh = await emailDbGet('threads', openParams);
+          const known = new Set(results.map((t: any) => t.id));
+          (fresh.results || []).forEach((t: any) => {
+            if (!t.status && !known.has(t.id)) {
+              known.add(t.id);
+              results.push({ ...t, unevaluated: true });
+            }
+          });
+          listing.results = results;
+        } catch (_e) { /* Ergänzung ist Best-Effort */ }
+      }
       for (let i = 0; i < results.length; i += 6) {
         await Promise.all(results.slice(i, i + 6).map(async (t: any) => {
           try {

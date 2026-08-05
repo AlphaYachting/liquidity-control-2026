@@ -1,4 +1,5 @@
 import { isInternalSender, waitingDaysSince } from '@/components/crm/emails/emailConfig';
+import { domainOf, isSystemDomain, isFreemailDomain } from '../../../../base44/shared/senderLists';
 import { collapseAnsweredGroups } from '@/components/crm/emails/emailThreadGrouping';
 
 /**
@@ -27,7 +28,16 @@ export const needsReply = (t) => {
   // Als Lead übernommene Threads laufen im CRM weiter — nicht mehr in der Arbeitsliste
   if (t.crm_status === 'lead_angelegt') return false;
   const meaningfulCategory = !!t.category && t.category !== 'sonstiges';
-  return t.has_outbound === true || (t.message_count || 0) > 1 || !!t.customer || meaningfulCategory;
+  if (t.has_outbound === true || (t.message_count || 0) > 1 || !!t.customer || meaningfulCategory) return true;
+  // Noch nicht ausgewertet (kein Status, keine Kategorie): NICHT verwerfen —
+  // sonst verschwindet die erste Mail einer neuen Konversation, solange die
+  // KI-Auswertung hinterherhängt. Firmen-Absender kommen in die Arbeitsliste,
+  // System-/Tool-Domains bleiben draußen.
+  if (!t.status && !t.category) {
+    const d = domainOf(sender);
+    return !!d && !isSystemDomain(d) && !isFreemailDomain(d);
+  }
+  return false;
 };
 
 // Reklamationen zuerst, danach längste Wartezeit oben
@@ -38,7 +48,9 @@ export const triageSort = (a, b) => {
 };
 
 // EINE Parameterquelle für Liste und Zähler
-export const TRIAGE_LIMIT = 150;
+// Die E-Mail-DB liefert maximal 100 Threads pro Abfrage — höhere Werte werden
+// serverseitig ignoriert, deshalb hier ehrlich auf 100 stellen.
+export const TRIAGE_LIMIT = 100;
 export const TRIAGE_PARAMS = { limit: TRIAGE_LIMIT, status: 'offen', with_reply_state: 1, days: 30 };
 
 export const buildTriageList = (threads) =>
