@@ -75,6 +75,7 @@ Der Mailtext (email_body) folgt IMMER dieser Gliederung, in genau dieser Reihenf
 8. Nächster Schritt — eine konkrete Handlung
 
 Tonalität: "Sie", knapp, keine Werbesprache, keine Superlative.
+Format des email_body: KEIN Markdown — keine Sterne (*), keine Rauten (#), keine Trennlinien (---). Zwischenüberschriften als eigene kurze Zeile mit Doppelpunkt am Ende (z.B. "Leistungen:"), Aufzählungen mit "– " (Gedankenstrich).
 Verboten: Rabatte, Zusagen, die nicht aus dem Gespräch hervorgehen, Leistungen ohne Preis.
 
 Gib zusätzlich strukturiert zurück: positions[] (title, description, price_net), total_net, total_gross (20% USt.), excluded[] (was NICHT enthalten ist), timeline (Start und Lieferzeitraum).`,

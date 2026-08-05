@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Loader2, Mail, Copy, CheckCircle2 } from 'lucide-react';
+import { Loader2, Mail, Copy, CheckCircle2, Eye, Pencil } from 'lucide-react';
+import { toPlainText, copyFormatted } from '@/components/crm/quotes/emailBodyFormat';
+import EmailBodyPreview from '@/components/crm/quotes/EmailBodyPreview';
 
 const eur = (v) => new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR' }).format(v || 0);
 
@@ -15,6 +17,8 @@ export default function EmailOfferPanel({ quote, onUpdated }) {
   const [to, setTo] = useState(quote.contact_email || '');
   const [working, setWorking] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [preview, setPreview] = useState(true);
+  const [mailHint, setMailHint] = useState(false);
   const [hintNet, setHintNet] = useState(0);
 
   useEffect(() => {
@@ -51,17 +55,21 @@ export default function EmailOfferPanel({ quote, onUpdated }) {
     onUpdated?.();
   };
 
+  // mailto kann kein HTML — deshalb: sauberer Klartext in die Mail,
+  // formatierte Fassung parallel in die Zwischenablage (einfach einfügen).
   const openMail = async () => {
     setWorking(true);
     if (!isSent) await release();
+    await copyFormatted(body).catch(() => {});
     setWorking(false);
-    window.location.href = `mailto:${to.trim()}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    setMailHint(true);
+    window.location.href = `mailto:${to.trim()}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(toPlainText(body))}`;
   };
 
   const copyText = async () => {
     setWorking(true);
     if (!isSent) await release();
-    await navigator.clipboard.writeText(body);
+    await copyFormatted(body);
     setWorking(false);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -102,12 +110,30 @@ export default function EmailOfferPanel({ quote, onUpdated }) {
             className={`h-8 text-sm ${!to.trim() ? 'border-amber-300' : ''}`}
           />
         </div>
-        <Textarea
-          value={body}
-          onChange={e => setBody(e.target.value)}
-          className="text-sm min-h-[320px] font-mono"
-          placeholder="Mailtext…"
-        />
+        <div className="flex items-center justify-end">
+          <button
+            onClick={() => setPreview(p => !p)}
+            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+          >
+            {preview ? <Pencil className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {preview ? 'Bearbeiten' : 'Vorschau'}
+          </button>
+        </div>
+        {preview ? (
+          <EmailBodyPreview body={body} />
+        ) : (
+          <Textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            className="text-sm min-h-[320px] font-mono"
+            placeholder="Mailtext…"
+          />
+        )}
+        {mailHint && (
+          <p className="text-xs bg-sky-50 border border-sky-200 rounded-md px-3 py-2 text-sky-800">
+            Die formatierte Fassung liegt in der Zwischenablage — im Mailprogramm den Text markieren und mit Einfügen (Cmd/Strg+V) ersetzen, um Hervorhebungen zu erhalten.
+          </p>
+        )}
         {(quote.excluded || []).length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap text-xs">
             <span className="text-muted-foreground">Nicht enthalten:</span>
