@@ -140,6 +140,7 @@ export default function CrmEmails() {
             onSelect={openThread}
             loading={loadingList}
             error={listError}
+            onStatusChanged={applyStatusChange}
           />
           {view === 'action' && truncated && !loadingList && (
             <p className="text-[11px] text-muted-foreground mt-2 px-1">Es werden die 300 jüngsten offenen Konversationen angezeigt.</p>

@@ -2,9 +2,10 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Paperclip, Reply, Clock } from 'lucide-react';
 import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, DIRECTION_META, formatMailDate, isInternalSender, deriveCustomerFromEmail } from '@/components/crm/emails/emailConfig';
+import ThreadDoneIcon from '@/components/crm/emails/ThreadDoneIcon';
 
 // Liste von Konversationen (mode="threads") oder Suchtreffern (mode="search").
-export default function EmailThreadList({ mode, items, selectedId, onSelect, loading, error }) {
+export default function EmailThreadList({ mode, items, selectedId, onSelect, loading, error, onStatusChanged }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground text-sm gap-2">
@@ -25,18 +26,26 @@ export default function EmailThreadList({ mode, items, selectedId, onSelect, loa
         const dir = DIRECTION_META[item.direction];
         const colleagueReplied = mode === 'threads' && (item.message_count || 0) > 1 && item.last_direction && item.last_direction !== 'in' && isInternalSender(item.last_from);
         return (
-          <button
+          <div
             key={`${mode}-${item.id}`}
+            role="button"
+            tabIndex={0}
             onClick={() => onSelect(threadId)}
-            className={`w-full text-left rounded-lg border p-3 transition-colors ${
+            onKeyDown={(e) => { if (e.key === 'Enter') onSelect(threadId); }}
+            className={`w-full text-left rounded-lg border p-3 transition-colors cursor-pointer ${
               active ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
             }`}
           >
             <div className="flex items-start justify-between gap-2">
               <p className="text-xs font-semibold leading-snug line-clamp-2">{item.subject || '(kein Betreff)'}</p>
-              <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
-                {formatMailDate(mode === 'search' ? item.received_at : item.last_message_at)}
-              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                  {formatMailDate(mode === 'search' ? item.received_at : item.last_message_at)}
+                </span>
+                {mode === 'threads' && item.status !== 'erledigt' && (
+                  <ThreadDoneIcon threadId={threadId} onChanged={onStatusChanged} />
+                )}
+              </div>
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
               {mode === 'search'
@@ -75,7 +84,7 @@ export default function EmailThreadList({ mode, items, selectedId, onSelect, loa
               )}
               {item.has_attachments && <Paperclip className="w-3 h-3 text-muted-foreground" />}
             </div>
-          </button>
+          </div>
         );
       })}
     </div>
