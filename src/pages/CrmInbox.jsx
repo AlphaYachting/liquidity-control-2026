@@ -9,13 +9,17 @@ import PageHeader from '@/components/shared/PageHeader';
 import InboxItemCard from '@/components/crm/InboxItemCard';
 import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
 import DealFormDialog from '@/components/crm/DealFormDialog';
+import InboxDuplicateDialog from '@/components/crm/InboxDuplicateDialog';
 import { threadIdOf, markThreadAsLead } from '@/components/crm/inboxDecision';
+import { findDuplicateDeal, CLOSED_STAGES } from '../../base44/shared/crmDuplicate.js';
 
 export default function CrmInbox() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [captureOpen, setCaptureOpen] = useState(false);
   const [convertItem, setConvertItem] = useState(null);
+  const [duplicateHit, setDuplicateHit] = useState(null); // { item, deal }
+  const [attachBusy, setAttachBusy] = useState(false);
   const [backchannelWarning, setBackchannelWarning] = useState(null);
 
   const { data: rawItems = [], isLoading } = useQuery({
@@ -32,6 +36,43 @@ export default function CrmInbox() {
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['crm-inbox'] });
     queryClient.invalidateQueries({ queryKey: ['crm-inbox-badge'] });
+  };
+
+  // Vor der Übernahme prüfen, ob es zu diesem Kontakt schon einen offenen Deal gibt —
+  // über BEIDE Pipelines (Neu- und Bestandskunden), sonst wird jede Anfrage zum neuen Lead.
+  const handleConvert = async (item) => {
+    const deals = await base44.entities.CrmDeal.list('-updated_date', 300).catch(() => []);
+    const openDeals = deals.filter(d => !CLOSED_STAGES.includes(d.stage));
+    const hit = findDuplicateDeal(openDeals, {
+      contactEmail: item.sender_email,
+      companyName: item.matched_customer_name || item.sender_name,
+    });
+    if (hit) setDuplicateHit({ item, deal: hit });
+    else setConvertItem(item);
+  };
+
+  // Anfrage dem bestehenden Deal zuordnen statt einen Duplikat-Lead anzulegen
+  const attachToExistingDeal = async () => {
+    const { item, deal } = duplicateHit;
+    setAttachBusy(true);
+    const threadId = threadIdOf(item);
+    const user = await base44.auth.me().catch(() => null);
+    await base44.entities.CrmActivity.create({
+      deal_id: deal.id,
+      activity_type: 'system',
+      title: `Weitere Anfrage zugeordnet — ${item.subject || 'ohne Betreff'}`,
+      content: item.body || '',
+      activity_date: new Date().toISOString(),
+    });
+    await base44.entities.CrmInboxItem.update(item.id, {
+      status: 'converted', decision: 'lead', linked_deal_id: deal.id,
+      decided_by: user?.email || '', decided_at: new Date().toISOString(),
+    });
+    await markThreadAsLead(threadId, deal.id);
+    setAttachBusy(false);
+    setDuplicateHit(null);
+    refresh();
+    navigate(`/crm/deals/${deal.id}`);
   };
 
   const handleDealSaved = async (deal) => {
@@ -111,12 +152,20 @@ export default function CrmInbox() {
       ) : (
         <div className="space-y-3">
           {items.map(item => (
-            <InboxItemCard key={item.id} item={item} onConvert={setConvertItem} onChanged={refresh} />
+            <InboxItemCard key={item.id} item={item} onConvert={handleConvert} onChanged={refresh} />
           ))}
         </div>
       )}
 
       <InboxCaptureDialog open={captureOpen} onOpenChange={setCaptureOpen} onSaved={refresh} />
+      <InboxDuplicateDialog
+        open={Boolean(duplicateHit)}
+        onOpenChange={(o) => { if (!o) setDuplicateHit(null); }}
+        deal={duplicateHit?.deal}
+        busy={attachBusy}
+        onAttach={attachToExistingDeal}
+        onCreateAnyway={() => { setConvertItem(duplicateHit.item); setDuplicateHit(null); }}
+      />
       <DealFormDialog
         open={Boolean(convertItem)}
         onOpenChange={(o) => { if (!o) setConvertItem(null); }}
