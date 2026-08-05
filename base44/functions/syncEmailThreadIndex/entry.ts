@@ -134,14 +134,21 @@ export default async function (req) {
     if ((mode === 'backfill' || mode === 'both') && !state.backfill_done) {
       let offset = state.backfill_cursor || pageSize;
       let done = false;
+      // Der Nachlauf muss nicht die gesamte Historie erfassen — die Arbeitsliste
+      // blickt maximal ein Jahr zurück. Sobald eine Seite nur noch Ältere enthält,
+      // ist das Verzeichnis vollständig.
+      const grenze = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
       for (let page = 0; page < backfillPages && !done; page++) {
         try {
           const listing = await emailDbGet('threads', { limit: pageSize, offset });
           const threads = listing.results || [];
           stats.nachlauf_geprueft += threads.length;
           if (listing.total) stats.gesamt_verlaeufe = listing.total;
-          await indexPage(threads, 'nachlauf', detailLimit);
-          if (listing.has_more && threads.length) {
+          const zuAlt = threads.length > 0 && threads.every((t) => String(t.last_message_at || '') < grenze);
+          if (!zuAlt) await indexPage(threads, 'nachlauf', detailLimit);
+          if (zuAlt) {
+            done = true;
+          } else if (listing.has_more && threads.length) {
             offset = listing.next_offset ?? offset + threads.length;
           } else {
             done = true;
