@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Mail } from 'lucide-react';
 import { emailApi } from '@/components/crm/emails/emailApi';
 import EmailHealthBar from '@/components/crm/emails/EmailHealthBar';
+import EmailIndexStatus from '@/components/crm/emails/EmailIndexStatus';
 import EmailFilterBar from '@/components/crm/emails/EmailFilterBar';
 import EmailThreadList from '@/components/crm/emails/EmailThreadList';
 import EmailThreadDetail from '@/components/crm/emails/EmailThreadDetail';
@@ -105,7 +106,10 @@ export default function CrmEmails() {
             Zentrale Kundenkommunikation aus allen Firmenpostfächern — durchsuchen, lesen, auswerten.
           </p>
         </div>
-        <EmailHealthBar />
+        <div className="flex items-center gap-2 flex-wrap">
+          <EmailIndexStatus />
+          <EmailHealthBar />
+        </div>
       </div>
 
 

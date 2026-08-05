@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { emailDbGet, emailDbEnrich } from '../../shared/emailDb.ts';
+import { computeNeedsReply } from '../../shared/emailWorkQueue.js';
 
 // "AW: Re: Fwd: Feedback" -> "feedback" (gleiche Logik wie im Frontend-Grouping)
 function normalizeSubject(s: string) {
@@ -25,7 +26,23 @@ Deno.serve(async (req) => {
 
     if (action === 'enrich') {
       if (!thread_id || !fields) return Response.json({ error: 'thread_id und fields erforderlich' }, { status: 400 });
-      return Response.json(await emailDbEnrich(thread_id, fields));
+      const result = await emailDbEnrich(thread_id, fields);
+      // Verlaufs-Index sofort nachziehen: ein als erledigt markierter Verlauf
+      // verschwindet damit umgehend aus der Arbeitsliste und dem Zähler.
+      try {
+        const svc = base44.asServiceRole;
+        const rows = await svc.entities.EmailThreadIndex.filter({ thread_id: String(thread_id) }, '-indexed_at', 1);
+        if (rows[0]) {
+          const patch: any = { indexed_at: new Date().toISOString() };
+          if (fields.status !== undefined) patch.status = fields.status || '';
+          if (fields.category !== undefined) patch.category = fields.category || '';
+          if (fields.customer !== undefined) patch.customer = fields.customer || '';
+          if (fields.crm_status !== undefined) patch.crm_status = fields.crm_status || '';
+          patch.needs_reply = computeNeedsReply({ ...rows[0], ...patch });
+          await svc.entities.EmailThreadIndex.update(rows[0].id, patch);
+        }
+      } catch (_e) { /* Index-Nachzug ist Best-Effort */ }
+      return Response.json(result);
     }
 
     const paths = { health: 'health', search: 'search', threads: 'threads', thread: 'thread' };
