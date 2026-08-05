@@ -19,6 +19,7 @@ import { runEmailOffer } from '@/components/crm/proposals/emailOffer';
 import SourceDocumentsPanel from '@/components/crm/proposals/SourceDocumentsPanel';
 import PrecalcButton from '@/components/crm/proposals/PrecalcButton';
 import { Textarea } from '@/components/ui/textarea';
+import DeleteProposalButton from '@/components/crm/proposals/DeleteProposalButton';
 
 export default function CrmProposalDetail() {
   const { proposalId } = useParams();
@@ -279,6 +280,10 @@ export default function CrmProposalDetail() {
         </div>
 
         <OfferTypeSelector proposal={proposal} busy={!!busy} onConfirmed={onTypeConfirmed} />
+
+        <div className="pt-2 border-t">
+          <DeleteProposalButton proposal={proposal} disabled={!!busy} />
+        </div>
       </div>
     );
   }
@@ -406,6 +411,10 @@ export default function CrmProposalDetail() {
       )}
 
       {['config_ready', 'rendering', 'rendered'].includes(proposal.status) && <RenderPanel proposal={proposal} config={config} onRefresh={refresh} />}
+
+      <div className="pt-2 border-t">
+        <DeleteProposalButton proposal={proposal} disabled={!!busy} />
+      </div>
     </div>
   );
 }
