@@ -7,7 +7,6 @@ import EmailThreadList from '@/components/crm/emails/EmailThreadList';
 import EmailThreadDetail from '@/components/crm/emails/EmailThreadDetail';
 import EmailViewToggle from '@/components/crm/emails/EmailViewToggle';
 import { buildTriageList, TRIAGE_PARAMS, TRIAGE_LIMIT } from '@/components/crm/emails/emailTriage';
-import EmailEscalationBand from '@/components/crm/emails/EmailEscalationBand';
 
 export default function CrmEmails() {
   const [filters, setFilters] = useState({ q: '', customer: '', status: 'all', days: '30', direction: 'all' });
@@ -107,7 +106,6 @@ export default function CrmEmails() {
         <EmailHealthBar />
       </div>
 
-      <EmailEscalationBand />
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <EmailViewToggle

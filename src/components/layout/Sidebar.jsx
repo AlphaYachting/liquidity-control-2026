@@ -6,7 +6,7 @@ import {
   Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
   CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale,
-  KanbanSquare, Inbox, History, Presentation, Mail, Sun,
+  KanbanSquare, Inbox, History, Presentation, Mail, Sun, Siren,
   Rocket, CalendarRange, Gauge, Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,7 @@ const navSections = [
       { path: '/crm', label: 'Pipeline', icon: KanbanSquare },
       { path: '/crm/inbox', label: 'Posteingang', icon: Inbox },
       { path: '/crm/emails', label: 'E-Mail-Zentrale', icon: Mail },
+      { path: '/crm/escalations', label: 'Kunden-Eskalationen', icon: Siren },
       { path: '/crm/proposals', label: 'Angebots-Studio', icon: Presentation },
     ],
   },
@@ -117,7 +118,7 @@ export default function Sidebar() {
       : item.path === '/crm/inbox' ? crmInboxCount
       : item.path === '/crm/emails' ? emailTriageCount : 0;
     // roter Zähler = Kunden-Eskalationen, hat im eingeklappten Zustand Vorrang
-    const alertCount = item.path === '/crm/emails' ? escalationCount : 0;
+    const alertCount = item.path === '/crm/escalations' ? escalationCount : 0;
     return (
       <Link
         key={item.path}
