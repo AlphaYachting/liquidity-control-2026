@@ -2,12 +2,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { emailDbGet } from '../../shared/emailDb.ts';
 import { computeNeedsReply } from '../../shared/emailWorkQueue.js';
 
-// Die zentrale E-Mail-Datenbank liefert höchstens 100 Verläufe pro Abfrage und
-// kennt keine Blätterfunktion — alles Ältere ist über die API unerreichbar.
-// Darum führt die App einen eigenen Verlaufs-Index:
-//   • "fenster"  : das laufende Zeitfenster mitschreiben (nichts rutscht mehr heraus)
-//   • "nachlauf" : die Historie abwärts über die Verlaufs-IDs nachholen
-// Der Index ist danach die Quelle der Arbeitsliste "Braucht Antwort".
+// Die E-Mail-Datenbank kann seit API v2 seitenweise blättern (limit/offset,
+// has_more, next_offset). Der Verlaufs-Index wird daher direkt über die
+// Verlaufsliste aufgebaut — kein Raten über Verlaufs-IDs mehr:
+//   • "fenster"  : die jüngsten Seiten mitschreiben (laufende Aktualisierung)
+//   • "nachlauf" : ab dem gespeicherten Offset weiter in die Historie blättern
+// Der Index ist die Quelle der Arbeitsliste "Braucht Antwort".
 
 const CONCURRENCY = 6;
 
@@ -71,34 +71,25 @@ export default async function (req) {
     const body = await req.json().catch(() => ({}));
     const mode = body.mode || 'both';
     const detailLimit = body.detail_limit ?? 40;
-    const backfillBatch = body.backfill_batch ?? 60;
+    const pageSize = body.page_size ?? 200;
+    const backfillPages = body.backfill_pages ?? 3;
 
-    const stats = { fenster_geprueft: 0, neu: 0, aktualisiert: 0, details_geladen: 0, nachlauf_ids: 0, nachlauf_gefunden: 0, fehler: [] };
+    const stats = { fenster_geprueft: 0, neu: 0, aktualisiert: 0, details_geladen: 0, nachlauf_geprueft: 0, gesamt_verlaeufe: 0, fehler: [] };
 
     const stateRows = await svc.entities.EmailIndexState.list('-created_date', 1);
     const state = stateRows[0] || await svc.entities.EmailIndexState.create({ indexed_total: 0 });
     let maxThreadId = state.max_thread_id || 0;
 
-    // ---------- Phase 1: laufendes Fenster ----------
-    if (mode === 'window' || mode === 'both') {
-      const seen = new Map();
-      for (const params of [{ limit: 100 }, { limit: 100, status: 'offen' }]) {
-        try {
-          const listing = await emailDbGet('threads', params);
-          (listing.results || []).forEach((t) => { if (!seen.has(t.id)) seen.set(t.id, t); });
-        } catch (e) { stats.fehler.push(`Fenster (${JSON.stringify(params)}): ${e.message}`); }
-      }
-      const threads = [...seen.values()];
-      stats.fenster_geprueft = threads.length;
+    // Eine Seite der Verlaufsliste in den Index übernehmen
+    const indexPage = async (threads, source, detailBudget) => {
       threads.forEach((t) => { if (Number(t.id) > maxThreadId) maxThreadId = Number(t.id); });
-
       const existing = await loadExisting(svc, threads.map((t) => t.id));
       // Nur Verläufe mit neuen Nachrichten (oder ohne gelesenes Detail) brauchen einen Detailabruf.
       const needDetail = threads.filter((t) => {
         const prev = existing.get(String(t.id));
         return !prev || !prev.detail_loaded || prev.last_message_at !== (t.last_message_at || '') ||
           (prev.message_count || 0) !== (t.message_count || 0);
-      }).slice(0, detailLimit);
+      }).slice(0, detailBudget);
       const detailIds = new Set(needDetail.map((t) => String(t.id)));
 
       await mapLimited(threads, async (t) => {
@@ -122,36 +113,44 @@ export default async function (req) {
               detail_loaded: prev?.detail_loaded || false,
             };
           }
-          const res = await upsert(svc, existing, t.id, row, 'fenster');
+          const res = await upsert(svc, existing, t.id, row, source);
           stats[res === 'neu' ? 'neu' : 'aktualisiert']++;
         } catch (e) { stats.fehler.push(`Verlauf ${t.id}: ${e.message}`); }
       });
+    };
+
+    // ---------- Phase 1: laufendes Fenster (jüngste Seite) ----------
+    if (mode === 'window' || mode === 'both') {
+      try {
+        const listing = await emailDbGet('threads', { limit: pageSize, offset: 0 });
+        const threads = listing.results || [];
+        stats.fenster_geprueft = threads.length;
+        stats.gesamt_verlaeufe = listing.total || 0;
+        await indexPage(threads, 'fenster', detailLimit);
+      } catch (e) { stats.fehler.push(`Fenster: ${e.message}`); }
     }
 
-    // ---------- Phase 2: historischer Nachlauf über die IDs ----------
+    // ---------- Phase 2: Historie weiterblättern ----------
     if ((mode === 'backfill' || mode === 'both') && !state.backfill_done) {
-      let cursor = state.backfill_cursor || (maxThreadId ? maxThreadId - 1 : 0);
-      if (cursor > 0) {
-        const ids = [];
-        for (let i = 0; i < backfillBatch && cursor - i > 0; i++) ids.push(cursor - i);
-        stats.nachlauf_ids = ids.length;
-        const existing = await loadExisting(svc, ids);
-        await mapLimited(ids, async (id) => {
-          const prev = existing.get(String(id));
-          if (prev && prev.detail_loaded) return;
-          try {
-            const detail = await emailDbGet('thread', { id, msgs: 12 });
-            if (!detail?.thread?.id) return;
-            const res = await upsert(svc, existing, id, rowFromDetail(detail.thread, detail.messages), 'nachlauf');
-            stats.nachlauf_gefunden++;
-            stats[res === 'neu' ? 'neu' : 'aktualisiert']++;
-          } catch (_e) { /* nicht existierende ID ist normal */ }
-        });
-        cursor = Math.max(0, cursor - ids.length);
+      let offset = state.backfill_cursor || pageSize;
+      let done = false;
+      for (let page = 0; page < backfillPages && !done; page++) {
+        try {
+          const listing = await emailDbGet('threads', { limit: pageSize, offset });
+          const threads = listing.results || [];
+          stats.nachlauf_geprueft += threads.length;
+          if (listing.total) stats.gesamt_verlaeufe = listing.total;
+          await indexPage(threads, 'nachlauf', detailLimit);
+          if (listing.has_more && threads.length) {
+            offset = listing.next_offset ?? offset + threads.length;
+          } else {
+            done = true;
+          }
+        } catch (e) { stats.fehler.push(`Nachlauf (offset ${offset}): ${e.message}`); break; }
       }
       await svc.entities.EmailIndexState.update(state.id, {
-        backfill_cursor: cursor,
-        backfill_done: cursor <= 0,
+        backfill_cursor: offset,
+        backfill_done: done,
         last_backfill_run_at: new Date().toISOString(),
         max_thread_id: maxThreadId,
       });

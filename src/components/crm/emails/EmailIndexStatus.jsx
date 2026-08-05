@@ -25,7 +25,7 @@ export default function EmailIndexStatus() {
     <div className="flex items-center gap-2 text-[11px] text-muted-foreground border rounded-md px-2.5 py-1.5 bg-card">
       <Database className="w-3.5 h-3.5 text-primary" />
       <span>
-        Verzeichnis {s.backfill_done ? 'vollständig' : `Nachlauf bis Verlauf ${s.backfill_cursor || 0}`}
+        Verzeichnis {s.backfill_done ? 'vollständig' : `Nachlauf läuft (${s.backfill_cursor || 0} Verläufe geholt)`}
       </span>
       {s.last_window_run_at && <span>· aktualisiert {formatMailDate(s.last_window_run_at)}</span>}
     </div>
