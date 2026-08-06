@@ -45,10 +45,14 @@ export async function fetchLiveOpenReceivables(apiKey: string) {
       dueDate = d.toISOString().substring(0, 10);
     }
     return {
+      id: String(inv.id),
       invoice_number: inv.invoiceNumber || '',
       customer_name: inv.contact?.name || inv.contactName || '',
+      invoice_date: inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null,
       due_date: dueDate,
+      gross_amount: grossAmount,
       open_amount: openAmount,
+      payment_status: parseAmount(inv.paidAmount) > 0 ? 'partially_paid' : 'open',
     };
   }).filter(inv => inv.open_amount > 0);
 }

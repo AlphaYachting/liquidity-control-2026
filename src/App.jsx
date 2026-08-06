@@ -72,9 +72,20 @@ import SprintMilestoneDetail from '@/pages/sprint/SprintMilestoneDetail';
 import SprintPlanung from '@/pages/sprint/SprintPlanung';
 import SprintSteuerung from '@/pages/sprint/SprintSteuerung';
 import SprintRechnungsuebergabe from '@/pages/sprint/SprintRechnungsuebergabe';
+import MasseverwalterReport from '@/pages/MasseverwalterReport';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+
+  // Öffentlicher Masseverwalter-Bericht — ohne Login erreichbar, vor jeder Auth-Prüfung
+  if (window.location.pathname.startsWith('/masseverwalter')) {
+    return (
+      <Routes>
+        <Route path="/masseverwalter/:accessKey" element={<MasseverwalterReport />} />
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+    );
+  }
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
