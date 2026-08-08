@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, Pencil, Check, X } from 'lucide-react';
+import { Pencil, Check, X } from 'lucide-react';
 
 // Prominente Darstellung der eigentlichen Anfrage (Beschreibung) mit Inline-Bearbeitung
 export default function DealInquiryCard({ deal, onChanged }) {
@@ -19,11 +19,8 @@ export default function DealInquiryCard({ deal, onChanged }) {
   };
 
   return (
-    <div className="border rounded-xl bg-card p-4">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <FileText className="w-4 h-4 text-primary" /> Anfrage
-        </h3>
+    <div>
+      <div className="flex items-center justify-end mb-2">
         {!editing ? (
           <Button size="sm" variant="ghost" className="h-7 gap-1.5 text-muted-foreground" onClick={() => { setText(deal.description || ''); setEditing(true); }}>
             <Pencil className="w-3.5 h-3.5" /> Bearbeiten

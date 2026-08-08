@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Building2, Mail, Phone, User, Linkedin } from 'lucide-react';
+import { Building2, Mail, Phone, User, Linkedin, FileText, CalendarClock, StickyNote, History } from 'lucide-react';
+import CollapsibleSection from '@/components/crm/CollapsibleSection';
+import ReplyComposer from '@/components/crm/emails/ReplyComposer';
 import ActivityTimeline from '@/components/crm/ActivityTimeline';
 import ActivityComposer from '@/components/crm/ActivityComposer';
 import AppointmentSection from '@/components/crm/AppointmentSection';
@@ -108,13 +110,36 @@ export default function CrmDealDetail() {
         {/* Timeline */}
         <div className="lg:col-span-2 space-y-3">
           <DealProposalCard deal={deal} activities={activities} onChanged={refreshAll} />
-          <DealInquiryCard deal={deal} onChanged={refreshAll} />
-          <DealEmailThreadCard deal={deal} onChanged={refreshAll} />
-          <ActivityComposer dealId={deal.id} onAdded={refreshAll} />
-          <div className="border rounded-xl bg-card p-4">
-            <h3 className="text-sm font-semibold mb-3">Aktivitäten-Verlauf</h3>
+
+          <CollapsibleSection icon={FileText} title="Anfrage" defaultOpen hint={deal.description ? null : 'noch leer'}>
+            <DealInquiryCard deal={deal} onChanged={refreshAll} />
+          </CollapsibleSection>
+
+          {deal.email_thread_id && (
+            <>
+              <CollapsibleSection icon={Mail} title="E-Mail-Verlauf">
+                <DealEmailThreadCard deal={deal} />
+              </CollapsibleSection>
+
+              <CollapsibleSection icon={CalendarClock} title="Antwort erstellen" hint="Terminvorschlag">
+                <ReplyComposer
+                  bare
+                  threadId={deal.email_thread_id}
+                  dealId={deal.id}
+                  recipient={deal.contact_email || ''}
+                  onSent={refreshAll}
+                />
+              </CollapsibleSection>
+            </>
+          )}
+
+          <CollapsibleSection icon={StickyNote} title="Notiz erfassen" hint="Notiz, Anruf, E-Mail, Termin" defaultOpen>
+            <ActivityComposer dealId={deal.id} onAdded={refreshAll} />
+          </CollapsibleSection>
+
+          <CollapsibleSection icon={History} title="Aktivitäten-Verlauf" hint={`${activities.length} Einträge`} defaultOpen>
             <ActivityTimeline activities={activities} />
-          </div>
+          </CollapsibleSection>
         </div>
 
         {/* Facts */}

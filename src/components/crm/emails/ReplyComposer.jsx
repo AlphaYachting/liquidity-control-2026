@@ -13,7 +13,7 @@ const fmtSlot = (v) =>
 
 // KI-gestützte Antwort auf eine eingegangene Anfrage: Entwurf erzeugen, frei bearbeiten, senden.
 // Der Versand läuft über das lokale E-Mail-Programm; protokolliert wird am Deal (CrmActivity).
-export default function ReplyComposer({ threadId, dealId, recipient, onSent }) {
+export default function ReplyComposer({ threadId, dealId, recipient, onSent, bare = false }) {
   const [intent, setIntent] = useState('terminvorschlag');
   const [slots, setSlots] = useState(['', '', '']);
   const [format, setFormat] = useState('video');
@@ -74,10 +74,12 @@ export default function ReplyComposer({ threadId, dealId, recipient, onSent }) {
   };
 
   return (
-    <div className="rounded-xl border bg-card p-3 space-y-3">
-      <p className="text-xs font-semibold flex items-center gap-1.5">
-        <CalendarClock className="w-3.5 h-3.5 text-primary" /> Antwort erstellen
-      </p>
+    <div className={bare ? 'space-y-3' : 'rounded-xl border bg-card p-3 space-y-3'}>
+      {!bare && (
+        <p className="text-xs font-semibold flex items-center gap-1.5">
+          <CalendarClock className="w-3.5 h-3.5 text-primary" /> Antwort erstellen
+        </p>
+      )}
 
       <div className="w-full sm:w-56">
         <Label className="text-[10px] text-muted-foreground">Antworttyp</Label>
