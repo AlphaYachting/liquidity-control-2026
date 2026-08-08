@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Sparkles, Send, CalendarClock, Check } from 'lucide-react';
 import ReplySlotFields from '@/components/crm/emails/ReplySlotFields';
+import { toPlainText } from '@/components/crm/quotes/emailBodyFormat';
 
 const fmtSlot = (v) =>
   v ? new Date(v).toLocaleString('de-AT', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
@@ -41,7 +42,7 @@ export default function ReplyComposer({ threadId, dealId, recipient, onSent, bar
       });
       if (res.data?.error) throw new Error(res.data.error);
       setSubject(res.data.subject || '');
-      setBody(res.data.body || '');
+      setBody(toPlainText(res.data.body || ''));
       if (!to) setTo(res.data.recipient || '');
     } catch (e) {
       setError('Entwurf fehlgeschlagen: ' + (e?.message || ''));
@@ -51,6 +52,7 @@ export default function ReplyComposer({ threadId, dealId, recipient, onSent, bar
 
   const send = async () => {
     setSending(true); setError(null);
+    const mailBody = toPlainText(body);
     try {
       if (dealId) {
         await base44.entities.CrmActivity.create({
@@ -59,12 +61,12 @@ export default function ReplyComposer({ threadId, dealId, recipient, onSent, bar
           channel: 'email',
           direction: 'ausgehend',
           title: `Antwort an ${to || 'Kunde'} — ${subject}`,
-          content: body,
-          body,
+          content: mailBody,
+          body: mailBody,
           activity_date: new Date().toISOString(),
         });
       }
-      window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
+      window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailBody)}`, '_self');
       setSubject(''); setBody(''); setSlots(['', '', '']); setDone(true);
       onSent?.();
     } catch (e) {
@@ -110,7 +112,7 @@ export default function ReplyComposer({ threadId, dealId, recipient, onSent, bar
           </div>
           <div>
             <Label className="text-[10px] text-muted-foreground">Text (frei bearbeitbar)</Label>
-            <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} className="mt-1 text-xs leading-relaxed" />
+            <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={16} className="mt-1 text-sm leading-7 whitespace-pre-wrap" />
           </div>
           <div className="flex items-center justify-end">
             <Button size="sm" onClick={send} disabled={sending || !to || !subject || !body} className="gap-2">

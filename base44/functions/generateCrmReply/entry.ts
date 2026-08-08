@@ -55,7 +55,17 @@ ${slots.map((s) => `  - ${s}`).join('\n')}
 ${formatLabel ? `- Format des Termins: ${formatLabel}.` : ''}
 - Bitte um kurze Bestätigung, welcher Termin passt.
 - KEINE Preise, keine Aufwandsschätzungen, keine Zusagen zu Leistungen.
-- Kein Markdown, keine Sternchen oder Rauten. Grußformel: "Beste Grüße" und darunter ${user.full_name || 'Rittler & Co'}, Rittler & Co.
+
+AUFBAU (exakt einhalten, jeder Block durch EINE Leerzeile getrennt):
+1. Anrede, z.B. "Guten Tag Frau Muster," — eigene Zeile.
+2. Ein kurzer Absatz (1–2 Sätze), der das Anliegen aufgreift.
+3. Ein kurzer Satz, der zum Termin überleitet, z.B. "Für ein Gespräch schlage ich folgende Termine vor:".
+4. Die Termine — jeder Termin in EINER eigenen Zeile, beginnend mit "- ", sonst nichts.
+5. Ein kurzer Satz mit der Bitte um Rückmeldung.
+6. "Beste Grüße" — eigene Zeile.
+7. ${user.full_name || 'Rittler & Co'} — eigene Zeile, darunter "Rittler & Co" — eigene Zeile.
+
+FORMAT: reiner Fließtext. Keine Sternchen, keine Rauten, keine Trennlinien, kein Markdown, keine Überschriften, keine Emojis. Kein Absatz länger als 3 Zeilen. Keine doppelten Leerzeilen.
 
 BETREFF DER ANFRAGE: ${subject || '—'}
 
@@ -73,9 +83,27 @@ ${conversation}
       },
     });
 
+    // Sicherheitsnetz: Markdown-Reste entfernen, Aufzählungen vereinheitlichen,
+    // Leerzeilen normalisieren — der Kunde bekommt sauberen Fließtext.
+    const cleanBody = String(res.body || '')
+      .split('\n')
+      .filter((l: string) => !/^\s*([-_*]\s*){3,}\s*$/.test(l))
+      .map((l: string) =>
+        l
+          .replace(/^#{1,6}\s+/, '')
+          .replace(/^\s*[•*–]\s+/, '- ')
+          .replace(/\*\*(.+?)\*\*/g, '$1')
+          .replace(/\*(.+?)\*/g, '$1')
+          .replace(/`(.+?)`/g, '$1')
+          .trimEnd(),
+      )
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
     return Response.json({
-      subject: res.subject || (subject ? `Re: ${subject}` : 'Terminvorschlag'),
-      body: res.body || '',
+      subject: String(res.subject || '').replace(/[*#`]/g, '').trim() || (subject ? `Re: ${subject}` : 'Terminvorschlag'),
+      body: cleanBody,
       recipient: senderMail,
       thread_subject: subject,
     });
