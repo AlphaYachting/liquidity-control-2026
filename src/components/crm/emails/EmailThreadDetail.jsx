@@ -7,6 +7,7 @@ import { extractRecipients, collectParticipants } from '@/components/crm/emails/
 import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, DIRECTION_META, formatMailDate, colleagueRepliedLast, deriveCustomerFromEmail } from '@/components/crm/emails/emailConfig';
 import ThreadAnalysisPanel from '@/components/crm/emails/ThreadAnalysisPanel';
 import ReplyDraftPanel from '@/components/crm/emails/ReplyDraftPanel';
+import ReplyComposer from '@/components/crm/emails/ReplyComposer';
 import ThreadDoneButton from '@/components/crm/emails/ThreadDoneButton';
 
 export default function EmailThreadDetail({ thread, loading, onRefresh, onStatusChanged }) {
@@ -114,6 +115,8 @@ export default function EmailThreadDetail({ thread, loading, onRefresh, onStatus
       </Card>
 
       <ThreadAnalysisPanel thread={t} messages={messages} onSaved={onRefresh} />
+
+      <ReplyComposer threadId={t.id} dealId={t.crm_deal_id} recipient={lastInbound?.from || ''} />
 
       <ReplyDraftPanel thread={t} messages={messages} />
 

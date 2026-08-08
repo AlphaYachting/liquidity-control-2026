@@ -27,6 +27,28 @@
     "activity_date": {
       "type": "string",
       "format": "date-time"
+    },
+    "channel": {
+      "type": "string",
+      "enum": [
+        "email",
+        "phone",
+        "meeting",
+        "intern"
+      ],
+      "description": "Kanal der Kommunikation"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "eingehend",
+        "ausgehend"
+      ],
+      "description": "Richtung der Kommunikation"
+    },
+    "body": {
+      "type": "string",
+      "description": "Gesendeter Text der Nachricht"
     }
   },
   "required": [

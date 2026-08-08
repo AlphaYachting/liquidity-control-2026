@@ -2,10 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ExternalLink } from 'lucide-react';
 import EscalationThreadPreview from '@/components/crm/emails/EscalationThreadPreview';
+import ReplyComposer from '@/components/crm/emails/ReplyComposer';
 
 // E-Mail-Verlauf des Deals — zeigt den Ursprungs-Thread aus der E-Mail-Datenbank
 // und verlinkt in die E-Mail-Zentrale.
-export default function DealEmailThreadCard({ deal }) {
+export default function DealEmailThreadCard({ deal, onChanged }) {
   if (!deal.email_thread_id) return null;
 
   return (
@@ -22,6 +23,12 @@ export default function DealEmailThreadCard({ deal }) {
         </Link>
       </div>
       <EscalationThreadPreview threadId={deal.email_thread_id} limit={3} />
+      <ReplyComposer
+        threadId={deal.email_thread_id}
+        dealId={deal.id}
+        recipient={deal.contact_email || ''}
+        onSent={onChanged}
+      />
     </div>
   );
 }

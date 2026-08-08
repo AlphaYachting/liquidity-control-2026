@@ -109,7 +109,7 @@ export default function CrmDealDetail() {
         <div className="lg:col-span-2 space-y-3">
           <DealProposalCard deal={deal} activities={activities} onChanged={refreshAll} />
           <DealInquiryCard deal={deal} onChanged={refreshAll} />
-          <DealEmailThreadCard deal={deal} />
+          <DealEmailThreadCard deal={deal} onChanged={refreshAll} />
           <ActivityComposer dealId={deal.id} onAdded={refreshAll} />
           <div className="border rounded-xl bg-card p-4">
             <h3 className="text-sm font-semibold mb-3">Aktivitäten-Verlauf</h3>
