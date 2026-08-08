@@ -6,7 +6,7 @@ import { PIPELINES } from '@/components/crm/stages';
 
 // Beim Übernehmen einer Anfrage existiert bereits ein offener Deal (egal welche Pipeline):
 // zuordnen statt duplizieren — oder bewusst trotzdem neu anlegen.
-export default function InboxDuplicateDialog({ open, onOpenChange, deal, onAttach, onCreateAnyway, busy }) {
+export default function InboxDuplicateDialog({ open, onOpenChange, deal, onAttach, onCreateAnyway, busy, error }) {
   if (!deal) return null;
   const pipeline = PIPELINES[deal.pipeline]?.label || deal.pipeline;
   const stage = PIPELINES[deal.pipeline]?.stages.find(s => s.key === deal.stage)?.label || deal.stage;
@@ -30,9 +30,14 @@ export default function InboxDuplicateDialog({ open, onOpenChange, deal, onAttac
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">{pipeline} · {stage}</p>
           </div>
+          {error && (
+            <div className="border border-red-200 bg-red-50 rounded-lg px-3 py-2 text-xs text-red-700">
+              <strong>Zuordnung fehlgeschlagen:</strong> {error}
+            </div>
+          )}
           <div className="flex flex-col gap-2 pt-1">
             <Button onClick={onAttach} disabled={busy} className="gap-2 justify-start">
-              <Link2 className="w-4 h-4" /> Anfrage diesem Deal zuordnen
+              <Link2 className="w-4 h-4" /> {busy ? 'Wird zugeordnet…' : error ? 'Erneut versuchen' : 'Anfrage diesem Deal zuordnen'}
             </Button>
             <Button variant="outline" onClick={onCreateAnyway} disabled={busy} className="gap-2 justify-start">
               <Plus className="w-4 h-4" /> Trotzdem neuen Deal anlegen

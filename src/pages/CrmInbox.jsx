@@ -11,6 +11,7 @@ import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import InboxDuplicateDialog from '@/components/crm/InboxDuplicateDialog';
 import { threadIdOf, markThreadAsLead } from '@/components/crm/inboxDecision';
+import { useToast } from '@/components/ui/use-toast';
 import { findDuplicateDeal, CLOSED_STAGES } from '../../base44/shared/crmDuplicate.js';
 
 export default function CrmInbox() {
@@ -20,6 +21,8 @@ export default function CrmInbox() {
   const [convertItem, setConvertItem] = useState(null);
   const [duplicateHit, setDuplicateHit] = useState(null); // { item, deal }
   const [attachBusy, setAttachBusy] = useState(false);
+  const [attachError, setAttachError] = useState(null);
+  const { toast } = useToast();
   const [backchannelWarning, setBackchannelWarning] = useState(null);
 
   const { data: rawItems = [], isLoading } = useQuery({
@@ -51,27 +54,47 @@ export default function CrmInbox() {
     else setConvertItem(item);
   };
 
-  // Anfrage dem bestehenden Deal zuordnen statt einen Duplikat-Lead anzulegen
+  // Anfrage dem bestehenden Deal zuordnen statt einen Duplikat-Lead anzulegen.
+  // Jeder Schritt ist abgesichert: Fehler bleiben im Pop-up sichtbar — nie wieder ein toter Klick.
   const attachToExistingDeal = async () => {
     const { item, deal } = duplicateHit;
     setAttachBusy(true);
+    setAttachError(null);
     const threadId = threadIdOf(item);
-    const user = await base44.auth.me().catch(() => null);
-    await base44.entities.CrmActivity.create({
-      deal_id: deal.id,
-      activity_type: 'system',
-      title: `Weitere Anfrage zugeordnet — ${item.subject || 'ohne Betreff'}`,
-      content: item.body || '',
-      activity_date: new Date().toISOString(),
-    });
-    await base44.entities.CrmInboxItem.update(item.id, {
-      status: 'converted', decision: 'lead', linked_deal_id: deal.id,
-      decided_by: user?.email || '', decided_at: new Date().toISOString(),
-    });
-    await markThreadAsLead(threadId, deal.id);
+    try {
+      const user = await base44.auth.me().catch(() => null);
+      // 1. E-Mail-Thread am Deal verankern (bestehende Verknüpfung nicht überschreiben)
+      if (threadId && !deal.email_thread_id) {
+        await base44.entities.CrmDeal.update(deal.id, { email_thread_id: threadId });
+      }
+      // 2. Konversation als E-Mail-Aktivität am Deal festhalten
+      await base44.entities.CrmActivity.create({
+        deal_id: deal.id,
+        activity_type: 'email',
+        title: `Weitere Anfrage zugeordnet — ${item.subject || 'ohne Betreff'}`,
+        content: `${item.body || ''}${threadId ? `\n\nKonversation: /crm/emails?thread=${threadId}` : ''}`.trim(),
+        activity_date: new Date().toISOString(),
+      });
+      // 3. Anfrage verlässt den offenen Posteingang
+      await base44.entities.CrmInboxItem.update(item.id, {
+        status: 'converted', decision: 'zugeordnet', linked_deal_id: deal.id,
+        decided_by: user?.email || '', decided_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      setAttachBusy(false);
+      setAttachError(e?.response?.data?.detail || e?.response?.data?.error || e?.message || 'Unbekannter Fehler beim Zuordnen');
+      return;
+    }
+    // 4. Externen Thread markieren — Fehlschlag blockiert die Zuordnung nicht, wird aber sichtbar
+    const back = await markThreadAsLead(threadId, deal.id);
     setAttachBusy(false);
     setDuplicateHit(null);
     refresh();
+    toast({ title: `Der Anfrage wurde Deal „${deal.title}" zugeordnet` });
+    if (!back.ok) {
+      setBackchannelWarning({ subject: item.subject || 'Anfrage', dealId: deal.id, mode: 'attach' });
+      return;
+    }
     navigate(`/crm/deals/${deal.id}`);
   };
 
@@ -129,8 +152,9 @@ export default function CrmInbox() {
         <div className="border border-amber-200 bg-amber-50 rounded-xl px-4 py-3 text-xs text-amber-800 flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <p className="flex-1">
-            Der Lead zu „{backchannelWarning.subject}" wurde angelegt, aber der Thread konnte in der
-            E-Mail-Zentrale nicht als übernommen markiert werden — er bleibt dort in „Braucht Antwort" stehen.{' '}
+            {backchannelWarning.mode === 'attach'
+              ? <>Die Anfrage „{backchannelWarning.subject}" wurde dem Deal zugeordnet, aber der Thread konnte in der E-Mail-Zentrale nicht als zugeordnet markiert werden — er bleibt dort in „Braucht Antwort" stehen.</>
+              : <>Der Lead zu „{backchannelWarning.subject}" wurde angelegt, aber der Thread konnte in der E-Mail-Zentrale nicht als übernommen markiert werden — er bleibt dort in „Braucht Antwort" stehen.</>}{' '}
             <Link to={`/crm/deals/${backchannelWarning.dealId}`} className="font-semibold underline">Deal öffnen</Link>
           </p>
           <button onClick={() => setBackchannelWarning(null)} className="text-amber-700 font-semibold shrink-0">Ausblenden</button>
@@ -160,9 +184,10 @@ export default function CrmInbox() {
       <InboxCaptureDialog open={captureOpen} onOpenChange={setCaptureOpen} onSaved={refresh} />
       <InboxDuplicateDialog
         open={Boolean(duplicateHit)}
-        onOpenChange={(o) => { if (!o) setDuplicateHit(null); }}
+        onOpenChange={(o) => { if (!o) { setDuplicateHit(null); setAttachError(null); } }}
         deal={duplicateHit?.deal}
         busy={attachBusy}
+        error={attachError}
         onAttach={attachToExistingDeal}
         onCreateAnyway={() => { setConvertItem(duplicateHit.item); setDuplicateHit(null); }}
       />
