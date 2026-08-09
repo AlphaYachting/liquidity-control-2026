@@ -138,7 +138,7 @@ export default function CrmDealDetail() {
           </CollapsibleSection>
 
           <CollapsibleSection icon={History} title="Aktivitäten-Verlauf" hint={`${activities.length} Einträge`} defaultOpen>
-            <ActivityTimeline activities={activities} />
+            <ActivityTimeline activities={activities} onChanged={refreshAll} />
           </CollapsibleSection>
         </div>
 

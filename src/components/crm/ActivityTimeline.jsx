@@ -1,5 +1,6 @@
-import React from 'react';
-import { Phone, Mail, CalendarDays, StickyNote, GitCommitHorizontal, Bot } from 'lucide-react';
+import React, { useState } from 'react';
+import { base44 } from '@/api/base44Client';
+import { Phone, Mail, CalendarDays, StickyNote, GitCommitHorizontal, Bot, Trash2, Loader2 } from 'lucide-react';
 
 const TYPE_META = {
   call: { icon: Phone, label: 'Anruf', color: 'bg-blue-100 text-blue-600' },
@@ -10,7 +11,17 @@ const TYPE_META = {
   system: { icon: Bot, label: 'System', color: 'bg-muted text-muted-foreground' },
 };
 
-export default function ActivityTimeline({ activities }) {
+export default function ActivityTimeline({ activities, onChanged }) {
+  const [deletingId, setDeletingId] = useState(null);
+
+  const deleteActivity = async (a) => {
+    if (!window.confirm('Diesen Eintrag endgültig aus dem Verlauf löschen?')) return;
+    setDeletingId(a.id);
+    await base44.entities.CrmActivity.delete(a.id);
+    setDeletingId(null);
+    onChanged?.();
+  };
+
   if (!activities?.length) {
     return <p className="text-sm text-muted-foreground text-center py-6">Noch keine Aktivitäten erfasst.</p>;
   }
@@ -20,7 +31,7 @@ export default function ActivityTimeline({ activities }) {
         const meta = TYPE_META[a.activity_type] || TYPE_META.note;
         const Icon = meta.icon;
         return (
-          <div key={a.id} className="flex gap-3">
+          <div key={a.id} className="flex gap-3 group">
             <div className="flex flex-col items-center">
               <div className={`p-1.5 rounded-full ${meta.color} shrink-0`}>
                 <Icon className="w-3.5 h-3.5" />
@@ -30,8 +41,18 @@ export default function ActivityTimeline({ activities }) {
             <div className="pb-5 min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-sm font-medium leading-tight">{a.title || meta.label}</p>
-                <span className="text-[11px] text-muted-foreground shrink-0">
-                  {new Date(a.activity_date || a.created_date).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                <span className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[11px] text-muted-foreground">
+                    {new Date(a.activity_date || a.created_date).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <button
+                    onClick={() => deleteActivity(a)}
+                    disabled={deletingId === a.id}
+                    title="Eintrag löschen"
+                    className="text-muted-foreground/50 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-100"
+                  >
+                    {deletingId === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  </button>
                 </span>
               </div>
               {a.content && <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap">{a.content}</p>}
