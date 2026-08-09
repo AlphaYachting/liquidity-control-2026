@@ -147,6 +147,73 @@ Deno.serve(async (req) => {
         }));
     } catch (_) { /* E-Mail-DB nicht erreichbar — Bericht läuft ohne weiter */ }
 
+    // 6c. Projektmanagement — Sprint-Modul: was steht nächste Woche im Projektgeschäft an
+    const twoWeeksAhead = new Date(now.getTime() + 14 * 86400000).toISOString().substring(0, 10);
+    const [sprintProjects, sprintClients, activeSprints, allMilestones] = await Promise.all([
+      svc.entities.Project.filter({ status: 'aktiv' }, null, 500).catch(() => []),
+      svc.entities.Client.list(null, 500).catch(() => []),
+      svc.entities.Sprint.filter({ status: { $in: ['geplant', 'laufend', 'geliefert'] } }, null, 500).catch(() => []),
+      svc.entities.Milestone.list(null, 1000).catch(() => []),
+    ]);
+    const projById: Record<string, any> = {};
+    for (const p of sprintProjects) projById[p.id] = p;
+    const clientById: Record<string, any> = {};
+    for (const c of sprintClients) clientById[c.id] = c;
+    const sprintById: Record<string, any> = {};
+    for (const s of activeSprints) sprintById[s.id] = s;
+    const sprintLabel = (s: any) => {
+      const proj = projById[s.project_id];
+      const client = proj ? clientById[proj.client_id] : null;
+      return { kunde: client?.name || '—', projekt: proj?.title || '—', pm: proj?.pm_email || '' };
+    };
+
+    // Milestones in aktiven Sprints
+    const activeMilestones = allMilestones.filter((m: any) => sprintById[m.sprint_id]);
+
+    // a) Übergaben & Fristen nächste Woche (Handover oder FREEZE fällt in die Woche)
+    const pmDeadlines = activeMilestones
+      .filter((m: any) => m.state !== 'freigegeben' && (
+        (m.planned_handover && m.planned_handover >= weekStart && m.planned_handover <= weekEnd) ||
+        ((m.feedback_deadline || m.planned_freeze) && (m.feedback_deadline || m.planned_freeze) >= weekStart && (m.feedback_deadline || m.planned_freeze) <= weekEnd)
+      ))
+      .map((m: any) => ({
+        ...sprintLabel(sprintById[m.sprint_id]),
+        etappe: m.title, phase: m.state,
+        uebergabe: m.planned_handover || '', freeze: m.feedback_deadline || m.planned_freeze || '',
+        betrag_netto: m.milestone_amount || 0,
+      }));
+
+    // b) Liefertermine in den nächsten 14 Tagen
+    const pmDeliveries = activeSprints
+      .filter((s: any) => s.delivery_date && s.delivery_date >= today && s.delivery_date <= twoWeeksAhead && s.status !== 'geliefert')
+      .map((s: any) => ({
+        ...sprintLabel(s), sprint: s.title || s.size, liefertermin: s.delivery_date,
+        status: s.status, betrag_netto: s.sprint_amount || 0,
+      }));
+
+    // c) Freigegebene, aber noch nicht verrechnete Etappen
+    const pmReleasedUninvoiced = activeMilestones
+      .filter((m: any) => m.released && !m.invoiced_at)
+      .map((m: any) => ({
+        ...sprintLabel(sprintById[m.sprint_id]), etappe: m.title,
+        freigegeben_am: (m.released_at || '').slice(0, 10), betrag_netto: m.milestone_amount || 0,
+      }));
+
+    // d) Blockierende / lange wartende Tickets in aktiven Sprints
+    const activeMsIds = new Set(activeMilestones.map((m: any) => m.id));
+    const waitingTickets = await svc.entities.Ticket.filter({ status: 'wartet' }, null, 500).catch(() => []);
+    const pmBlockedTickets = waitingTickets
+      .filter((t: any) => activeMsIds.has(t.milestone_id) &&
+        (t.blocks_others || !t.last_status_change || t.last_status_change.slice(0, 10) < twoWeeksAgo))
+      .map((t: any) => {
+        const ms = activeMilestones.find((m: any) => m.id === t.milestone_id);
+        return {
+          ...sprintLabel(sprintById[ms?.sprint_id] || {}), ticket: t.title,
+          verantwortlich: t.assignee_email || 'offen', blockiert_andere: !!t.blocks_others,
+          wartet_seit: (t.last_status_change || '').slice(0, 10),
+        };
+      });
+
     // 7. Stundensatz
     const settings = await svc.entities.RestructuringSetting.list(null, 1).catch(() => []);
     const hourlyRate = settings[0]?.wip_blended_hourly_rate || 100;
@@ -168,6 +235,10 @@ Deno.serve(async (req) => {
       offene_empfehlungen: openRecs.length,
       unbeantwortete_rueckfragen: openInquiries.length,
       email_eskalationen: emailEscalations.length,
+      pm_fristen_naechste_woche: pmDeadlines.length,
+      pm_liefertermine_14_tage: pmDeliveries.length,
+      pm_freigegeben_unverrechnet: pmReleasedUninvoiced.length,
+      pm_blockierte_tickets: pmBlockedTickets.length,
     };
 
     // 8. Vorschau-Bericht generieren
@@ -196,14 +267,21 @@ Unbeantwortete Rückfragen an Umsetzer: ${JSON.stringify(openInquiries.slice(0, 
 
 E-Mail-Eskalationen aus der Kundenkommunikation der letzten 14 Tage (KI-erkannt: unzufriedene Kunden, Beschwerden, Konfliktton — nächste Woche persönlich reagieren): ${JSON.stringify(emailEscalations.slice(0, 10))}
 
+PROJEKTMANAGEMENT (Sprint-Modul — hieraus konkrete PM-Empfehlungen ableiten, nicht nur auflisten):
+Etappen-Übergaben und FREEZE-Fristen nächste Woche: ${JSON.stringify(pmDeadlines.slice(0, 15))}
+Liefertermine der nächsten 14 Tage: ${JSON.stringify(pmDeliveries.slice(0, 10))}
+Freigegebene, aber noch nicht verrechnete Etappen: ${JSON.stringify(pmReleasedUninvoiced.slice(0, 10))}
+Blockierende oder lange wartende Aufgaben in laufenden Sprints: ${JSON.stringify(pmBlockedTickets.slice(0, 10))}
+
 Struktur:
 1. KPI-Zeile oben (erwartete Eingänge nächste Woche €, geplante Abrechnungen €, Quick-Win-Potenzial €, Überfällig €, offene Stunden mit €-Wert bei ${hourlyRate}€/h)
 2. "💶 Erwartete Zahlungseingänge nächste Woche" — fällige Rechnungen mit Kunde, Betrag, Fälligkeit
 3. "🧾 Nächste Woche Rechnung stellen" — geplante Anweisungen + Quick-Wins mit konkretem Betrag
 4. "📞 Nachfassen & Mahnen" — überfällige Rechnungen mit Priorität
 5. "🔴 Eingreifen" — Budget-kritische und stagnierende Projekte sowie E-Mail-Eskalationen (unzufriedene Kunden mit Betreff und Kurzzusammenfassung)
-6. "📋 Nachverfolgung" — offene Empfehlungen und unbeantwortete Rückfragen
-7. "🎯 Top-3-Aufgaben für nächste Woche" — konkrete Handlungen mit Beträgen
+6. "🗂 Projektmanagement nächste Woche" — konkrete PM-Empfehlungen aus den Sprint-Daten: welche Übergabe/FREEZE-Frist ist vorzubereiten (Kunde, Etappe, Datum), welcher Liefertermin ist gefährdet, welche freigegebene Etappe muss verrechnet werden, welches blockierende Ticket braucht eine Entscheidung — je Zeile eine Empfehlung mit Verantwortlichem, formuliert als Handlungsanweisung ("Übergabe X am Di vorbereiten", "Ticket Y bei Z einfordern")
+7. "📋 Nachverfolgung" — offene Empfehlungen und unbeantwortete Rückfragen
+8. "🎯 Top-3-Aufgaben für nächste Woche" — konkrete Handlungen mit Beträgen, mindestens eine davon aus dem Projektmanagement, wenn dort Einträge vorhanden sind
 Formatvorgaben (strikt einhalten):
 - Jede Sektion beginnt mit einer "## "-Überschrift inkl. Emoji.
 - Jede Auflistung ist eine Markdown-Tabelle (z.B. | Kunde | Projekt | Betrag | Fällig/Status |), sortiert nach Betrag absteigend.

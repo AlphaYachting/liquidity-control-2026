@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileBarChart, ChevronDown, ChevronUp, TrendingUp, Receipt, AlertTriangle, Clock } from 'lucide-react';
+import { FileBarChart, ChevronDown, ChevronUp, TrendingUp, Receipt, AlertTriangle, Clock, KanbanSquare } from 'lucide-react';
 
 const KpiChip = ({ icon: Icon, label, value, tone }) => {
   const tones = {
@@ -63,6 +63,10 @@ export default function WeeklyReportCard() {
           )}
           {kpis.offene_stunden > 0 && (
             <KpiChip icon={Clock} tone="amber" label={`${kpis.offene_stunden}h offen`} value={eur(kpis.offene_stunden_wert_netto)} />
+          )}
+          {((kpis.pm_fristen_naechste_woche || 0) + (kpis.pm_liefertermine_14_tage || 0) + (kpis.pm_blockierte_tickets || 0)) > 0 && (
+            <KpiChip icon={KanbanSquare} tone="blue" label="PM-Fristen"
+              value={(kpis.pm_fristen_naechste_woche || 0) + (kpis.pm_liefertermine_14_tage || 0) + (kpis.pm_blockierte_tickets || 0)} />
           )}
         </div>
       </button>
