@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, PenLine, Mail, Copy, Check, RefreshCw } from 'lucide-react';
 import VoiceFeedbackInput from '@/components/crm/emails/VoiceFeedbackInput';
+import { markDealContacted } from '@/components/crm/dealContact';
 
 // KI-Antwortvorschläge: zwei Varianten, Feedback per Text/Sprache, Öffnen im E-Mail-Programm.
 export default function ReplyDraftPanel({ thread, messages }) {
@@ -78,6 +79,7 @@ ${convo}
         content: draft,
         activity_date: new Date().toISOString(),
       }).catch(() => {});
+      await markDealContacted(thread.crm_deal_id);
     }
     window.location.href = mailtoHref;
   };

@@ -8,9 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Sparkles, Send, CalendarClock, Check } from 'lucide-react';
 import ReplySlotFields from '@/components/crm/emails/ReplySlotFields';
 import { toPlainText } from '@/components/crm/quotes/emailBodyFormat';
+import { markDealContacted } from '@/components/crm/dealContact';
 
-const fmtSlot = (v) =>
-  v ? new Date(v).toLocaleString('de-AT', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+const fmtSlot = (v) => {
+  if (!v) return '';
+  const d = new Date(v);
+  const date = d.toLocaleDateString('de-AT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const time = d.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
+  return `${date} um ${time} Uhr`;
+};
 
 // KI-gestützte Antwort auf eine eingegangene Anfrage: Entwurf erzeugen, frei bearbeiten, senden.
 // Der Versand läuft über das lokale E-Mail-Programm; protokolliert wird am Deal (CrmActivity).
@@ -65,6 +71,7 @@ export default function ReplyComposer({ threadId, dealId, recipient, onSent, bar
           body: mailBody,
           activity_date: new Date().toISOString(),
         });
+        await markDealContacted(dealId);
       }
       window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailBody)}`, '_self');
       setSubject(''); setBody(''); setSlots(['', '', '']); setDone(true);

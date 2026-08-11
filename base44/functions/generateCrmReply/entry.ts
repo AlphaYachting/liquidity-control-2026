@@ -44,24 +44,27 @@ export default async function (req: Request): Promise<Response> {
     const formatLabel = formatLabels[params.format] || '';
 
     const res = await base44.integrations.Core.InvokeLLM({
-      prompt: `Du schreibst als Mitarbeiter der Digitalagentur Rittler & Co (Österreich) eine Antwort-E-Mail auf Deutsch, per Sie, professionell und persönlich.
+      prompt: `Du schreibst als Mitarbeiter der Digitalagentur Rittler & Co (Österreich) eine Antwort-E-Mail auf Deutsch, per Sie — herzlich, wertschätzend und sprachlich elegant, dabei professionell und ohne Floskeln-Überladung.
 
 AUFGABE: Auf die unten stehende Anfrage antworten und einen Termin vorschlagen.
 Regeln:
-- Greife das KONKRETE Anliegen aus der Anfrage in eigenen Worten auf (mindestens ein Satz, der zeigt, dass die Anfrage gelesen wurde). Erfinde nichts, was nicht in der Anfrage steht.
+- Bedanke dich zu Beginn kurz und aufrichtig für die Anfrage bzw. das entgegengebrachte Interesse.
+- Greife das KONKRETE Anliegen aus der Anfrage in eigenen Worten auf (mindestens ein Satz, der zeigt, dass die Anfrage aufmerksam gelesen wurde). Erfinde nichts, was nicht in der Anfrage steht.
 - Sprich die Person mit ihrem Namen an, sofern er erkennbar ist${senderName ? ` (Absender: ${senderName})` : ''}.
+- Formuliere abwechslungsreich und natürlich — keine steifen Standardsätze wie "Bezug nehmend auf" oder "hiermit".
 - Biete GENAU diese Termine an, wortgleich in Datum und Uhrzeit, als Aufzählung:
 ${slots.map((s) => `  - ${s}`).join('\n')}
-${formatLabel ? `- Format des Termins: ${formatLabel}.` : ''}
-- Bitte um kurze Bestätigung, welcher Termin passt.
+${formatLabel ? `- Format des Termins: ${formatLabel} — erwähne das in der Überleitung zum Termin (z.B. "gerne ${formatLabel}").` : ''}
+- Bitte freundlich um kurze Rückmeldung, welcher Termin am besten passt, und biete an, bei Bedarf Alternativen zu finden.
+- Schließe mit einem positiven Satz, der Vorfreude auf das Gespräch ausdrückt.
 - KEINE Preise, keine Aufwandsschätzungen, keine Zusagen zu Leistungen.
 
 AUFBAU (exakt einhalten, jeder Block durch EINE Leerzeile getrennt):
 1. Anrede, z.B. "Guten Tag Frau Muster," — eigene Zeile.
-2. Ein kurzer Absatz (1–2 Sätze), der das Anliegen aufgreift.
-3. Ein kurzer Satz, der zum Termin überleitet, z.B. "Für ein Gespräch schlage ich folgende Termine vor:".
+2. Ein kurzer Absatz (2–3 Sätze): Dank für die Anfrage und das Aufgreifen des Anliegens.
+3. Ein kurzer Satz, der zum Termin überleitet, z.B. "Sehr gerne nehmen wir uns Zeit für ein persönliches Gespräch — folgende Termine kann ich Ihnen anbieten:".
 4. Die Termine — jeder Termin in EINER eigenen Zeile, beginnend mit "- ", sonst nichts.
-5. Ein kurzer Satz mit der Bitte um Rückmeldung.
+5. Ein kurzer Absatz (1–2 Sätze): Bitte um Rückmeldung und Vorfreude auf das Gespräch.
 6. "Beste Grüße" — eigene Zeile.
 7. ${user.full_name || 'Rittler & Co'} — eigene Zeile, darunter "Rittler & Co" — eigene Zeile.
 
