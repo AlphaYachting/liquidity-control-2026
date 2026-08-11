@@ -21,6 +21,29 @@ export async function markThreadAsLead(threadId, dealId) {
   }
 }
 
+// Anfrage einem bestehenden Deal zuordnen: Thread verankern, Aktivität protokollieren,
+// Eintrag verlässt den Posteingang. Wirft bei Fehlern — der Aufrufer zeigt sie an.
+// Rückgabe: Ergebnis des Rückkanals ({ ok, error? }).
+export async function attachInboxItemToDeal(item, deal) {
+  const threadId = threadIdOf(item);
+  const user = await base44.auth.me().catch(() => null);
+  if (threadId && !deal.email_thread_id) {
+    await base44.entities.CrmDeal.update(deal.id, { email_thread_id: threadId });
+  }
+  await base44.entities.CrmActivity.create({
+    deal_id: deal.id,
+    activity_type: 'email',
+    title: `Weitere Anfrage zugeordnet — ${item.subject || 'ohne Betreff'}`,
+    content: `${item.body || ''}${threadId ? `\n\nKonversation: /crm/emails?thread=${threadId}` : ''}`.trim(),
+    activity_date: new Date().toISOString(),
+  });
+  await base44.entities.CrmInboxItem.update(item.id, {
+    status: 'converted', decision: 'zugeordnet', linked_deal_id: deal.id,
+    decided_by: user?.email || '', decided_at: new Date().toISOString(),
+  });
+  return markThreadAsLead(threadId, deal.id);
+}
+
 // "Kein Lead, beantworten" bzw. "Verwerfen" — der Eintrag verlässt den Posteingang.
 export async function decideInboxItem(item, decision, dismissReason = '') {
   const user = await base44.auth.me().catch(() => null);

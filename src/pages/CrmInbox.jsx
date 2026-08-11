@@ -10,7 +10,8 @@ import InboxItemCard from '@/components/crm/InboxItemCard';
 import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import InboxDuplicateDialog from '@/components/crm/InboxDuplicateDialog';
-import { threadIdOf, markThreadAsLead } from '@/components/crm/inboxDecision';
+import { threadIdOf, markThreadAsLead, attachInboxItemToDeal } from '@/components/crm/inboxDecision';
+import InboxAssignDealDialog from '@/components/crm/InboxAssignDealDialog';
 import { useToast } from '@/components/ui/use-toast';
 import { findDuplicateDeal, CLOSED_STAGES } from '../../base44/shared/crmDuplicate.js';
 
@@ -19,6 +20,7 @@ export default function CrmInbox() {
   const queryClient = useQueryClient();
   const [captureOpen, setCaptureOpen] = useState(false);
   const [convertItem, setConvertItem] = useState(null);
+  const [assignItem, setAssignItem] = useState(null);
   const [duplicateHit, setDuplicateHit] = useState(null); // { item, deal }
   const [attachBusy, setAttachBusy] = useState(false);
   const [attachError, setAttachError] = useState(null);
@@ -60,33 +62,14 @@ export default function CrmInbox() {
     const { item, deal } = duplicateHit;
     setAttachBusy(true);
     setAttachError(null);
-    const threadId = threadIdOf(item);
+    let back;
     try {
-      const user = await base44.auth.me().catch(() => null);
-      // 1. E-Mail-Thread am Deal verankern (bestehende Verknüpfung nicht überschreiben)
-      if (threadId && !deal.email_thread_id) {
-        await base44.entities.CrmDeal.update(deal.id, { email_thread_id: threadId });
-      }
-      // 2. Konversation als E-Mail-Aktivität am Deal festhalten
-      await base44.entities.CrmActivity.create({
-        deal_id: deal.id,
-        activity_type: 'email',
-        title: `Weitere Anfrage zugeordnet — ${item.subject || 'ohne Betreff'}`,
-        content: `${item.body || ''}${threadId ? `\n\nKonversation: /crm/emails?thread=${threadId}` : ''}`.trim(),
-        activity_date: new Date().toISOString(),
-      });
-      // 3. Anfrage verlässt den offenen Posteingang
-      await base44.entities.CrmInboxItem.update(item.id, {
-        status: 'converted', decision: 'zugeordnet', linked_deal_id: deal.id,
-        decided_by: user?.email || '', decided_at: new Date().toISOString(),
-      });
+      back = await attachInboxItemToDeal(item, deal);
     } catch (e) {
       setAttachBusy(false);
       setAttachError(e?.response?.data?.detail || e?.response?.data?.error || e?.message || 'Unbekannter Fehler beim Zuordnen');
       return;
     }
-    // 4. Externen Thread markieren — Fehlschlag blockiert die Zuordnung nicht, wird aber sichtbar
-    const back = await markThreadAsLead(threadId, deal.id);
     setAttachBusy(false);
     setDuplicateHit(null);
     refresh();
@@ -176,12 +159,28 @@ export default function CrmInbox() {
       ) : (
         <div className="space-y-3">
           {items.map(item => (
-            <InboxItemCard key={item.id} item={item} onConvert={handleConvert} onChanged={refresh} />
+            <InboxItemCard key={item.id} item={item} onConvert={handleConvert} onAssign={setAssignItem} onChanged={refresh} />
           ))}
         </div>
       )}
 
       <InboxCaptureDialog open={captureOpen} onOpenChange={setCaptureOpen} onSaved={refresh} />
+      <InboxAssignDealDialog
+        open={Boolean(assignItem)}
+        onOpenChange={(o) => { if (!o) setAssignItem(null); }}
+        item={assignItem}
+        onDone={(deal, back) => {
+          const subject = assignItem?.subject || 'Anfrage';
+          setAssignItem(null);
+          refresh();
+          toast({ title: `Der Anfrage wurde Deal „${deal.title}" zugeordnet` });
+          if (!back.ok) {
+            setBackchannelWarning({ subject, dealId: deal.id, mode: 'attach' });
+            return;
+          }
+          navigate(`/crm/deals/${deal.id}`);
+        }}
+      />
       <InboxDuplicateDialog
         open={Boolean(duplicateHit)}
         onOpenChange={(o) => { if (!o) { setDuplicateHit(null); setAttachError(null); } }}

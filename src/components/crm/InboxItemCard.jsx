@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Phone, Mail, PenLine, UserPlus, Trash2, MailCheck } from 'lucide-react';
+import { Phone, Mail, PenLine, UserPlus, Trash2, MailCheck, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import InboxItemBody from '@/components/crm/InboxItemBody';
 import InboxDismissDialog from '@/components/crm/InboxDismissDialog';
 import { decideInboxItem } from '@/components/crm/inboxDecision';
@@ -12,18 +13,27 @@ const SOURCE_META = {
   manual: { icon: PenLine, label: 'Manuell', color: 'bg-muted text-muted-foreground' },
 };
 
-export default function InboxItemCard({ item, onConvert, onChanged }) {
+export default function InboxItemCard({ item, onConvert, onAssign, onChanged }) {
   const meta = SOURCE_META[item.source] || SOURCE_META.manual;
   const Icon = meta.icon;
   const strength = STRENGTH_META[item.lead_strength];
   const [dismissOpen, setDismissOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const { toast } = useToast();
 
   const decide = async (decision, reason = '') => {
     setBusy(true);
-    await decideInboxItem(item, decision, reason);
+    try {
+      await decideInboxItem(item, decision, reason);
+      onChanged?.();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Aktion fehlgeschlagen',
+        description: e?.response?.data?.detail || e?.message || 'Der Eintrag konnte nicht aktualisiert werden.',
+      });
+    }
     setBusy(false);
-    onChanged?.();
   };
 
   return (
@@ -78,6 +88,10 @@ export default function InboxItemCard({ item, onConvert, onChanged }) {
       <div className="flex flex-wrap gap-2 pl-12">
         <Button size="sm" className="h-8 gap-1.5 text-xs" disabled={busy} onClick={() => onConvert(item)}>
           <UserPlus className="w-3.5 h-3.5" /> Lead anlegen
+        </Button>
+        <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" disabled={busy}
+          onClick={() => onAssign(item)}>
+          <Link2 className="w-3.5 h-3.5" /> Zu Deal zuordnen
         </Button>
         <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" disabled={busy}
           onClick={() => decide('nur_antwort')}>
