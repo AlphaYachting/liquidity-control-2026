@@ -5,10 +5,10 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 export default function KpiCard({ title, value, subtitle, icon: Icon, trend, trendLabel, variant = 'default', className = '', compact = false }) {
   const variantStyles = {
     default: 'border-border',
-    success: 'border-l-4 border-l-emerald-500',
-    warning: 'border-l-4 border-l-amber-500',
-    danger: 'border-l-4 border-l-red-500',
-    info: 'border-l-4 border-l-blue-500',
+    success: 'border-l-4 border-l-status-done',
+    warning: 'border-l-4 border-l-status-attention',
+    danger: 'border-l-4 border-l-status-critical',
+    info: 'border-l-4 border-l-status-neutral',
   };
 
   return (
@@ -20,11 +20,11 @@ export default function KpiCard({ title, value, subtitle, icon: Icon, trend, tre
           {subtitle && <p className="text-xs text-muted-foreground leading-tight">{subtitle}</p>}
           {trendLabel && (
             <div className="flex items-center gap-1 mt-1">
-              {trend === 'up' && <TrendingUp className="w-3 h-3 text-emerald-500" />}
-              {trend === 'down' && <TrendingDown className="w-3 h-3 text-red-500" />}
+              {trend === 'up' && <TrendingUp className="w-3 h-3 text-status-done" />}
+              {trend === 'down' && <TrendingDown className="w-3 h-3 text-status-critical" />}
               {(!trend || trend === 'neutral') && <Minus className="w-3 h-3 text-muted-foreground" />}
               <span className={`text-xs font-medium ${
-                trend === 'up' ? 'text-emerald-600' : trend === 'down' ? 'text-red-600' : 'text-muted-foreground'
+                trend === 'up' ? 'text-status-done' : trend === 'down' ? 'text-status-critical' : 'text-muted-foreground'
               }`}>{trendLabel}</span>
             </div>
           )}
