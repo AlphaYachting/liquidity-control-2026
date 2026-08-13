@@ -89,34 +89,44 @@ export const AGING_LABELS = {
   '90_plus': '90+ Tage'
 };
 
-// Status colors
+// Status colors — Achse B des Sprint-Designs: erledigt / Aufmerksamkeit / kritisch / neutral
+const DONE = 'bg-status-done-surface text-status-done-text border-status-done';
+const ATTENTION = 'bg-status-attention-surface text-status-attention border-status-attention';
+const CRITICAL = 'bg-status-critical-surface text-status-critical border-status-critical';
+const NEUTRAL = 'bg-muted text-muted-foreground border-border';
+
 export const STATUS_COLORS = {
-  paid: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  invoiced: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  planned: 'bg-blue-100 text-blue-700 border-blue-200',
-  active: 'bg-blue-100 text-blue-700 border-blue-200',
-  uncertain: 'bg-amber-100 text-amber-700 border-amber-200',
-  unclear: 'bg-amber-100 text-amber-700 border-amber-200',
-  overdue: 'bg-red-100 text-red-700 border-red-200',
-  critical: 'bg-red-100 text-red-700 border-red-200',
-  cancelled: 'bg-gray-100 text-gray-500 border-gray-200',
-  open: 'bg-sky-100 text-sky-700 border-sky-200',
-  completed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  on_hold: 'bg-amber-100 text-amber-700 border-amber-200',
-  pending: 'bg-amber-100 text-amber-700 border-amber-200',
-  paused: 'bg-gray-100 text-gray-500 border-gray-200',
-  disputed: 'bg-purple-100 text-purple-700 border-purple-200',
+  paid: DONE,
+  invoiced: DONE,
+  completed: DONE,
+  active: DONE,
+  planned: ATTENTION,
+  pending: ATTENTION,
+  uncertain: ATTENTION,
+  unclear: ATTENTION,
+  scheduled: ATTENTION,
+  partially_paid: ATTENTION,
+  deferred: ATTENTION,
+  on_hold: ATTENTION,
+  paused: ATTENTION,
+  overdue: CRITICAL,
+  critical: CRITICAL,
+  disputed: CRITICAL,
+  cancelled: CRITICAL,
+  write_off: CRITICAL,
+  open: NEUTRAL,
+  not_invoiced: NEUTRAL,
 };
 
-export const getStatusColor = (status) => STATUS_COLORS[status] || 'bg-gray-100 text-gray-600 border-gray-200';
+export const getStatusColor = (status) => STATUS_COLORS[status] || NEUTRAL;
 
-// Risk colors
+// Risk colors — analog: none = neutral, low = erledigt, medium/high = Aufmerksamkeit, critical = kritisch
 export const RISK_COLORS = {
-  none: 'bg-gray-100 text-gray-500',
-  low: 'bg-emerald-100 text-emerald-700',
-  medium: 'bg-amber-100 text-amber-700',
-  high: 'bg-orange-100 text-orange-700',
-  critical: 'bg-red-100 text-red-700',
+  none: 'bg-muted text-muted-foreground',
+  low: 'bg-status-done-surface text-status-done-text',
+  medium: 'bg-status-attention-surface text-status-attention',
+  high: 'bg-status-attention-surface text-status-attention',
+  critical: 'bg-status-critical-surface text-status-critical',
 };
 
 // Probability weighting
