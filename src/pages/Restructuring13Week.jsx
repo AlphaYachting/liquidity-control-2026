@@ -7,8 +7,9 @@ import { fmtEUR, fmtDate, OUTFLOW_CATEGORY_LABELS, OUTFLOW_INTERVAL_LABELS } fro
 import { exportPDF, exportExcel } from '@/lib/restructuring/restructuringExport';
 import ReportCard from '@/components/restructuring/ReportCard';
 import ReportTable from '@/components/restructuring/ReportTable';
+import ProjectionAssumptions from '@/components/restructuring/ProjectionAssumptions';
 
-const SOURCE = 'Bankbestand + fällige Debitoren + Retainer/Hosting + Auftragsbestand − erfasste Auszahlungen';
+const SOURCE = 'Bankbestand + Debitoren nach Einbringlichkeitsannahme + Retainer/Hosting + gedeckelter Auftragsbestand − erfasste Auszahlungen (alle Beträge brutto)';
 
 export default function Restructuring13Week() {
   const { data, isLoading } = useRestructuringData();
@@ -103,19 +104,6 @@ export default function Restructuring13Week() {
         </div>
       )}
 
-      {result.projection && (
-        <div className="text-[11px] text-muted-foreground rounded-lg border border-border bg-muted/30 p-3 space-y-1">
-          <p className="font-semibold text-foreground">Hochrechnungs-Basis der Einzahlungen</p>
-          <p>• <b>Debitoren:</b> offene Forderungen nach Fälligkeitsdatum (überfällige in KW 1).</p>
-          <p>• <b>Retainer/Hosting:</b> {fmtEUR(result.projection.recurringMonthly)} / Monat aus aktiven Verträgen, jeweils zum Monatsersten.</p>
-          <p>
-            • <b>Auftragsbestand:</b> {fmtEUR(result.projection.backlogTotal)} offener Leistungswert,
-            davon {fmtEUR(result.projection.backlogUndated)} ohne Termin gleichmäßig über {result.plan?.weeks || 13} Wochen
-            ({fmtEUR(result.projection.undatedPerWeek)} / Woche), {fmtEUR(result.projection.backlogDated)} zum jeweiligen Erwartungsmonat.
-          </p>
-        </div>
-      )}
-
       <ReportCard
         title={`${result.plan?.weeks || 13}-Wochen-Liquiditätsplan${result.plan?.planStartMissing ? '' : ` (fixer Planbeginn ${fmtDate(result.plan.startDate)})`}`}
         sourceNote={SOURCE}
@@ -126,6 +114,7 @@ export default function Restructuring13Week() {
         onExportExcel={() => exportExcel('13-Wochen-Vorschau', exportCols, exportRows, SOURCE)}
       >
         <p className="text-[11px] text-muted-foreground mb-3">
+          <b className="text-foreground">Alle Beträge sind Bruttowerte (inkl. USt).</b>{' '}
           Anfangsbestand {fmtEUR(result.openingBalance)}
           {result.openingSnap && <span> (Stand {fmtDate(result.openingSnap.balance_date)})</span>}
           {result.plan?.hearingDate && <span> · Berichtstagsatzung: {fmtDate(result.plan.hearingDate)} (violett markiert, Wochen davor = Nachweiszeitraum)</span>}
@@ -159,6 +148,12 @@ export default function Restructuring13Week() {
           }
         />
       </ReportCard>
+
+      <ProjectionAssumptions
+        projection={result.projection}
+        receivables={result.receivablesAssumption}
+        weeks={result.plan?.weeks || 13}
+      />
 
       {(result.scenarioItems?.length || 0) > 0 && (
         <div className="rounded-lg border border-border bg-muted/20 p-3">

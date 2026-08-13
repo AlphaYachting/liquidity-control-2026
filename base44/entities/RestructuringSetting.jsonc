@@ -40,7 +40,7 @@
     "default_vat_rate": {
       "type": "number",
       "default": 20,
-      "description": "Standard-Umsatzsteuersatz in Prozent"
+      "description": "Standard-Umsatzsteuersatz in Prozent \u2014 hilfsweise Umrechnung Netto auf Brutto"
     },
     "amounts_are_gross": {
       "type": "boolean",
@@ -50,6 +50,68 @@
     "default_payment_pattern_id": {
       "type": "string",
       "description": "Standard-Zahlungsstaffel (PaymentPattern) f\u00fcr die Verteilung von Rechnungsbetr\u00e4gen auf Wochen"
+    },
+    "max_monthly_billing_gross": {
+      "type": "number",
+      "default": 45000,
+      "description": "Kapazit\u00e4tsgrenze: maximal fakturierbarer Betrag brutto je Monat aus dem Auftragsbestand"
+    },
+    "billing_to_cash_weeks": {
+      "type": "number",
+      "default": 4,
+      "description": "Zeitversatz in Wochen zwischen Leistung/Rechnungslegung und Zahlungseingang"
+    },
+    "collect_rate_0_30": {
+      "type": "number",
+      "default": 90,
+      "description": "Einbringlichkeitsquote in Prozent \u2014 f\u00e4llig innerhalb der letzten 30 Tage"
+    },
+    "collect_week_from_0_30": {
+      "type": "number",
+      "default": 1
+    },
+    "collect_week_to_0_30": {
+      "type": "number",
+      "default": 2
+    },
+    "collect_rate_31_60": {
+      "type": "number",
+      "default": 70,
+      "description": "Einbringlichkeitsquote in Prozent \u2014 31 bis 60 Tage \u00fcberf\u00e4llig"
+    },
+    "collect_week_from_31_60": {
+      "type": "number",
+      "default": 1
+    },
+    "collect_week_to_31_60": {
+      "type": "number",
+      "default": 4
+    },
+    "collect_rate_61_90": {
+      "type": "number",
+      "default": 40,
+      "description": "Einbringlichkeitsquote in Prozent \u2014 61 bis 90 Tage \u00fcberf\u00e4llig"
+    },
+    "collect_week_from_61_90": {
+      "type": "number",
+      "default": 2
+    },
+    "collect_week_to_61_90": {
+      "type": "number",
+      "default": 6
+    },
+    "collect_rate_90_plus": {
+      "type": "number",
+      "default": 15,
+      "description": "Einbringlichkeitsquote in Prozent \u2014 \u00fcber 90 Tage \u00fcberf\u00e4llig"
+    },
+    "collect_week_from_90_plus": {
+      "type": "number",
+      "default": 4
+    },
+    "collect_week_to_90_plus": {
+      "type": "number",
+      "default": 8
     },
     "notes": {
       "type": "string"

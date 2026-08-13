@@ -20,6 +20,55 @@ import { isInvoiceSent } from '../invoiceLiquidityFilter';
 const num = (v) => Number(v) || 0;
 const isCancelled = (i) => i?.payment_status === 'cancelled' || i?.status === 'cancelled';
 
+// Alle Beträge der Liquiditätsrechnung sind BRUTTO. Netto-Quellen (ConfirmedOrder,
+// RecurringContract) werden mit dem Steuersatz des Datensatzes hochgerechnet,
+// hilfsweise mit default_vat_rate aus RestructuringSetting.
+export function toGross(netAmount, vatRate, defaultVat = 20) {
+  const rate = vatRate === null || vatRate === undefined || vatRate === '' ? num(defaultVat) : num(vatRate);
+  return num(netAmount) * (1 + rate / 100);
+}
+
+// Einbringlichkeitsannahmen je Altersklasse — pflegbar in RestructuringSetting.
+export const DEFAULT_COLLECTION = {
+  '0_30': { rate: 90, from: 1, to: 2 },
+  '31_60': { rate: 70, from: 1, to: 4 },
+  '61_90': { rate: 40, from: 2, to: 6 },
+  '90_plus': { rate: 15, from: 4, to: 8 },
+};
+
+export function collectionAssumptions(setting = {}) {
+  const pick = (v, d) => (v === null || v === undefined || v === '' ? d : Number(v));
+  return {
+    '0_30': {
+      rate: pick(setting.collect_rate_0_30, DEFAULT_COLLECTION['0_30'].rate),
+      from: pick(setting.collect_week_from_0_30, DEFAULT_COLLECTION['0_30'].from),
+      to: pick(setting.collect_week_to_0_30, DEFAULT_COLLECTION['0_30'].to),
+    },
+    '31_60': {
+      rate: pick(setting.collect_rate_31_60, DEFAULT_COLLECTION['31_60'].rate),
+      from: pick(setting.collect_week_from_31_60, DEFAULT_COLLECTION['31_60'].from),
+      to: pick(setting.collect_week_to_31_60, DEFAULT_COLLECTION['31_60'].to),
+    },
+    '61_90': {
+      rate: pick(setting.collect_rate_61_90, DEFAULT_COLLECTION['61_90'].rate),
+      from: pick(setting.collect_week_from_61_90, DEFAULT_COLLECTION['61_90'].from),
+      to: pick(setting.collect_week_to_61_90, DEFAULT_COLLECTION['61_90'].to),
+    },
+    '90_plus': {
+      rate: pick(setting.collect_rate_90_plus, DEFAULT_COLLECTION['90_plus'].rate),
+      from: pick(setting.collect_week_from_90_plus, DEFAULT_COLLECTION['90_plus'].from),
+      to: pick(setting.collect_week_to_90_plus, DEFAULT_COLLECTION['90_plus'].to),
+    },
+  };
+}
+
+export const BUCKET_LABELS = {
+  '0_30': 'fällig ≤ 30 Tage',
+  '31_60': '31–60 Tage überfällig',
+  '61_90': '61–90 Tage überfällig',
+  '90_plus': 'über 90 Tage überfällig',
+};
+
 // ── Offene Forderungen (Debitoren) ────────────────────────────────────────
 // Nur echte, versendete Forderungen: keine Entwürfe (draft), keine Gutschriften,
 // keine Korrekturen, keine stornierten oder bereits bezahlten Rechnungen.
@@ -134,7 +183,7 @@ export function buildRecurring(contracts = []) {
 //     über Kundenname (viele Rechnungen tragen keine Auftragszuordnung).
 const normName = (s) => (s || '').toLowerCase().replace(/gmbh|ges\.?m\.?b\.?h\.?|ag|kg|co\.?|&|\s+/g, '').trim();
 
-export function buildOrderBacklog(orders = [], projects = [], invoices = []) {
+export function buildOrderBacklog(orders = [], projects = [], invoices = [], defaultVat = 20) {
   const projById = new Map(projects.map((p) => [p.id, p]));
 
   // Abgerechnete Netto-Beträge je Auftrag und je Kunde sammeln
@@ -162,23 +211,51 @@ export function buildOrderBacklog(orders = [], projects = [], invoices = []) {
     deduped.push(o);
   });
 
-  // Fallback-Kundenzuordnung nur einmal je Kunde verteilen (nicht pro Auftrag doppelt abziehen)
-  const customerBudgetUsed = new Set();
+  // Fallback-Kundenzuordnung anteilig nach Auftragssumme verteilen:
+  // Der über den Kundennamen ermittelte fakturierte Betrag wird auf ALLE Aufträge
+  // dieses Kunden ohne harte Zuordnung gewichtet aufgeteilt — sonst zählt der
+  // zweite Auftrag eines Kunden fälschlich mit vollem Wert als offen.
+  const hardByOrder = new Map();
+  deduped.forEach((o) => {
+    const v = invByOrder.get(o.id) || 0;
+    if (v > 0.01) hardByOrder.set(o.id, v);
+  });
+  const softPoolByCustomer = new Map(); // verbleibender Kundenbetrag
+  const softWeightByCustomer = new Map(); // Summe der Auftragssummen ohne harte Zuordnung
+  deduped.forEach((o) => {
+    const ck = normName(o.customer);
+    if (!ck) return;
+    if (!softPoolByCustomer.has(ck)) {
+      const hardOfCustomer = deduped
+        .filter((x) => normName(x.customer) === ck)
+        .reduce((s, x) => s + (hardByOrder.get(x.id) || 0), 0);
+      softPoolByCustomer.set(ck, Math.max(0, (invByCustomer.get(ck) || 0) - hardOfCustomer));
+    }
+    if (!hardByOrder.has(o.id)) {
+      softWeightByCustomer.set(ck, (softWeightByCustomer.get(ck) || 0) + num(o.total_net_amount));
+    }
+  });
 
   const rows = deduped
     .map((o) => {
       const total = num(o.total_net_amount);
-      let invoiced = invByOrder.get(o.id) || 0;
-      // Fallback: kein per-Auftrag-Wert vorhanden → Kundenrechnungen heranziehen (gedeckelt auf Auftragssumme)
-      if (invoiced <= 0.01) {
+      const hard = hardByOrder.get(o.id) || 0;
+      let invoiced = hard;
+      let estimated = false;
+      if (hard <= 0.01) {
         const ck = normName(o.customer);
-        if (ck && !customerBudgetUsed.has(ck)) {
-          const custInvoiced = Math.max(0, invByCustomer.get(ck) || 0);
-          invoiced = Math.min(total, custInvoiced);
-          customerBudgetUsed.add(ck);
+        const weight = softWeightByCustomer.get(ck) || 0;
+        if (ck && weight > 0) {
+          const share = (softPoolByCustomer.get(ck) || 0) * (total / weight);
+          invoiced = Math.min(total, Math.max(0, share));
+          estimated = invoiced > 0.01;
         }
       }
       const remaining = Math.max(0, total - invoiced);
+      const grossTotal = num(o.total_gross_amount) > 0
+        ? num(o.total_gross_amount)
+        : toGross(total, o.vat_rate, defaultVat);
+      const grossFactor = total > 0 ? grossTotal / total : 1;
       const proj = o.project_id ? projById.get(o.project_id) : null;
       const expDate = proj?.expected_invoice_date || null;
       const expMonth = proj?.expected_invoice_month || (expDate ? monthKey(expDate) : null);
@@ -188,15 +265,26 @@ export function buildOrderBacklog(orders = [], projects = [], invoices = []) {
         customer: o.customer || '—',
         project_name: o.project_name || '—',
         total,
+        total_gross: grossTotal,
         invoiced,
+        invoiced_estimated: estimated,
         remaining,
+        remaining_gross: remaining * grossFactor,
         expected_month: expMonth,
         expected_date: expDate,
       };
     })
     .filter((r) => r.remaining > 0.01);
   const total = rows.reduce((s, r) => s + r.remaining, 0);
-  return { rows: rows.sort((a, b) => b.remaining - a.remaining), total };
+  const totalGross = rows.reduce((s, r) => s + r.remaining_gross, 0);
+  const estimatedAssigned = rows.filter((r) => r.invoiced_estimated).reduce((s, r) => s + r.invoiced, 0);
+  return {
+    rows: rows.sort((a, b) => b.remaining - a.remaining),
+    total,
+    totalGross,
+    estimatedAssigned,
+    estimatedCount: rows.filter((r) => r.invoiced_estimated).length,
+  };
 }
 
 // ── WIP / unfertige Leistungen (awork-Stunden × Mischsatz) ────────────────
@@ -372,25 +460,11 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
   const openingSnap = sortedSnaps.find((s) => new Date(s.balance_date) <= now) || sortedSnaps[sortedSnaps.length - 1];
   const openingBalance = openingSnap ? num(openingSnap.amount) : 0;
 
+  const defaultVat = num(setting.default_vat_rate) || 20;
   const recurring = buildRecurring(contracts);
-  const backlog = buildOrderBacklog(orders, projects, invoices);
+  const recurringMonthlyGross = toGross(recurring.monthlyTotal, null, defaultVat);
+  const backlog = buildOrderBacklog(orders, projects, invoices, defaultVat);
   const openRec = getOpenReceivables(invoices).map((i) => ({ ...i, _due: effectiveDueDate(i) }));
-
-  // Auftragsbestand als wöchentliche Hochrechnung über den Vorschauzeitraum:
-  // Der offene Auftragsbestand wird abgearbeitet und über die Wochen abgerechnet.
-  //  - Auftrag mit bekanntem, zukünftigem Erwartungsmonat → in der Woche mit dem 1. dieses Monats
-  //  - Auftrag ohne Termin → Restwert gleichmäßig auf alle 13 Wochen verteilt (lineare Abarbeitung)
-  const currentMonth = monthKey(now);
-  const backlogDatedByMonth = {};
-  let backlogUndated = 0;
-  backlog.rows.forEach((o) => {
-    if (o.expected_month && o.expected_month >= currentMonth) {
-      backlogDatedByMonth[o.expected_month] = (backlogDatedByMonth[o.expected_month] || 0) + o.remaining;
-    } else {
-      backlogUndated += o.remaining;
-    }
-  });
-  const undatedPerWeek = backlogUndated / planWeeks;
 
   const weekBoundaries = [];
   for (let w = 0; w < planWeeks; w++) {
@@ -400,6 +474,98 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
     e.setDate(e.getDate() + 7);
     weekBoundaries.push({ start: s, end: e });
   }
+  const currentMonth = monthKey(now);
+
+  // ── Debitoren: Einbringlichkeitsannahme je Altersklasse ─────────────────
+  // Überfällige Forderungen werden NICHT mehr vollständig in Woche 1 gebucht,
+  // sondern mit einer Quote je Altersklasse über ein Zeitfenster verteilt.
+  const collection = collectionAssumptions(setting);
+  const receivablesByWeek = new Array(planWeeks).fill(0);
+  const notAppliedByBucket = { '0_30': 0, '31_60': 0, '61_90': 0, '90_plus': 0 };
+  let receivablesOpenTotal = 0;
+  let receivablesApplied = 0;
+  let receivablesOutsideHorizon = 0;
+
+  openRec.forEach((i) => {
+    const open = num(i._open); // Rechnungsbeträge sind bereits brutto
+    receivablesOpenTotal += open;
+    const due = i._due ? new Date(i._due + 'T00:00:00') : null;
+
+    // Noch nicht fällige Forderungen: zum Fälligkeitstermin, voll angesetzt
+    if (due && due >= weekStart0) {
+      const idx = Math.floor((due - weekStart0) / (7 * 24 * 60 * 60 * 1000));
+      if (idx < planWeeks) {
+        receivablesByWeek[idx] += open;
+        receivablesApplied += open;
+      } else {
+        receivablesOutsideHorizon += open;
+      }
+      return;
+    }
+
+    const days = agingDays(due, now);
+    const bucket = agingBucket(days);
+    const cfg = collection[bucket];
+    const applied = open * (num(cfg.rate) / 100);
+    const from = Math.max(1, num(cfg.from) || 1);
+    const to = Math.max(from, num(cfg.to) || from);
+    const per = applied / (to - from + 1);
+    for (let w = from; w <= to; w++) {
+      if (w - 1 < planWeeks) receivablesByWeek[w - 1] += per;
+    }
+    receivablesApplied += applied;
+    notAppliedByBucket[bucket] += open - applied;
+  });
+
+  const receivablesNotApplied = Object.values(notAppliedByBucket).reduce((s, v) => s + v, 0);
+
+  // ── Auftragsbestand: Kapazitätsdeckel + Zahlungsziel ────────────────────
+  // Schritt 1: abgeleitete Fakturierung je Woche (brutto)
+  const rawBillingByWeek = new Array(planWeeks).fill(0);
+  let backlogUndatedGross = 0;
+  let backlogDatedGross = 0;
+  let backlogDatedOutside = 0;
+  backlog.rows.forEach((o) => {
+    const value = o.remaining_gross;
+    if (o.expected_month && o.expected_month >= currentMonth) {
+      backlogDatedGross += value;
+      const wIdx = weekBoundaries.findIndex((wb) => monthKey(wb.start) === o.expected_month && wb.start.getDate() <= 7);
+      if (wIdx >= 0) rawBillingByWeek[wIdx] += value;
+      else backlogDatedOutside += value;
+    } else {
+      backlogUndatedGross += value;
+    }
+  });
+  const undatedPerWeek = backlogUndatedGross / planWeeks;
+  for (let w = 0; w < planWeeks; w++) rawBillingByWeek[w] += undatedPerWeek;
+
+  // Schritt 2: Kapazitätsgrenze je Monat — Überhang rutscht in Folgewochen
+  const monthlyCap = num(setting.max_monthly_billing_gross);
+  const billingByWeek = new Array(planWeeks).fill(0);
+  const usedByMonth = {};
+  let carry = 0;
+  for (let w = 0; w < planWeeks; w++) {
+    const mk = monthKey(weekBoundaries[w].start);
+    const want = rawBillingByWeek[w] + carry;
+    const available = monthlyCap > 0 ? Math.max(0, monthlyCap - (usedByMonth[mk] || 0)) : Infinity;
+    const take = Math.min(want, available);
+    billingByWeek[w] = take;
+    usedByMonth[mk] = (usedByMonth[mk] || 0) + take;
+    carry = want - take;
+  }
+  const backlogNotInHorizon = carry + backlogDatedOutside;
+
+  // Schritt 3: Zeitversatz zwischen Leistung/Rechnung und Zahlungseingang
+  const cashShiftWeeks = setting.billing_to_cash_weeks === undefined || setting.billing_to_cash_weeks === null || setting.billing_to_cash_weeks === ''
+    ? 4
+    : num(setting.billing_to_cash_weeks);
+  const backlogCashByWeek = new Array(planWeeks).fill(0);
+  let backlogCashAfterHorizon = 0;
+  billingByWeek.forEach((v, w) => {
+    const target = w + cashShiftWeeks;
+    if (target < planWeeks) backlogCashByWeek[target] += v;
+    else backlogCashAfterHorizon += v;
+  });
 
   // Auszahlungen: jeder aktive Posten wird auf seine konkreten Fälligkeitstermine gelegt.
   // Szenarioposten (scenario_only) bleiben aus dem Basisplan draußen.
@@ -413,27 +579,17 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
 
   let balance = openingBalance;
   const rows = weekBoundaries.map((wb, idx) => {
-    // Einzahlungen: fällige Debitoren nach Fälligkeitsdatum
-    let recIn = openRec
-      .filter((i) => i._due && new Date(i._due) >= (idx === 0 ? new Date(0) : wb.start) && new Date(i._due) < wb.end)
-      .reduce((s, i) => s + i._open, 0);
+    // Einzahlungen aus Debitoren: nach Einbringlichkeitsannahme verteilt
+    const recIn = receivablesByWeek[idx];
 
-    // Recurring (Retainer + Hosting): monatlich → auf erste Woche des Monats legen (Vereinfachung: gleichmäßig als Monatswert in Woche, die den 1. enthält)
+    // Recurring (Retainer + Hosting): monatlich brutto zum Monatsersten
     let recurringIn = 0;
-    const containsFirst = [];
     for (let d = new Date(wb.start); d < wb.end; d.setDate(d.getDate() + 1)) {
-      if (d.getDate() === 1) containsFirst.push(1);
+      if (d.getDate() === 1) { recurringIn = recurringMonthlyGross; break; }
     }
-    if (containsFirst.length > 0) recurringIn = recurring.monthlyTotal;
 
-    // Hochrechnung Auftragsbestand:
-    //  a) undatierte Aufträge → jede Woche ein gleichmäßiger Anteil (lineare Abarbeitung)
-    //  b) datierte Aufträge → voll in der Woche, die den 1. des Erwartungsmonats enthält
-    let backlogIn = undatedPerWeek;
-    if (containsFirst.length > 0) {
-      const mk = monthKey(wb.start);
-      backlogIn += backlogDatedByMonth[mk] || 0;
-    }
+    // Auftragsbestand: gedeckelte Fakturierung, um das Zahlungsziel verschoben
+    const backlogIn = backlogCashByWeek[idx];
 
     const inflow = recIn + recurringIn + backlogIn;
 
@@ -491,13 +647,27 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
       hearingDate: setting.reporting_hearing_date || null,
       hearingWeekIndex,
     },
-    // Metadaten zur Hochrechnung — für Transparenz in der UI
+    // Metadaten zur Hochrechnung — für Transparenz in der UI (alle Werte brutto)
     projection: {
-      backlogTotal: backlog.total,
-      backlogUndated,
-      backlogDated: backlog.total - backlogUndated,
+      backlogTotal: backlog.totalGross,
+      backlogUndated: backlogUndatedGross,
+      backlogDated: backlogDatedGross,
       undatedPerWeek,
-      recurringMonthly: recurring.monthlyTotal,
+      recurringMonthly: recurringMonthlyGross,
+      monthlyCap,
+      cashShiftWeeks,
+      backlogNotInHorizon,
+      backlogCashAfterHorizon,
+      estimatedAssigned: backlog.estimatedAssigned,
+      estimatedCount: backlog.estimatedCount,
+    },
+    receivablesAssumption: {
+      collection,
+      openTotal: receivablesOpenTotal,
+      applied: receivablesApplied,
+      notApplied: receivablesNotApplied,
+      notAppliedByBucket,
+      outsideHorizon: receivablesOutsideHorizon,
     },
   };
 }

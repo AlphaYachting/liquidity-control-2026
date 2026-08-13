@@ -13,6 +13,7 @@ import { useRestructuringData } from '@/lib/restructuring/useRestructuringData';
 import { fmtEUR, OUTFLOW_CATEGORY_LABELS, OUTFLOW_INTERVAL_LABELS } from '@/lib/restructuring/restructuringFormat';
 import { monthlyOutflowTotal } from '@/lib/restructuring/restructuringEngine';
 import PaymentPatternSection from '@/components/restructuring/PaymentPatternSection';
+import CollectionAssumptionsSection from '@/components/restructuring/CollectionAssumptionsSection';
 
 export default function RestructuringSetup() {
   const { data, isLoading } = useRestructuringData();
@@ -25,6 +26,7 @@ export default function RestructuringSetup() {
         Diese Eingaben ergänzen die vorhandenen App-Daten um manuelle Annahmen für die Liquiditäts- und Deckungsauswertung.
       </p>
       <SettingSection data={data} isLoading={isLoading} onSaved={refresh} />
+      <CollectionAssumptionsSection setting={data?.setting} onSaved={refresh} />
       <PaymentPatternSection />
       <OutflowSection items={data?.outflowItems || []} onChanged={refresh} />
       <BankSection snapshots={data?.bankSnapshots || []} onChanged={refresh} />
