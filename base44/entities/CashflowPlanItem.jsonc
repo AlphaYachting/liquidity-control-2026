@@ -122,6 +122,16 @@
     "source_id": {
       "type": "string"
     },
+    "is_draft": {
+      "type": "boolean",
+      "default": false,
+      "description": "Aus Systemdaten vorgeschlagen und noch nicht best\u00e4tigt"
+    },
+    "needs_split_review": {
+      "type": "boolean",
+      "default": false,
+      "description": "Alt/Neu-Aufteilung muss noch gepr\u00fcft werden"
+    },
     "scenario_only": {
       "type": "boolean",
       "default": false

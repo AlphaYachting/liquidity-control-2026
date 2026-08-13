@@ -7,6 +7,7 @@ import { Plus, AlertTriangle } from 'lucide-react';
 import { fmtEUR, fmtDate } from '@/lib/restructuring/restructuringFormat';
 import CashflowPlanGroup from '@/components/restructuring/plan/CashflowPlanGroup';
 import CashflowPlanItemDialog from '@/components/restructuring/plan/CashflowPlanItemDialog';
+import SuggestionRunPanel from '@/components/restructuring/plan/SuggestionRunPanel';
 
 export default function RestructuringPlan() {
   const [plan, setPlan] = useState(null);
@@ -48,6 +49,11 @@ export default function RestructuringPlan() {
     load();
   };
 
+  const confirmItem = async (id) => {
+    await base44.entities.CashflowPlanItem.update(id, { is_draft: false });
+    load();
+  };
+
   const patternName = (id) => patterns.find((p) => p.id === id)?.name || null;
 
   if (loading) return <div className="space-y-3"><Skeleton className="h-16" /><Skeleton className="h-96" /></div>;
@@ -84,6 +90,8 @@ export default function RestructuringPlan() {
         </Button>
       </Card>
 
+      <SuggestionRunPanel plan={plan} existingItems={items} defaultVatRate={vatRate} onDone={load} />
+
       {sections.map((sec) => {
         const list = items.filter((i) => i.direction === sec.direction);
         const cats = [...new Set(list.map((i) => i.category))];
@@ -106,6 +114,7 @@ export default function RestructuringPlan() {
                   patternName={patternName}
                   onEdit={(i) => { setEditing(i); setDialogOpen(true); }}
                   onDelete={removeItem}
+                  onConfirm={confirmItem}
                 />
               ))}
             </div>
