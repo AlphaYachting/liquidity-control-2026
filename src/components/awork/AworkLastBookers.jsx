@@ -25,17 +25,17 @@ export default function AworkLastBookers({ aworkProjectId }) {
   }
 
   return (
-    <div className="flex items-center gap-2 text-xs flex-wrap border-t border-blue-100 pt-2">
-      <span className="text-blue-800 font-medium shrink-0">Zuletzt gebucht:</span>
+    <div className="flex items-center gap-2 text-xs flex-wrap border-t border-border pt-2">
+      <span className="text-foreground font-medium shrink-0">Zuletzt gebucht:</span>
       {[...seen.entries()].map(([name, date], i) => (
         <span
           key={name}
           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 border ${
-            i === 0 ? 'bg-white text-blue-900 border-blue-300 font-semibold' : 'bg-white/60 text-blue-800 border-blue-100'
+            i === 0 ? 'bg-card text-foreground border-border font-semibold' : 'bg-card text-muted-foreground border-border'
           }`}
         >
           {name}
-          <span className="text-blue-600/70 font-normal">{fmtDate(date)}</span>
+          <span className="text-muted-foreground font-normal">{fmtDate(date)}</span>
         </span>
       ))}
     </div>

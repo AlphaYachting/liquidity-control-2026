@@ -26,7 +26,7 @@ function Balken({ label, value, subtitle, colorClass, muted }) {
   );
 }
 
-export default function ProjectProgressBlock({ projectId, aworkProjectId, billingPct = 0, paymentPct = 0 }) {
+export default function ProjectProgressBlock({ projectId, aworkProjectId, billingPct = 0, paymentPct = 0, showFinancialBars = true }) {
   const { kennzahlen } = useProjektAufgaben({ projectId, aworkProjectId });
   const veraltet = kennzahlen.daten_veraltet;
 
@@ -51,10 +51,12 @@ export default function ProjectProgressBlock({ projectId, aworkProjectId, billin
     });
   }
 
-  balken.push(
-    { label: 'Abrechnungsfortschritt', value: billingPct, subtitle: null, colorClass: { bar: 'bg-primary', text: 'text-primary' } },
-    { label: 'Zahlungsfortschritt', value: paymentPct, subtitle: null, colorClass: { bar: 'bg-status-neutral', text: 'text-status-neutral' } },
-  );
+  if (showFinancialBars) {
+    balken.push(
+      { label: 'Abrechnungsfortschritt', value: billingPct, subtitle: null, colorClass: { bar: 'bg-primary', text: 'text-primary' } },
+      { label: 'Zahlungsfortschritt', value: paymentPct, subtitle: null, colorClass: { bar: 'bg-status-neutral', text: 'text-status-neutral' } },
+    );
+  }
 
   const laeuftAuseinander = budgetPct !== null && budgetPct - aufgabenPct > 20;
 
@@ -69,7 +71,7 @@ export default function ProjectProgressBlock({ projectId, aworkProjectId, billin
           Stand vom {standLabel || '—'}, nicht aktuell
         </p>
       )}
-      <div className={`grid gap-3 ${balken.length === 4 ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-3'}`}>
+      <div className={`grid gap-3 ${balken.length === 4 ? 'grid-cols-2 lg:grid-cols-4' : balken.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
         {balken.map(b => <Balken key={b.label} {...b} muted={veraltet} />)}
       </div>
       {laeuftAuseinander && (

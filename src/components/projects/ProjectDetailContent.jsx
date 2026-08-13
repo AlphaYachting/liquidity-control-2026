@@ -38,6 +38,7 @@ import ProjectCockpitHeader from '@/components/projects/ProjectCockpitHeader';
 import ProjectProgressBlock from '@/components/projects/ProjectProgressBlock';
 import ProjektAufgabenListe from '@/components/projects/ProjektAufgabenListe';
 import LeistungsstandZeile from '@/components/projects/LeistungsstandZeile';
+import ProjektFaktenzeile from '@/components/projects/ProjektFaktenzeile';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const TAB_STORAGE_KEY = 'projectDetail.activeTab';
@@ -316,16 +317,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         </div>
       )}
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => { setActiveTab(v); sessionStorage.setItem(TAB_STORAGE_KEY, v); }}
-      >
-        <TabsList>
-          <TabsTrigger value="stand">Projektstand</TabsTrigger>
-          <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="stand" className="space-y-6 mt-4">
+      {/* Gemeinsamer Kopf beider Reiter — Stand des Projekts */}
       <AworkStatusBar
         data={aworkData}
         taskStats={aworkTaskStats}
@@ -335,14 +327,11 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         isSyncing={isSyncing}
       />
 
-      {/* Fortschritt — vier getrennte Balken, keine gemischte Kennzahl */}
       {(() => {
         const totalOrderNet = fin?.commercialBaseNet || 0;
         const totalOrderGross = totalOrderNet * 1.2;
-        const alreadyInvoicedNet = fin?.adjustedInvoicedNet || 0;
-        const alreadyPaidGross = fin?.paidGross || 0;
-        const billingPct = totalOrderNet > 0 ? (alreadyInvoicedNet / totalOrderNet) * 100 : 0;
-        const paymentPct = totalOrderGross > 0 ? (alreadyPaidGross / totalOrderGross) * 100 : 0;
+        const billingPct = totalOrderNet > 0 ? ((fin?.adjustedInvoicedNet || 0) / totalOrderNet) * 100 : 0;
+        const paymentPct = totalOrderGross > 0 ? ((fin?.paidGross || 0) / totalOrderGross) * 100 : 0;
         return (
           <ProjectProgressBlock
             projectId={projectId}
@@ -353,6 +342,18 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         );
       })()}
 
+      <ProjektFaktenzeile projectId={projectId} aworkProjectId={effectiveAworkProjectId} />
+
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => { setActiveTab(v); sessionStorage.setItem(TAB_STORAGE_KEY, v); }}
+      >
+        <TabsList>
+          <TabsTrigger value="stand">Projektverlauf</TabsTrigger>
+          <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="stand" className="space-y-6 mt-4">
       <ProjektAufgabenListe
         projectId={projectId}
         aworkProjectId={effectiveAworkProjectId}
