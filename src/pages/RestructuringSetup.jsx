@@ -32,7 +32,11 @@ export default function RestructuringSetup() {
 
 // ── Stichtag + Stundensatz + Horizont ─────────────────────────────────────
 function SettingSection({ data, isLoading, onSaved }) {
-  const [form, setForm] = useState({ insolvency_opening_date: '', wip_blended_hourly_rate: '', planning_horizon_months: 12 });
+  const [form, setForm] = useState({
+    insolvency_opening_date: '', wip_blended_hourly_rate: '', planning_horizon_months: 12,
+    plan_start_date: '', reporting_hearing_date: '', plan_weeks: 13,
+    worst_case_inflow_factor: 0.7, default_vat_rate: 20, amounts_are_gross: 'brutto',
+  });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -42,6 +46,12 @@ function SettingSection({ data, isLoading, onSaved }) {
         insolvency_opening_date: data.setting.insolvency_opening_date || '',
         wip_blended_hourly_rate: data.setting.wip_blended_hourly_rate ?? '',
         planning_horizon_months: data.setting.planning_horizon_months || 12,
+        plan_start_date: data.setting.plan_start_date || '',
+        reporting_hearing_date: data.setting.reporting_hearing_date || '',
+        plan_weeks: data.setting.plan_weeks || 13,
+        worst_case_inflow_factor: data.setting.worst_case_inflow_factor ?? 0.7,
+        default_vat_rate: data.setting.default_vat_rate ?? 20,
+        amounts_are_gross: data.setting.amounts_are_gross === false ? 'netto' : 'brutto',
       });
     }
   }, [data?.setting]);
@@ -52,6 +62,12 @@ function SettingSection({ data, isLoading, onSaved }) {
       insolvency_opening_date: form.insolvency_opening_date || null,
       wip_blended_hourly_rate: Number(form.wip_blended_hourly_rate) || 0,
       planning_horizon_months: Number(form.planning_horizon_months) || 12,
+      plan_start_date: form.plan_start_date || null,
+      reporting_hearing_date: form.reporting_hearing_date || null,
+      plan_weeks: Number(form.plan_weeks) || 13,
+      worst_case_inflow_factor: Number(form.worst_case_inflow_factor) || 0.7,
+      default_vat_rate: Number(form.default_vat_rate) || 20,
+      amounts_are_gross: form.amounts_are_gross !== 'netto',
     };
     if (data?.setting?.id) {
       await base44.entities.RestructuringSetting.update(data.setting.id, payload);
@@ -101,6 +117,73 @@ function SettingSection({ data, isLoading, onSaved }) {
             className="mt-1"
           />
           <p className="text-[10px] text-muted-foreground mt-1">12–24 Monate für Umsatz-Forecast & Deckungsgrundlage.</p>
+        </div>
+        <div>
+          <Label className="text-xs">Planbeginn (Woche 1)</Label>
+          <Input
+            type="date"
+            value={form.plan_start_date}
+            onChange={(e) => setForm({ ...form, plan_start_date: e.target.value })}
+            className="mt-1"
+          />
+          <p className="text-[10px] text-muted-foreground mt-1">Fixer Beginn des Wochenplans, immer ein Montag — verschiebt sich nicht, damit Plan und Ist vergleichbar bleiben.</p>
+        </div>
+        <div>
+          <Label className="text-xs">Berichtstagsatzung</Label>
+          <Input
+            type="date"
+            value={form.reporting_hearing_date}
+            onChange={(e) => setForm({ ...form, reporting_hearing_date: e.target.value })}
+            className="mt-1"
+          />
+          <p className="text-[10px] text-muted-foreground mt-1">Termin, an dem der Plan beurteilt wird — die betroffene Woche wird im Plan hervorgehoben.</p>
+        </div>
+        <div>
+          <Label className="text-xs">Anzahl Planwochen</Label>
+          <Input
+            type="number"
+            min="1"
+            value={form.plan_weeks}
+            onChange={(e) => setForm({ ...form, plan_weeks: e.target.value })}
+            className="mt-1"
+          />
+          <p className="text-[10px] text-muted-foreground mt-1">Länge des Wochenplans (Standard: 13 Wochen).</p>
+        </div>
+        <div>
+          <Label className="text-xs">Worst-Case-Faktor Einzahlungen</Label>
+          <Input
+            type="number"
+            step="0.05"
+            min="0"
+            max="1"
+            value={form.worst_case_inflow_factor}
+            onChange={(e) => setForm({ ...form, worst_case_inflow_factor: e.target.value })}
+            className="mt-1"
+          />
+          <p className="text-[10px] text-muted-foreground mt-1">Im Worst-Case-Szenario werden alle Einzahlungen mit diesem Faktor multipliziert (z.B. 0,70 = −30 %); Auszahlungen bleiben unverändert.</p>
+        </div>
+        <div>
+          <Label className="text-xs">Standard-USt-Satz (%)</Label>
+          <Input
+            type="number"
+            step="1"
+            min="0"
+            value={form.default_vat_rate}
+            onChange={(e) => setForm({ ...form, default_vat_rate: e.target.value })}
+            className="mt-1"
+          />
+          <p className="text-[10px] text-muted-foreground mt-1">Standard-Umsatzsteuersatz für die Brutto-/Netto-Umrechnung.</p>
+        </div>
+        <div>
+          <Label className="text-xs">Leitwährung der Planung</Label>
+          <Select value={form.amounts_are_gross} onValueChange={(v) => setForm({ ...form, amounts_are_gross: v })}>
+            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="brutto">Brutto (inkl. USt)</SelectItem>
+              <SelectItem value="netto">Netto (exkl. USt)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-[10px] text-muted-foreground mt-1">Ob die Planbeträge brutto oder netto geführt werden — Liquidität ist immer brutto.</p>
         </div>
       </div>
       <div className="mt-4">

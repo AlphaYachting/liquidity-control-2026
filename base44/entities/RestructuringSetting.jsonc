@@ -17,6 +17,36 @@
       "default": 12,
       "description": "Forecast-Zeitraum in Monaten (12\u201324)"
     },
+    "plan_start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Beginn der Woche 1 des Plans \u2014 immer ein Montag, fixer Planbeginn (nicht rollierend)"
+    },
+    "reporting_hearing_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Termin der Berichtstagsatzung, an dem der Plan beurteilt wird"
+    },
+    "plan_weeks": {
+      "type": "number",
+      "default": 13,
+      "description": "Anzahl der Planwochen"
+    },
+    "worst_case_inflow_factor": {
+      "type": "number",
+      "default": 0.7,
+      "description": "Faktor f\u00fcr Worst-Case-Szenario: alle Einzahlungen \u00d7 Faktor, Auszahlungen unver\u00e4ndert"
+    },
+    "default_vat_rate": {
+      "type": "number",
+      "default": 20,
+      "description": "Standard-Umsatzsteuersatz in Prozent"
+    },
+    "amounts_are_gross": {
+      "type": "boolean",
+      "default": true,
+      "description": "Leitw\u00e4hrung der Planung: true = Betr\u00e4ge brutto, false = netto"
+    },
     "notes": {
       "type": "string"
     }

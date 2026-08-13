@@ -18,10 +18,23 @@ export default function Restructuring13Week() {
     return <div className="space-y-3"><Skeleton className="h-16" /><Skeleton className="h-96" /></div>;
   }
 
-  const weekRange = (r) => `${fmtDate(r.week_start)} – ${fmtDate(r.week_end)}`;
+  const fmtShort = (iso) => {
+    const d = new Date(iso + 'T00:00:00');
+    return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.`;
+  };
+  const weekRange = (r) => `${fmtShort(r.week_start)}–${fmtShort(r.week_end)}`;
 
   const columns = [
-    { key: 'week', label: 'Woche', render: (r) => `KW ${r.index + 1}` },
+    { key: 'week', label: 'Woche', render: (r) => (
+      <div>
+        <span className={r.is_hearing_week ? 'font-bold text-purple-800' : ''}>W{r.index + 1}</span>
+        {r.is_hearing_week && (
+          <p className="text-[10px] font-semibold text-purple-700 whitespace-nowrap">
+            Berichtstagsatzung — auf diese Zeile kommt es an
+          </p>
+        )}
+      </div>
+    ) },
     { key: 'range', label: 'Zeitraum', render: weekRange },
     { key: 'opening', label: 'Anfangsbestand', align: 'right', render: (r) => fmtEUR(r.opening) },
     { key: 'receivables_in', label: 'Debitoren', align: 'right', render: (r) => fmtEUR(r.receivables_in) },
@@ -33,15 +46,27 @@ export default function Restructuring13Week() {
   ];
 
   const exportRows = result.rows.map((r) => [
-    `KW ${r.index + 1}`, weekRange(r), r.opening.toFixed(2), r.receivables_in.toFixed(2), r.recurring_in.toFixed(2), r.backlog_in.toFixed(2), r.inflow.toFixed(2), r.outflow.toFixed(2), r.closing.toFixed(2),
+    `W${r.index + 1}`, weekRange(r), r.opening.toFixed(2), r.receivables_in.toFixed(2), r.recurring_in.toFixed(2), r.backlog_in.toFixed(2), r.inflow.toFixed(2), r.outflow.toFixed(2), r.closing.toFixed(2),
   ]);
   const exportCols = columns.map((c) => c.label);
 
   const hasNegative = result.rows.some((r) => r.negative);
   const lowest = Math.min(...result.rows.map((r) => r.closing));
 
+  const hearingIdx = result.plan?.hearingWeekIndex ?? -1;
+
   return (
     <div className="space-y-4">
+      {result.plan?.planStartMissing && (
+        <div className="flex items-start gap-2 text-xs text-red-800 rounded-lg border border-red-300 bg-red-50 p-3">
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+          <span>
+            <b>Planbeginn nicht gepflegt</b> — die Vorschau startet vorläufig mit dem Montag der aktuellen Woche und
+            verschiebt sich damit rollierend. Bitte unter „Eingaben &amp; Annahmen" den fixen Planbeginn (Woche 1) erfassen,
+            sonst ist kein Plan-Ist-Vergleich möglich.
+          </span>
+        </div>
+      )}
       {!result.openingSnap && (
         <div className="flex items-start gap-2 text-xs text-amber-800 rounded-lg border border-amber-200 bg-amber-50 p-3">
           <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
@@ -62,14 +87,14 @@ export default function Restructuring13Week() {
           <p>• <b>Retainer/Hosting:</b> {fmtEUR(result.projection.recurringMonthly)} / Monat aus aktiven Verträgen, jeweils zum Monatsersten.</p>
           <p>
             • <b>Auftragsbestand:</b> {fmtEUR(result.projection.backlogTotal)} offener Leistungswert,
-            davon {fmtEUR(result.projection.backlogUndated)} ohne Termin gleichmäßig über 13 Wochen
+            davon {fmtEUR(result.projection.backlogUndated)} ohne Termin gleichmäßig über {result.plan?.weeks || 13} Wochen
             ({fmtEUR(result.projection.undatedPerWeek)} / Woche), {fmtEUR(result.projection.backlogDated)} zum jeweiligen Erwartungsmonat.
           </p>
         </div>
       )}
 
       <ReportCard
-        title="13-Wochen-Liquiditätsvorschau (rollierend)"
+        title={`${result.plan?.weeks || 13}-Wochen-Liquiditätsplan${result.plan?.planStartMissing ? '' : ` (fixer Planbeginn ${fmtDate(result.plan.startDate)})`}`}
         sourceNote={SOURCE}
         onExportPDF={() => exportPDF('13-Wochen-Vorschau', exportCols, exportRows, {
           sourceNote: SOURCE, numericCols: [2, 3, 4, 5, 6, 7, 8],
@@ -80,11 +105,17 @@ export default function Restructuring13Week() {
         <p className="text-[11px] text-muted-foreground mb-3">
           Anfangsbestand {fmtEUR(result.openingBalance)}
           {result.openingSnap && <span> (Stand {fmtDate(result.openingSnap.balance_date)})</span>}
+          {result.plan?.hearingDate && <span> · Berichtstagsatzung: {fmtDate(result.plan.hearingDate)} (violett markiert, Wochen davor = Nachweiszeitraum)</span>}
         </p>
         <ReportTable
           columns={columns}
           rows={result.rows}
-          rowClassName={(r) => (r.negative ? 'bg-red-50 text-red-700' : '')}
+          rowClassName={(r) => {
+            if (r.negative) return 'bg-red-50 text-red-700';
+            if (r.is_hearing_week) return 'bg-purple-100/80';
+            if (hearingIdx >= 0 && r.index < hearingIdx) return 'bg-purple-50/40';
+            return '';
+          }}
         />
       </ReportCard>
     </div>

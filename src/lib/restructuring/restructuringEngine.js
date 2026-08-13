@@ -313,9 +313,19 @@ function startOfWeek(date) {
   return d;
 }
 
-export function build13Week({ invoices = [], contracts = [], orders = [], projects = [], outflowItems = [], bankSnapshots = [], weeks = 13 }) {
+const localISO = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+export function build13Week({ invoices = [], contracts = [], orders = [], projects = [], outflowItems = [], bankSnapshots = [], weeks = 13, setting = {} }) {
   const now = new Date();
-  const weekStart0 = startOfWeek(now);
+  // Fixer Planbeginn: Woche 1 startet am gepflegten plan_start_date (Montag) —
+  // nicht rollierend, damit Plan und Ist vergleichbar bleiben.
+  // Fallback ohne gepflegten Planbeginn: Montag der aktuellen Woche.
+  const planWeeks = num(setting.plan_weeks) || weeks;
+  const hasPlanStart = !!setting.plan_start_date;
+  const weekStart0 = hasPlanStart
+    ? startOfWeek(new Date(setting.plan_start_date + 'T00:00:00'))
+    : startOfWeek(now);
+  const hearingDate = setting.reporting_hearing_date ? new Date(setting.reporting_hearing_date + 'T00:00:00') : null;
 
   // Anfangsbestand: jüngster Snapshot <= heute, sonst 0
   const sortedSnaps = [...bankSnapshots].sort((a, b) => new Date(b.balance_date) - new Date(a.balance_date));
@@ -340,10 +350,10 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
       backlogUndated += o.remaining;
     }
   });
-  const undatedPerWeek = backlogUndated / weeks;
+  const undatedPerWeek = backlogUndated / planWeeks;
 
   const weekBoundaries = [];
-  for (let w = 0; w < weeks; w++) {
+  for (let w = 0; w < planWeeks; w++) {
     const s = new Date(weekStart0);
     s.setDate(s.getDate() + w * 7);
     const e = new Date(s);
@@ -388,8 +398,9 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
     balance = opening + inflow - outflow;
     return {
       index: idx,
-      week_start: wb.start.toISOString().slice(0, 10),
-      week_end: new Date(wb.end.getTime() - 1).toISOString().slice(0, 10),
+      week_start: localISO(wb.start),
+      week_end: localISO(new Date(wb.end.getTime() - 1)),
+      is_hearing_week: !!(hearingDate && hearingDate >= wb.start && hearingDate < wb.end),
       opening,
       receivables_in: recIn,
       recurring_in: recurringIn,
@@ -401,10 +412,20 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
     };
   });
 
+  const hearingWeekIndex = rows.findIndex((r) => r.is_hearing_week);
+
   return {
     rows,
     openingBalance,
     openingSnap,
+    // Plan-Metadaten — fixer Planbeginn, Berichtstagsatzung
+    plan: {
+      startDate: localISO(weekStart0),
+      planStartMissing: !hasPlanStart,
+      weeks: planWeeks,
+      hearingDate: setting.reporting_hearing_date || null,
+      hearingWeekIndex,
+    },
     // Metadaten zur Hochrechnung — für Transparenz in der UI
     projection: {
       backlogTotal: backlog.total,
@@ -447,7 +468,7 @@ export function buildCockpit(params) {
   const recurring = buildRecurring(contracts);
   const backlog = buildOrderBacklog(orders, projects, invoices);
   const wip = buildWip(timeEntries, projects, rate, projectSnapshots);
-  const week13 = build13Week({ invoices, contracts, orders, projects, outflowItems, bankSnapshots });
+  const week13 = build13Week({ invoices, contracts, orders, projects, outflowItems, bankSnapshots, setting });
   const monthlyFixed = monthlyOutflowTotal(outflowItems, monthKey(new Date()));
   const coverageRatio = monthlyFixed > 0 ? (recurring.monthlyTotal / monthlyFixed) * 100 : 0;
 
