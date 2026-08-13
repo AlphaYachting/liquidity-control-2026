@@ -33,7 +33,7 @@ import RealProgressValidator from '@/components/projects/RealProgressValidator';
 import NextMonthsBillingPreview from '@/components/projects/NextMonthsBillingPreview';
 import WebsiteMilestoneGuide from '@/components/projects/WebsiteMilestoneGuide';
 import DeleteProjectCockpitDialog from '@/components/projects/DeleteProjectCockpitDialog';
-import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
+import ProjektKommunikationBlock from '@/components/projects/ProjektKommunikationBlock';
 import ProjectCockpitHeader from '@/components/projects/ProjectCockpitHeader';
 import ProjectProgressBlock from '@/components/projects/ProjectProgressBlock';
 import ProjektAufgabenListe from '@/components/projects/ProjektAufgabenListe';
@@ -359,6 +359,8 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         onSync={handleAworkSync}
         isSyncing={isSyncing}
       />
+
+      <ProjektKommunikationBlock customer={project.customer} />
 
       <div className="space-y-1">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-0.5">
@@ -693,8 +695,6 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
               </Card>
             );
           })()}
-
-          <CustomerEmailSection customer={project.customer} />
 
         </div>
       </div>

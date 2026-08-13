@@ -12,10 +12,10 @@ export default function CommunicationStatusBadge({ customer }) {
 
   const status = deriveCommunicationStatus(data);
   const styles = {
-    critical: 'bg-red-100 text-red-800 border-red-300',
-    attention: 'bg-amber-100 text-amber-800 border-amber-300',
-    ok: 'bg-emerald-100 text-emerald-700 border-emerald-300',
-    pending: 'bg-blue-50 text-blue-700 border-blue-200',
+    critical: 'bg-status-critical-surface text-status-critical border-status-critical/30',
+    attention: 'bg-status-attention-surface text-status-attention border-status-attention/30',
+    ok: 'bg-status-done-surface text-status-done-text border-status-done/40',
+    pending: 'bg-muted text-status-neutral border-border',
     none: 'bg-muted text-muted-foreground border-border',
   };
   const Icon = status.level === 'critical' ? AlertTriangle
