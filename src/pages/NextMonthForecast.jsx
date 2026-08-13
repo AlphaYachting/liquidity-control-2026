@@ -132,7 +132,8 @@ export default function NextMonthForecast() {
 
   // MonthlyBillingPlans (Rechnungsplanung) für aktuellen und nächsten Monat
   // Nur aktive Pläne (nicht invoiced/on_hold/postponed), die einen geplanten Betrag haben
-  const PLAN_ACTIVE_STATUSES = ['open','planned','in_review','ready_for_invoice','sent_to_backoffice'];
+  // 'invoiced' bleibt sichtbar, damit manuell/direkt verrechnete Planungen als erledigt erscheinen
+  const PLAN_ACTIVE_STATUSES = ['open','planned','in_review','ready_for_invoice','sent_to_backoffice','invoiced'];
   const projectsById = Object.fromEntries(projects.map(p => [p.id, p]));
   const instructionsByProjectId = {};
   instructions.forEach(i => {
@@ -165,12 +166,13 @@ export default function NextMonthForecast() {
   const PLAN_STATUS_LABELS = {
     open: 'offen', planned: 'geplant', in_review: 'in Prüfung',
     ready_for_invoice: 'bereit', sent_to_backoffice: 'in Verrechnung',
-    invoiced: 'verrechnet', postponed: 'verschoben', on_hold: 'on hold',
+    invoiced: '✓ verrechnet', postponed: 'verschoben', on_hold: 'on hold',
   };
   const PLAN_STATUS_COLORS = {
     open: 'bg-slate-100 text-slate-600', planned: 'bg-blue-100 text-blue-700',
     in_review: 'bg-amber-100 text-amber-700', ready_for_invoice: 'bg-emerald-100 text-emerald-700',
     sent_to_backoffice: 'bg-orange-100 text-orange-700',
+    invoiced: 'bg-emerald-100 text-emerald-700',
   };
   const INVOICE_TYPE_LABELS = {
     AZ: 'Anzahlung', TR: 'Teilrechnung', ER: 'Schlussrechnung',
