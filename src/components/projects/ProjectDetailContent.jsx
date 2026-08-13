@@ -35,6 +35,9 @@ import WebsiteMilestoneGuide from '@/components/projects/WebsiteMilestoneGuide';
 import DeleteProjectCockpitDialog from '@/components/projects/DeleteProjectCockpitDialog';
 import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
 import ProjectCockpitHeader from '@/components/projects/ProjectCockpitHeader';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
+const TAB_STORAGE_KEY = 'projectDetail.activeTab';
 
 /**
  * ProjectDetailContent — reusable project cockpit content, usable both as a page
@@ -49,6 +52,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem(TAB_STORAGE_KEY) || 'stand');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingPM, setEditingPM] = useState(false);
   const [pmValue, setPmValue] = useState('');
@@ -303,6 +307,23 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         onDelete={() => setShowDeleteDialog(true)}
       />
 
+      {!project.awork_project_id && primaryOrder?.awork_project_id && (
+        <div className="flex items-center gap-2 px-3 py-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg">
+          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+          awork-Projekt von verknüpfter Auftragsbestätigung übernommen.
+        </div>
+      )}
+
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => { setActiveTab(v); sessionStorage.setItem(TAB_STORAGE_KEY, v); }}
+      >
+        <TabsList>
+          <TabsTrigger value="stand">Projektstand</TabsTrigger>
+          <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="stand" className="space-y-6 mt-4">
       <AworkStatusBar
         data={aworkData}
         taskStats={aworkTaskStats}
@@ -311,12 +332,6 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         onSync={handleAworkSync}
         isSyncing={isSyncing}
       />
-      {!project.awork_project_id && primaryOrder?.awork_project_id && (
-        <div className="flex items-center gap-2 px-3 py-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg">
-          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-          awork-Projekt von verknüpfter Auftragsbestätigung übernommen.
-        </div>
-      )}
 
       {/* Fortschrittsvergleich */}
       {(() => {
@@ -374,7 +389,9 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
           onSave={(data) => updateProjectMutation.mutate(data)}
         />
       </div>
+        </TabsContent>
 
+        <TabsContent value="abrechnung" className="space-y-6 mt-4">
       {/* Anmerkungen nächste Rechnung */}
       <div className="bg-card border rounded-xl p-4 space-y-2">
         <div className="flex items-center justify-between">
@@ -697,6 +714,8 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
 
         </div>
       </div>
+        </TabsContent>
+      </Tabs>
 
       {!embedded && showDeleteDialog && (
         <DeleteProjectCockpitDialog
