@@ -12,10 +12,18 @@ import { formatCurrency } from '@/lib/liquidityUtils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { calculateProjectFinancials } from '@/lib/projectFinancials';
 import BillingProgressBar from '@/components/projects/BillingProgressBar';
+import ProjectStateCell from '@/components/projects/ProjectStateCell';
+import { computeProjectState, PROJECT_STATE_RANK } from '@/lib/aworkProjectState';
 
 const PM_OPTIONS = ['Anna', 'Lara', 'Mathias', 'Pascal', 'Sebastian'].map(v => ({ value: v, label: v }));
 const STATUS_OPTIONS = ['active', 'completed', 'on_hold', 'cancelled', 'unclear'].map(v => ({ value: v, label: v }));
 const RISK_OPTIONS = ['none', 'low', 'medium', 'high', 'critical'].map(v => ({ value: v, label: v }));
+const PROJECT_STATE_OPTIONS = [
+  { value: 'critical', label: 'Handlung nötig' },
+  { value: 'attention', label: 'Aufmerksamkeit' },
+  { value: 'plan', label: 'im Plan' },
+  { value: 'none', label: 'nicht verknüpft' },
+];
 const BILLING_STATUS_OPTIONS = [
   { value: 'open', label: 'offen' },
   { value: 'planned', label: 'geplant' },
@@ -124,6 +132,15 @@ export default function Projects() {
     return map;
   }, [aworkSnapshots]);
 
+  // Projektstand je Projekt aus dem awork-Snapshot
+  const projectStateMap = useMemo(() => {
+    const map = {};
+    projects.forEach(p => {
+      map[p.id] = computeProjectState(p.awork_project_id ? aworkSnapshotMap[p.awork_project_id] : null);
+    });
+    return map;
+  }, [projects, aworkSnapshotMap]);
+
   // Lookup: plans per project
   const plansByProject = useMemo(() => {
     const map = {};
@@ -216,11 +233,22 @@ export default function Projects() {
       if (filters.billing_relevance) {
         if (p.billing_relevance_status !== filters.billing_relevance) return false;
       }
+      if (filters.project_state) {
+        if ((projectStateMap[p.id]?.status || 'none') !== filters.project_state) return false;
+      }
       return true;
     })
     .sort((a, b) => {
       if (sortOverride === 'erwartung_desc') {
         return (expectedByProject[b.id] || 0) - (expectedByProject[a.id] || 0);
+      }
+      if (sortOverride === 'handlungsbedarf') {
+        const stA = projectStateMap[a.id] || { status: 'none' };
+        const stB = projectStateMap[b.id] || { status: 'none' };
+        const rA = PROJECT_STATE_RANK[stA.status] ?? 99;
+        const rB = PROJECT_STATE_RANK[stB.status] ?? 99;
+        if (rA !== rB) return rA - rB;
+        return (stA.dueDate || '9999-12-31').localeCompare(stB.dueDate || '9999-12-31');
       }
       const sA = STATUS_SORT_ORDER[a.status] ?? 99;
       const sB = STATUS_SORT_ORDER[b.status] ?? 99;
@@ -346,7 +374,11 @@ export default function Projects() {
         </p>
       </div>
     )},
-    // 3. Letzte Rechnung
+    // 3. Projektstand (awork)
+    { key: '_projectState', label: 'Projektstand', width: '190px', render: (_, row) => (
+      <ProjectStateCell state={projectStateMap[row.id]} />
+    )},
+    // 4. Letzte Rechnung
     { key: '_lastInvoiceDate', label: 'Letzte Rechnung', width: '130px', render: (v, row) => {
       if (!v) return <span className="text-xs text-muted-foreground italic">keine</span>;
       const days = row._daysSinceInvoice;
@@ -456,6 +488,7 @@ export default function Projects() {
             { key: 'billing_status', label: 'Verr.-Status', options: BILLING_STATUS_OPTIONS },
             { key: 'risk_status', label: 'Risiko', options: RISK_OPTIONS },
             { key: 'status', label: 'Projektstatus', options: STATUS_OPTIONS },
+            { key: 'project_state', label: 'Projektstand', options: PROJECT_STATE_OPTIONS },
           ]}
           values={filters}
           onChange={(k, v) => setFilters(f => {
@@ -480,6 +513,17 @@ export default function Projects() {
           className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5 ${sortOverride === 'erwartung_desc' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
         >
           Sortieren: Erwartung ↓
+        </button>
+        <button
+          onClick={() => setSortOverride(s => {
+            const next = s === 'handlungsbedarf' ? null : 'handlungsbedarf';
+            if (next) sessionStorage.setItem('projects_sortOverride', next);
+            else sessionStorage.removeItem('projects_sortOverride');
+            return next;
+          })}
+          className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5 ${sortOverride === 'handlungsbedarf' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+        >
+          Sortieren: Handlungsbedarf
         </button>
         <button
           onClick={() => setShowArchived(s => !s)}
