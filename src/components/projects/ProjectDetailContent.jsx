@@ -37,6 +37,7 @@ import ProjektKommunikationBlock from '@/components/projects/ProjektKommunikatio
 import ProjectCockpitHeader from '@/components/projects/ProjectCockpitHeader';
 import ProjectProgressBlock from '@/components/projects/ProjectProgressBlock';
 import ProjektAufgabenListe from '@/components/projects/ProjektAufgabenListe';
+import LeistungsstandZeile from '@/components/projects/LeistungsstandZeile';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const TAB_STORAGE_KEY = 'projectDetail.activeTab';
@@ -378,6 +379,12 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         </TabsContent>
 
         <TabsContent value="abrechnung" className="space-y-6 mt-4">
+      <LeistungsstandZeile
+        projectId={projectId}
+        aworkProjectId={effectiveAworkProjectId}
+        onDetails={() => { setActiveTab('stand'); sessionStorage.setItem(TAB_STORAGE_KEY, 'stand'); }}
+      />
+
       {/* Anmerkungen nächste Rechnung */}
       <div className="bg-card border rounded-xl p-4 space-y-2">
         <div className="flex items-center justify-between">
