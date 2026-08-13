@@ -370,7 +370,12 @@ export default function Projects() {
     { key: '_billing', label: 'Abrechnung', width: '140px', render: (_, row) => {
       const fin = projectFinancialsMap[row.id] || {};
       const billingPct = fin.commercialBaseNet > 0 ? (fin.adjustedInvoicedNet / fin.commercialBaseNet) * 100 : 0;
-      const aworkPct = row.awork_progress_percent ?? 0;
+      // Leistungsfortschritt = erledigte Aufgaben, keine gemischte Kennzahl
+      const snap = row.awork_project_id ? aworkSnapshotMap[row.awork_project_id] : null;
+      const snapTotal = Number(snap?.tasks_count) || 0;
+      const aworkPct = snapTotal > 0
+        ? Math.round(((Number(snap.tasks_done_count) || 0) / snapTotal) * 100)
+        : 0;
       return <BillingProgressBar billingPct={billingPct} performancePct={aworkPct} />;
     }},
     // 2. Kunde / Projekt

@@ -35,6 +35,7 @@ import WebsiteMilestoneGuide from '@/components/projects/WebsiteMilestoneGuide';
 import DeleteProjectCockpitDialog from '@/components/projects/DeleteProjectCockpitDialog';
 import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
 import ProjectCockpitHeader from '@/components/projects/ProjectCockpitHeader';
+import ProjectProgressBlock from '@/components/projects/ProjectProgressBlock';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const TAB_STORAGE_KEY = 'projectDetail.activeTab';
@@ -237,7 +238,6 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
     const open = total - done - blocked;
     const taskCompletionPct = total > 0 ? Math.round((done / total) * 100) : 0;
     const hoursBurnPct = budgetMinutes > 0 ? Math.min(100, Math.round((trackedMinutes / budgetMinutes) * 100)) : null;
-    const combinedProgress = hoursBurnPct !== null ? Math.round(taskCompletionPct * 0.6 + hoursBurnPct * 0.4) : taskCompletionPct;
     const avgMinutesPerTask = total > 0 && budgetMinutes > 0 ? Math.round(budgetMinutes / total) : null;
     const avgMinutesPerDoneTask = done > 0 && budgetMinutes > 0
       ? Math.round(aworkTasks.filter(t => t.is_done || t.task_status_type === 'done').reduce((s, t) => s + (Number(t.planned_duration_minutes) || 0), 0) / done)
@@ -250,7 +250,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
     return {
       budget_minutes: budgetMinutes, tracked_minutes: trackedMinutes, blocked_tasks: blocked,
       total_tasks: total, done_tasks: done, open_tasks: open, task_completion_pct: taskCompletionPct,
-      hours_burn_pct: hoursBurnPct, progress_percent: combinedProgress,
+      hours_burn_pct: hoursBurnPct, progress_percent: taskCompletionPct,
       avg_minutes_per_task: avgMinutesPerTask, avg_minutes_per_done_task: avgMinutesPerDoneTask,
       last_activity_at: lastActivityAt, last_synced_at: lastSyncedAt, has_stale_data: hasStaleData
     };
@@ -333,7 +333,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         isSyncing={isSyncing}
       />
 
-      {/* Fortschrittsvergleich */}
+      {/* Fortschritt — vier getrennte Balken, keine gemischte Kennzahl */}
       {(() => {
         const totalOrderNet = fin?.commercialBaseNet || 0;
         const totalOrderGross = totalOrderNet * 1.2;
@@ -341,38 +341,13 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         const alreadyPaidGross = fin?.paidGross || 0;
         const billingPct = totalOrderNet > 0 ? (alreadyInvoicedNet / totalOrderNet) * 100 : 0;
         const paymentPct = totalOrderGross > 0 ? (alreadyPaidGross / totalOrderGross) * 100 : 0;
-        const aworkProgress = aworkTaskStats?.progress_percent ?? project?.awork_progress_percent ?? null;
-        const blockAvgProgress = projectBlocks.length > 0
-          ? projectBlocks.filter(b => b.awork_progress_percent > 0).reduce((s, b) => s + (b.awork_progress_percent || 0), 0) /
-            Math.max(1, projectBlocks.filter(b => b.awork_progress_percent > 0).length)
-          : null;
-        const performancePct = aworkProgress ?? blockAvgProgress ?? 0;
-        const perfSubtitle = aworkTaskStats
-          ? aworkTaskStats.hours_burn_pct !== null
-            ? `Tasks: ${aworkTaskStats.task_completion_pct}% · Stunden: ${aworkTaskStats.hours_burn_pct}%`
-            : `${aworkTaskStats.done_tasks}/${aworkTaskStats.total_tasks} Tasks erledigt`
-          : null;
-        const bars = [
-          { label: 'Leistungsfortschritt', value: performancePct, color: 'bg-emerald-500', textColor: 'text-emerald-700', subtitle: perfSubtitle },
-          { label: 'Abrechnungsfortschritt', value: billingPct, color: 'bg-blue-500', textColor: 'text-blue-700', subtitle: null },
-          { label: 'Zahlungsfortschritt', value: paymentPct, color: 'bg-purple-500', textColor: 'text-purple-700', subtitle: null },
-        ];
         return (
-          <div className="grid grid-cols-3 gap-3">
-            {bars.map(bar => (
-              <div key={bar.label} className="bg-card border rounded-xl p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">{bar.label}</p>
-                  <span className={`text-sm font-bold ${bar.textColor}`}>{Math.round(bar.value)}%</span>
-                </div>
-                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all ${bar.color}`}
-                    style={{ width: `${Math.min(100, Math.max(0, bar.value))}%` }} />
-                </div>
-                {bar.subtitle && <p className="text-xs text-muted-foreground">{bar.subtitle}</p>}
-              </div>
-            ))}
-          </div>
+          <ProjectProgressBlock
+            projectId={projectId}
+            aworkProjectId={effectiveAworkProjectId}
+            billingPct={billingPct}
+            paymentPct={paymentPct}
+          />
         );
       })()}
 

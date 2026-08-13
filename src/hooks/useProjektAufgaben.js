@@ -9,6 +9,7 @@ import { base44 } from '@/api/base44Client';
 const LEER = {
   gesamt: 0, erledigt: 0, offen: 0, blockiert: 0,
   erledigt_prozent: 0, budget_verbraucht_prozent: null,
+  geplante_minuten: 0, gebuchte_minuten: 0,
   naechste_frist: null, ueberfaellig_anzahl: 0,
   letzte_aktivitaet: null, zuletzt_synchronisiert: null,
   daten_veraltet: false,
@@ -67,6 +68,8 @@ function berechneKennzahlen(alle, rohdaten) {
     blockiert: offene.filter(a => a.ist_blockiert).length,
     erledigt_prozent: alle.length > 0 ? Math.round((erledigt / alle.length) * 100) : 0,
     budget_verbraucht_prozent: geplant > 0 ? Math.round((gebucht / geplant) * 100) : null,
+    geplante_minuten: geplant,
+    gebuchte_minuten: gebucht,
     naechste_frist,
     ueberfaellig_anzahl,
     letzte_aktivitaet,
