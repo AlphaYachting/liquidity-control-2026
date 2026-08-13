@@ -36,6 +36,7 @@ import DeleteProjectCockpitDialog from '@/components/projects/DeleteProjectCockp
 import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
 import ProjectCockpitHeader from '@/components/projects/ProjectCockpitHeader';
 import ProjectProgressBlock from '@/components/projects/ProjectProgressBlock';
+import ProjektAufgabenListe from '@/components/projects/ProjektAufgabenListe';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const TAB_STORAGE_KEY = 'projectDetail.activeTab';
@@ -350,6 +351,14 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
           />
         );
       })()}
+
+      <ProjektAufgabenListe
+        projectId={projectId}
+        aworkProjectId={effectiveAworkProjectId}
+        onSelectProject={() => setShowAworkPicker(true)}
+        onSync={handleAworkSync}
+        isSyncing={isSyncing}
+      />
 
       <div className="space-y-1">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-0.5">
