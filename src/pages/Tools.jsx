@@ -25,6 +25,8 @@ const EXPORT_COLUMNS = [
   { key: 'needed', label: 'Benötigt' },
   { key: 'customer_recharge', label: 'Weiterverrechnung' },
   { key: 'decision_status', label: 'Entscheidung' },
+  { key: 'cancellation_effective_date', label: 'Entfällt ab' },
+  { key: 'cancellation_note', label: 'Begründung (§ 46 IO)' },
   { key: 'notes', label: 'Notizen' },
 ];
 
@@ -107,6 +109,13 @@ export default function Tools() {
         ))}
       </div>
     )},
+    { key: 'cancellation_effective_date', label: 'Entfällt ab', render: (v, row) => (
+      v
+        ? <Badge className="bg-amber-100 text-amber-800">ab {new Intl.DateTimeFormat('de-AT').format(new Date(v))}</Badge>
+        : row.decision_status === 'cancel'
+          ? <span className="text-[11px] text-red-600">Termin fehlt</span>
+          : <span className="text-muted-foreground">—</span>
+    )},
     { key: '_actions', label: '', sortable: false, render: (_, row) => (
       <div className="flex gap-1 justify-end">
         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(row); }}>
@@ -126,6 +135,8 @@ export default function Tools() {
     monthly_cost: t.monthly_cost ?? 0,
     needed: t.needed ? 'Ja' : 'Nein',
     decision_status: DECISION_LABELS[t.decision_status] || t.decision_status || '',
+    cancellation_effective_date: t.cancellation_effective_date || '',
+    cancellation_note: t.cancellation_note || '',
   }));
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-[400px]" /></div>;

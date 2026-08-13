@@ -14,6 +14,8 @@ import { fmtEUR, OUTFLOW_CATEGORY_LABELS, OUTFLOW_INTERVAL_LABELS } from '@/lib/
 import { monthlyOutflowTotal } from '@/lib/restructuring/restructuringEngine';
 import PaymentPatternSection from '@/components/restructuring/PaymentPatternSection';
 import CollectionAssumptionsSection from '@/components/restructuring/CollectionAssumptionsSection';
+import HostingDerivedSection from '@/components/restructuring/HostingDerivedSection';
+import { manualHostingItems } from '@/lib/restructuring/toolCostOutflows';
 
 export default function RestructuringSetup() {
   const { data, isLoading } = useRestructuringData();
@@ -28,7 +30,11 @@ export default function RestructuringSetup() {
       <SettingSection data={data} isLoading={isLoading} onSaved={refresh} />
       <CollectionAssumptionsSection setting={data?.setting} onSaved={refresh} />
       <PaymentPatternSection />
-      <OutflowSection items={data?.outflowItems || []} onChanged={refresh} />
+      <OutflowSection items={data?.manualOutflows || []} onChanged={refresh} />
+      <HostingDerivedSection
+        derived={data?.derivedOutflows || []}
+        manualDuplicates={manualHostingItems(data?.manualOutflows || [])}
+      />
       <BankSection snapshots={data?.bankSnapshots || []} onChanged={refresh} />
     </div>
   );
@@ -293,6 +299,11 @@ function OutflowSection({ items, onChanged }) {
                 <td className="py-1.5 px-2">
                   {o.label}
                   {o.scenario_only && <span className="ml-1.5 text-[10px] text-purple-700 font-semibold">(nur Szenario)</span>}
+                  {o.category === 'hosting_saas' && (
+                    <span className="ml-1.5 text-[10px] text-amber-700 font-semibold">
+                      mögliche Doppelerfassung — wird jetzt aus der Tool-Verwaltung abgeleitet
+                    </span>
+                  )}
                 </td>
                 <td className="py-1.5 px-2 text-right tabular-nums">{fmtEUR(o.amount)}</td>
                 <td className="py-1.5 px-2">{OUTFLOW_INTERVAL_LABELS[o.interval] || 'monatlich'}{o.first_due_month ? ` ab ${o.first_due_month}` : ''}</td>
@@ -314,7 +325,7 @@ function OutflowSection({ items, onChanged }) {
           <Select value={draft.category} onValueChange={(v) => setDraft({ ...draft, category: v })}>
             <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {Object.entries(OUTFLOW_CATEGORY_LABELS).map(([k, v]) => (
+              {Object.entries(OUTFLOW_CATEGORY_LABELS).filter(([k]) => k !== 'hosting_saas').map(([k, v]) => (
                 <SelectItem key={k} value={k}>{v}</SelectItem>
               ))}
             </SelectContent>

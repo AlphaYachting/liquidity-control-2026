@@ -85,6 +85,15 @@
       ],
       "default": "undecided"
     },
+    "cancellation_effective_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Ab diesem Tag entf\u00e4llt der Dienst \u2014 ab dem betreffenden Monat wird er in der Liquidit\u00e4tsplanung nicht mehr angesetzt"
+    },
+    "cancellation_note": {
+      "type": "string",
+      "description": "Begr\u00fcndung der K\u00fcndigungsentscheidung \u2014 Grundlage f\u00fcr das Freigabeersuchen nach \u00a7 46 IO"
+    },
     "source_sheet": {
       "type": "string"
     },

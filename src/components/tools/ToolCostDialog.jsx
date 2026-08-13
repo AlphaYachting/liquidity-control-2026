@@ -32,6 +32,7 @@ const EMPTY = {
   tool_name: '', department: 'general', annual_cost: '', monthly_cost: '',
   payment_status: 'pending', payment_interval: 'monthly',
   needed: true, customer_recharge: '', info: '',
+  cancellation_effective_date: '', cancellation_note: '',
 };
 
 export default function ToolCostDialog({ open, onClose, onSave, tool }) {
@@ -50,6 +51,8 @@ export default function ToolCostDialog({ open, onClose, onSave, tool }) {
         needed: tool.needed !== false,
         customer_recharge: tool.customer_recharge || '',
         info: tool.info || '',
+        cancellation_effective_date: tool.cancellation_effective_date || '',
+        cancellation_note: tool.cancellation_note || '',
       });
     } else {
       setForm(EMPTY);
@@ -63,6 +66,8 @@ export default function ToolCostDialog({ open, onClose, onSave, tool }) {
       ...form,
       annual_cost: Number(form.annual_cost) || 0,
       monthly_cost: Number(form.monthly_cost) || 0,
+      cancellation_effective_date: form.cancellation_effective_date || null,
+      cancellation_note: form.cancellation_note || null,
     });
   };
 
@@ -127,6 +132,17 @@ export default function ToolCostDialog({ open, onClose, onSave, tool }) {
           <div className="col-span-2 space-y-1">
             <Label>Weiterverrechnung</Label>
             <Input value={form.customer_recharge} onChange={e => set('customer_recharge', e.target.value)} placeholder="Kunde / Projekt" />
+          </div>
+
+          <div className="space-y-1">
+            <Label>Entfällt ab (Kündigung wirksam)</Label>
+            <Input type="date" value={form.cancellation_effective_date} onChange={e => set('cancellation_effective_date', e.target.value)} />
+            <p className="text-[10px] text-muted-foreground">Ab diesem Monat entfällt der Dienst in der Liquiditätsplanung.</p>
+          </div>
+
+          <div className="space-y-1">
+            <Label>Begründung der Entscheidung</Label>
+            <Input value={form.cancellation_note} onChange={e => set('cancellation_note', e.target.value)} placeholder="Grundlage § 46 IO" />
           </div>
 
           <div className="col-span-2 space-y-1">
