@@ -5,15 +5,20 @@
     "category": {
       "type": "string",
       "enum": [
-        "personal",
-        "miete",
-        "tools_saas",
-        "steuern_sva",
-        "lieferanten",
-        "sonstiges"
+        "nettoloehne",
+        "lohnabgaben",
+        "miete_leasing",
+        "hosting_saas",
+        "sachkosten",
+        "freelancer",
+        "umsatzsteuer",
+        "verwalterentlohnung",
+        "verfahrenskosten",
+        "gf_bezug",
+        "sonstige_auszahlung"
       ],
-      "default": "sonstiges",
-      "description": "Auszahlungskategorie"
+      "default": "sonstige_auszahlung",
+      "description": "Auszahlungskategorie \u2014 Trennung folgt dem F\u00e4lligkeitsrhythmus, nicht der betriebswirtschaftlichen Art"
     },
     "label": {
       "type": "string",
@@ -22,12 +27,41 @@
     "amount": {
       "type": "number",
       "default": 0,
-      "description": "Betrag pro Monat (EUR)"
+      "description": "Betrag je F\u00e4lligkeit (EUR)"
     },
     "due_day_of_month": {
       "type": "number",
       "default": 1,
       "description": "F\u00e4lligkeitstag im Monat (1\u201328) f\u00fcr die Wochenverteilung"
+    },
+    "interval": {
+      "type": "string",
+      "enum": [
+        "monthly",
+        "quarterly",
+        "yearly",
+        "once"
+      ],
+      "default": "monthly",
+      "description": "F\u00e4lligkeitsrhythmus; bei quarterly/yearly gibt due_day_of_month den Tag und first_due_month den ersten F\u00e4lligkeitsmonat an"
+    },
+    "first_due_month": {
+      "type": "string",
+      "description": "YYYY-MM \u2014 erster F\u00e4lligkeitsmonat, nur relevant bei quarterly/yearly/once"
+    },
+    "is_masseverbindlichkeit": {
+      "type": "boolean",
+      "default": true,
+      "description": "Ob die Auszahlung eine Masseverbindlichkeit des laufenden Betriebs ist"
+    },
+    "scenario_only": {
+      "type": "boolean",
+      "default": false,
+      "description": "Posten, deren H\u00f6he nicht vom Unternehmen bestimmt wird (Verwalterentlohnung, Verfahrenskosten, GF-Bezug) \u2014 erscheinen nicht im Basisplan, nur im Szenarioblock"
+    },
+    "derivation": {
+      "type": "string",
+      "description": "Herleitung bzw. Quelle des Betrags im Klartext"
     },
     "start_month": {
       "type": "string",

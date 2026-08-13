@@ -6,7 +6,7 @@ import React from 'react';
  * rows: array of objects
  * totalRow: optional array aligned to columns (strings/nodes) for a bold summary row
  */
-export default function ReportTable({ columns, rows, totalRow, rowClassName, emptyText = 'Keine Daten.' }) {
+export default function ReportTable({ columns, rows, totalRow, rowClassName, renderDetail, emptyText = 'Keine Daten.' }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs border-collapse">
@@ -32,21 +32,28 @@ export default function ReportTable({ columns, rows, totalRow, rowClassName, emp
               </td>
             </tr>
           )}
-          {rows.map((row, i) => (
-            <tr
-              key={row.id || row.key || i}
-              className={`border-b border-border/50 ${rowClassName ? rowClassName(row) : ''}`}
-            >
-              {columns.map((c) => (
-                <td
-                  key={c.key}
-                  className={`py-1.5 px-2 tabular-nums ${c.align === 'right' ? 'text-right' : 'text-left'} ${c.className || ''}`}
-                >
-                  {c.render ? c.render(row) : row[c.key]}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {rows.map((row, i) => {
+            const detail = renderDetail ? renderDetail(row) : null;
+            return (
+              <React.Fragment key={row.id || row.key || i}>
+                <tr className={`border-b border-border/50 ${rowClassName ? rowClassName(row) : ''}`}>
+                  {columns.map((c) => (
+                    <td
+                      key={c.key}
+                      className={`py-1.5 px-2 tabular-nums ${c.align === 'right' ? 'text-right' : 'text-left'} ${c.className || ''}`}
+                    >
+                      {c.render ? c.render(row) : row[c.key]}
+                    </td>
+                  ))}
+                </tr>
+                {detail && (
+                  <tr className="border-b border-border/50 bg-muted/30">
+                    <td colSpan={columns.length} className="py-1.5 px-2">{detail}</td>
+                  </tr>
+                )}
+              </React.Fragment>
+            );
+          })}
         </tbody>
         {totalRow && (
           <tfoot>

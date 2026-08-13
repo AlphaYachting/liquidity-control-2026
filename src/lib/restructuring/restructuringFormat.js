@@ -38,10 +38,22 @@ export const monthLabel = (key) => {
 };
 
 export const OUTFLOW_CATEGORY_LABELS = {
-  personal: 'Personal',
-  miete: 'Miete',
-  tools_saas: 'Tools / SaaS',
-  steuern_sva: 'Steuern / SVA',
-  lieferanten: 'Lieferanten',
-  sonstiges: 'Sonstiges',
+  nettoloehne: 'Nettolöhne',
+  lohnabgaben: 'Lohnabgaben',
+  miete_leasing: 'Miete / Leasing',
+  hosting_saas: 'Hosting / SaaS',
+  sachkosten: 'Sachkosten',
+  freelancer: 'Freelancer',
+  umsatzsteuer: 'Umsatzsteuer',
+  verwalterentlohnung: 'Verwalterentlohnung',
+  verfahrenskosten: 'Verfahrenskosten',
+  gf_bezug: 'GF-Bezug',
+  sonstige_auszahlung: 'Sonstige Auszahlung',
+};
+
+export const OUTFLOW_INTERVAL_LABELS = {
+  monthly: 'monatlich',
+  quarterly: 'quartalsweise',
+  yearly: 'jährlich',
+  once: 'einmalig',
 };

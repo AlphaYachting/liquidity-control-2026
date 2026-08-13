@@ -255,6 +255,46 @@ export function monthlyOutflowTotal(outflowItems = [], forMonth = null) {
   return activeOutflows(outflowItems, forMonth).reduce((s, o) => s + num(o.amount), 0);
 }
 
+// Konkrete Fälligkeitstermine eines Auszahlungspostens innerhalb des Planhorizonts.
+// Berechnet aus interval, first_due_month und due_day_of_month, begrenzt durch
+// start_month/end_month. Termine außerhalb des Horizonts entfallen ersatzlos.
+const addMonths = (mk, n) => {
+  const [y, m] = mk.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+export function outflowDueDates(item, planStart, planEnd) {
+  const day = Math.min(Math.max(num(item.due_day_of_month) || 1, 1), 28);
+  const interval = item.interval || 'monthly';
+  const mkToDate = (mk) => {
+    const [y, m] = mk.split('-').map(Number);
+    return new Date(y, m - 1, day);
+  };
+  const startMk = monthKey(planStart);
+  const endMk = monthKey(new Date(planEnd.getTime() - 1));
+  const dates = [];
+
+  if (interval === 'once') {
+    const mk = item.first_due_month || item.start_month;
+    if (mk) dates.push(mkToDate(mk));
+  } else {
+    const step = interval === 'quarterly' ? 3 : interval === 'yearly' ? 12 : 1;
+    let mk = interval === 'monthly' ? startMk : (item.first_due_month || startMk);
+    while (mk < startMk) mk = addMonths(mk, step);
+    while (mk <= endMk) {
+      dates.push(mkToDate(mk));
+      mk = addMonths(mk, step);
+    }
+  }
+
+  return dates.filter((d) =>
+    d >= planStart && d < planEnd &&
+    (!item.start_month || monthKey(d) >= item.start_month) &&
+    (!item.end_month || monthKey(d) <= item.end_month)
+  );
+}
+
 // ── Umsatz-Forecast (monatlich, 3 Kategorien) ─────────────────────────────
 export function buildRevenueForecast({ contracts = [], orders = [], projects = [], invoices = [], horizonMonths = 12 }) {
   const recurring = buildRecurring(contracts);
@@ -361,6 +401,16 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
     weekBoundaries.push({ start: s, end: e });
   }
 
+  // Auszahlungen: jeder aktive Posten wird auf seine konkreten Fälligkeitstermine gelegt.
+  // Szenarioposten (scenario_only) bleiben aus dem Basisplan draußen.
+  const planEnd = weekBoundaries[weekBoundaries.length - 1].end;
+  const baseOutflowItems = outflowItems.filter((o) => o.is_active !== false && !o.scenario_only);
+  const scenarioItems = outflowItems.filter((o) => o.is_active !== false && o.scenario_only);
+  const outflowEvents = [];
+  baseOutflowItems.forEach((o) => {
+    outflowDueDates(o, weekStart0, planEnd).forEach((d) => outflowEvents.push({ date: d, item: o }));
+  });
+
   let balance = openingBalance;
   const rows = weekBoundaries.map((wb, idx) => {
     // Einzahlungen: fällige Debitoren nach Fälligkeitsdatum
@@ -387,12 +437,17 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
 
     const inflow = recIn + recurringIn + backlogIn;
 
-    // Auszahlungen: aktive Outflows, monatlich → in Woche die den due_day enthält (Vereinfachung: erste Woche des Monats)
-    let outflow = 0;
-    if (containsFirst.length > 0) {
-      const mk = monthKey(wb.start);
-      outflow = monthlyOutflowTotal(outflowItems, mk);
-    }
+    // Auszahlungen: alle Posten, deren Fälligkeitstermin in diese Woche fällt
+    const weekEvents = outflowEvents.filter((ev) => ev.date >= wb.start && ev.date < wb.end);
+    const outflow = weekEvents.reduce((s, ev) => s + num(ev.item.amount), 0);
+    const byCat = new Map();
+    weekEvents.forEach((ev) => {
+      const cat = ev.item.category || 'sonstige_auszahlung';
+      const cur = byCat.get(cat) || { category: cat, total: 0, items: [] };
+      cur.total += num(ev.item.amount);
+      cur.items.push({ id: ev.item.id, label: ev.item.label, amount: num(ev.item.amount), due_date: localISO(ev.date) });
+      byCat.set(cat, cur);
+    });
 
     const opening = balance;
     balance = opening + inflow - outflow;
@@ -407,6 +462,7 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
       backlog_in: backlogIn,
       inflow,
       outflow,
+      outflow_by_category: Array.from(byCat.values()).sort((a, b) => b.total - a.total),
       closing: balance,
       negative: balance < 0,
     };
@@ -418,6 +474,15 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
     rows,
     openingBalance,
     openingSnap,
+    // Szenarioposten — Höhe nicht vom Unternehmen bestimmt, nicht im Basisplan
+    scenarioItems: scenarioItems.map((o) => ({
+      id: o.id,
+      category: o.category,
+      label: o.label,
+      amount: num(o.amount),
+      interval: o.interval || 'monthly',
+      derivation: o.derivation || '',
+    })),
     // Plan-Metadaten — fixer Planbeginn, Berichtstagsatzung
     plan: {
       startDate: localISO(weekStart0),

@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { useRestructuringData } from '@/lib/restructuring/useRestructuringData';
 import { build13Week } from '@/lib/restructuring/restructuringEngine';
-import { fmtEUR, fmtDate } from '@/lib/restructuring/restructuringFormat';
+import { fmtEUR, fmtDate, OUTFLOW_CATEGORY_LABELS, OUTFLOW_INTERVAL_LABELS } from '@/lib/restructuring/restructuringFormat';
 import { exportPDF, exportExcel } from '@/lib/restructuring/restructuringExport';
 import ReportCard from '@/components/restructuring/ReportCard';
 import ReportTable from '@/components/restructuring/ReportTable';
@@ -13,6 +13,15 @@ const SOURCE = 'Bankbestand + fällige Debitoren + Retainer/Hosting + Auftragsbe
 export default function Restructuring13Week() {
   const { data, isLoading } = useRestructuringData();
   const result = useMemo(() => (data ? build13Week(data) : null), [data]);
+  const [expandedWeeks, setExpandedWeeks] = useState(() => new Set());
+
+  const toggleWeek = (idx) => {
+    setExpandedWeeks((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  };
 
   if (isLoading || !result) {
     return <div className="space-y-3"><Skeleton className="h-16" /><Skeleton className="h-96" /></div>;
@@ -41,7 +50,21 @@ export default function Restructuring13Week() {
     { key: 'recurring_in', label: 'Retainer/Hosting', align: 'right', render: (r) => fmtEUR(r.recurring_in) },
     { key: 'backlog_in', label: 'Auftragsbestand', align: 'right', render: (r) => fmtEUR(r.backlog_in) },
     { key: 'inflow', label: 'Einzahlungen', align: 'right', render: (r) => fmtEUR(r.inflow), className: 'font-semibold' },
-    { key: 'outflow', label: 'Auszahlungen', align: 'right', render: (r) => fmtEUR(r.outflow) },
+    { key: 'outflow', label: 'Auszahlungen', align: 'right', render: (r) => (
+      (r.outflow_by_category?.length || 0) > 0 ? (
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 hover:underline"
+          onClick={() => toggleWeek(r.index)}
+          title="Auszahlungen je Kategorie anzeigen"
+        >
+          {expandedWeeks.has(r.index)
+            ? <ChevronDown className="w-3 h-3" />
+            : <ChevronRight className="w-3 h-3" />}
+          {fmtEUR(r.outflow)}
+        </button>
+      ) : fmtEUR(r.outflow)
+    ) },
     { key: 'closing', label: 'Endbestand', align: 'right', render: (r) => fmtEUR(r.closing), className: 'font-bold' },
   ];
 
@@ -116,8 +139,58 @@ export default function Restructuring13Week() {
             if (hearingIdx >= 0 && r.index < hearingIdx) return 'bg-purple-50/40';
             return '';
           }}
+          renderDetail={(r) =>
+            expandedWeeks.has(r.index) && (r.outflow_by_category?.length || 0) > 0 ? (
+              <div className="pl-6 py-1 space-y-1.5 text-[11px]">
+                {r.outflow_by_category.map((g) => (
+                  <div key={g.category}>
+                    <p className="font-semibold">
+                      {OUTFLOW_CATEGORY_LABELS[g.category] || g.category} — {fmtEUR(g.total)}
+                    </p>
+                    {g.items.map((it, k) => (
+                      <p key={`${it.id}-${k}`} className="text-muted-foreground pl-3">
+                        {it.label} · fällig {fmtDate(it.due_date)} · {fmtEUR(it.amount)}
+                      </p>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : null
+          }
         />
       </ReportCard>
+
+      {(result.scenarioItems?.length || 0) > 0 && (
+        <div className="rounded-lg border border-border bg-muted/20 p-3">
+          <p className="text-xs font-bold mb-2">Szenarioposten — nicht im Basisplan</p>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            Auszahlungen, deren Höhe nicht vom Unternehmen bestimmt wird (Verwalterentlohnung, Verfahrenskosten, GF-Bezug).
+            Sie werden nur in Szenarien angesetzt.
+          </p>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b text-muted-foreground">
+                <th className="text-left py-1.5 px-2">Kategorie</th>
+                <th className="text-left py-1.5 px-2">Bezeichnung</th>
+                <th className="text-right py-1.5 px-2">Betrag</th>
+                <th className="text-left py-1.5 px-2">Rhythmus</th>
+                <th className="text-left py-1.5 px-2">Herleitung</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.scenarioItems.map((s) => (
+                <tr key={s.id} className="border-b border-border/50">
+                  <td className="py-1.5 px-2">{OUTFLOW_CATEGORY_LABELS[s.category] || s.category}</td>
+                  <td className="py-1.5 px-2">{s.label}</td>
+                  <td className="py-1.5 px-2 text-right tabular-nums">{fmtEUR(s.amount)}</td>
+                  <td className="py-1.5 px-2">{OUTFLOW_INTERVAL_LABELS[s.interval] || s.interval}</td>
+                  <td className="py-1.5 px-2 text-muted-foreground">{s.derivation || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Trash2, Save, Check } from 'lucide-react';
 import { useRestructuringData } from '@/lib/restructuring/useRestructuringData';
-import { fmtEUR, OUTFLOW_CATEGORY_LABELS } from '@/lib/restructuring/restructuringFormat';
+import { fmtEUR, OUTFLOW_CATEGORY_LABELS, OUTFLOW_INTERVAL_LABELS } from '@/lib/restructuring/restructuringFormat';
 import { monthlyOutflowTotal } from '@/lib/restructuring/restructuringEngine';
 
 export default function RestructuringSetup() {
@@ -197,7 +197,11 @@ function SettingSection({ data, isLoading, onSaved }) {
 }
 
 // ── Monatliche Auszahlungen (Einzelposten je Kategorie) ───────────────────
-const EMPTY_OUTFLOW = { category: 'personal', label: '', amount: '', due_day_of_month: 1, start_month: '', end_month: '', is_active: true };
+const EMPTY_OUTFLOW = {
+  category: 'nettoloehne', label: '', amount: '', due_day_of_month: 1,
+  interval: 'monthly', first_due_month: '', is_masseverbindlichkeit: true,
+  scenario_only: false, derivation: '', start_month: '', end_month: '', is_active: true,
+};
 
 function OutflowSection({ items, onChanged }) {
   const [draft, setDraft] = useState(EMPTY_OUTFLOW);
@@ -211,6 +215,11 @@ function OutflowSection({ items, onChanged }) {
       label: draft.label,
       amount: Number(draft.amount) || 0,
       due_day_of_month: Number(draft.due_day_of_month) || 1,
+      interval: draft.interval || 'monthly',
+      first_due_month: draft.first_due_month || null,
+      is_masseverbindlichkeit: !!draft.is_masseverbindlichkeit,
+      scenario_only: !!draft.scenario_only,
+      derivation: draft.derivation || null,
       start_month: draft.start_month || null,
       end_month: draft.end_month || null,
       is_active: true,
@@ -240,20 +249,25 @@ function OutflowSection({ items, onChanged }) {
             <tr className="border-b text-muted-foreground">
               <th className="text-left py-2 px-2">Kategorie</th>
               <th className="text-left py-2 px-2">Bezeichnung</th>
-              <th className="text-right py-2 px-2">Betrag / Monat</th>
+              <th className="text-right py-2 px-2">Betrag</th>
+              <th className="text-left py-2 px-2">Rhythmus</th>
               <th className="text-right py-2 px-2">Fällig am</th>
               <th className="py-2 px-2"></th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 && (
-              <tr><td colSpan={5} className="py-4 text-center text-muted-foreground">Noch keine Auszahlungen erfasst.</td></tr>
+              <tr><td colSpan={6} className="py-4 text-center text-muted-foreground">Noch keine Auszahlungen erfasst.</td></tr>
             )}
             {items.map((o) => (
               <tr key={o.id} className="border-b border-border/50">
                 <td className="py-1.5 px-2">{OUTFLOW_CATEGORY_LABELS[o.category] || o.category}</td>
-                <td className="py-1.5 px-2">{o.label}</td>
+                <td className="py-1.5 px-2">
+                  {o.label}
+                  {o.scenario_only && <span className="ml-1.5 text-[10px] text-purple-700 font-semibold">(nur Szenario)</span>}
+                </td>
                 <td className="py-1.5 px-2 text-right tabular-nums">{fmtEUR(o.amount)}</td>
+                <td className="py-1.5 px-2">{OUTFLOW_INTERVAL_LABELS[o.interval] || 'monatlich'}{o.first_due_month ? ` ab ${o.first_due_month}` : ''}</td>
                 <td className="py-1.5 px-2 text-right">{o.due_day_of_month || 1}.</td>
                 <td className="py-1.5 px-2 text-right">
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => remove(o.id)}>
@@ -283,14 +297,52 @@ function OutflowSection({ items, onChanged }) {
           <Input value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} className="h-9 mt-1" placeholder="z.B. Löhne Team" />
         </div>
         <div>
-          <Label className="text-[10px]">Betrag / Monat</Label>
+          <Label className="text-[10px]">Betrag je Fälligkeit</Label>
           <Input type="number" step="0.01" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} className="h-9 mt-1" placeholder="0.00" />
         </div>
         <div>
-          <Button size="sm" onClick={add} disabled={adding || !draft.label || !draft.amount} className="w-full h-9">
-            <Plus className="w-3.5 h-3.5 mr-1" /> Hinzufügen
-          </Button>
+          <Label className="text-[10px]">Fälligkeitstag (1–28)</Label>
+          <Input type="number" min="1" max="28" value={draft.due_day_of_month} onChange={(e) => setDraft({ ...draft, due_day_of_month: e.target.value })} className="h-9 mt-1" />
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mt-2 items-end">
+        <div>
+          <Label className="text-[10px]">Rhythmus</Label>
+          <Select value={draft.interval} onValueChange={(v) => setDraft({ ...draft, interval: v })}>
+            <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(OUTFLOW_INTERVAL_LABELS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-[10px]">Erster Fälligkeitsmonat</Label>
+          <Input type="month" value={draft.first_due_month} onChange={(e) => setDraft({ ...draft, first_due_month: e.target.value })} className="h-9 mt-1" />
+          <p className="text-[9px] text-muted-foreground mt-0.5">Nur bei quartalsweise / jährlich / einmalig.</p>
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="text-[10px]">Herleitung / Quelle des Betrags</Label>
+          <Input value={draft.derivation} onChange={(e) => setDraft({ ...draft, derivation: e.target.value })} className="h-9 mt-1" placeholder="z.B. Lohnverrechnung Juli, Mietvertrag §3" />
+        </div>
+        <div className="space-y-1.5 pb-1">
+          <label className="flex items-center gap-1.5 text-[11px]">
+            <input type="checkbox" checked={draft.is_masseverbindlichkeit} onChange={(e) => setDraft({ ...draft, is_masseverbindlichkeit: e.target.checked })} />
+            Masseverbindlichkeit
+          </label>
+          <label className="flex items-center gap-1.5 text-[11px]">
+            <input type="checkbox" checked={draft.scenario_only} onChange={(e) => setDraft({ ...draft, scenario_only: e.target.checked })} />
+            Nur Szenario (nicht im Basisplan)
+          </label>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <Button size="sm" onClick={add} disabled={adding || !draft.label || !draft.amount}>
+          <Plus className="w-3.5 h-3.5 mr-1" /> Hinzufügen
+        </Button>
       </div>
     </Card>
   );
