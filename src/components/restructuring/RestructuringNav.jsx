@@ -2,13 +2,14 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarRange, TrendingUp, Receipt,
-  ClipboardList, Clock, Scale, SlidersHorizontal, ListTree, ShieldCheck,
+  ClipboardList, Clock, Scale, SlidersHorizontal, ListTree, ShieldCheck, GitCompareArrows,
 } from 'lucide-react';
 
 const items = [
   { path: '/restructuring', label: 'Cockpit', icon: LayoutDashboard, exact: true },
   { path: '/restructuring/liquidity', label: '13-Wochen-Vorschau', icon: CalendarRange },
   { path: '/restructuring/plan', label: 'Geldflussplanung', icon: ListTree },
+  { path: '/restructuring/soll-ist', label: 'Soll-Ist-Cockpit', icon: GitCompareArrows },
   { path: '/restructuring/forecast', label: 'Umsatz-Forecast', icon: TrendingUp },
   { path: '/restructuring/aging', label: 'Forderungsspiegel', icon: Receipt },
   { path: '/restructuring/backlog', label: 'Auftragsbestand', icon: ClipboardList },

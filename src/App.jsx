@@ -57,6 +57,7 @@ import RestructuringLayout from '@/components/restructuring/RestructuringLayout'
 import RestructuringCockpit from '@/pages/RestructuringCockpit';
 import Restructuring13Week from '@/pages/Restructuring13Week';
 import RestructuringPlan from '@/pages/RestructuringPlan';
+import RestructuringSollIst from '@/pages/RestructuringSollIst';
 import RestructuringFortfuehrung from '@/pages/RestructuringFortfuehrung';
 import RestructuringForecast from '@/pages/RestructuringForecast';
 import RestructuringAging from '@/pages/RestructuringAging';
@@ -171,6 +172,7 @@ const AuthenticatedApp = () => {
           <Route index element={<RestructuringCockpit />} />
           <Route path="liquidity" element={<Restructuring13Week />} />
           <Route path="plan" element={<RestructuringPlan />} />
+          <Route path="soll-ist" element={<RestructuringSollIst />} />
           <Route path="fortfuehrung" element={<RestructuringFortfuehrung />} />
           <Route path="forecast" element={<RestructuringForecast />} />
           <Route path="aging" element={<RestructuringAging />} />

@@ -1,0 +1,67 @@
+{
+  "name": "WeeklyActual",
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "description": "Zugeh\u00f6riger Plan \u2014 je Plan und Woche darf nur ein Datensatz existieren"
+    },
+    "week_index": {
+      "type": "number",
+      "description": "Planwoche 1..plan_weeks"
+    },
+    "actual_inflow_gross": {
+      "type": "number",
+      "description": "Summe der Eing\u00e4nge laut Kontoauszug"
+    },
+    "actual_outflow_gross": {
+      "type": "number",
+      "description": "Summe der Ausg\u00e4nge laut Kontoauszug"
+    },
+    "actual_bank_balance": {
+      "type": "number",
+      "description": "Kontostand am Wochenschluss"
+    },
+    "actual_inflow_neu_gross": {
+      "type": "number",
+      "description": "davon aus Neuleistung, soweit zuordenbar"
+    },
+    "variance_reason": {
+      "type": "string",
+      "description": "Ursache der Abweichung"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "recorded_by": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "plan_id",
+    "week_index"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
