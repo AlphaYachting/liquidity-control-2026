@@ -5,17 +5,39 @@ import { fmtDate } from '@/components/sprint/sprintConfig';
 
 export const PROJECT_STATE_RANK = { critical: 0, attention: 1, plan: 2, none: 3 };
 
-export function computeProjectState(snapshot) {
-  if (!snapshot) return { status: 'none', dueLabel: null, dueDate: null, tasksText: null, budgetPct: null, stale: false, staleTitle: null };
+// Offene Aufgaben je awork-Projekt verdichten: blockierte, früheste Frist, überfällige
+export function aggregateOpenTasks(openTasks) {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const map = {};
+  openTasks.forEach(t => {
+    const pid = t.awork_project_id;
+    if (!pid) return;
+    if (!map[pid]) map[pid] = { blocked: 0, earliestDue: null, overdue: 0 };
+    const agg = map[pid];
+    if (t.is_blocked === true || t.task_status_type === 'blocked') agg.blocked += 1;
+    if (t.due_date) {
+      if (!agg.earliestDue || t.due_date < agg.earliestDue) agg.earliestDue = t.due_date;
+      if (t.due_date < todayIso) agg.overdue += 1;
+    }
+  });
+  return map;
+}
+
+export function computeProjectState(snapshot, taskAgg = null) {
+  if (!snapshot) return { status: 'none', dueLabel: null, dueDate: null, tasksText: null, budgetPct: null, blocked: 0, stale: false, staleTitle: null };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Maßgeblich ist die nächste echte Frist: früheste offene Aufgabenfrist vor dem Projektendtermin
+  let effectiveDue = snapshot.due_date || null;
+  const taskDue = taskAgg?.earliestDue || null;
+  if (taskDue && (!effectiveDue || taskDue < effectiveDue)) effectiveDue = taskDue;
+
   let status = 'plan';
   let dueLabel = 'kein Termin';
-  if (snapshot.due_date) {
-    const due = new Date(snapshot.due_date);
-    const rest = Math.round((due - today) / 86400000);
+  if (effectiveDue) {
+    const rest = Math.round((new Date(effectiveDue) - today) / 86400000);
     if (rest < 0) {
       status = 'critical';
       dueLabel = `überfällig seit ${Math.abs(rest)} Tagen`;
@@ -24,7 +46,7 @@ export function computeProjectState(snapshot) {
       dueLabel = `fällig in ${rest} Tagen`;
     } else {
       status = 'plan';
-      dueLabel = `fällig am ${fmtDate(snapshot.due_date)}`;
+      dueLabel = `fällig am ${fmtDate(effectiveDue)}`;
     }
   }
 
@@ -47,5 +69,14 @@ export function computeProjectState(snapshot) {
     }
   }
 
-  return { status, dueLabel, dueDate: snapshot.due_date || null, tasksText, budgetPct, stale, staleTitle };
+  return {
+    status,
+    dueLabel,
+    dueDate: effectiveDue,
+    tasksText,
+    budgetPct,
+    blocked: taskAgg?.blocked || 0,
+    stale,
+    staleTitle,
+  };
 }

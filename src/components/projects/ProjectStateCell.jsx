@@ -21,7 +21,10 @@ export default function ProjectStateCell({ state }) {
         <Ampelpunkt status={state.status} />
         <span className={`text-xs truncate ${dueClass}`}>{state.dueLabel}</span>
       </div>
-      <p className="text-xs text-muted-foreground">{state.tasksText}</p>
+      <p className="text-xs text-muted-foreground">
+        {state.tasksText}
+        {state.blocked > 0 && <span className="text-status-critical"> · {state.blocked} blockiert</span>}
+      </p>
       {state.budgetPct !== null && (
         <p className={`text-xs ${state.budgetPct >= 100 ? 'text-status-critical' : 'text-status-attention'}`}>
           Zeitbudget {state.budgetPct} %

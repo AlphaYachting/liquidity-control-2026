@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { calculateProjectFinancials } from '@/lib/projectFinancials';
 import BillingProgressBar from '@/components/projects/BillingProgressBar';
 import ProjectStateCell from '@/components/projects/ProjectStateCell';
-import { computeProjectState, PROJECT_STATE_RANK } from '@/lib/aworkProjectState';
+import { computeProjectState, aggregateOpenTasks, PROJECT_STATE_RANK } from '@/lib/aworkProjectState';
 
 const PM_OPTIONS = ['Anna', 'Lara', 'Mathias', 'Pascal', 'Sebastian'].map(v => ({ value: v, label: v }));
 const STATUS_OPTIONS = ['active', 'completed', 'on_hold', 'cancelled', 'unclear'].map(v => ({ value: v, label: v }));
@@ -103,6 +103,10 @@ export default function Projects() {
     queryKey: ['aworkSnapshots'], queryFn: () => base44.entities.AworkProjectSnapshot.list()
   });
 
+  const { data: openAworkTasks = [] } = useQuery({
+    queryKey: ['openAworkTasks'], queryFn: () => base44.entities.AworkTaskSnapshot.filter({ is_done: false })
+  });
+
   const { data: billingPlans = [] } = useQuery({
     queryKey: ['monthlyBillingPlansAll'], queryFn: () => base44.entities.MonthlyBillingPlan.list()
   });
@@ -132,14 +136,18 @@ export default function Projects() {
     return map;
   }, [aworkSnapshots]);
 
+  // Offene awork-Aufgaben je Projekt: blockierte, früheste Frist, überfällige
+  const openTaskAggMap = useMemo(() => aggregateOpenTasks(openAworkTasks), [openAworkTasks]);
+
   // Projektstand je Projekt aus dem awork-Snapshot
   const projectStateMap = useMemo(() => {
     const map = {};
     projects.forEach(p => {
-      map[p.id] = computeProjectState(p.awork_project_id ? aworkSnapshotMap[p.awork_project_id] : null);
+      const pid = p.awork_project_id;
+      map[p.id] = computeProjectState(pid ? aworkSnapshotMap[pid] : null, pid ? openTaskAggMap[pid] : null);
     });
     return map;
-  }, [projects, aworkSnapshotMap]);
+  }, [projects, aworkSnapshotMap, openTaskAggMap]);
 
   // Lookup: plans per project
   const plansByProject = useMemo(() => {
