@@ -12,6 +12,7 @@ import { Plus, Trash2, Save, Check } from 'lucide-react';
 import { useRestructuringData } from '@/lib/restructuring/useRestructuringData';
 import { fmtEUR, OUTFLOW_CATEGORY_LABELS, OUTFLOW_INTERVAL_LABELS } from '@/lib/restructuring/restructuringFormat';
 import { monthlyOutflowTotal } from '@/lib/restructuring/restructuringEngine';
+import PaymentPatternSection from '@/components/restructuring/PaymentPatternSection';
 
 export default function RestructuringSetup() {
   const { data, isLoading } = useRestructuringData();
@@ -24,6 +25,7 @@ export default function RestructuringSetup() {
         Diese Eingaben ergänzen die vorhandenen App-Daten um manuelle Annahmen für die Liquiditäts- und Deckungsauswertung.
       </p>
       <SettingSection data={data} isLoading={isLoading} onSaved={refresh} />
+      <PaymentPatternSection />
       <OutflowSection items={data?.outflowItems || []} onChanged={refresh} />
       <BankSection snapshots={data?.bankSnapshots || []} onChanged={refresh} />
     </div>
@@ -36,9 +38,15 @@ function SettingSection({ data, isLoading, onSaved }) {
     insolvency_opening_date: '', wip_blended_hourly_rate: '', planning_horizon_months: 12,
     plan_start_date: '', reporting_hearing_date: '', plan_weeks: 13,
     worst_case_inflow_factor: 0.7, default_vat_rate: 20, amounts_are_gross: 'brutto',
+    default_payment_pattern_id: '',
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [patterns, setPatterns] = useState([]);
+
+  useEffect(() => {
+    base44.entities.PaymentPattern.list().then(setPatterns);
+  }, []);
 
   useEffect(() => {
     if (data?.setting) {
@@ -52,6 +60,7 @@ function SettingSection({ data, isLoading, onSaved }) {
         worst_case_inflow_factor: data.setting.worst_case_inflow_factor ?? 0.7,
         default_vat_rate: data.setting.default_vat_rate ?? 20,
         amounts_are_gross: data.setting.amounts_are_gross === false ? 'netto' : 'brutto',
+        default_payment_pattern_id: data.setting.default_payment_pattern_id || '',
       });
     }
   }, [data?.setting]);
@@ -68,6 +77,7 @@ function SettingSection({ data, isLoading, onSaved }) {
       worst_case_inflow_factor: Number(form.worst_case_inflow_factor) || 0.7,
       default_vat_rate: Number(form.default_vat_rate) || 20,
       amounts_are_gross: form.amounts_are_gross !== 'netto',
+      default_payment_pattern_id: form.default_payment_pattern_id || null,
     };
     if (data?.setting?.id) {
       await base44.entities.RestructuringSetting.update(data.setting.id, payload);
@@ -184,6 +194,22 @@ function SettingSection({ data, isLoading, onSaved }) {
             </SelectContent>
           </Select>
           <p className="text-[10px] text-muted-foreground mt-1">Ob die Planbeträge brutto oder netto geführt werden — Liquidität ist immer brutto.</p>
+        </div>
+        <div>
+          <Label className="text-xs">Standard-Zahlungsstaffel</Label>
+          <Select
+            value={form.default_payment_pattern_id || 'none'}
+            onValueChange={(v) => setForm({ ...form, default_payment_pattern_id: v === 'none' ? '' : v })}
+          >
+            <SelectTrigger className="mt-1"><SelectValue placeholder="Keine" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Keine</SelectItem>
+              {patterns.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[10px] text-muted-foreground mt-1">Staffel, mit der Rechnungsbeträge standardmäßig auf Wochen verteilt werden.</p>
         </div>
       </div>
       <div className="mt-4">

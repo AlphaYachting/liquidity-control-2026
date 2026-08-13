@@ -1,0 +1,53 @@
+{
+  "name": "PaymentPattern",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Bezeichnung der Zahlungsstaffel, z. B. 'Staffel 55/35/10'"
+    },
+    "description": {
+      "type": "string",
+      "description": "Erl\u00e4uterung, wof\u00fcr die Staffel verwendet wird"
+    },
+    "offsets_weeks": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Wochenversatz ab der Rechnungswoche, z. B. [0,2,4]"
+    },
+    "shares_percent": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Anteile in Prozent, Summe muss 100 ergeben, z. B. [55,35,10]"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": null,
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

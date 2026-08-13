@@ -47,6 +47,10 @@
       "default": true,
       "description": "Leitw\u00e4hrung der Planung: true = Betr\u00e4ge brutto, false = netto"
     },
+    "default_payment_pattern_id": {
+      "type": "string",
+      "description": "Standard-Zahlungsstaffel (PaymentPattern) f\u00fcr die Verteilung von Rechnungsbetr\u00e4gen auf Wochen"
+    },
     "notes": {
       "type": "string"
     }
