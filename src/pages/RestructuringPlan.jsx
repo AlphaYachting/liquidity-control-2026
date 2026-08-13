@@ -8,6 +8,7 @@ import { fmtEUR, fmtDate } from '@/lib/restructuring/restructuringFormat';
 import CashflowPlanGroup from '@/components/restructuring/plan/CashflowPlanGroup';
 import CashflowPlanItemDialog from '@/components/restructuring/plan/CashflowPlanItemDialog';
 import SuggestionRunPanel from '@/components/restructuring/plan/SuggestionRunPanel';
+import OrderDerivationPanel from '@/components/restructuring/plan/OrderDerivationPanel';
 
 export default function RestructuringPlan() {
   const [plan, setPlan] = useState(null);
@@ -91,6 +92,8 @@ export default function RestructuringPlan() {
       </Card>
 
       <SuggestionRunPanel plan={plan} existingItems={items} defaultVatRate={vatRate} onDone={load} />
+
+      <OrderDerivationPanel plan={plan} items={items} patterns={patterns} />
 
       {sections.map((sec) => {
         const list = items.filter((i) => i.direction === sec.direction);
