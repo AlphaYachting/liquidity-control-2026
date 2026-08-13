@@ -32,16 +32,6 @@ const navSections = [
     ],
   },
   {
-    title: 'Sprint-Modul',
-    items: [
-      { path: '/sprint/uebersicht', label: 'Übersicht', icon: Gauge },
-      { path: '/sprint', label: 'Heute', icon: Rocket },
-      { path: '/sprint/projekte', label: 'Projekte', icon: Layers },
-      { path: '/sprint/planung', label: 'Planung', icon: CalendarRange },
-      { path: '/sprint/steuerung', label: 'Steuerung', icon: Gauge },
-    ],
-  },
-  {
     title: 'CRM',
     items: [
       { path: '/crm', label: 'Pipeline', icon: KanbanSquare },
@@ -49,6 +39,16 @@ const navSections = [
       { path: '/crm/emails', label: 'E-Mail-Zentrale', icon: Mail },
       { path: '/crm/escalations', label: 'Kunden-Eskalationen', icon: Siren },
       { path: '/crm/proposals', label: 'Angebots-Studio', icon: Presentation },
+    ],
+  },
+  {
+    title: 'Sprint-Modul',
+    items: [
+      { path: '/sprint/uebersicht', label: 'Übersicht', icon: Gauge },
+      { path: '/sprint', label: 'Heute', icon: Rocket },
+      { path: '/sprint/projekte', label: 'Projekte', icon: Layers },
+      { path: '/sprint/planung', label: 'Planung', icon: CalendarRange },
+      { path: '/sprint/steuerung', label: 'Steuerung', icon: Gauge },
     ],
   },
   {
