@@ -176,7 +176,7 @@ export default function SprintMilestoneDetail() {
                 {locked ? `am ${fmtDate(milestone.released_at || milestone.updated_date)} freigegeben` : 'wird bei Freigabe fällig'}
               </p>
               {locked && (
-                <p className="text-[13px]" style={{ color: milestone.invoiced_at ? STATUS_COLORS.doneText : '#9c5b00' }}>
+                <p className="text-[13px]" style={{ color: milestone.invoiced_at ? STATUS_COLORS.doneText : STATUS_COLORS.attention }}>
                   {milestone.invoiced_at ? `in SEF erfasst am ${fmtDate(milestone.invoiced_at)}` : 'noch nicht in SEF erfasst'}
                 </p>
               )}

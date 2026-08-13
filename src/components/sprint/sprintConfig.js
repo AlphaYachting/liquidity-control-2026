@@ -2,28 +2,28 @@
 // Zwei getrennte Achsen: A = Marke/Aktion (Pink), B = Status/Zeit (nie Pink).
 export const RITTLER = {
   // ACHSE A — Marke / Aktion
-  pink: '#ff3764',
-  pink700: '#d12d52',
+  pink: 'hsl(var(--primary))',
+  pink700: 'hsl(var(--primary) / 0.9)',
   // Basis
-  black: '#2d2d2d',
-  white: '#ffffff',
-  surface: '#f5f5f5',
-  line: '#e0e0e0',
-  textSecondary: '#6b6b6b',
-  decorGray: '#999999', // nur dekorativ, nie Text, nie Status
+  black: 'hsl(var(--foreground))',
+  white: 'hsl(var(--background))',
+  surface: 'hsl(var(--muted))',
+  line: 'hsl(var(--border))',
+  textSecondary: 'hsl(var(--muted-foreground))',
+  decorGray: '#999999', // nur dekorativ, nie Text, nie Status — kein Token vorhanden
 };
 
 // ACHSE B — Status / Zeit. Erscheint nie in Pink und nie auf einer anklickbaren Form.
 export const STATUS_COLORS = {
-  neutral: '#6b6b6b',
-  attention: '#9c5b00',
-  attentionSurface: '#f5eee2',
-  critical: '#c8003a',
-  criticalSurface: '#f8e0e7',
-  done: '#45d085',
-  doneText: '#1e7a4c',
-  doneSurface: '#e9f9f0',
-  frozen: '#2d2d2d',
+  neutral: 'hsl(var(--status-neutral))',
+  attention: 'hsl(var(--status-attention))',
+  attentionSurface: 'hsl(var(--status-attention-surface))',
+  critical: 'hsl(var(--status-critical))',
+  criticalSurface: 'hsl(var(--status-critical-surface))',
+  done: 'hsl(var(--status-done))',
+  doneText: 'hsl(var(--status-done-text))',
+  doneSurface: 'hsl(var(--status-done-surface))',
+  frozen: 'hsl(var(--foreground))',
 };
 
 export const MILESTONE_STATES = ['input', 'produktion', 'pruefung', 'kundenfeedback', 'freigegeben'];

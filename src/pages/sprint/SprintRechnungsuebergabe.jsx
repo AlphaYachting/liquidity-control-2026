@@ -74,7 +74,7 @@ export default function SprintRechnungsuebergabe() {
           <h1 className="text-2xl font-extrabold uppercase tracking-tight" style={{ color: RITTLER.black }}>
             Rechnungsübergabe
           </h1>
-          <p className="text-[15px] font-bold mt-1" style={{ color: rows.length > 0 ? '#9c5b00' : RITTLER.black }}>
+          <p className="text-[15px] font-bold mt-1" style={{ color: rows.length > 0 ? STATUS_COLORS.attention : RITTLER.black }}>
             {rows.length} {rows.length === 1 ? 'Etappe' : 'Etappen'} freigegeben, noch nicht fakturiert · {fmtEUR(summe)}
           </p>
         </div>
