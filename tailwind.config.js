@@ -43,6 +43,16 @@ module.exports = {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
   			},
+  			status: {
+  				neutral: 'hsl(var(--status-neutral))',
+  				attention: 'hsl(var(--status-attention))',
+  				'attention-surface': 'hsl(var(--status-attention-surface))',
+  				critical: 'hsl(var(--status-critical))',
+  				'critical-surface': 'hsl(var(--status-critical-surface))',
+  				done: 'hsl(var(--status-done))',
+  				'done-text': 'hsl(var(--status-done-text))',
+  				'done-surface': 'hsl(var(--status-done-surface))'
+  			},
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
