@@ -481,21 +481,37 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
   // sondern mit einer Quote je Altersklasse über ein Zeitfenster verteilt.
   const collection = collectionAssumptions(setting);
   const receivablesByWeek = new Array(planWeeks).fill(0);
+  // Alt/Neu-Abgrenzung: Leistungszeitraum liegt an den Rechnungen nicht vor,
+  // daher hilfsweise am Rechnungsdatum gegen insolvency_opening_date —
+  // diese Zeilen werden als "Abgrenzung geschätzt" ausgewiesen.
+  const openingDate = setting.insolvency_opening_date ? new Date(setting.insolvency_opening_date + 'T00:00:00') : null;
+  const receivablesAltByWeek = new Array(planWeeks).fill(0);
+  const receivablesNeuByWeek = new Array(planWeeks).fill(0);
+  const receivablesEstimatedByWeek = new Array(planWeeks).fill(0);
   const notAppliedByBucket = { '0_30': 0, '31_60': 0, '61_90': 0, '90_plus': 0 };
   let receivablesOpenTotal = 0;
   let receivablesApplied = 0;
   let receivablesOutsideHorizon = 0;
 
+  const addReceivable = (idx, amount, isAlt) => {
+    receivablesByWeek[idx] += amount;
+    if (isAlt) receivablesAltByWeek[idx] += amount;
+    else receivablesNeuByWeek[idx] += amount;
+    receivablesEstimatedByWeek[idx] += amount; // Abgrenzung stets hilfsweise (Rechnungsdatum)
+  };
+
   openRec.forEach((i) => {
     const open = num(i._open); // Rechnungsbeträge sind bereits brutto
     receivablesOpenTotal += open;
     const due = i._due ? new Date(i._due + 'T00:00:00') : null;
+    const refDate = i.invoice_date ? new Date(i.invoice_date + 'T00:00:00') : due;
+    const isAlt = !!(openingDate && refDate && refDate < openingDate);
 
     // Noch nicht fällige Forderungen: zum Fälligkeitstermin, voll angesetzt
     if (due && due >= weekStart0) {
       const idx = Math.floor((due - weekStart0) / (7 * 24 * 60 * 60 * 1000));
       if (idx < planWeeks) {
-        receivablesByWeek[idx] += open;
+        addReceivable(idx, open, isAlt);
         receivablesApplied += open;
       } else {
         receivablesOutsideHorizon += open;
@@ -511,7 +527,7 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
     const to = Math.max(from, num(cfg.to) || from);
     const per = applied / (to - from + 1);
     for (let w = from; w <= to; w++) {
-      if (w - 1 < planWeeks) receivablesByWeek[w - 1] += per;
+      if (w - 1 < planWeeks) addReceivable(w - 1, per, isAlt);
     }
     receivablesApplied += applied;
     notAppliedByBucket[bucket] += open - applied;
@@ -577,7 +593,11 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
     outflowDueDates(o, weekStart0, planEnd).forEach((d) => outflowEvents.push({ date: d, item: o }));
   });
 
+  const worstFactor = num(setting.worst_case_inflow_factor) || 0.7;
   let balance = openingBalance;
+  let worstBalance = openingBalance;
+  let cumMasse = 0;
+  let cumNeu = 0;
   const rows = weekBoundaries.map((wb, idx) => {
     // Einzahlungen aus Debitoren: nach Einbringlichkeitsannahme verteilt
     const recIn = receivablesByWeek[idx];
@@ -593,9 +613,18 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
 
     const inflow = recIn + recurringIn + backlogIn;
 
+    // Alt/Neu-Split: Debitoren nach Abgrenzung (hilfsweise Rechnungsdatum),
+    // Retainer/Hosting und Auftragsbestand sind künftige Leistung = NEU.
+    const inflowAlt = receivablesAltByWeek[idx];
+    const inflowNeu = receivablesNeuByWeek[idx] + recurringIn + backlogIn;
+    const inflowEstimated = receivablesEstimatedByWeek[idx];
+
     // Auszahlungen: alle Posten, deren Fälligkeitstermin in diese Woche fällt
     const weekEvents = outflowEvents.filter((ev) => ev.date >= wb.start && ev.date < wb.end);
     const outflow = weekEvents.reduce((s, ev) => s + num(ev.item.amount), 0);
+    const outflowMasse = weekEvents
+      .filter((ev) => ev.item.is_masseverbindlichkeit !== false)
+      .reduce((s, ev) => s + num(ev.item.amount), 0);
     const byCat = new Map();
     weekEvents.forEach((ev) => {
       const cat = ev.item.category || 'sonstige_auszahlung';
@@ -607,6 +636,13 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
 
     const opening = balance;
     balance = opening + inflow - outflow;
+    // Worst Case: Einzahlungen × Faktor, Auszahlungen unverändert
+    const worstOpening = worstBalance;
+    worstBalance = worstOpening + inflow * worstFactor - outflow;
+    // Fortführungsnachweis: kumulierte Neuleistung vs. kumulierte Masseverbindlichkeiten
+    cumMasse += outflowMasse;
+    cumNeu += inflowNeu;
+    const coveragePct = cumMasse > 0 ? (cumNeu / cumMasse) * 100 : null;
     return {
       index: idx,
       week_start: localISO(wb.start),
@@ -617,14 +653,25 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
       recurring_in: recurringIn,
       backlog_in: backlogIn,
       inflow,
+      inflow_alt: inflowAlt,
+      inflow_neu: inflowNeu,
+      inflow_estimated: inflowEstimated,
       outflow,
+      outflow_masse: outflowMasse,
       outflow_by_category: Array.from(byCat.values()).sort((a, b) => b.total - a.total),
       closing: balance,
+      worst_closing: worstBalance,
+      cum_masse: cumMasse,
+      cum_neu: cumNeu,
+      coverage_pct: coveragePct,
+      coverage_gap: Math.max(0, cumMasse - cumNeu),
       negative: balance < 0,
     };
   });
 
   const hearingWeekIndex = rows.findIndex((r) => r.is_hearing_week);
+  // Umschlagpunkt: erste Woche mit kumuliertem Deckungsgrad ≥ 100 %
+  const turnaroundWeekIndex = rows.findIndex((r) => r.cum_masse > 0 && r.coverage_pct !== null && r.coverage_pct >= 100);
 
   return {
     rows,
@@ -646,6 +693,17 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
       weeks: planWeeks,
       hearingDate: setting.reporting_hearing_date || null,
       hearingWeekIndex,
+    },
+    // Fortführungsnachweis-Kennzahlen (strenge Lesart)
+    coverage: {
+      worstFactor,
+      cumMasse,
+      cumNeu,
+      coveragePct: cumMasse > 0 ? (cumNeu / cumMasse) * 100 : null,
+      gap: Math.max(0, cumMasse - cumNeu),
+      turnaroundWeekIndex,
+      splitEstimated: !!openingDate, // Abgrenzung hilfsweise am Rechnungsdatum
+      openingDateMissing: !openingDate,
     },
     // Metadaten zur Hochrechnung — für Transparenz in der UI (alle Werte brutto)
     projection: {

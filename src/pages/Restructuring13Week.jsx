@@ -8,6 +8,7 @@ import { exportPDF, exportExcel } from '@/lib/restructuring/restructuringExport'
 import ReportCard from '@/components/restructuring/ReportCard';
 import ReportTable from '@/components/restructuring/ReportTable';
 import ProjectionAssumptions from '@/components/restructuring/ProjectionAssumptions';
+import Week13CoverageBlock from '@/components/restructuring/Week13CoverageBlock';
 
 const SOURCE = 'Bankbestand + Debitoren nach Einbringlichkeitsannahme + Retainer/Hosting + gedeckelter Auftragsbestand − erfasste Auszahlungen (alle Beträge brutto)';
 
@@ -51,6 +52,14 @@ export default function Restructuring13Week() {
     { key: 'recurring_in', label: 'Retainer/Hosting', align: 'right', render: (r) => fmtEUR(r.recurring_in) },
     { key: 'backlog_in', label: 'Auftragsbestand', align: 'right', render: (r) => fmtEUR(r.backlog_in) },
     { key: 'inflow', label: 'Einzahlungen', align: 'right', render: (r) => fmtEUR(r.inflow), className: 'font-semibold' },
+    { key: 'inflow_alt', label: 'davon ALT', align: 'right', render: (r) => (
+      <span className="text-muted-foreground">
+        {fmtEUR(r.inflow_alt)}{r.inflow_estimated > 0.01 && <span title="Abgrenzung geschätzt (Rechnungsdatum)" className="text-amber-600">*</span>}
+      </span>
+    ) },
+    { key: 'inflow_neu', label: 'davon NEU', align: 'right', render: (r) => (
+      <span className="text-muted-foreground">{fmtEUR(r.inflow_neu)}</span>
+    ) },
     { key: 'outflow', label: 'Auszahlungen', align: 'right', render: (r) => (
       (r.outflow_by_category?.length || 0) > 0 ? (
         <button
@@ -66,11 +75,17 @@ export default function Restructuring13Week() {
         </button>
       ) : fmtEUR(r.outflow)
     ) },
+    { key: 'outflow_masse', label: 'davon Masse', align: 'right', render: (r) => (
+      <span className="text-muted-foreground">{fmtEUR(r.outflow_masse)}</span>
+    ) },
     { key: 'closing', label: 'Endbestand', align: 'right', render: (r) => fmtEUR(r.closing), className: 'font-bold' },
+    { key: 'worst_closing', label: 'Worst Case', align: 'right', render: (r) => (
+      <span className={r.worst_closing < 0 ? 'text-red-700 font-semibold' : 'text-muted-foreground'}>{fmtEUR(r.worst_closing)}</span>
+    ) },
   ];
 
   const exportRows = result.rows.map((r) => [
-    `W${r.index + 1}`, weekRange(r), r.opening.toFixed(2), r.receivables_in.toFixed(2), r.recurring_in.toFixed(2), r.backlog_in.toFixed(2), r.inflow.toFixed(2), r.outflow.toFixed(2), r.closing.toFixed(2),
+    `W${r.index + 1}`, weekRange(r), r.opening.toFixed(2), r.receivables_in.toFixed(2), r.recurring_in.toFixed(2), r.backlog_in.toFixed(2), r.inflow.toFixed(2), r.inflow_alt.toFixed(2), r.inflow_neu.toFixed(2), r.outflow.toFixed(2), r.outflow_masse.toFixed(2), r.closing.toFixed(2), r.worst_closing.toFixed(2),
   ]);
   const exportCols = columns.map((c) => c.label);
 
@@ -108,7 +123,7 @@ export default function Restructuring13Week() {
         title={`${result.plan?.weeks || 13}-Wochen-Liquiditätsplan${result.plan?.planStartMissing ? '' : ` (fixer Planbeginn ${fmtDate(result.plan.startDate)})`}`}
         sourceNote={SOURCE}
         onExportPDF={() => exportPDF('13-Wochen-Vorschau', exportCols, exportRows, {
-          sourceNote: SOURCE, numericCols: [2, 3, 4, 5, 6, 7, 8],
+          sourceNote: SOURCE, numericCols: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           summaryLines: [`Anfangsbestand: ${fmtEUR(result.openingBalance)}`, `Tiefster Endbestand: ${fmtEUR(lowest)}`],
         })}
         onExportExcel={() => exportExcel('13-Wochen-Vorschau', exportCols, exportRows, SOURCE)}
@@ -148,6 +163,8 @@ export default function Restructuring13Week() {
           }
         />
       </ReportCard>
+
+      <Week13CoverageBlock coverage={result.coverage} weeks={result.plan?.weeks || 13} />
 
       <ProjectionAssumptions
         projection={result.projection}
