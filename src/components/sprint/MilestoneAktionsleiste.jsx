@@ -38,13 +38,13 @@ export default function MilestoneAktionsleiste({ state, openBefore, onChange }) 
         )}
         <div className="flex flex-wrap items-center gap-3">
           {prev && (
-            <Button variant="outline" size="sm" className="rounded border-[1.5px] border-[#2d2d2d] text-[#2d2d2d]" onClick={() => onChange(prev)}>
+            <Button variant="outline" size="sm" className="rounded border-[1.5px] border-foreground text-foreground" onClick={() => onChange(prev)}>
               <ArrowLeft className="w-4 h-4" /> Zurück zu {STATE_LABELS[prev]}
             </Button>
           )}
           {next && (
             <Button
-              className="bg-[#ff3764] hover:bg-[#d12d52] text-white font-bold uppercase rounded"
+              className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
               onClick={forward}
             >
               Weiter zu {STATE_LABELS[next]} <ArrowRight className="w-4 h-4" />
@@ -70,11 +70,11 @@ export default function MilestoneAktionsleiste({ state, openBefore, onChange }) 
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" className="rounded border-[1.5px] border-[#2d2d2d] text-[#2d2d2d]" onClick={() => setAsk(false)}>
+            <Button variant="outline" className="rounded border-[1.5px] border-foreground text-foreground" onClick={() => setAsk(false)}>
               Abbrechen
             </Button>
             <Button
-              className="bg-[#ff3764] hover:bg-[#d12d52] text-white font-bold uppercase rounded"
+              className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
               onClick={() => { setAsk(false); onChange(next); }}
             >
               Trotzdem weiter

@@ -46,8 +46,8 @@ export default function SprintPlanung() {
   if (isLoading || !data) {
     return (
       <div className="max-w-[1200px] mx-auto space-y-4">
-        <Skeleton className="h-10 w-48 bg-[#f5f5f5]" />
-        <Skeleton className="h-64 w-full bg-[#f5f5f5]" />
+        <Skeleton className="h-10 w-48 bg-muted" />
+        <Skeleton className="h-64 w-full bg-muted" />
       </div>
     );
   }
@@ -68,12 +68,12 @@ export default function SprintPlanung() {
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold uppercase tracking-tight text-[#2d2d2d]">Planung</h1>
+        <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Planung</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" className="h-8 w-8 rounded" onClick={() => setWeekOffset(weekOffset - 1)}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="text-sm font-semibold text-[#2d2d2d] min-w-[130px] text-center">
+          <span className="text-sm font-semibold text-foreground min-w-[130px] text-center">
             KW ab {fmtHeader(days[0])}{days[0].slice(0, 4)}
           </span>
           <Button variant="outline" size="icon" className="h-8 w-8 rounded" onClick={() => setWeekOffset(weekOffset + 1)}>
@@ -86,10 +86,10 @@ export default function SprintPlanung() {
         <table className="w-full min-w-[720px] border-separate border-spacing-1">
           <thead>
             <tr>
-              <th className="text-left text-[11px] font-bold uppercase tracking-[2px] text-[#d12d52] px-2 pb-2">Person</th>
+              <th className="text-left text-[11px] font-bold uppercase tracking-[2px] text-primary/90 px-2 pb-2">Person</th>
               {days.map((d, i) => (
-                <th key={d} className="text-center text-xs font-semibold text-[#2d2d2d] pb-2">
-                  {DAY_LABELS[i]} <span className="text-[#6b6b6b] font-normal">{fmtHeader(d)}</span>
+                <th key={d} className="text-center text-xs font-semibold text-foreground pb-2">
+                  {DAY_LABELS[i]} <span className="text-muted-foreground font-normal">{fmtHeader(d)}</span>
                 </th>
               ))}
             </tr>
@@ -102,7 +102,7 @@ export default function SprintPlanung() {
               const capacity = Math.max(0, (p.weekly_focus_days || 4) - absent);
               return (
               <tr key={p.id}>
-                <td className="text-sm font-medium text-[#2d2d2d] px-2 whitespace-nowrap">
+                <td className="text-sm font-medium text-foreground px-2 whitespace-nowrap">
                   {p.name}
                 </td>
                 {days.map((day) => {
@@ -116,12 +116,12 @@ export default function SprintPlanung() {
                         title={entry?.type === 'focus' ? project?.title : undefined}
                         className={`w-full h-14 rounded text-[11px] font-semibold px-1 transition-colors ${
                           entry?.type === 'focus'
-                            ? 'bg-[#f5f5f5] text-[#2d2d2d] font-bold border border-[#e0e0e0] hover:bg-[#e0e0e0]'
+                            ? 'bg-muted text-foreground font-bold border border-border hover:bg-border'
                             : entry?.type === 'reaktion'
-                            ? 'bg-[#e0e0e0] text-[#6b6b6b] uppercase tracking-wide'
+                            ? 'bg-border text-muted-foreground uppercase tracking-wide'
                             : entry?.type === 'abwesend'
-                            ? 'bg-white text-[#6b6b6b] uppercase tracking-wide border border-dashed border-[#e0e0e0]'
-                            : 'bg-white border border-dashed border-[#e0e0e0] text-[#6b6b6b] hover:border-[#2d2d2d]'
+                            ? 'bg-white text-muted-foreground uppercase tracking-wide border border-dashed border-border'
+                            : 'bg-white border border-dashed border-border text-muted-foreground hover:border-foreground'
                         }`}
                       >
                         {entry?.type === 'focus'
@@ -133,7 +133,7 @@ export default function SprintPlanung() {
                   );
                 })}
                 <td className="text-center text-xs font-semibold whitespace-nowrap px-2">
-                  <span className={assigned > capacity ? 'text-[#c8003a]' : 'text-[#2d2d2d]'}>
+                  <span className={assigned > capacity ? 'text-status-critical' : 'text-foreground'}>
                     {assigned} von {capacity}
                   </span>
                 </td>
@@ -142,7 +142,7 @@ export default function SprintPlanung() {
             })}
             {members.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-sm text-[#6b6b6b] text-center py-8">
+                <td colSpan={7} className="text-sm text-muted-foreground text-center py-8">
                   Kein aktives Teammitglied im Personenstamm.
                 </td>
               </tr>

@@ -53,9 +53,9 @@ export default function SprintUebersicht() {
   if (isLoading || !data) {
     return (
       <div className="max-w-[1200px] mx-auto space-y-4">
-        <Skeleton className="h-10 w-full bg-[#f5f5f5]" />
-        <Skeleton className="h-40 w-full bg-[#f5f5f5]" />
-        <Skeleton className="h-64 w-full bg-[#f5f5f5]" />
+        <Skeleton className="h-10 w-full bg-muted" />
+        <Skeleton className="h-40 w-full bg-muted" />
+        <Skeleton className="h-64 w-full bg-muted" />
       </div>
     );
   }
@@ -149,7 +149,7 @@ export default function SprintUebersicht() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
-      <div className="bg-white rounded-lg border border-[#e0e0e0] px-4 py-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+      <div className="bg-white rounded-lg border border-border px-4 py-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <SectionLabel>Diese Woche</SectionLabel>
         <p className="text-[15px] font-bold" style={{ color: RITTLER.black }}>
           {releasedThisWeek.length} {releasedThisWeek.length === 1 ? 'Etappe' : 'Etappen'} abgeschlossen ·{' '}
@@ -168,7 +168,7 @@ export default function SprintUebersicht() {
 
       <div>
         <SectionLabel className="mb-2">Projekte</SectionLabel>
-        <div className="bg-white rounded-lg border border-[#e0e0e0] overflow-hidden">
+        <div className="bg-white rounded-lg border border-border overflow-hidden">
           {visibleRows.map((r) => (
             <ProjektZeile
               key={r.sprint.id}
@@ -182,7 +182,7 @@ export default function SprintUebersicht() {
             />
           ))}
           {visibleRows.length === 0 && (
-            <p className="p-10 text-center text-sm text-[#6b6b6b]">Kein aktiver Sprint.</p>
+            <p className="p-10 text-center text-sm text-muted-foreground">Kein aktiver Sprint.</p>
           )}
         </div>
       </div>

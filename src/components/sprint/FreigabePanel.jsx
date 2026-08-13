@@ -31,7 +31,7 @@ export default function FreigabePanel({ milestone, tickets, notifications, feedb
   };
 
   return (
-    <div className="bg-white rounded-lg border border-[#e0e0e0] p-5 space-y-4">
+    <div className="bg-white rounded-lg border border-border p-5 space-y-4">
       <SectionLabel>Voraussetzungen für die Freigabe</SectionLabel>
       <FreigabeCheckliste items={items} />
 
@@ -59,7 +59,7 @@ export default function FreigabePanel({ milestone, tickets, notifications, feedb
       <div>
         <Button
           disabled={!!blocker}
-          className="bg-[#ff3764] hover:bg-[#d12d52] text-white font-bold uppercase rounded"
+          className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
           onClick={() => setAsk(true)}
         >
           <Lock className="w-4 h-4" /> Etappe freigeben
@@ -83,12 +83,12 @@ export default function FreigabePanel({ milestone, tickets, notifications, feedb
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" className="rounded border-[1.5px] border-[#2d2d2d] text-[#2d2d2d]" onClick={() => setAsk(false)}>
+            <Button variant="outline" className="rounded border-[1.5px] border-foreground text-foreground" onClick={() => setAsk(false)}>
               Abbrechen
             </Button>
             <Button
               disabled={busy}
-              className="bg-[#ff3764] hover:bg-[#d12d52] text-white font-bold uppercase rounded"
+              className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
               onClick={freigeben}
             >
               Endgültig freigeben

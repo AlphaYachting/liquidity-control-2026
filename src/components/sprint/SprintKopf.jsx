@@ -14,10 +14,10 @@ export default function SprintKopf({ sprint, project, client, milestones, status
   const overrun = status.ampel === 'attention' && status.hoursTarget > 0 && status.hoursBooked > 0.7 * status.hoursTarget;
 
   return (
-    <div className="bg-white rounded-lg border border-[#e0e0e0] p-6">
+    <div className="bg-white rounded-lg border border-border p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-2 min-w-0">
-          <Link to="/sprint/projekte" className="hover:text-[#2d2d2d]" style={{ color: RITTLER.textSecondary }}>
+          <Link to="/sprint/projekte" className="hover:text-foreground" style={{ color: RITTLER.textSecondary }}>
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div className="min-w-0">

@@ -12,7 +12,7 @@ function Gruppe({ label, color, items }) {
         <Link
           key={m.id}
           to={`/sprint/milestones/${m.id}`}
-          className="flex items-center gap-3 py-1.5 hover:bg-[#f5f5f5]/60 px-2 -mx-2 rounded"
+          className="flex items-center gap-3 py-1.5 hover:bg-muted/60 px-2 -mx-2 rounded"
         >
           <div className="flex-1 min-w-0">
             <p className="text-sm truncate" style={{ color: RITTLER.black, fontWeight: 500 }}>{m.title}</p>

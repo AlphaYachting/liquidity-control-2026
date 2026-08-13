@@ -15,7 +15,7 @@ export default function HandlungsListe({ signals, projectsById, imPlan, brauchen
     .slice(0, 5);
 
   return (
-    <div className="bg-white rounded-lg border border-[#e0e0e0]">
+    <div className="bg-white rounded-lg border border-border">
       <div className="px-4 py-3 border-b" style={{ borderColor: RITTLER.line }}>
         <p className="text-[11px] font-bold uppercase tracking-[2px]" style={{ color: RITTLER.pink700 }}>
           Was braucht eine Entscheidung
@@ -43,11 +43,11 @@ export default function HandlungsListe({ signals, projectsById, imPlan, brauchen
               </p>
             </div>
             <div className="flex gap-2 shrink-0">
-              <Button variant="outline" size="sm" className="rounded border-[1.5px] border-[#2d2d2d] text-[#2d2d2d]" onClick={() => onResolve(s)}>
+              <Button variant="outline" size="sm" className="rounded border-[1.5px] border-foreground text-foreground" onClick={() => onResolve(s)}>
                 Erledigt
               </Button>
               {s.sprint_id && (
-                <Button size="sm" className="bg-[#ff3764] hover:bg-[#d12d52] text-white font-bold uppercase rounded" asChild>
+                <Button size="sm" className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded" asChild>
                   <Link to={`/sprint/sprints/${s.sprint_id}`}>Öffnen</Link>
                 </Button>
               )}

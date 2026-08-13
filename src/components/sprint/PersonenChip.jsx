@@ -60,7 +60,7 @@ export default function PersonenChip({ member, members = [], role, isMe, disable
     <DropdownMenu>
       <DropdownMenuTrigger
         title={member ? `${member.name}${(member.roles || []).length ? ` · ${(member.roles || []).join(', ')}` : ''}` : 'zuweisen'}
-        className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2d2d2d]"
+        className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground"
       >
         {chip}
       </DropdownMenuTrigger>

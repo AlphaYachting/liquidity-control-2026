@@ -13,10 +13,10 @@ export default function HeuteAufgabenZeile({ ticket, milestone, projectLabel, on
   ].filter(Boolean);
 
   return (
-    <div className="flex items-center gap-2 py-1.5 border-b border-[#e0e0e0] last:border-0">
+    <div className="flex items-center gap-2 py-1.5 border-b border-border last:border-0">
       <Link
         to={`/sprint/milestones/${ticket.milestone_id}`}
-        className="flex-1 min-w-0 px-2 -mx-2 py-1 rounded hover:bg-[#f5f5f5]"
+        className="flex-1 min-w-0 px-2 -mx-2 py-1 rounded hover:bg-muted"
       >
         <div className="flex items-center gap-2">
           <span className="text-sm truncate" style={{ color: RITTLER.black, fontWeight: 500 }}>{ticket.title}</span>

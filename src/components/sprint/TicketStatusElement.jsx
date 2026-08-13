@@ -24,7 +24,7 @@ export default function TicketStatusElement({ value = 'offen', onChange, disable
         disabled={disabled}
         onClick={() => onChange(CYCLE[value] || 'in_arbeit')}
         title="Status weiterschalten"
-        className="flex items-center gap-2 px-2 py-1 rounded min-h-[32px] disabled:opacity-50 hover:bg-[#f5f5f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2d2d2d] focus-visible:ring-offset-2"
+        className="flex items-center gap-2 px-2 py-1 rounded min-h-[32px] disabled:opacity-50 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
       >
         {v.triangle ? (
           <span
@@ -48,7 +48,7 @@ export default function TicketStatusElement({ value = 'offen', onChange, disable
 
       {!disabled && (
         <DropdownMenu>
-          <DropdownMenuTrigger className="p-1 rounded text-[#6b6b6b] hover:bg-[#f5f5f5]" title="Status wählen">
+          <DropdownMenuTrigger className="p-1 rounded text-muted-foreground hover:bg-muted" title="Status wählen">
             <ChevronDown className="w-3.5 h-3.5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

@@ -39,8 +39,8 @@ export default function SprintDetail() {
   if (isLoading || !data) {
     return (
       <div className="max-w-[1200px] mx-auto space-y-4">
-        <Skeleton className="h-40 w-full bg-[#f5f5f5]" />
-        <Skeleton className="h-40 w-full bg-[#f5f5f5]" />
+        <Skeleton className="h-40 w-full bg-muted" />
+        <Skeleton className="h-40 w-full bg-muted" />
       </div>
     );
   }
@@ -68,7 +68,7 @@ export default function SprintDetail() {
 
       <div>
         <SectionLabel className="mb-2">Etappen</SectionLabel>
-        <div className="bg-white rounded-lg border border-[#e0e0e0] overflow-hidden">
+        <div className="bg-white rounded-lg border border-border overflow-hidden">
           {milestones.map((m) => (
             <EtappenZeile
               key={m.id}
@@ -79,7 +79,7 @@ export default function SprintDetail() {
             />
           ))}
           {milestones.length === 0 && (
-            <p className="p-10 text-center text-sm text-[#6b6b6b]">Dieser Sprint hat keine Milestones.</p>
+            <p className="p-10 text-center text-sm text-muted-foreground">Dieser Sprint hat keine Milestones.</p>
           )}
         </div>
       </div>

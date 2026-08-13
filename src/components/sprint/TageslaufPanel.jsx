@@ -30,7 +30,7 @@ export default function TageslaufPanel() {
   const letzter = runs[0];
 
   return (
-    <div className="bg-white rounded-lg border border-[#e0e0e0] p-5 space-y-4">
+    <div className="bg-white rounded-lg border border-border p-5 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <SectionLabel>Sprint-Tageslauf</SectionLabel>
@@ -43,7 +43,7 @@ export default function TageslaufPanel() {
           variant="outline"
           disabled={busy}
           onClick={starten}
-          className="rounded border-[1.5px] border-[#2d2d2d] text-[#2d2d2d] shrink-0"
+          className="rounded border-[1.5px] border-foreground text-foreground shrink-0"
         >
           <Play className="w-4 h-4" /> {busy ? 'Läuft …' : 'Tageslauf jetzt ausführen'}
         </Button>

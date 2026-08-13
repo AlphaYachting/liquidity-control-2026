@@ -62,29 +62,29 @@ export default function ModulTemplateEditor({ module }) {
   return (
     <div className="bg-white rounded-lg shadow-sm p-5">
       <SectionLabel className="mb-1">Pflichtkette</SectionLabel>
-      <h3 className="font-bold text-[#2d2d2d] uppercase mb-4">{module.name}</h3>
+      <h3 className="font-bold text-foreground uppercase mb-4">{module.name}</h3>
 
       <div className="space-y-2">
         {templates.map((t, idx) => (
-          <div key={t.id} className="flex items-center gap-2 bg-[#f5f5f5] rounded px-3 py-2">
-            <span className="text-xs text-[#6b6b6b] w-5">{idx + 1}.</span>
-            <span className="flex-1 text-sm text-[#2d2d2d] font-medium">{t.title}</span>
-            <span className="text-xs text-[#6b6b6b]">{t.role}</span>
-            <span className="text-[11px] text-[#6b6b6b] uppercase">{PHASES.find((p) => p.value === t.milestone_state)?.label || '—'}</span>
-            {t.target_hours > 0 && <span className="text-xs text-[#6b6b6b]">{t.target_hours} h</span>}
+          <div key={t.id} className="flex items-center gap-2 bg-muted rounded px-3 py-2">
+            <span className="text-xs text-muted-foreground w-5">{idx + 1}.</span>
+            <span className="flex-1 text-sm text-foreground font-medium">{t.title}</span>
+            <span className="text-xs text-muted-foreground">{t.role}</span>
+            <span className="text-[11px] text-muted-foreground uppercase">{PHASES.find((p) => p.value === t.milestone_state)?.label || '—'}</span>
+            {t.target_hours > 0 && <span className="text-xs text-muted-foreground">{t.target_hours} h</span>}
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleMove(idx, -1)} disabled={idx === 0}>
               <ArrowUp className="w-3.5 h-3.5" />
             </Button>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleMove(idx, 1)} disabled={idx === templates.length - 1}>
               <ArrowDown className="w-3.5 h-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-[#6b6b6b] hover:text-[#ff3764]" onClick={() => handleDelete(t)}>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleDelete(t)}>
               <Trash2 className="w-3.5 h-3.5" />
             </Button>
           </div>
         ))}
         {templates.length === 0 && (
-          <p className="text-sm text-[#6b6b6b]">Noch keine Ticketvorlagen — unten die erste anlegen.</p>
+          <p className="text-sm text-muted-foreground">Noch keine Ticketvorlagen — unten die erste anlegen.</p>
         )}
       </div>
 
@@ -99,7 +99,7 @@ export default function ModulTemplateEditor({ module }) {
           <SelectContent>{PHASES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
         </Select>
         <Input type="number" placeholder="Soll-h" className="sm:w-24" value={newHours} onChange={(e) => setNewHours(e.target.value)} />
-        <Button className="bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded" disabled={!newTitle} onClick={handleAdd}>
+        <Button className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded" disabled={!newTitle} onClick={handleAdd}>
           <Plus className="w-4 h-4" />
         </Button>
       </div>

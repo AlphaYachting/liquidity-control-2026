@@ -20,7 +20,7 @@ export default function TicketPhasenGruppe({
         className="w-full h-11 flex items-center gap-2 px-3 text-left"
         style={{ backgroundColor: RITTLER.surface }}
       >
-        {open ? <ChevronDown className="w-4 h-4 text-[#6b6b6b]" /> : <ChevronRight className="w-4 h-4 text-[#6b6b6b]" />}
+        {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
         <span className="text-[13px] font-bold uppercase tracking-[1px] flex-1" style={{ color: RITTLER.black }}>
           {STATE_LABELS[phase]}
         </span>

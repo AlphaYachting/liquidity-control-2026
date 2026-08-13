@@ -156,16 +156,16 @@ export default function SprintAssistent() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
-      <h1 className="text-2xl font-extrabold uppercase tracking-tight text-[#2d2d2d]">Sprint anlegen</h1>
+      <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Sprint anlegen</h1>
 
       <div>
-        <div className="flex justify-between text-xs font-semibold uppercase tracking-wide text-[#6b6b6b] mb-1.5">
-          <span className={step >= 1 ? 'text-[#ff3764]' : ''}>1 · Rahmen</span>
-          <span className={step >= 2 ? 'text-[#ff3764]' : ''}>2 · Module</span>
-          <span className={step >= 3 ? 'text-[#ff3764]' : ''}>3 · Übersicht</span>
+        <div className="flex justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+          <span className={step >= 1 ? 'text-primary' : ''}>1 · Rahmen</span>
+          <span className={step >= 2 ? 'text-primary' : ''}>2 · Module</span>
+          <span className={step >= 3 ? 'text-primary' : ''}>3 · Übersicht</span>
         </div>
-        <div className="h-1.5 bg-[#f5f5f5] rounded-full overflow-hidden">
-          <div className="h-full bg-[#ff3764] transition-all" style={{ width: `${(step / 3) * 100}%` }} />
+        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+          <div className="h-full bg-primary transition-all" style={{ width: `${(step / 3) * 100}%` }} />
         </div>
       </div>
 
@@ -188,11 +188,11 @@ export default function SprintAssistent() {
                   <button
                     key={s.label} type="button" onClick={() => setSize(s.label)}
                     className={`rounded-lg p-5 text-center border-2 transition-colors ${
-                      size === s.label ? 'border-[#ff3764] bg-[#ff3764]/5' : 'border-gray-200 bg-white hover:border-[#ff3764]/40'
+                      size === s.label ? 'border-primary bg-primary/5' : 'border-gray-200 bg-white hover:border-primary/40'
                     }`}
                   >
-                    <div className="text-2xl font-extrabold text-[#2d2d2d]">{s.label}</div>
-                    <div className="text-xs text-[#6b6b6b] mt-1">{s.subtitle}</div>
+                    <div className="text-2xl font-extrabold text-foreground">{s.label}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{s.subtitle}</div>
                   </button>
                 ))}
               </div>
@@ -205,7 +205,7 @@ export default function SprintAssistent() {
                 <Input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0" />
               </div>
             </div>
-            <p className="text-xs text-[#6b6b6b]">
+            <p className="text-xs text-muted-foreground">
               Der Sprintbetrag ergibt sich aus den gewählten Modulen und Bausteinen abzüglich Nachlass.
             </p>
           </div>
@@ -218,20 +218,20 @@ export default function SprintAssistent() {
         {step === 3 && (
           <div className="space-y-4">
             <SectionLabel>Übersicht</SectionLabel>
-            <div className="text-sm text-[#2d2d2d]">
+            <div className="text-sm text-foreground">
               <p className="font-bold">{project?.title} · Sprint {size}</p>
-              <p className="text-[#6b6b6b]">
+              <p className="text-muted-foreground">
                 {fmtDate(startDate)} bis {fmtDate(addWeeks(startDate, SPRINT_SIZES[size]?.weeks || 0))} · Liefertermin {fmtDate(deliveryDate)} · {fmtEUR(sprintAmount)}
               </p>
-              <p className="text-[#6b6b6b]">
+              <p className="text-muted-foreground">
                 {kennzahlen.hours} Sollstunden · {kennzahlen.focusDays} Focus-Tage (aus dem Katalog gerechnet)
               </p>
             </div>
 
             {plan && !plan.deliverable && (
-              <div className="flex gap-3 rounded border border-[#ff3764] bg-[#ff3764]/5 p-4">
-                <AlertTriangle className="w-5 h-5 text-[#ff3764] shrink-0" />
-                <div className="text-sm text-[#2d2d2d]">
+              <div className="flex gap-3 rounded border border-primary bg-primary/5 p-4">
+                <AlertTriangle className="w-5 h-5 text-primary shrink-0" />
+                <div className="text-sm text-foreground">
                   <p className="font-bold">Sprint nicht lieferbar</p>
                   <p>{plan.reason} Frühester realistischer Liefertermin: {fmtDate(plan.suggestedDelivery)}.</p>
                 </div>
@@ -240,36 +240,36 @@ export default function SprintAssistent() {
 
             <div className="space-y-2">
               {selected.map((m, idx) => (
-                <div key={m.key} className="flex flex-wrap items-center gap-3 bg-[#f5f5f5] rounded px-4 py-3">
-                  <span className="text-xs font-bold text-[#ff3764]">{idx + 1}</span>
-                  <span className="flex-1 min-w-[180px] text-sm font-semibold text-[#2d2d2d]">
+                <div key={m.key} className="flex flex-wrap items-center gap-3 bg-muted rounded px-4 py-3">
+                  <span className="text-xs font-bold text-primary">{idx + 1}</span>
+                  <span className="flex-1 min-w-[180px] text-sm font-semibold text-foreground">
                     {m.name}
-                    {idx === selected.length - 1 && <span className="text-[11px] text-[#6b6b6b] font-normal ml-2">(finaler Milestone)</span>}
+                    {idx === selected.length - 1 && <span className="text-[11px] text-muted-foreground font-normal ml-2">(finaler Milestone)</span>}
                   </span>
                   {plan?.deliverable && (
-                    <span className="text-xs text-[#6b6b6b]">
+                    <span className="text-xs text-muted-foreground">
                       Übergabe {fmtDate(plan.plan[idx].planned_handover)} · Freeze {fmtDate(plan.plan[idx].planned_freeze)}
                     </span>
                   )}
-                  <span className="text-sm font-bold text-[#2d2d2d]">{fmtEUR(nettoBetraege[idx])}</span>
+                  <span className="text-sm font-bold text-foreground">{fmtEUR(nettoBetraege[idx])}</span>
                 </div>
               ))}
             </div>
 
             {Number(discount) > 0 && (
-              <p className="text-[13px] text-[#6b6b6b]">Nachlass {fmtEUR(Number(discount))} bereits eingerechnet.</p>
+              <p className="text-[13px] text-muted-foreground">Nachlass {fmtEUR(Number(discount))} bereits eingerechnet.</p>
             )}
-            {createError && <p className="text-sm text-[#c8003a]">{createError}</p>}
+            {createError && <p className="text-sm text-status-critical">{createError}</p>}
           </div>
         )}
 
-        <div className="flex justify-between mt-6 pt-4 border-t border-[#f5f5f5]">
+        <div className="flex justify-between mt-6 pt-4 border-t border-muted">
           <Button variant="outline" className="rounded" disabled={step === 1 || creating} onClick={() => setStep(step - 1)}>
             Zurück
           </Button>
           {step < 3 ? (
             <Button
-              className="bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded"
+              className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
               disabled={(step === 1 && !step1Valid) || (step === 2 && !step2Valid)}
               onClick={() => setStep(step + 1)}
             >
@@ -277,7 +277,7 @@ export default function SprintAssistent() {
             </Button>
           ) : (
             <Button
-              className="bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded"
+              className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
               disabled={creating || !plan?.deliverable} onClick={handleCreate}
             >
               {creating ? 'Legt an…' : 'Sprint anlegen'}

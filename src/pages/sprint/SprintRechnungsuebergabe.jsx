@@ -27,8 +27,8 @@ export default function SprintRechnungsuebergabe() {
   if (isLoading || !data) {
     return (
       <div className="max-w-[1200px] mx-auto space-y-4">
-        <Skeleton className="h-10 w-64 bg-[#f5f5f5]" />
-        <Skeleton className="h-64 w-full bg-[#f5f5f5]" />
+        <Skeleton className="h-10 w-64 bg-muted" />
+        <Skeleton className="h-64 w-full bg-muted" />
       </div>
     );
   }
@@ -78,12 +78,12 @@ export default function SprintRechnungsuebergabe() {
             {rows.length} {rows.length === 1 ? 'Etappe' : 'Etappen'} freigegeben, noch nicht fakturiert · {fmtEUR(summe)}
           </p>
         </div>
-        <Button variant="outline" className="rounded border-[1.5px] border-[#2d2d2d] text-[#2d2d2d]" onClick={exportCsv} disabled={rows.length === 0}>
+        <Button variant="outline" className="rounded border-[1.5px] border-foreground text-foreground" onClick={exportCsv} disabled={rows.length === 0}>
           <Download className="w-4 h-4" /> CSV-Export
         </Button>
       </div>
 
-      <div className="bg-white rounded-lg border border-[#e0e0e0] overflow-hidden">
+      <div className="bg-white rounded-lg border border-border overflow-hidden">
         {rows.map(({ milestone, project, client }) => (
           <div key={milestone.id} className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-[#eeeeee] last:border-0">
             <div className="flex-1 min-w-[220px]">
@@ -98,7 +98,7 @@ export default function SprintRechnungsuebergabe() {
             </div>
             <Button
               size="sm"
-              className="bg-[#ff3764] hover:bg-[#d12d52] text-white font-bold rounded"
+              className="bg-primary hover:bg-primary/90 text-white font-bold rounded"
               onClick={() => markErfasst(milestone)}
             >
               <Check className="w-4 h-4" /> als in SEF erfasst markieren

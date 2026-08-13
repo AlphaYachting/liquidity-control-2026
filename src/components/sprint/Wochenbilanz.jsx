@@ -32,7 +32,7 @@ export default function Wochenbilanz() {
     },
   });
 
-  if (isLoading || !data) return <Skeleton className="h-28 w-full bg-[#f5f5f5]" />;
+  if (isLoading || !data) return <Skeleton className="h-28 w-full bg-muted" />;
 
   const werte = [
     { value: String(data.etappen), label: 'Etappen' },

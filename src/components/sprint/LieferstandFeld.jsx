@@ -42,7 +42,7 @@ export default function LieferstandFeld({ links = [], disabled, onChange }) {
             placeholder="Link zum Lieferstand"
             className="rounded"
           />
-          <Button variant="outline" className="rounded border-[1.5px] border-[#2d2d2d] text-[#2d2d2d]" onClick={add}>
+          <Button variant="outline" className="rounded border-[1.5px] border-foreground text-foreground" onClick={add}>
             <Plus className="w-4 h-4" />
           </Button>
         </div>

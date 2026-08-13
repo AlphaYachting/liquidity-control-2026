@@ -36,7 +36,7 @@ export default function ClientFormDialog({ open, onOpenChange, client, onSaved }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="uppercase font-bold text-[#2d2d2d]">
+          <DialogTitle className="uppercase font-bold text-foreground">
             {client ? 'Kunde bearbeiten' : 'Kunde anlegen'}
           </DialogTitle>
         </DialogHeader>
@@ -48,7 +48,7 @@ export default function ClientFormDialog({ open, onOpenChange, client, onSaved }
           <div><Label>AGB-Version</Label><Input value={form.agb_version} onChange={set('agb_version')} placeholder="z. B. AGB 2026-01" /></div>
           <div><Label>Notizen</Label><Textarea rows={2} value={form.notes} onChange={set('notes')} /></div>
           <Button
-            className="w-full bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded"
+            className="w-full bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
             disabled={saving || !form.name || !form.contact_email}
             onClick={handleSave}
           >

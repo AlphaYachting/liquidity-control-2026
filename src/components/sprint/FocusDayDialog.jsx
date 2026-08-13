@@ -77,7 +77,7 @@ export default function FocusDayDialog({ open, onOpenChange, personEmail, day, e
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle className="uppercase font-bold text-[#2d2d2d]">
+          <DialogTitle className="uppercase font-bold text-foreground">
             Tag zuweisen — {fmtDate(day)}
           </DialogTitle>
         </DialogHeader>
@@ -119,7 +119,7 @@ export default function FocusDayDialog({ open, onOpenChange, personEmail, day, e
               </Button>
             )}
             <Button
-              className="flex-1 bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded"
+              className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
               disabled={saving || !valid} onClick={handleSave}
             >
               Speichern

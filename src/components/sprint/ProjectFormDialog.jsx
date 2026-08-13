@@ -34,7 +34,7 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="uppercase font-bold text-[#2d2d2d]">
+          <DialogTitle className="uppercase font-bold text-foreground">
             {project ? 'Projekt bearbeiten' : 'Projekt anlegen'}
           </DialogTitle>
         </DialogHeader>
@@ -63,7 +63,7 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
           </div>
           <div><Label>Gesamtbudget netto (EUR)</Label><Input type="number" value={form.total_budget} onChange={(e) => setForm((f) => ({ ...f, total_budget: e.target.value }))} /></div>
           <Button
-            className="w-full bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded"
+            className="w-full bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
             disabled={saving || !form.client_id || !form.title || !form.pm_email}
             onClick={handleSave}
           >

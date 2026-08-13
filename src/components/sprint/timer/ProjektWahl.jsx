@@ -35,7 +35,7 @@ export default function ProjektWahl({ selected, onSelect }) {
             key={p.id}
             type="button"
             onClick={() => onSelect(p, kuerzelOf(p.clientName || p.title))}
-            className="w-full text-left px-2.5 py-2 rounded hover:bg-[#f5f5f5] flex items-center gap-2"
+            className="w-full text-left px-2.5 py-2 rounded hover:bg-muted flex items-center gap-2"
           >
             <span className="flex-1 min-w-0">
               <span className="block text-sm font-medium truncate" style={{ color: RITTLER.black }}>{p.title}</span>

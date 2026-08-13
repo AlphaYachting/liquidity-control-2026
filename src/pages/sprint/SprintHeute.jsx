@@ -61,9 +61,9 @@ export default function SprintHeute() {
   if (isLoading || !data) {
     return (
       <div className="max-w-[1200px] mx-auto space-y-4">
-        <Skeleton className="h-10 w-48 bg-[#f5f5f5]" />
-        <Skeleton className="h-48 w-full bg-[#f5f5f5]" />
-        <Skeleton className="h-32 w-full bg-[#f5f5f5]" />
+        <Skeleton className="h-10 w-48 bg-muted" />
+        <Skeleton className="h-48 w-full bg-muted" />
+        <Skeleton className="h-32 w-full bg-muted" />
       </div>
     );
   }
@@ -106,13 +106,13 @@ export default function SprintHeute() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
-      <h1 className="text-2xl font-extrabold uppercase tracking-tight text-[#2d2d2d]">Heute</h1>
+      <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Heute</h1>
 
       {focusDay?.type === 'focus' && focusProject ? (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <SectionLabel className="mb-2">Mein Focus-Tag</SectionLabel>
-          <h2 className="text-xl font-extrabold uppercase text-[#2d2d2d]">{focusProject.title}</h2>
-          {focusClient && <p className="text-sm text-[#6b6b6b] mt-0.5">{focusClient.name}</p>}
+          <h2 className="text-xl font-extrabold uppercase text-foreground">{focusProject.title}</h2>
+          {focusClient && <p className="text-sm text-muted-foreground mt-0.5">{focusClient.name}</p>}
           <Fortschrittszaehler
             className="mt-4 max-w-md"
             done={doneCount}
@@ -131,7 +131,7 @@ export default function SprintHeute() {
       ) : focusDay?.type === 'reaktion' ? (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <SectionLabel className="mb-2">Reaktionstag</SectionLabel>
-          <h2 className="text-xl font-extrabold uppercase text-[#2d2d2d]">Reaktionstag — kein Projektfokus</h2>
+          <h2 className="text-xl font-extrabold uppercase text-foreground">Reaktionstag — kein Projektfokus</h2>
           <Fortschrittszaehler
             className="mt-4 max-w-md"
             done={doneCount}
@@ -150,12 +150,12 @@ export default function SprintHeute() {
       ) : focusDay?.type === 'abwesend' ? (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <SectionLabel className="mb-2">Abwesend</SectionLabel>
-          <p className="text-sm text-[#2d2d2d]">Für heute bist du als abwesend eingetragen.</p>
+          <p className="text-sm text-foreground">Für heute bist du als abwesend eingetragen.</p>
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm p-10 text-center">
-          <p className="text-[#2d2d2d] font-medium">Für heute ist kein Focus-Tag geplant.</p>
-          <Button asChild className="mt-4 bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded">
+          <p className="text-foreground font-medium">Für heute ist kein Focus-Tag geplant.</p>
+          <Button asChild className="mt-4 bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded">
             <Link to="/sprint/planung">Tag zuweisen</Link>
           </Button>
         </div>

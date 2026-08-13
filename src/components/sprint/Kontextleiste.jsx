@@ -14,7 +14,7 @@ export default function Kontextleiste({ sprint, project, client, milestones, cur
     <div className="sticky top-0 z-30 bg-white border-b" style={{ borderColor: RITTLER.line }}>
       <div className="max-w-[1200px] mx-auto px-4 py-3">
         <div className="flex items-center gap-2 min-w-0">
-          <Link to={`/sprint/sprints/${sprint?.id}`} style={{ color: RITTLER.textSecondary }} className="hover:text-[#2d2d2d]">
+          <Link to={`/sprint/sprints/${sprint?.id}`} style={{ color: RITTLER.textSecondary }} className="hover:text-foreground">
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div className="min-w-0">

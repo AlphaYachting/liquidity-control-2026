@@ -82,17 +82,17 @@ export default function AddOnKatalog() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <SectionLabel>Zusatzbausteine</SectionLabel>
-          <h3 className="font-bold text-[#2d2d2d] uppercase">Add-on-Katalog</h3>
+          <h3 className="font-bold text-foreground uppercase">Add-on-Katalog</h3>
         </div>
         {isProcessOwner && (
-          <Button className="bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded" onClick={() => setOpen(true)}>
+          <Button className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded" onClick={() => setOpen(true)}>
             Baustein anlegen
           </Button>
         )}
       </div>
 
       {!isProcessOwner && (
-        <p className="text-xs text-[#6b6b6b] mb-3">
+        <p className="text-xs text-muted-foreground mb-3">
           Bausteine nimmt der Prozessverantwortliche in den Katalog auf.
         </p>
       )}
@@ -101,30 +101,30 @@ export default function AddOnKatalog() {
         {blocks.filter((b) => b.active !== false).map((b) => {
           const tickets = ticketTemplates.filter((t) => t.add_on_block_id === b.id);
           return (
-            <div key={b.id} className="bg-[#f5f5f5] rounded p-3">
-              <p className="font-semibold text-sm text-[#2d2d2d]">{b.name}</p>
-              {b.description && <p className="text-xs text-[#6b6b6b] mt-0.5">{b.description}</p>}
-              <p className="text-xs text-[#2d2d2d] mt-1.5">{b.target_hours} h · {fmtEUR(b.price)}</p>
+            <div key={b.id} className="bg-muted rounded p-3">
+              <p className="font-semibold text-sm text-foreground">{b.name}</p>
+              {b.description && <p className="text-xs text-muted-foreground mt-0.5">{b.description}</p>}
+              <p className="text-xs text-foreground mt-1.5">{b.target_hours} h · {fmtEUR(b.price)}</p>
               {tickets.length > 0 && (
                 <ul className="mt-1.5 space-y-0.5">
                   {tickets.map((t) => (
-                    <li key={t.id} className="text-[11px] text-[#6b6b6b]">
+                    <li key={t.id} className="text-[11px] text-muted-foreground">
                       {t.title} · {t.role} · {t.target_hours} h
                     </li>
                   ))}
                 </ul>
               )}
-              <p className="text-[11px] text-[#6b6b6b] mt-1">Aufgenommen von {b.approved_by}</p>
+              <p className="text-[11px] text-muted-foreground mt-1">Aufgenommen von {b.approved_by}</p>
             </div>
           );
         })}
-        {blocks.length === 0 && <p className="text-sm text-[#6b6b6b]">Noch keine Zusatzbausteine im Katalog.</p>}
+        {blocks.length === 0 && <p className="text-sm text-muted-foreground">Noch keine Zusatzbausteine im Katalog.</p>}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="uppercase font-bold text-[#2d2d2d]">Zusatzbaustein anlegen</DialogTitle>
+            <DialogTitle className="uppercase font-bold text-foreground">Zusatzbaustein anlegen</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div><Label>Name *</Label><Input value={form.name} onChange={set('name')} placeholder="z. B. Fotoshooting" /></div>
@@ -139,13 +139,13 @@ export default function AddOnKatalog() {
                 rows={3} value={form.tickets} onChange={set('tickets')}
                 placeholder={'Titel | Rolle | Stunden | Phase\nShooting durchführen | Media | 4 | produktion'}
               />
-              <p className="text-[11px] text-[#6b6b6b] mt-1">
+              <p className="text-[11px] text-muted-foreground mt-1">
                 Rollen: {ROLES.join(', ')} · Phasen: {PHASES.join(', ')}
               </p>
             </div>
-            <p className="text-xs text-[#6b6b6b]">Aufgenommen von {member?.name || '—'}</p>
+            <p className="text-xs text-muted-foreground">Aufgenommen von {member?.name || '—'}</p>
             <Button
-              className="w-full bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded"
+              className="w-full bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
               disabled={saving || !valid} onClick={handleSave}
             >
               {saving ? 'Speichert…' : 'In Katalog aufnehmen'}

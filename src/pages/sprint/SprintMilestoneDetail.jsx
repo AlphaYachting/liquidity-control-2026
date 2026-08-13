@@ -54,8 +54,8 @@ export default function SprintMilestoneDetail() {
   if (isLoading || !data) {
     return (
       <div className="max-w-[1200px] mx-auto space-y-4">
-        <Skeleton className="h-24 w-full bg-[#f5f5f5]" />
-        <Skeleton className="h-64 w-full bg-[#f5f5f5]" />
+        <Skeleton className="h-24 w-full bg-muted" />
+        <Skeleton className="h-64 w-full bg-muted" />
       </div>
     );
   }
@@ -160,7 +160,7 @@ export default function SprintMilestoneDetail() {
       />
 
       <div className="flex-1 max-w-[1200px] w-full mx-auto px-4 py-5 space-y-4">
-        <div className="bg-white rounded-lg border border-[#e0e0e0] p-5">
+        <div className="bg-white rounded-lg border border-border p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
               <SectionLabel className="mb-1">
@@ -227,7 +227,7 @@ export default function SprintMilestoneDetail() {
           )}
         </div>
 
-        <div className="bg-white rounded-lg border border-[#e0e0e0] p-5">
+        <div className="bg-white rounded-lg border border-border p-5">
           <SectionLabel className="mb-3">Aufgaben</SectionLabel>
           <Fortschrittszaehler
             className="mb-3"

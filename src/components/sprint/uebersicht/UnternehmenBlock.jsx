@@ -9,7 +9,7 @@ export default function UnternehmenBlock({ auslastung4, auslastung8, liquiditaet
   return (
     <div>
       <p className="text-[11px] font-bold uppercase tracking-[2px] mb-2" style={{ color: RITTLER.pink700 }}>Unternehmen</p>
-      <div className="bg-white rounded-lg border border-[#e0e0e0] flex flex-wrap divide-x" style={{ borderColor: RITTLER.line }}>
+      <div className="bg-white rounded-lg border border-border flex flex-wrap divide-x" style={{ borderColor: RITTLER.line }}>
         <KennzahlFeld
           label="Auslastung"
           value={`4 Wochen ${auslastung4.pct} %${ueberbucht ? ' überbucht' : ''}`}

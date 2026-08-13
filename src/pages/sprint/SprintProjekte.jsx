@@ -34,8 +34,8 @@ export default function SprintProjekte() {
   if (isLoading || !data) {
     return (
       <div className="max-w-[1200px] mx-auto space-y-4">
-        <Skeleton className="h-10 w-48 bg-[#f5f5f5]" />
-        <Skeleton className="h-64 w-full bg-[#f5f5f5]" />
+        <Skeleton className="h-10 w-48 bg-muted" />
+        <Skeleton className="h-64 w-full bg-muted" />
       </div>
     );
   }
@@ -57,7 +57,7 @@ export default function SprintProjekte() {
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-2xl font-extrabold uppercase tracking-tight text-[#2d2d2d]">Projekte</h1>
+        <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Projekte</h1>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="rounded" asChild>
             <Link to="/sprint/katalog"><LayoutTemplate className="w-4 h-4 mr-1.5" /> Modul-Katalog</Link>
@@ -68,7 +68,7 @@ export default function SprintProjekte() {
           <Button variant="outline" className="rounded" onClick={() => setProjectDialog({ open: true, project: null })}>
             <Plus className="w-4 h-4 mr-1" /> Projekt
           </Button>
-          <Button className="bg-[#ff3764] hover:bg-[#e62e58] text-white font-bold uppercase rounded" asChild>
+          <Button className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded" asChild>
             <Link to="/sprint/neu">Sprint anlegen</Link>
           </Button>
         </div>
@@ -90,19 +90,19 @@ export default function SprintProjekte() {
                 <div className="flex items-center gap-3">
                   <Ampelpunkt status={ampel.status} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-base font-bold uppercase text-[#2d2d2d] truncate">
+                    <p className="text-base font-bold uppercase text-foreground truncate">
                       {clientById[p.client_id]?.name || 'Kunde'}
                     </p>
-                    <p className="text-[13px] text-[#6b6b6b] truncate">
+                    <p className="text-[13px] text-muted-foreground truncate">
                       {p.title}{active ? ` · ${active.title || `Sprint ${active.size}`} · ${active.size}` : ''} · PM: {p.pm_email} · {ampel.hint}
                     </p>
                   </div>
                   {active ? (
-                    <Link to={`/sprint/sprints/${active.id}`} className="text-sm font-semibold text-[#d12d52] hover:underline">
+                    <Link to={`/sprint/sprints/${active.id}`} className="text-sm font-semibold text-primary/90 hover:underline">
                       Sprint {active.size} · bis {fmtDate(active.delivery_date)}
                     </Link>
                   ) : (
-                    <span className="text-xs text-[#6b6b6b]">Kein laufender Sprint</span>
+                    <span className="text-xs text-muted-foreground">Kein laufender Sprint</span>
                   )}
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setProjectDialog({ open: true, project: p })}>
                     <Pencil className="w-3.5 h-3.5" />
@@ -111,7 +111,7 @@ export default function SprintProjekte() {
                 {projectSprints.length > 1 && (
                   <div className="flex flex-wrap gap-2 mt-2 pl-5">
                     {projectSprints.map((s) => (
-                      <Link key={s.id} to={`/sprint/sprints/${s.id}`} className="text-[11px] px-2 py-0.5 rounded bg-[#f5f5f5] text-[#2d2d2d] hover:bg-[#e0e0e0]">
+                      <Link key={s.id} to={`/sprint/sprints/${s.id}`} className="text-[11px] px-2 py-0.5 rounded bg-muted text-foreground hover:bg-border">
                         {s.title || `Sprint ${s.size}`} · {s.status}
                       </Link>
                     ))}
@@ -121,7 +121,7 @@ export default function SprintProjekte() {
             );
           })}
           {projects.length === 0 && (
-            <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-[#6b6b6b]">
+            <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-muted-foreground">
               Noch kein Projekt — oben rechts anlegen.
             </div>
           )}
@@ -131,8 +131,8 @@ export default function SprintProjekte() {
           {clients.map((c) => (
             <div key={c.id} className="bg-white rounded-lg shadow-sm p-4 flex items-center gap-3">
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-[#2d2d2d]">{c.name}</p>
-                <p className="text-xs text-[#6b6b6b]">
+                <p className="font-bold text-foreground">{c.name}</p>
+                <p className="text-xs text-muted-foreground">
                   {c.contact_person ? `${c.contact_person} · ` : ''}{c.contact_email}
                   {c.agb_version ? ` · ${c.agb_version}` : ''}
                 </p>
@@ -143,7 +143,7 @@ export default function SprintProjekte() {
             </div>
           ))}
           {clients.length === 0 && (
-            <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-[#6b6b6b]">
+            <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-muted-foreground">
               Noch kein Kunde — oben rechts anlegen.
             </div>
           )}

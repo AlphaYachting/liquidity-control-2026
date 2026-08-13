@@ -52,10 +52,10 @@ export default function StepModule({ modules, addOns, selected, setSelected, dis
         <SectionLabel className="mb-2">Milestones ({selected.length})</SectionLabel>
         <div className="space-y-3">
           {selected.map((m, idx) => (
-            <div key={m.key} className="bg-[#f5f5f5] rounded p-4">
+            <div key={m.key} className="bg-muted rounded p-4">
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-[#ff3764]">{idx + 1}</span>
-                <span className="flex-1 font-semibold text-sm text-[#2d2d2d]">{m.name}</span>
+                <span className="text-xs font-bold text-primary">{idx + 1}</span>
+                <span className="flex-1 font-semibold text-sm text-foreground">{m.name}</span>
                 <div className="text-right">
                   <Input
                     type="number" placeholder="Etappenbetrag €" className="w-40 bg-white"
@@ -65,7 +65,7 @@ export default function StepModule({ modules, addOns, selected, setSelected, dis
                     <p className="text-[11px] text-[#999999] mt-1">mit Bausteinen {fmtEUR(milestoneAmount(m, addOns))}</p>
                   )}
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-[#999999] hover:text-[#ff3764]" onClick={() => removeAt(idx)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-[#999999] hover:text-primary" onClick={() => removeAt(idx)}>
                   <X className="w-4 h-4" />
                 </Button>
               </div>
@@ -77,7 +77,7 @@ export default function StepModule({ modules, addOns, selected, setSelected, dis
                       <button
                         key={a.id} type="button" onClick={() => toggleAddon(idx, a.id)}
                         className={`text-[11px] px-2 py-1 rounded border transition-colors ${
-                          active ? 'bg-[#ff3764] text-white border-[#ff3764]' : 'bg-white text-[#2d2d2d] border-gray-200'
+                          active ? 'bg-primary text-white border-primary' : 'bg-white text-foreground border-gray-200'
                         }`}
                       >
                         {a.name} · {fmtEUR(a.price)}
@@ -92,7 +92,7 @@ export default function StepModule({ modules, addOns, selected, setSelected, dis
         </div>
       </div>
 
-      <div className="rounded p-3 text-sm font-semibold bg-[#f5f5f5] text-[#2d2d2d]">
+      <div className="rounded p-3 text-sm font-semibold bg-muted text-foreground">
         Etappensumme {fmtEUR(sum)}
         {Number(discount) > 0 && <span className="text-[#999999] font-normal"> − Nachlass {fmtEUR(Number(discount))}</span>}
         <span className="text-[#999999] font-normal"> = Sprintbetrag </span>
