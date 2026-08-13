@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarRange, TrendingUp, Receipt,
-  ClipboardList, Clock, Scale, SlidersHorizontal, ListTree,
+  ClipboardList, Clock, Scale, SlidersHorizontal, ListTree, ShieldCheck,
 } from 'lucide-react';
 
 const items = [
@@ -13,7 +13,8 @@ const items = [
   { path: '/restructuring/aging', label: 'Forderungsspiegel', icon: Receipt },
   { path: '/restructuring/backlog', label: 'Auftragsbestand', icon: ClipboardList },
   { path: '/restructuring/wip', label: 'WIP / Unfertige Leistungen', icon: Clock },
-  { path: '/restructuring/coverage', label: 'Deckungsgrundlage', icon: Scale },
+  { path: '/restructuring/fortfuehrung', label: 'Fortführungsnachweis', icon: ShieldCheck },
+  { path: '/restructuring/coverage', label: 'Deckungsrechnung (betriebswirtschaftlich)', icon: Scale },
   { path: '/restructuring/setup', label: 'Eingaben & Annahmen', icon: SlidersHorizontal },
 ];
 

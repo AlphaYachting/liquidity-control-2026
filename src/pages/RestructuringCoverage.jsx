@@ -57,7 +57,7 @@ export default function RestructuringCoverage() {
       </div>
 
       <ReportCard
-        title="Deckungsgrundlage — operativer Überschuss"
+        title="Deckungsrechnung (betriebswirtschaftlich) — operativer Überschuss"
         sourceNote={SOURCE}
         onExportPDF={() => exportPDF('Deckungsgrundlage', exportCols, exportRows, {
           sourceNote: SOURCE, numericCols: [1, 2, 3, 4],
@@ -71,8 +71,8 @@ export default function RestructuringCoverage() {
         onExportExcel={() => exportExcel('Deckungsgrundlage', exportCols, exportRows, SOURCE)}
       >
         <p className="text-[11px] text-muted-foreground mb-3">
-          Prognostizierter operativer Überschuss (Forecast-Umsatz − geplante Kosten), monatlich und kumuliert.
-          Keine automatische Quotenberechnung.
+          Prognostizierter operativer Überschuss (Forecast-Umsatz − geplante Kosten), monatlich und kumuliert, ohne Alt/Neu-Trennung.
+          Keine automatische Quotenberechnung. Der insolvenzrechtliche Nachweis der Selbsttragfähigkeit steht unter „Fortführungsnachweis".
         </p>
         <ReportTable
           columns={columns}
