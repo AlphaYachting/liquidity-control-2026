@@ -1,0 +1,166 @@
+{
+  "name": "CashflowPlanItem",
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "description": "Zugeh\u00f6riger CashflowPlan"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "inflow",
+        "outflow"
+      ],
+      "description": "Ein- oder Auszahlung"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "alt_debitoren",
+        "alt_schlussrechnung",
+        "uebergangs_fakturierung",
+        "projekt_neuleistung",
+        "wartungsvertrag",
+        "online_marketing",
+        "regie_support",
+        "sonstige_einzahlung",
+        "nettoloehne",
+        "lohnabgaben",
+        "miete_leasing",
+        "hosting_saas",
+        "sachkosten",
+        "freelancer",
+        "umsatzsteuer",
+        "verwalterentlohnung",
+        "verfahrenskosten",
+        "gf_bezug",
+        "sonstige_auszahlung"
+      ],
+      "description": "Kategorie der Planposition"
+    },
+    "label": {
+      "type": "string",
+      "description": "Klartextbezeichnung der Zeile"
+    },
+    "customer_or_supplier": {
+      "type": "string"
+    },
+    "claim_type": {
+      "type": "string",
+      "enum": [
+        "alt",
+        "neu",
+        "gemischt"
+      ],
+      "description": "Abgrenzung zum Stichtag \u2014 Pflichtfeld"
+    },
+    "service_period_start": {
+      "type": "string",
+      "format": "date",
+      "description": "Beginn des Leistungszeitraums"
+    },
+    "service_period_end": {
+      "type": "string",
+      "format": "date",
+      "description": "Ende des Leistungszeitraums"
+    },
+    "progress_at_cutoff": {
+      "type": "number",
+      "description": "Leistungsfortschritt in Prozent am Tag vor dem Stichtag \u2014 Grundlage der Alt/Neu-Aufteilung"
+    },
+    "amount_gross": {
+      "type": "number",
+      "default": 0,
+      "description": "Gesamtbetrag brutto"
+    },
+    "amount_alt_gross": {
+      "type": "number",
+      "default": 0,
+      "description": "Altanteil brutto"
+    },
+    "amount_neu_gross": {
+      "type": "number",
+      "default": 0,
+      "description": "Neuanteil brutto"
+    },
+    "vat_rate": {
+      "type": "number",
+      "description": "Umsatzsteuersatz der Position in Prozent (Vorgabe aus RestructuringSetting)"
+    },
+    "invoice_date": {
+      "type": "string",
+      "format": "date",
+      "description": "geplantes oder tats\u00e4chliches Rechnungsdatum"
+    },
+    "payment_pattern_id": {
+      "type": "string",
+      "description": "Verweis auf PaymentPattern"
+    },
+    "fixed_week_index": {
+      "type": "number",
+      "description": "Alternative zur Staffel: feste Planwoche (1..13)"
+    },
+    "is_masseverbindlichkeit": {
+      "type": "boolean",
+      "default": true,
+      "description": "Nur bei direction = outflow relevant"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "invoice",
+        "billing_instruction",
+        "order",
+        "contract",
+        "regie",
+        "massekosten",
+        "manual"
+      ],
+      "default": "manual"
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "scenario_only": {
+      "type": "boolean",
+      "default": false
+    },
+    "derivation": {
+      "type": "string",
+      "description": "Herleitung des Betrags im Klartext \u2014 Pflicht bei manuellen Positionen"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "plan_id",
+    "direction",
+    "category",
+    "label",
+    "claim_type"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

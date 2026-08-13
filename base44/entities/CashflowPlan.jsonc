@@ -1,0 +1,60 @@
+{
+  "name": "CashflowPlan",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Bezeichnung der Planversion, z. B. 'Geldflussrechnung 13 Wochen, Stand 29.07.2026'"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "archived"
+      ],
+      "default": "draft",
+      "description": "Es darf immer nur EIN Plan mit status = active existieren"
+    },
+    "plan_start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Beginn der Woche 1 des Plans"
+    },
+    "cutoff_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Stichtag der Verfahrenser\u00f6ffnung \u2014 Grundlage des Alt/Neu-Splits"
+    },
+    "weeks": {
+      "type": "number",
+      "default": 13
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -56,6 +56,7 @@ import AuditTrail from '@/pages/AuditTrail';
 import RestructuringLayout from '@/components/restructuring/RestructuringLayout';
 import RestructuringCockpit from '@/pages/RestructuringCockpit';
 import Restructuring13Week from '@/pages/Restructuring13Week';
+import RestructuringPlan from '@/pages/RestructuringPlan';
 import RestructuringForecast from '@/pages/RestructuringForecast';
 import RestructuringAging from '@/pages/RestructuringAging';
 import RestructuringBacklog from '@/pages/RestructuringBacklog';
@@ -168,6 +169,7 @@ const AuthenticatedApp = () => {
         <Route path="/restructuring" element={<AdminRoute><RestructuringLayout /></AdminRoute>}>
           <Route index element={<RestructuringCockpit />} />
           <Route path="liquidity" element={<Restructuring13Week />} />
+          <Route path="plan" element={<RestructuringPlan />} />
           <Route path="forecast" element={<RestructuringForecast />} />
           <Route path="aging" element={<RestructuringAging />} />
           <Route path="backlog" element={<RestructuringBacklog />} />
