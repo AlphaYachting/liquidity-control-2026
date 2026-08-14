@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import Sektion from '@/components/projects/Sektion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, FileText, Upload, AlertTriangle, ExternalLink, Unlink } from 'lucide-react';
+import { Plus, FileText, Upload, AlertTriangle, ExternalLink, Unlink, Receipt } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import StatusBadge from '@/components/shared/StatusBadge';
 import PaymentSourceBadge from '@/components/shared/PaymentSourceBadge';
@@ -82,23 +82,22 @@ export default function ProjectInvoiceSection({
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Rechnungen & Zahlungsstatus ({projectInvoices.length})</CardTitle>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
-              onClick={() => { setShowForm('scan'); setEditingInvoice(null); }}>
-              <Upload className="w-3 h-3" /> Scannen
-            </Button>
-            <Button size="sm" className="h-7 text-xs gap-1"
-              onClick={() => handleNewInvoice()}>
-              <Plus className="w-3 h-3" /> Rechnung erfassen
-            </Button>
-          </div>
+    <Sektion
+      titel={`Rechnungen & Zahlungsstatus (${projectInvoices.length})`}
+      symbol={Receipt}
+      aktion={
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+            onClick={() => { setShowForm('scan'); setEditingInvoice(null); }}>
+            <Upload className="w-3 h-3" /> Scannen
+          </Button>
+          <Button size="sm" className="h-7 text-xs gap-1"
+            onClick={() => handleNewInvoice()}>
+            <Plus className="w-3 h-3" /> Rechnung erfassen
+          </Button>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      }
+    >
         <PaymentFreshnessWarning invoiceRecords={projectInvoices} />
 
         {/* Manual form */}
@@ -278,7 +277,6 @@ export default function ProjectInvoiceSection({
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </Sektion>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import Sektion from '@/components/projects/Sektion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -235,14 +235,7 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <CalendarDays className="w-4 h-4 text-primary" />
-          Verrechnungsplanung — 4 Monate
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <Sektion titel="Verrechnungsplanung — 4 Monate" symbol={CalendarDays}>
         {months.map((month, idx) => {
           const planningType = idx === 0 ? 'current_month' : idx === 1 ? 'next_month' : 'future_month';
           const monthPlans = plans.filter(p => p.planning_month === month);
@@ -514,7 +507,6 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+    </Sektion>
   );
 }

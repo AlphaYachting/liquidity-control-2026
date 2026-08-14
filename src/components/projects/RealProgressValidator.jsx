@@ -40,7 +40,7 @@ export default function RealProgressValidator({
   };
 
   return (
-    <div className="space-y-2 p-3 bg-muted/30 rounded-xl border">
+    <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-medium text-muted-foreground">awork-Fortschritt:</span>

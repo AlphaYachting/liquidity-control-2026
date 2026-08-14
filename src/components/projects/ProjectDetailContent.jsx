@@ -4,7 +4,8 @@ import { base44 } from '@/api/base44Client';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, FolderKanban, Plus, Pencil, Check, X, AlertTriangle,
-  Link2, Unlink, RefreshCw, ClipboardList, ExternalLink, Info, Trash2, BrainCircuit
+  Link2, Unlink, RefreshCw, ClipboardList, ExternalLink, Info, Trash2, BrainCircuit,
+  CheckCircle2, Package
 } from 'lucide-react';
 import KpiCard from '@/components/shared/KpiCard';
 import { Button } from '@/components/ui/button';
@@ -39,9 +40,11 @@ import ProjectProgressBlock from '@/components/projects/ProjectProgressBlock';
 import ProjektAufgabenListe from '@/components/projects/ProjektAufgabenListe';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
+import Sektion from '@/components/projects/Sektion';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const TAB_STORAGE_KEY = 'projectDetail.activeTab';
+const TAB_CLS = 'rounded-none border-b-2 border-transparent px-3 pb-2 pt-1 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none';
 
 /**
  * ProjectDetailContent — reusable project cockpit content, usable both as a page
@@ -56,7 +59,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem(TAB_STORAGE_KEY) || 'akt');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem(TAB_STORAGE_KEY) || 'stand');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showIntelligence, setShowIntelligence] = useState(false);
   const [editingPM, setEditingPM] = useState(false);
@@ -297,6 +300,8 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
 
   return (
     <div className="space-y-6">
+      {/* Ebene 1: Kontextzone — gemeinsame graue Fläche, keine Karten darin */}
+      <div className="bg-muted/50 rounded-xl p-4 space-y-3">
       <ProjectCockpitHeader
         project={project}
         embedded={embedded}
@@ -312,12 +317,13 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
       />
 
       {!project.awork_project_id && primaryOrder?.awork_project_id && (
-        <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg">
+        <div className="border-t border-border/60 pt-3 flex items-center gap-2 text-xs text-muted-foreground">
           <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
           awork-Projekt von verknüpfter Auftragsbestätigung übernommen.
         </div>
       )}
 
+      <div className="border-t border-border/60 pt-3">
       {(() => {
         const totalOrderNet = fin?.commercialBaseNet || 0;
         const totalOrderGross = totalOrderNet * 1.2;
@@ -332,8 +338,10 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
           />
         );
       })()}
+      </div>
 
       {/* Gemeinsame Kontextzeile beider Reiter — awork-Bezug + Fakten */}
+      <div className="border-t border-border/60 pt-3">
       <AworkStatusBar
         data={aworkData}
         projectId={projectId}
@@ -341,20 +349,23 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         onSync={handleAworkSync}
         isSyncing={isSyncing}
       />
+      </div>
+      </div>
 
       <Tabs
         value={activeTab}
         onValueChange={(v) => { setActiveTab(v); sessionStorage.setItem(TAB_STORAGE_KEY, v); }}
       >
-        <div className="flex items-center justify-between gap-2">
-        <TabsList>
-          <TabsTrigger value="akt">Kundenakt</TabsTrigger>
-          <TabsTrigger value="stand">Projektverlauf</TabsTrigger>
-          <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
+        {/* Ebene 2: Trennkante — Reiter auf durchgehender Linie */}
+        <div className="flex items-center justify-between gap-2 border-b border-border">
+        <TabsList className="bg-transparent p-0 h-auto rounded-none -mb-px">
+          <TabsTrigger value="akt" className={TAB_CLS}>Kundenakt</TabsTrigger>
+          <TabsTrigger value="stand" className={TAB_CLS}>Projektverlauf</TabsTrigger>
+          <TabsTrigger value="abrechnung" className={TAB_CLS}>Abrechnung</TabsTrigger>
         </TabsList>
-          <Button size="sm" variant="outline" className="gap-2 shrink-0"
+          <Button size="sm" variant="ghost" className="gap-2 shrink-0 text-primary hover:text-primary"
             onClick={() => setShowIntelligence(true)}>
-            <BrainCircuit className="w-3.5 h-3.5 text-primary" /> Projektintelligenz fragen
+            <BrainCircuit className="w-3.5 h-3.5" /> Projektintelligenz fragen
           </Button>
         </div>
 
@@ -377,10 +388,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
 
       <ProjektKommunikationBlock customer={project.customer} />
 
-      <div className="space-y-1">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-0.5">
-          awork-Fortschritt entspricht Realität?
-        </p>
+      <Sektion titel="Fortschritt prüfen" symbol={CheckCircle2}>
         <RealProgressValidator
           aworkProgressPct={aworkTaskStats?.progress_percent ?? project.awork_progress_percent ?? 0}
           realProgressChecked={project.real_progress_checked || false}
@@ -389,21 +397,18 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
           isSaving={updateProjectMutation.isPending}
           onSave={(data) => updateProjectMutation.mutate(data)}
         />
-      </div>
+      </Sektion>
         </TabsContent>
 
         <TabsContent value="abrechnung" className="space-y-6 mt-4">
       {/* Anmerkungen nächste Rechnung */}
-      <div className="bg-card border rounded-xl p-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Anmerkungen für nächste Rechnung</h3>
-          {!editingNextInvoiceNote && (
-            <button onClick={() => { setNextInvoiceNote(project.notes_next_invoice || ''); setEditingNextInvoiceNote(true); }}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-              <Pencil className="w-3 h-3" /> Bearbeiten
-            </button>
-          )}
-        </div>
+      <Sektion titel="Anmerkungen für nächste Rechnung" symbol={Pencil}
+        aktion={!editingNextInvoiceNote && (
+          <button onClick={() => { setNextInvoiceNote(project.notes_next_invoice || ''); setEditingNextInvoiceNote(true); }}
+            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <Pencil className="w-3 h-3" /> Bearbeiten
+          </button>
+        )}>
         {editingNextInvoiceNote ? (
           <div className="space-y-2">
             <textarea
@@ -429,7 +434,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
             {project.notes_next_invoice || 'Noch keine Anmerkungen eingegeben.'}
           </p>
         )}
-      </div>
+      </Sektion>
 
       <NextMonthsBillingPreview project={project} fin={fin} linkedOrders={linkedOrders} />
 
@@ -461,11 +466,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Auftragspakete — Operative Umsetzung ({projectBlocks.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Sektion titel={`Auftragspakete — Operative Umsetzung (${projectBlocks.length})`} symbol={Package}>
               {projectBlocks.length === 0 ? (
                 (() => {
                   const promotableItems = allOrderItems.filter(i =>
@@ -599,8 +600,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
                   })}
                 </div>
               )}
-            </CardContent>
-          </Card>
+          </Sektion>
 
           <OrderItemsView linkedOrders={linkedOrders} />
         </div>

@@ -3,7 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus } from 'lucide-react';
+import { Plus, FolderOpen } from 'lucide-react';
+import Sektion from '@/components/projects/Sektion';
 import KundenaktTimeline from '@/components/projects/kundenakt/KundenaktTimeline';
 import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntryDialog';
 
@@ -21,18 +22,18 @@ export default function KundenaktTab({ projectId, projectName, customer }) {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['projectFileEntries', projectId] });
 
   return (
-    <div className="bg-card border rounded-xl p-4 space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="space-y-0.5">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Kundenakt</p>
-          <p className="text-sm text-muted-foreground">
-            Vereinbarungen, Updates und Dokumente zum Projekt — Schritt für Schritt nach unten.
-          </p>
-        </div>
+    <Sektion
+      titel="Kundenakt"
+      symbol={FolderOpen}
+      aktion={
         <Button size="sm" onClick={() => setShowDialog(true)} className="gap-2 shrink-0">
           <Plus className="w-3.5 h-3.5" /> Eintrag erfassen
         </Button>
-      </div>
+      }
+    >
+      <p className="text-sm text-muted-foreground">
+        Vereinbarungen, Updates und Dokumente zum Projekt — Schritt für Schritt nach unten.
+      </p>
 
       {isLoading ? (
         <div className="space-y-3">{Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
@@ -48,6 +49,6 @@ export default function KundenaktTab({ projectId, projectName, customer }) {
         customer={customer}
         onSaved={refresh}
       />
-    </div>
+    </Sektion>
   );
 }

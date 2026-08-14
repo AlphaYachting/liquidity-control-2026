@@ -1,10 +1,10 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import Sektion from '@/components/projects/Sektion';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, ListOrdered } from 'lucide-react';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -52,11 +52,7 @@ export default function OrderItemsView({ linkedOrders }) {
   if (grouped.length === 0) return null;
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Leistungspositionen aus Auftragsbestätigung</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Sektion titel="Leistungspositionen aus Auftragsbestätigung" symbol={ListOrdered}>
         {grouped.map(({ order, items }) => (
           <div key={order.id}>
             {linkedOrders.length > 1 && (
@@ -108,7 +104,6 @@ export default function OrderItemsView({ linkedOrders }) {
             </div>
           </div>
         ))}
-      </CardContent>
-    </Card>
+    </Sektion>
   );
 }

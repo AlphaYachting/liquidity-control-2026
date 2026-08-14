@@ -3,6 +3,8 @@ import { useMemo } from 'react';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { History } from 'lucide-react';
+import Sektion from '@/components/projects/Sektion';
 
 const INVOICE_TYPE_SHORT = {
   advance_invoice: 'AZ',
@@ -39,13 +41,15 @@ export default function BillingHistoryTimeline({ projectInvoices = [], commercia
   const visible = monthlyData.slice(-6);
 
   return (
-    <div className="bg-card border rounded-xl p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Verrechnungshistorie</h3>
+    <Sektion
+      titel="Verrechnungshistorie"
+      symbol={History}
+      aktion={
         <span className="text-xs text-muted-foreground">
           {monthlyData.length} Monat(e) · {formatCurrency(totalInvoiced)} netto gesamt
         </span>
-      </div>
+      }
+    >
 
       {/* Timeline cards */}
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -102,6 +106,6 @@ export default function BillingHistoryTimeline({ projectInvoices = [], commercia
         }
         return null;
       })()}
-    </div>
+    </Sektion>
   );
 }

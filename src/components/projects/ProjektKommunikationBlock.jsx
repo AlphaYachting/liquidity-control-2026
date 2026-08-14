@@ -1,6 +1,8 @@
 import React from 'react';
 import { useCustomerEmailThreads, deriveCommunicationStatus } from '@/hooks/useCustomerEmailThreads';
 import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
+import Sektion from '@/components/projects/Sektion';
+import { Mail } from 'lucide-react';
 
 // Kommunikation im Reiter "Projektstand" — einziger Kommunikationsblock der Seite.
 // Reine Leseansicht, Bewertung kommt aus deriveCommunicationStatus.
@@ -24,12 +26,9 @@ export default function ProjektKommunikationBlock({ customer }) {
       : 'text-muted-foreground';
 
   return (
-    <div className="space-y-2">
-      <div className="px-0.5 space-y-0.5">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Kommunikation</p>
-        {zeile && <p className={`text-sm ${zeileClass}`}>{zeile}</p>}
-      </div>
+    <Sektion titel="Kommunikation" symbol={Mail}>
+      {zeile && <p className={`text-sm ${zeileClass}`}>{zeile}</p>}
       <CustomerEmailSection customer={customer} />
-    </div>
+    </Sektion>
   );
 }

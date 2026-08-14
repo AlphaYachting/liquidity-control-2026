@@ -8,7 +8,7 @@ const std = (min) => Math.round((min || 0) / 60);
 
 function Balken({ label, value, subtitle, colorClass, muted }) {
   return (
-    <div className="bg-card border rounded-xl p-3 space-y-2">
+    <div className="bg-card rounded-xl p-3 space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">{label}</p>
         <span className={`text-sm font-bold ${muted ? 'text-muted-foreground' : colorClass.text}`}>

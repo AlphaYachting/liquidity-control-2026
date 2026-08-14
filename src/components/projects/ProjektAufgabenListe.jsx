@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Link2, RefreshCw, Loader2, ExternalLink } from 'lucide-react';
+import { Link2, RefreshCw, Loader2, ExternalLink, ListChecks } from 'lucide-react';
+import Sektion from '@/components/projects/Sektion';
 import Ampelpunkt from '@/components/sprint/Ampelpunkt';
 import useProjektAufgaben from '@/hooks/useProjektAufgaben';
 
@@ -75,12 +76,17 @@ export default function ProjektAufgabenListe({
 
   if (quelle === 'intern' || !aworkProjectId) {
     return (
-      <div className="bg-card border rounded-xl p-4 flex items-center justify-between gap-3">
+      <Sektion
+        titel="Aufgaben"
+        symbol={ListChecks}
+        aktion={
+          <Button size="sm" variant="outline" onClick={onSelectProject} className="h-7 text-xs">
+            <Link2 className="w-3 h-3 mr-1" /> awork-Projekt verknüpfen
+          </Button>
+        }
+      >
         <p className="text-sm text-muted-foreground">Kein awork-Projekt verknüpft</p>
-        <Button size="sm" variant="outline" onClick={onSelectProject} className="h-7 text-xs">
-          <Link2 className="w-3 h-3 mr-1" /> awork-Projekt verknüpfen
-        </Button>
-      </div>
+      </Sektion>
     );
   }
 
@@ -105,9 +111,10 @@ export default function ProjektAufgabenListe({
     : null;
 
   return (
-    <div className="bg-card border rounded-xl p-4 space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Aufgaben</h3>
+    <Sektion
+      titel="Aufgaben"
+      symbol={ListChecks}
+      aktion={
         <a
           href={`https://app.awork.com/projects/${aworkProjectId}`}
           target="_blank" rel="noopener noreferrer"
@@ -115,7 +122,8 @@ export default function ProjektAufgabenListe({
         >
           <ExternalLink className="w-3 h-3" /> in awork
         </a>
-      </div>
+      }
+    >
 
       {kennzahlen.daten_veraltet && (
         <div className="flex items-center justify-between gap-2">
@@ -178,6 +186,6 @@ export default function ProjektAufgabenListe({
           )}
         </div>
       )}
-    </div>
+    </Sektion>
   );
 }
