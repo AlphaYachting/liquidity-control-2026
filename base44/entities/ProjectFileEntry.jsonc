@@ -1,0 +1,52 @@
+{
+  "name": "ProjectFileEntry",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Zugeh\u00f6riges LiquidityProject"
+    },
+    "entry_type": {
+      "type": "string",
+      "enum": [
+        "vereinbarung",
+        "update",
+        "dokument"
+      ],
+      "default": "update",
+      "description": "Art des Eintrags im Kundenakt"
+    },
+    "title": {
+      "type": "string",
+      "description": "Kurztitel des Eintrags"
+    },
+    "content": {
+      "type": "string",
+      "description": "Inhalt im Klartext (getippt oder eingesprochen)"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "Optional angeh\u00e4ngtes Dokument"
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "entry_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt der Vereinbarung / des Updates"
+    },
+    "recorded_by": {
+      "type": "string",
+      "description": "Wer den Eintrag erfasst hat"
+    },
+    "ai_summary": {
+      "type": "string",
+      "description": "Kernaussage aus der Projektintelligenz"
+    }
+  },
+  "required": [
+    "project_id",
+    "entry_type"
+  ]
+}

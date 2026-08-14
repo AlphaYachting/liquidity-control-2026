@@ -39,6 +39,7 @@ import ProjectProgressBlock from '@/components/projects/ProjectProgressBlock';
 import ProjektAufgabenListe from '@/components/projects/ProjektAufgabenListe';
 import LeistungsstandZeile from '@/components/projects/LeistungsstandZeile';
 import ProjektFaktenzeile from '@/components/projects/ProjektFaktenzeile';
+import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const TAB_STORAGE_KEY = 'projectDetail.activeTab';
@@ -56,7 +57,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem(TAB_STORAGE_KEY) || 'stand');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem(TAB_STORAGE_KEY) || 'akt');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingPM, setEditingPM] = useState(false);
   const [pmValue, setPmValue] = useState('');
@@ -349,9 +350,18 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         onValueChange={(v) => { setActiveTab(v); sessionStorage.setItem(TAB_STORAGE_KEY, v); }}
       >
         <TabsList>
+          <TabsTrigger value="akt">Kundenakt</TabsTrigger>
           <TabsTrigger value="stand">Projektverlauf</TabsTrigger>
           <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="akt" className="space-y-6 mt-4">
+          <KundenaktTab
+            projectId={projectId}
+            projectName={project.project_name}
+            customer={project.customer}
+          />
+        </TabsContent>
 
         <TabsContent value="stand" className="space-y-6 mt-4">
       <ProjektAufgabenListe
