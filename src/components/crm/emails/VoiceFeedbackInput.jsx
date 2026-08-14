@@ -4,7 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Mic, Square } from 'lucide-react';
 
 // Feedback-Eingabe mit Live-Spracheingabe: gesprochener Text erscheint sofort im Feld.
-export default function VoiceFeedbackInput({ value, onChange, placeholder, disabled }) {
+export default function VoiceFeedbackInput({ value, onChange, placeholder, disabled, rows = 2, textClassName = 'text-xs' }) {
   const [listening, setListening] = useState(false);
   const recRef = useRef(null);
   const baseTextRef = useRef('');
@@ -42,9 +42,9 @@ export default function VoiceFeedbackInput({ value, onChange, placeholder, disab
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          rows={2}
+          rows={rows}
           disabled={disabled}
-          className="text-xs"
+          className={`${textClassName} leading-relaxed resize-y`}
         />
         {supported && (
           <Button

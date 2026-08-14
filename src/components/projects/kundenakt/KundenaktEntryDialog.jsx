@@ -87,7 +87,7 @@ Bestimme die Art des Eintrags (vereinbarung = verbindliche Absprache mit dem Kun
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) close(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[80vw] max-w-[80vw] sm:max-w-[80vw]">
         <DialogHeader>
           <DialogTitle className="text-base">Eintrag im Kundenakt erfassen</DialogTitle>
         </DialogHeader>
@@ -101,6 +101,8 @@ Bestimme die Art des Eintrags (vereinbarung = verbindliche Absprache mit dem Kun
                 onChange={setContent}
                 placeholder="Was wurde vereinbart, was ist neu im Projekt?"
                 disabled={saving}
+                rows={10}
+                textClassName="text-sm"
               />
             </div>
           </div>
