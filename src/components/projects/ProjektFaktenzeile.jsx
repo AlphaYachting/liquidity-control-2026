@@ -51,7 +51,7 @@ export default function ProjektFaktenzeile({ projectId, aworkProjectId }) {
         nächste Frist: {frist ? fristText(frist) : 'kein Termin gesetzt'}
       </span>
       <span>·</span>
-      <span>{kennzahlen.offen} Aufgaben offen</span>
+      <span>{kennzahlen.offen} offen</span>
       {kennzahlen.blockiert > 0 && (
         <>
           <span>·</span>

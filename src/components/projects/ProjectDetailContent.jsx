@@ -37,8 +37,6 @@ import ProjektKommunikationBlock from '@/components/projects/ProjektKommunikatio
 import ProjectCockpitHeader from '@/components/projects/ProjectCockpitHeader';
 import ProjectProgressBlock from '@/components/projects/ProjectProgressBlock';
 import ProjektAufgabenListe from '@/components/projects/ProjektAufgabenListe';
-import LeistungsstandZeile from '@/components/projects/LeistungsstandZeile';
-import ProjektFaktenzeile from '@/components/projects/ProjektFaktenzeile';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -314,21 +312,11 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
       />
 
       {!project.awork_project_id && primaryOrder?.awork_project_id && (
-        <div className="flex items-center gap-2 px-3 py-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg">
           <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
           awork-Projekt von verknüpfter Auftragsbestätigung übernommen.
         </div>
       )}
-
-      {/* Gemeinsamer Kopf beider Reiter — Stand des Projekts */}
-      <AworkStatusBar
-        data={aworkData}
-        taskStats={aworkTaskStats}
-        snapshot={aworkSnapshot}
-        onSelectProject={() => setShowAworkPicker(true)}
-        onSync={handleAworkSync}
-        isSyncing={isSyncing}
-      />
 
       {(() => {
         const totalOrderNet = fin?.commercialBaseNet || 0;
@@ -345,7 +333,14 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         );
       })()}
 
-      <ProjektFaktenzeile projectId={projectId} aworkProjectId={effectiveAworkProjectId} />
+      {/* Gemeinsame Kontextzeile beider Reiter — awork-Bezug + Fakten */}
+      <AworkStatusBar
+        data={aworkData}
+        projectId={projectId}
+        onSelectProject={() => setShowAworkPicker(true)}
+        onSync={handleAworkSync}
+        isSyncing={isSyncing}
+      />
 
       <Tabs
         value={activeTab}
@@ -398,12 +393,6 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         </TabsContent>
 
         <TabsContent value="abrechnung" className="space-y-6 mt-4">
-      <LeistungsstandZeile
-        projectId={projectId}
-        aworkProjectId={effectiveAworkProjectId}
-        onDetails={() => { setActiveTab('stand'); sessionStorage.setItem(TAB_STORAGE_KEY, 'stand'); }}
-      />
-
       {/* Anmerkungen nächste Rechnung */}
       <div className="bg-card border rounded-xl p-4 space-y-2">
         <div className="flex items-center justify-between">

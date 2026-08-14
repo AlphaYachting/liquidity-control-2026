@@ -25,7 +25,7 @@ export default function AworkLastBookers({ aworkProjectId }) {
   }
 
   return (
-    <div className="flex items-center gap-2 text-xs flex-wrap border-t border-border pt-2">
+    <div className="flex items-center gap-2 text-xs flex-wrap">
       <span className="text-foreground font-medium shrink-0">Zuletzt gebucht:</span>
       {[...seen.entries()].map(([name, date], i) => (
         <span

@@ -107,9 +107,7 @@ export default function ProjektAufgabenListe({
   return (
     <div className="bg-card border rounded-xl p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">
-          Aufgaben · {kennzahlen.offen} offen · {kennzahlen.blockiert} blockiert
-        </h3>
+        <h3 className="text-sm font-semibold">Aufgaben</h3>
         <a
           href={`https://app.awork.com/projects/${aworkProjectId}`}
           target="_blank" rel="noopener noreferrer"
