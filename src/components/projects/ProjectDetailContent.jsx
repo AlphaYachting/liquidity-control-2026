@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, FolderKanban, Plus, Pencil, Check, X, AlertTriangle,
-  Link2, Unlink, RefreshCw, ClipboardList, ExternalLink, Info, Trash2
+  Link2, Unlink, RefreshCw, ClipboardList, ExternalLink, Info, Trash2, BrainCircuit
 } from 'lucide-react';
 import KpiCard from '@/components/shared/KpiCard';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ import ProjektAufgabenListe from '@/components/projects/ProjektAufgabenListe';
 import LeistungsstandZeile from '@/components/projects/LeistungsstandZeile';
 import ProjektFaktenzeile from '@/components/projects/ProjektFaktenzeile';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
+import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const TAB_STORAGE_KEY = 'projectDetail.activeTab';
@@ -59,6 +60,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
 
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem(TAB_STORAGE_KEY) || 'akt');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showIntelligence, setShowIntelligence] = useState(false);
   const [editingPM, setEditingPM] = useState(false);
   const [pmValue, setPmValue] = useState('');
   const [showAworkPicker, setShowAworkPicker] = useState(false);
@@ -349,11 +351,17 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         value={activeTab}
         onValueChange={(v) => { setActiveTab(v); sessionStorage.setItem(TAB_STORAGE_KEY, v); }}
       >
+        <div className="flex items-center justify-between gap-2">
         <TabsList>
           <TabsTrigger value="akt">Kundenakt</TabsTrigger>
           <TabsTrigger value="stand">Projektverlauf</TabsTrigger>
           <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
         </TabsList>
+          <Button size="sm" variant="outline" className="gap-2 shrink-0"
+            onClick={() => setShowIntelligence(true)}>
+            <BrainCircuit className="w-3.5 h-3.5 text-primary" /> Projektintelligenz fragen
+          </Button>
+        </div>
 
         <TabsContent value="akt" className="space-y-6 mt-4">
           <KundenaktTab
@@ -728,6 +736,14 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
           onClose={() => setShowDeleteDialog(false)}
         />
       )}
+
+      <ProjectIntelligenceSheet
+        open={showIntelligence}
+        onClose={() => setShowIntelligence(false)}
+        projectId={projectId}
+        projectName={project.project_name}
+        customer={project.customer}
+      />
 
       <AworkProjectPicker
         open={showAworkPicker}
