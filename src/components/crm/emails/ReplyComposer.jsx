@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Sparkles, Send, CalendarClock, Check } from 'lucide-react';
+import { Loader2, Sparkles, Send, CalendarClock, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import ReplySlotFields from '@/components/crm/emails/ReplySlotFields';
 import { toPlainText } from '@/components/crm/quotes/emailBodyFormat';
 import { markDealContacted } from '@/components/crm/dealContact';
@@ -31,6 +31,7 @@ export default function ReplyComposer({ threadId, dealId, recipient, onSent, bar
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const [done, setDone] = useState(false);
+  const [open, setOpen] = useState(bare);
 
   const setSlot = (i, v) => setSlots((prev) => prev.map((s, idx) => (idx === i ? v : s)));
 
@@ -85,11 +86,17 @@ export default function ReplyComposer({ threadId, dealId, recipient, onSent, bar
   return (
     <div className={bare ? 'space-y-3' : 'rounded-xl border bg-card p-3 space-y-3'}>
       {!bare && (
-        <p className="text-xs font-semibold flex items-center gap-1.5">
-          <CalendarClock className="w-3.5 h-3.5 text-primary" /> Antwort erstellen
-        </p>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="w-full text-xs font-semibold flex items-center gap-1.5 text-left"
+        >
+          <CalendarClock className="w-3.5 h-3.5 text-primary" /> Antwort mit Terminvorschlag erstellen
+          {open ? <ChevronDown className="w-3.5 h-3.5 ml-auto text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 ml-auto text-muted-foreground" />}
+        </button>
       )}
 
+      {open && (<>
       <div className="w-full sm:w-56">
         <Label className="text-[10px] text-muted-foreground">Antworttyp</Label>
         <Select value={intent} onValueChange={setIntent} disabled={busy}>
@@ -141,6 +148,7 @@ export default function ReplyComposer({ threadId, dealId, recipient, onSent, bar
           Kein Deal verknüpft — die Antwort wird nicht im Deal-Verlauf protokolliert.
         </p>
       )}
+      </>)}
     </div>
   );
 }
