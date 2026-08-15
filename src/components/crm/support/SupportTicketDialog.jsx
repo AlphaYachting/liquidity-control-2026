@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ensureSupportProject, createSupportTicket } from '@/components/crm/support/supportTicket';
+import { resolveSupportProject, createSupportTicket, SUPPORT_MODELS, DEFAULT_SUPPORT_RATE } from '@/components/crm/support/supportTicket';
 
 const ROLES = ['Beratung', 'Konzept', 'Text', 'Grafik', 'Web', 'Media', 'QS'];
 
@@ -18,7 +18,8 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
 
   const { data: projects = [] } = useQuery({
     queryKey: ['support-projects'],
-    queryFn: () => base44.entities.Project.filter({ abrechnungsmodell: 'aufwand' }, 'title', 200),
+    queryFn: () => base44.entities.Project.filter(
+      { abrechnungsmodell: { $in: SUPPORT_MODELS } }, 'title', 200),
     enabled: open,
   });
   const { data: team = [] } = useQuery({
@@ -38,7 +39,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
       role: 'Web',
       target_hours: 1,
       assignee_email: '',
-      stundensatz: match?.stundensatz || 130,
+      stundensatz: match?.stundensatz || DEFAULT_SUPPORT_RATE,
       project_id: match?.id || '__new__',
     });
     setError(null);
@@ -51,28 +52,15 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
     setError(null);
     try {
       const user = await base44.auth.me().catch(() => null);
-      let projectId = form.project_id;
-      let milestoneId;
-      if (projectId === '__new__') {
-        const res = await ensureSupportProject({
-          customer: form.customer,
-          pmEmail: user?.email || '',
+      const chosen = projects.find(p => p.id === form.project_id);
+      const { project_id: projectId, milestone_id: milestoneId } = await resolveSupportProject(
+        chosen ? (chosen.title || '').replace(/^Support — /, '') || form.customer : form.customer,
+        {
+          pmEmail: chosen?.pm_email || user?.email || '',
           contactEmail: item.sender_email || '',
           stundensatz: Number(form.stundensatz) || 0,
-        });
-        projectId = res.project.id;
-        milestoneId = res.milestone.id;
-      } else {
-        const project = projects.find(p => p.id === projectId);
-        const res = await ensureSupportProject({
-          customer: (project?.title || '').replace(/^Support — /, '') || form.customer,
-          pmEmail: project?.pm_email || user?.email || '',
-          contactEmail: item.sender_email || '',
-          stundensatz: Number(form.stundensatz) || 0,
-        });
-        projectId = res.project.id;
-        milestoneId = res.milestone.id;
-      }
+        },
+      );
       const { ticket, back } = await createSupportTicket({ item, projectId, milestoneId, values: form });
       setBusy(false);
       onOpenChange(false);
@@ -93,6 +81,11 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
           <div>
             <Label className="text-xs">Kunde</Label>
             <Input value={form.customer} onChange={e => set('customer', e.target.value)} />
+            {item?.customer_match === 'unsicher' && (
+              <p className="text-xs text-status-attention mt-1">
+                Kundenzuordnung unsicher — bitte prüfen.
+              </p>
+            )}
           </div>
           <div>
             <Label className="text-xs">Ziel-Support-Projekt</Label>

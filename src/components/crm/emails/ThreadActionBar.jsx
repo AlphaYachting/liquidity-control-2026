@@ -35,6 +35,7 @@ export default function ThreadActionBar({ thread, messages = [], onChanged }) {
     sender_name: lastInbound?.from_name || '',
     sender_email: lastInbound?.from || '',
     matched_customer_name: t.matched_customer_name || t.customer || '',
+    customer_match: t.customer_match || '',
   };
 
   const variantFor = (key) => (suggested === key ? 'default' : 'outline');

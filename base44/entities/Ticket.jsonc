@@ -70,6 +70,14 @@
       ],
       "default": "pflicht"
     },
+    "source_thread_id": {
+      "type": "string",
+      "description": "Verlauf in der E-Mail-Zentrale, aus dem das Ticket entstanden ist"
+    },
+    "customer_name": {
+      "type": "string",
+      "description": "denormalisierter Kundenname \u2014 tr\u00e4gt die Support-Zuordnung ohne Joins"
+    },
     "target_hours": {
       "type": "number"
     },

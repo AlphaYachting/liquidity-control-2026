@@ -3,35 +3,13 @@ import { threadIdOf } from '@/components/crm/inboxDecision';
 import { emailApi } from '@/components/crm/emails/emailApi';
 
 const FAR_FUTURE = '2099-12-31';
+export const SUPPORT_MODELS = ['aufwand', 'support'];
+export const DEFAULT_SUPPORT_RATE = 130;
 
-// Dauerhaftes Support-Projekt je Kunde: Abrechnung nach Aufwand, ein offener
-// Support-Milestone als Behälter für alle Support-Tickets.
-export async function ensureSupportProject({ customer, pmEmail, contactEmail, stundensatz }) {
-  const title = `Support — ${customer}`;
-  const existing = (await base44.entities.Project.filter({ title }))[0];
-  let project = existing;
+const supportTitle = (customer) => `Support — ${customer}`;
 
-  if (!project) {
-    let client = (await base44.entities.Client.filter({ name: customer }))[0];
-    if (!client) {
-      client = await base44.entities.Client.create({
-        name: customer,
-        contact_email: contactEmail || pmEmail,
-        agb_version: 'laufend',
-      });
-    }
-    project = await base44.entities.Project.create({
-      client_id: client.id,
-      title,
-      pm_email: pmEmail,
-      status: 'aktiv',
-      abrechnungsmodell: 'aufwand',
-      stundensatz: stundensatz || 0,
-    });
-  } else if (stundensatz && !project.stundensatz) {
-    await base44.entities.Project.update(project.id, { stundensatz });
-  }
-
+// Behälter (Sprint + offener Milestone) am Support-Projekt sicherstellen
+async function ensureSupportContainer(project) {
   let sprint = (await base44.entities.Sprint.filter({ project_id: project.id }))[0];
   if (!sprint) {
     sprint = await base44.entities.Sprint.create({
@@ -56,8 +34,52 @@ export async function ensureSupportProject({ customer, pmEmail, contactEmail, st
       planned_freeze: FAR_FUTURE,
     });
   }
+  return milestone;
+}
 
-  return { project, milestone };
+// Ein dauerhaftes Support-Projekt je Kunde — bestehendes wird immer wiederverwendet.
+// Gesucht wird nach Kunde (Client) und Abrechnungsmodell 'aufwand' oder 'support',
+// erst danach wird angelegt.
+export async function resolveSupportProject(customerName, options = {}) {
+  const customer = String(customerName || '').trim();
+  if (!customer) throw new Error('Für ein Support-Ticket braucht es einen Kunden.');
+
+  const { pmEmail = '', contactEmail = '', stundensatz } = options;
+  let client = (await base44.entities.Client.filter({ name: customer }))[0];
+
+  let project = null;
+  if (client) {
+    const byClient = await base44.entities.Project.filter({ client_id: client.id });
+    project = byClient.find(p => SUPPORT_MODELS.includes(p.abrechnungsmodell) && p.status !== 'abgeschlossen')
+      || byClient.find(p => SUPPORT_MODELS.includes(p.abrechnungsmodell))
+      || null;
+  }
+  if (!project) {
+    project = (await base44.entities.Project.filter({ title: supportTitle(customer) }))[0] || null;
+  }
+
+  if (!project) {
+    if (!client) {
+      client = await base44.entities.Client.create({
+        name: customer,
+        contact_email: contactEmail || pmEmail,
+        agb_version: 'laufend',
+      });
+    }
+    project = await base44.entities.Project.create({
+      client_id: client.id,
+      title: supportTitle(customer),
+      pm_email: pmEmail,
+      status: 'aktiv',
+      abrechnungsmodell: 'aufwand',
+      stundensatz: Number(stundensatz) || DEFAULT_SUPPORT_RATE,
+    });
+  } else if (stundensatz && !project.stundensatz) {
+    await base44.entities.Project.update(project.id, { stundensatz: Number(stundensatz) });
+  }
+
+  const milestone = await ensureSupportContainer(project);
+  return { project, project_id: project.id, milestone_id: milestone.id };
 }
 
 // Support-Anfrage in ein Ticket überführen — es entsteht KEINE Rechnung.
@@ -65,17 +87,20 @@ export async function ensureSupportProject({ customer, pmEmail, contactEmail, st
 export async function createSupportTicket({ item, projectId, milestoneId, values }) {
   const user = await base44.auth.me().catch(() => null);
   const threadId = threadIdOf(item);
+  const threadLink = threadId ? `/crm/emails?thread=${threadId}` : '';
 
   const ticket = await base44.entities.Ticket.create({
     project_id: projectId,
     milestone_id: milestoneId,
     title: values.title,
-    description: `${values.description || ''}${threadId ? `\n\nKonversation: /crm/emails?thread=${threadId}` : ''}`.trim(),
+    description: `${values.description || ''}${threadLink ? `\n\nKonversation: ${threadLink}` : ''}`.trim(),
     role: values.role,
     target_hours: Number(values.target_hours) || 0,
     assignee_email: values.assignee_email || '',
     origin: 'support',
     status: 'offen',
+    source_thread_id: threadId ? String(threadId) : '',
+    customer_name: values.customer || '',
   });
 
   // Nur wenn die Anfrage aus dem Posteingang stammt — Threads aus der E-Mail-Zentrale
@@ -90,12 +115,17 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
     });
   }
 
+  // Rückkanal in die E-Mail-Datenbank — der Thread verlässt „braucht Entscheidung"
   let back = { ok: true };
   if (threadId) {
     try {
       await emailApi('enrich', {
         thread_id: threadId,
-        fields: { crm_status: 'in Bearbeitung als Support-Ticket', status: 'erledigt' },
+        fields: {
+          crm_status: 'supportticket_angelegt',
+          crm_ticket_id: ticket.id,
+          status: 'beantwortet',
+        },
       });
     } catch (e) {
       back = { ok: false, error: e?.message || 'unbekannter Fehler' };
