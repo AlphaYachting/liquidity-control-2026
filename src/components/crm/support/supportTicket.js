@@ -78,13 +78,17 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
     status: 'offen',
   });
 
-  await base44.entities.CrmInboxItem.update(item.id, {
-    status: 'converted',
-    decision: 'zugeordnet',
-    linked_ticket_id: ticket.id,
-    decided_by: user?.email || '',
-    decided_at: new Date().toISOString(),
-  });
+  // Nur wenn die Anfrage aus dem Posteingang stammt — Threads aus der E-Mail-Zentrale
+  // haben keinen Posteingangs-Eintrag.
+  if (item.id) {
+    await base44.entities.CrmInboxItem.update(item.id, {
+      status: 'converted',
+      decision: 'zugeordnet',
+      linked_ticket_id: ticket.id,
+      decided_by: user?.email || '',
+      decided_at: new Date().toISOString(),
+    });
+  }
 
   let back = { ok: true };
   if (threadId) {

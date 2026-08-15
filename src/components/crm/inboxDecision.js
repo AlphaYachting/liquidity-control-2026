@@ -37,10 +37,13 @@ export async function attachInboxItemToDeal(item, deal) {
     content: `${item.body || ''}${threadId ? `\n\nKonversation: /crm/emails?thread=${threadId}` : ''}`.trim(),
     activity_date: new Date().toISOString(),
   });
-  await base44.entities.CrmInboxItem.update(item.id, {
-    status: 'converted', decision: 'zugeordnet', linked_deal_id: deal.id,
-    decided_by: user?.email || '', decided_at: new Date().toISOString(),
-  });
+  // Threads aus der E-Mail-Zentrale haben keinen Posteingangs-Eintrag
+  if (item.id) {
+    await base44.entities.CrmInboxItem.update(item.id, {
+      status: 'converted', decision: 'zugeordnet', linked_deal_id: deal.id,
+      decided_by: user?.email || '', decided_at: new Date().toISOString(),
+    });
+  }
   return markThreadAsLead(threadId, deal.id);
 }
 

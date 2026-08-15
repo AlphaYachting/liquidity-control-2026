@@ -1,8 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { emailDbGet, emailDbEnrich } from '../../shared/emailDb.ts';
-import { isInternalDomain, isSystemDomain, domainOf } from '../../shared/senderLists.js';
+import { isInternalDomain, isSystemDomain, isFreemailDomain, domainOf } from '../../shared/senderLists.js';
 import { findDuplicateDeal, CLOSED_STAGES } from '../../shared/crmDuplicate.js';
-import { INQUIRY_TYPES, BUYING_SIGNALS, FORM_REGEX, scoreLead } from '../../shared/leadScoring.js';
+import { INQUIRY_TYPES, BUYING_SIGNALS, FORM_REGEX, REQUEST_NATURES, suggestAction } from '../../shared/leadScoring.js';
 
 // EIN Lauf für den gesamten Eingang: pro Thread ein einziger KI-Aufruf, dessen
 // Ergebnis in beide Ziele geht — Kommunikationsfelder in die E-Mail-Datenbank,
@@ -56,6 +56,22 @@ Deno.serve(async (req) => {
     const customers = [...new Set(projects.map((p) => p.customer).filter(Boolean))];
     const allDeals = await db.CrmDeal.list('-updated_date', 500);
     const openDeals = allDeals.filter((d) => !CLOSED_STAGES.includes(d.stage));
+
+    // Deterministischer Kundendomain-Index: Domain -> Kundenname.
+    // Quellen: gewonnene/beauftragte Deals und laufende Verträge. Freemail zählt nicht.
+    const domainIndex = new Map<string, string>();
+    for (const d of allDeals) {
+      if (!['won', 'ordered'].includes(d.stage)) continue;
+      const dom = domainOf(d.contact_email);
+      if (!dom || isFreemailDomain(dom) || isInternalDomain(dom) || isSystemDomain(dom)) continue;
+      const name = d.linked_customer_name || d.company_name;
+      if (name && !domainIndex.has(dom)) domainIndex.set(dom, name);
+    }
+    const contracts = await db.RecurringContract.list('-updated_date', 500);
+    for (const c of contracts) {
+      const dom = String(c.domain || '').toLowerCase().trim().replace(/^www\./, '');
+      if (dom && c.customer && !domainIndex.has(dom)) domainIndex.set(dom, c.customer);
+    }
 
     const note = async (threadId, outcome, reason, extra = {}) => {
       await db.EmailScanLedger.create({
@@ -127,6 +143,13 @@ buying_signals: gib NUR belegte Signale zurück, jedes mit einer kurzen wörtlic
   absender_zurechenbar — Absender ist einer Firma/Person klar zuordenbar
   erreichbarkeit — Telefonnummer, Rückrufbitte oder Terminwunsch vorhanden
 
+request_nature: Art des Anliegens, genau eine, IMMER mit wörtlicher Textstelle als Beleg (request_nature_evidence):
+  stoerung — etwas funktioniert nicht (Fehler, Ausfall)
+  aenderung_bestehend — Änderung/Anpassung/kleine Ergänzung an einer BEREITS BESTEHENDEN Website/Anwendung des Absenders (Texte, Bilder, Öffnungszeiten, Banner, Unterseite, Plugin-Update, Wartung)
+  neue_leistung — eigenständiges NEUES Projekt/Produkt, erst zu kalkulieren
+  sonstiges — trifft nichts davon
+Hinweis: Änderung an etwas, das der Kunde schon von uns hat = aenderung_bestehend. Ein neues, eigenständiges Vorhaben = neue_leistung.
+
 Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
           response_json_schema: {
             type: 'object',
@@ -138,6 +161,8 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
               colleague_replied: { type: 'boolean' },
               customer_normalized: { type: 'string' },
               inquiry_type: { type: 'string', enum: INQUIRY_TYPES },
+              request_nature: { type: 'string', enum: REQUEST_NATURES },
+              request_nature_evidence: { type: 'string', description: 'wörtliche Textstelle als Beleg' },
               buying_signals: {
                 type: 'array',
                 items: {
@@ -160,6 +185,26 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
         });
         stats.checked++;
 
+        // Deterministische Kundenerkennung — Index vor KI
+        const rawSignals = (r.buying_signals || []).map((s) => s?.signal).filter(Boolean);
+        const freemail = isFreemailDomain(domain);
+        const indexHit = freemail ? '' : (domainIndex.get(domain) || '');
+        const matchedCustomer = customers.includes(r.matched_customer) ? r.matched_customer : '';
+        let isKnownCustomer = Boolean(indexHit);
+        let customerMatch = indexHit ? 'sicher' : 'unbekannt';
+        if (!isKnownCustomer && freemail && matchedCustomer) {
+          isKnownCustomer = true;
+          customerMatch = 'unsicher';
+        }
+        const customerName = indexHit || matchedCustomer;
+        const requestNature = REQUEST_NATURES.includes(r.request_nature) ? r.request_nature : 'sonstiges';
+        const suggested = suggestAction({
+          is_known_customer: isKnownCustomer,
+          request_nature: requestNature,
+          inquiry_type: r.inquiry_type,
+          signals: rawSignals,
+        });
+
         // Ziel 1: Kommunikationsfelder in die E-Mail-Datenbank
         try {
           const fields: Record<string, unknown> = {
@@ -172,6 +217,12 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
             eskalation: r.eskalation ? 1 : 0,
             zuordnung_status: 'automatisch',
             klass_modell: 'base44-eingang',
+            suggested_action: suggested,
+            request_nature: requestNature,
+            request_nature_evidence: String(r.request_nature_evidence || '').slice(0, 300),
+            is_known_customer: isKnownCustomer ? 1 : 0,
+            matched_customer_name: customerName,
+            customer_match: customerMatch,
           };
           if (String(r.customer_normalized || '').trim()) fields.customer_normalized = String(r.customer_normalized).trim();
           await emailDbEnrich(t.id, fields);
@@ -179,99 +230,35 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
           stats.errors.push(`E-Mail-DB Thread ${t.id}: ${e.message}`);
         }
 
-        // Ziel 2: Lead-Verdacht — Schwellenregel im Code
-        const rawSignals = (r.buying_signals || []).map((s) => s?.signal).filter(Boolean);
-        const score = scoreLead({ inquiryType: r.inquiry_type, signals: rawSignals, isFormMail });
-        const signalTexts = (r.buying_signals || [])
-          .filter((s) => score.signals.includes(s?.signal))
-          .map((s) => `${s.signal} — ${String(s.evidence || '').slice(0, 200)}`);
+        // Ziel 2: Vorschlag ist gespeichert — es wird KEIN Posteingangs-Eintrag angelegt,
+        // jede Geschäftsmail bleibt in der E-Mail-Zentrale sichtbar und wird dort entschieden.
+        if (suggested === 'supportticket') stats.support_faelle++;
+        if (suggested === 'anfrage') stats.lead_verdacht++;
 
-        if (!score.kind) {
-          await note(t.id, r.inquiry_type === 'kein_geschaeft' ? 'kein_geschaeft' : 'betrieb',
-            r.reason || r.inquiry_type, { inquiry_type: r.inquiry_type });
-          continue;
-        }
-
-        const matchedCustomer = customers.includes(r.matched_customer) ? r.matched_customer : '';
         const contactEmail = String(r.contact_email || (isFormMail ? '' : firstIn.from) || '').trim();
         const bodyText = (firstIn.text || '').slice(0, 5000);
-
-        // Support-Track: sichtbar im Posteingang, aber kein Lead und kein automatischer Deal.
-        if (score.kind === 'support') {
-          const supportItem = await db.CrmInboxItem.create({
-            source: 'email',
-            thread_id: String(t.id),
-            email_message_id: `thread:${t.id}`,
-            sender_name: r.contact_name || firstIn.from_name || '',
-            sender_email: contactEmail,
-            sender_phone: r.contact_phone || '',
-            subject: (t.subject || '').slice(0, 200),
-            body: `${r.summary || ''}\n\n---\n${bodyText.slice(0, 2000)}`.trim(),
-            received_at: toIso(firstIn.received_at),
-            inquiry_type: 'support_stoerung',
-            track: 'support',
-            buying_signals: signalTexts,
-            signal_count: score.count,
-            decision: 'offen',
-            suggested_pipeline: matchedCustomer ? 'existing_customer' : 'unknown',
-            matched_customer_name: matchedCustomer,
-            status: 'new',
-          });
-          stats.support_faelle++;
-          await note(t.id, 'betrieb', r.reason || r.inquiry_type, {
-            inquiry_type: r.inquiry_type, inbox_item_id: supportItem.id,
-          });
-          continue;
-        }
-
-        const item = await db.CrmInboxItem.create({
-          source: 'email',
-          thread_id: String(t.id),
-          email_message_id: `thread:${t.id}`,
-          sender_name: r.contact_name || firstIn.from_name || '',
-          sender_email: contactEmail,
-          sender_phone: r.contact_phone || '',
-          subject: (t.subject || '').slice(0, 200),
-          body: `${r.summary || ''}\n\n---\n${bodyText.slice(0, 2000)}`.trim(),
-          received_at: toIso(firstIn.received_at),
-          inquiry_type: r.inquiry_type,
-          track: 'lead',
-          buying_signals: signalTexts,
-          signal_count: score.count,
-          lead_strength: score.strength,
-          decision: 'offen',
-          suggested_pipeline: matchedCustomer ? 'existing_customer' : 'new_business',
-          matched_customer_name: matchedCustomer,
-          status: 'new',
-        });
-        stats.lead_verdacht++;
 
         // Automatische Deal-Anlage ausschließlich für Formular-Anfragen
         const duplicate = findDuplicateDeal(openDeals, {
           contactEmail, senderDomain: domainOf(contactEmail),
-          companyName: r.company_name || matchedCustomer,
+          companyName: r.company_name || customerName,
         });
         if (isFormMail && contactEmail && !duplicate) {
           const deal = await db.CrmDeal.create({
-            pipeline: matchedCustomer ? 'existing_customer' : 'new_business',
-            stage: matchedCustomer ? 'inquiry_received' : 'new_lead',
+            pipeline: isKnownCustomer ? 'existing_customer' : 'new_business',
+            stage: isKnownCustomer ? 'inquiry_received' : 'new_lead',
             title: (t.subject || `Anfrage ${r.company_name || r.contact_name || ''}`).slice(0, 200).trim(),
-            company_name: r.company_name || matchedCustomer || '',
+            company_name: r.company_name || customerName || '',
             contact_name: r.contact_name || firstIn.from_name || '',
             contact_email: contactEmail,
             contact_phone: r.contact_phone || '',
             source: 'website',
             description: `${r.summary || ''}\n\nOriginal-Anfrage:\n${bodyText.slice(0, 2000)}`.trim(),
-            linked_customer_name: matchedCustomer,
+            linked_customer_name: customerName,
             email_thread_id: String(t.id),
-            origin_inbox_item_id: item.id,
             enrichment_status: 'pending',
           });
           openDeals.push(deal);
-          await db.CrmInboxItem.update(item.id, {
-            decision: 'lead', decided_by: 'automatisch (Website-Formular)',
-            decided_at: new Date().toISOString(), status: 'converted', linked_deal_id: deal.id,
-          });
           await db.CrmActivity.create({
             deal_id: deal.id, activity_type: 'system',
             title: 'Lead automatisch aus Website-Formular angelegt',
@@ -285,15 +272,11 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
             stats.errors.push(`Rückkanal Thread ${t.id}: ${e.message}`);
           }
           stats.form_leads++;
-        } else if (duplicate) {
-          await db.CrmInboxItem.update(item.id, {
-            body: `⚠️ MÖGLICHES DUPLIKAT: Offener Deal "${duplicate.title}" existiert bereits.\n\n${item.body}`.slice(0, 5000),
-          });
         }
 
-        await note(t.id, 'lead_verdacht', r.reason || r.inquiry_type, {
-          inquiry_type: r.inquiry_type, inbox_item_id: item.id,
-        });
+        await note(t.id, suggested === 'kein_lead' ? 'betrieb' : 'lead_verdacht',
+          `${suggested} · ${requestNature} · ${r.reason || r.inquiry_type}`,
+          { inquiry_type: r.inquiry_type });
       } catch (e) {
         // Kein "geprüft"-Vermerk: der Thread kommt im nächsten Lauf wieder dran.
         // Nur der Fehlerzähler wächst, damit ein dauerhaft defekter Thread irgendwann ruht.

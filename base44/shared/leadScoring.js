@@ -23,7 +23,25 @@ export const BUYING_SIGNALS = [
 export const FORM_REGEX =
   /hurra[\s\S]{0,15}die post ist da|sch(ö|oe)n von ihnen zu lesen|kontaktformular/i;
 
+// Art des Anliegens — von der KI mit wörtlichem Textbeleg geliefert.
+export const REQUEST_NATURES = ['stoerung', 'aenderung_bestehend', 'neue_leistung', 'sonstiges'];
+
+export const SUGGESTED_ACTIONS = ['supportticket', 'anfrage', 'kein_lead'];
+
 const LEAD_TYPES = ['angebotsanfrage', 'erweiterung_bestandskunde'];
+
+/**
+ * Vorschlag für die menschliche Entscheidung — reines Etikett, KEIN Filter.
+ * Jede Geschäftsmail bleibt unabhängig davon in der E-Mail-Zentrale sichtbar.
+ */
+export function suggestAction({ is_known_customer = false, request_nature = 'sonstiges', inquiry_type = '', signals = [] } = {}) {
+  if (is_known_customer && ['stoerung', 'aenderung_bestehend'].includes(request_nature)) return 'supportticket';
+  if (request_nature === 'neue_leistung') return 'anfrage';
+  const konkret = LEAD_TYPES.includes(inquiry_type)
+    && (signals.includes('konkreter_gegenstand') || signals.includes('beschaffungsabsicht'));
+  if (!is_known_customer && konkret) return 'anfrage';
+  return 'kein_lead';
+}
 
 // Eigener Track: Support-/Störungsmeldungen gehören in den Posteingang, sind aber kein Lead.
 export const SUPPORT_TYPES = ['support_stoerung'];

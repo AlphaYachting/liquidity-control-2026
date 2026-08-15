@@ -9,6 +9,8 @@ import ThreadAnalysisPanel from '@/components/crm/emails/ThreadAnalysisPanel';
 import ReplyDraftPanel from '@/components/crm/emails/ReplyDraftPanel';
 import ReplyComposer from '@/components/crm/emails/ReplyComposer';
 import ThreadDoneButton from '@/components/crm/emails/ThreadDoneButton';
+import ThreadSuggestionBadge from '@/components/crm/emails/ThreadSuggestionBadge';
+import ThreadActionBar from '@/components/crm/emails/ThreadActionBar';
 
 export default function EmailThreadDetail({ thread, loading, onRefresh, onStatusChanged }) {
   if (loading) {
@@ -66,6 +68,7 @@ export default function EmailThreadDetail({ thread, loading, onRefresh, onStatus
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap mt-1">
+            <ThreadSuggestionBadge thread={t} />
             {cat && <Badge variant="outline" className={`text-[10px] border-0 ${cat.color}`}>{cat.label}</Badge>}
             {st && <Badge variant="outline" className={`text-[10px] border-0 ${st.color}`}>{st.label}</Badge>}
             {t.status === 'offen' && colleagueRepliedLast(messages) && (
@@ -113,6 +116,8 @@ export default function EmailThreadDetail({ thread, loading, onRefresh, onStatus
           </CardContent>
         )}
       </Card>
+
+      <ThreadActionBar thread={t} messages={messages} onChanged={onRefresh} />
 
       <ThreadAnalysisPanel thread={t} messages={messages} onSaved={onRefresh} />
 
