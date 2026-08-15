@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { PenLine, ArrowLeft, MailQuestion, AlertTriangle } from 'lucide-react';
+import { PenLine, ArrowLeft, MailQuestion, AlertTriangle, Target, LifeBuoy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
-import InboxItemCard from '@/components/crm/InboxItemCard';
+import InboxLane from '@/components/crm/InboxLane';
 import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import InboxDuplicateDialog from '@/components/crm/InboxDuplicateDialog';
@@ -37,6 +37,10 @@ export default function CrmInbox() {
     const rank = (i) => (i.lead_strength === 'stark' ? 0 : i.lead_strength === 'schwach' ? 1 : 2);
     return rank(a) - rank(b);
   });
+
+  // Zwei Spuren: Lead-Verdacht und Support/Störung
+  const supportItems = items.filter(i => i.track === 'support');
+  const leadItems = items.filter(i => i.track !== 'support');
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['crm-inbox'] });
@@ -115,10 +119,10 @@ export default function CrmInbox() {
   };
 
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="space-y-4 max-w-6xl">
       <PageHeader
         title="CRM — Posteingang"
-        subtitle="Lead-Verdacht aus E-Mail, Telefon-KI und manueller Erfassung — drei Entscheidungen je Eintrag"
+        subtitle="Zwei Spuren — Lead-Verdacht und Support/Störung, je Eintrag entschieden"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" className="gap-2" asChild>
@@ -157,10 +161,19 @@ export default function CrmInbox() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {items.map(item => (
-            <InboxItemCard key={item.id} item={item} onConvert={handleConvert} onAssign={setAssignItem} onChanged={refresh} />
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <InboxLane
+            titel="Leads" symbol={Target}
+            hinweis="Kein offener Lead-Verdacht."
+            items={leadItems}
+            onConvert={handleConvert} onAssign={setAssignItem} onChanged={refresh}
+          />
+          <InboxLane
+            titel="Support" symbol={LifeBuoy}
+            hinweis="Keine offenen Support-/Störungsmeldungen."
+            items={supportItems}
+            onConvert={handleConvert} onAssign={setAssignItem} onChanged={refresh}
+          />
         </div>
       )}
 

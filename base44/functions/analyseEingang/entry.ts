@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     const maxLlm = payload.max_llm || 40;
 
     const stats = {
-      threads_new: 0, checked: 0, llm_calls: 0, lead_verdacht: 0,
+      threads_new: 0, checked: 0, llm_calls: 0, lead_verdacht: 0, support_faelle: 0,
       form_leads: 0, skipped_limit: 0, errors: [] as string[],
     };
 
@@ -186,7 +186,7 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
           .filter((s) => score.signals.includes(s?.signal))
           .map((s) => `${s.signal} — ${String(s.evidence || '').slice(0, 200)}`);
 
-        if (!score.strength) {
+        if (!score.kind) {
           await note(t.id, r.inquiry_type === 'kein_geschaeft' ? 'kein_geschaeft' : 'betrieb',
             r.reason || r.inquiry_type, { inquiry_type: r.inquiry_type });
           continue;
@@ -195,6 +195,34 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
         const matchedCustomer = customers.includes(r.matched_customer) ? r.matched_customer : '';
         const contactEmail = String(r.contact_email || (isFormMail ? '' : firstIn.from) || '').trim();
         const bodyText = (firstIn.text || '').slice(0, 5000);
+
+        // Support-Track: sichtbar im Posteingang, aber kein Lead und kein automatischer Deal.
+        if (score.kind === 'support') {
+          const supportItem = await db.CrmInboxItem.create({
+            source: 'email',
+            thread_id: String(t.id),
+            email_message_id: `thread:${t.id}`,
+            sender_name: r.contact_name || firstIn.from_name || '',
+            sender_email: contactEmail,
+            sender_phone: r.contact_phone || '',
+            subject: (t.subject || '').slice(0, 200),
+            body: `${r.summary || ''}\n\n---\n${bodyText.slice(0, 2000)}`.trim(),
+            received_at: toIso(firstIn.received_at),
+            inquiry_type: 'support_stoerung',
+            track: 'support',
+            buying_signals: signalTexts,
+            signal_count: score.count,
+            decision: 'offen',
+            suggested_pipeline: matchedCustomer ? 'existing_customer' : 'unknown',
+            matched_customer_name: matchedCustomer,
+            status: 'new',
+          });
+          stats.support_faelle++;
+          await note(t.id, 'betrieb', r.reason || r.inquiry_type, {
+            inquiry_type: r.inquiry_type, inbox_item_id: supportItem.id,
+          });
+          continue;
+        }
 
         const item = await db.CrmInboxItem.create({
           source: 'email',
@@ -207,6 +235,7 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
           body: `${r.summary || ''}\n\n---\n${bodyText.slice(0, 2000)}`.trim(),
           received_at: toIso(firstIn.received_at),
           inquiry_type: r.inquiry_type,
+          track: 'lead',
           buying_signals: signalTexts,
           signal_count: score.count,
           lead_strength: score.strength,

@@ -39,6 +39,15 @@
       "type": "string",
       "description": "sauberer Bezug zum E-Mail-Thread in der externen DB"
     },
+    "track": {
+      "type": "string",
+      "enum": [
+        "lead",
+        "support"
+      ],
+      "default": "lead",
+      "description": "Bearbeitungsspur im Posteingang \u2014 Lead-Verdacht oder Support/St\u00f6rung"
+    },
     "inquiry_type": {
       "type": "string",
       "enum": [
