@@ -3,6 +3,7 @@ import { emailDbGet, emailDbEnrich } from '../../shared/emailDb.ts';
 import { isInternalDomain, isSystemDomain, isFreemailDomain, domainOf } from '../../shared/senderLists.js';
 import { findDuplicateDeal, CLOSED_STAGES } from '../../shared/crmDuplicate.js';
 import { INQUIRY_TYPES, BUYING_SIGNALS, FORM_REGEX, REQUEST_NATURES, suggestAction } from '../../shared/leadScoring.js';
+import { ESCALATION_LEVELS, severityOf, upsertEscalation } from '../../shared/escalation.js';
 
 // EIN Lauf für den gesamten Eingang: pro Thread ein einziger KI-Aufruf, dessen
 // Ergebnis in beide Ziele geht — Kommunikationsfelder in die E-Mail-Datenbank,
@@ -120,10 +121,14 @@ ${convo}
 """
 
 TEIL 1 — KOMMUNIKATION
-- Spam, Newsletter, Werbung, Cold-Outreach: category "sonstiges", status "erledigt", summary "Spam/Werbung — nicht relevant", eskalation false, customer_normalized leer.
-- Interne/System-Mails ohne Kundenbeteiligung: status "erledigt", eskalation false, summary "Intern/System — kein Handlungsbedarf".
+- Spam, Newsletter, Werbung, Cold-Outreach: category "sonstiges", status "erledigt", summary "Spam/Werbung — nicht relevant", escalation_level "keine", customer_normalized leer.
+- Interne/System-Mails ohne Kundenbeteiligung: status "erledigt", escalation_level "keine", summary "Intern/System — kein Handlungsbedarf".
 - Website-Formular-Anfragen: category "anforderung_change", status "offen", summary mit den Kerndaten (wer, was wird angefragt).
-- eskalation nur bei erkennbar unzufriedenem Kunden, Beschwerde, Mahnung, Fristdruck, Konfliktton.
+- escalation_level mit escalation_evidence (wörtliche Textstelle, wie bei buying_signals):
+  keine — sachlicher Ton, kein Konflikt
+  stufe1 — Unmut oder Ungeduld, noch sachlich
+  stufe2 — klare Beschwerde, Fristsetzung, spürbarer Konflikt
+  stufe3 — Eskalation, Abbruch- oder Rechtsandrohung, Chef im CC, scharfer Ton
 - Absender mit @rittler.co oder @rico-office.at sind unsere Kollegen. Hat ein Kollege nach der letzten Kundenanfrage inhaltlich geantwortet: status "beantwortet" und colleague_replied true. status "offen" NUR bei unbeantworteter Kundenanfrage. Interne Weiterleitungen zählen NICHT als beantwortet.
 - customer_normalized: exakter Listenname, sonst Firmenname aus der Kundendomain (office@holzbau-maier.at -> "Holzbau Maier"). Bei Freemail-, internen und System-Absendern leer. Themen- oder Branchenähnlichkeit reicht NICHT.
 
@@ -157,7 +162,8 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
               summary: { type: 'string' },
               category: { type: 'string', enum: CATEGORIES },
               status: { type: 'string', enum: STATUSES },
-              eskalation: { type: 'boolean' },
+              escalation_level: { type: 'string', enum: ESCALATION_LEVELS },
+              escalation_evidence: { type: 'string', description: 'wörtliche Textstelle als Beleg' },
               colleague_replied: { type: 'boolean' },
               customer_normalized: { type: 'string' },
               inquiry_type: { type: 'string', enum: INQUIRY_TYPES },
@@ -198,6 +204,7 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
         }
         const customerName = indexHit || matchedCustomer;
         const requestNature = REQUEST_NATURES.includes(r.request_nature) ? r.request_nature : 'sonstiges';
+        const severity = severityOf(r.escalation_level);
         const suggested = suggestAction({
           is_known_customer: isKnownCustomer,
           request_nature: requestNature,
@@ -214,7 +221,7 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
               const s = STATUSES.includes(r.status) ? r.status : 'offen';
               return r.colleague_replied && s === 'offen' ? 'beantwortet' : s;
             })(),
-            eskalation: r.eskalation ? 1 : 0,
+            eskalation: severity > 0 ? 1 : 0,
             zuordnung_status: 'automatisch',
             klass_modell: 'base44-eingang',
             suggested_action: suggested,
@@ -228,6 +235,21 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
           await emailDbEnrich(t.id, fields);
         } catch (e) {
           stats.errors.push(`E-Mail-DB Thread ${t.id}: ${e.message}`);
+        }
+
+        // Eskalation als eigener Vorgang — Bearbeitungsstand bleibt erhalten
+        if (severity > 0) {
+          try {
+            await upsertEscalation(db, {
+              threadId: t.id,
+              subject: t.subject || '',
+              customerName: customerName || String(r.customer_normalized || '').trim(),
+              severity,
+              evidence: r.escalation_evidence || '',
+            });
+          } catch (e) {
+            stats.errors.push(`Eskalation Thread ${t.id}: ${e.message}`);
+          }
         }
 
         // Ziel 2: Vorschlag ist gespeichert — es wird KEIN Posteingangs-Eintrag angelegt,

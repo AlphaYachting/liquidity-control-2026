@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import EscalationCaseControls, { SEVERITY_STYLE } from '@/components/crm/emails/EscalationCaseControls';
 import { emailApi } from '@/components/crm/emails/emailApi';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,18 +11,11 @@ import { formatMailDate } from '@/components/crm/emails/emailConfig';
 import EscalationThreadPreview from '@/components/crm/emails/EscalationThreadPreview';
 
 // Eskalations-Alert mit KI-generiertem Einschreitungsvorschlag (on demand).
-export default function EscalationInterventionCard({ thread, linkedProjects = [] }) {
+export default function EscalationInterventionCard({ thread, linkedProjects = [], caseRecord = null }) {
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState(null);
   const [showPreview, setShowPreview] = useState(true);
-  const queryClient = useQueryClient();
-
-  // Alert als erledigt markieren: Status in der E-Mail-DB setzen, Eskalation aufheben
-  const resolveMutation = useMutation({
-    mutationFn: () => emailApi('enrich', { thread_id: thread.id, fields: { status: 'erledigt', eskalation: 0 } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-escalations'] }),
-  });
 
   const generatePlan = async () => {
     setLoading(true);
@@ -79,6 +72,11 @@ Liefere: (1) Kern des Problems in 1-2 Sätzen. (2) Dringlichkeit (hoch/mittel/ni
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-sm">{thread.customer_label || 'Unbekannter Absender'}</span>
+              {caseRecord?.severity > 0 && (
+                <Badge variant="outline" className={`border-0 text-[10px] ${SEVERITY_STYLE[caseRecord.severity] || ''}`}>
+                  Stufe {caseRecord.severity}
+                </Badge>
+              )}
               <span className="text-xs text-muted-foreground">{formatMailDate(thread.last_message_at).slice(0, 10)}</span>
             </div>
             <p className="text-sm font-medium mt-0.5">{thread.subject || '(kein Betreff)'}</p>
@@ -106,15 +104,13 @@ Liefere: (1) Kern des Problems in 1-2 Sätzen. (2) Dringlichkeit (hoch/mittel/ni
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               Einschreitungsvorschlag
             </Button>
-            <Button size="sm" variant="outline" onClick={() => resolveMutation.mutate()} disabled={resolveMutation.isPending} className="gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800">
-              {resolveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-              Als erledigt markieren
-            </Button>
             <Link to="/crm/emails" className="text-xs text-primary hover:underline text-center flex items-center gap-1 justify-center">
               <Mail className="w-3 h-3" /> Zur E-Mail-Zentrale
             </Link>
           </div>
         </div>
+
+        <EscalationCaseControls caseRecord={caseRecord} thread={thread} />
 
         <div>
           <button

@@ -1,0 +1,69 @@
+{
+  "name": "CrmEscalation",
+  "type": "object",
+  "properties": {
+    "thread_id": {
+      "type": "string",
+      "description": "Verlauf in der zentralen E-Mail-Datenbank \u2014 Schl\u00fcssel des Vorgangs"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "severity": {
+      "type": "number",
+      "description": "1 = Unmut, 2 = klare Beschwerde, 3 = Abbruch-/Rechtsandrohung"
+    },
+    "evidence": {
+      "type": "string",
+      "description": "w\u00f6rtliche Textstelle als Beleg der Einstufung"
+    },
+    "assigned_to": {
+      "type": "string",
+      "description": "E-Mail der zust\u00e4ndigen Person"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "offen",
+        "in_arbeit",
+        "snooze",
+        "erledigt"
+      ],
+      "default": "offen"
+    },
+    "snooze_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "bis dahin ausgeblendet"
+    },
+    "resolution_note": {
+      "type": "string"
+    },
+    "linked_deal_id": {
+      "type": "string"
+    },
+    "linked_ticket_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "resolved_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "thread_id"
+  ],
+  "rls": {
+    "create": null,
+    "read": null,
+    "update": {},
+    "delete": {}
+  }
+}
