@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, FileText, Search, X } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import ProposalCreateDialog from '@/components/crm/proposals/ProposalCreateDialog';
-import ProposalListCard from '@/components/crm/proposals/ProposalListCard';
+import ProposalListRow from '@/components/crm/proposals/ProposalListRow';
+import { proposalTotalNet, shortPreview } from '@/components/crm/proposals/proposalSummary';
 import { PROPOSAL_STATUSES, MODE_LABELS, OFFER_TYPES } from '@/components/crm/proposals/proposalConfig';
 import { QUOTE_STATUS } from '@/components/crm/quotes/quoteConfig';
 
@@ -18,6 +19,7 @@ const TYPE_FILTERS = [
 ];
 
 export default function CrmProposals() {
+  const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -33,12 +35,32 @@ export default function CrmProposals() {
     queryFn: () => base44.entities.CrmQuote.filter({ offer_type: 'email' }, '-updated_date', 200),
   });
 
+  // Löschen — Proposals und E-Mail-Angebote getrennt, Deal-Verknüpfung wird gelöst.
+  const deleteMutation = useMutation({
+    mutationFn: async (entry) => {
+      if (entry.kind === 'proposal') {
+        if (entry.dealId) await base44.entities.CrmDeal.update(entry.dealId, { proposal_id: '' }).catch(() => {});
+        await base44.entities.CrmProposal.delete(entry.rawId);
+      } else {
+        if (entry.dealId) await base44.entities.CrmDeal.update(entry.dealId, { quote_id: '' }).catch(() => {});
+        await base44.entities.CrmQuote.delete(entry.rawId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crm-proposals'] });
+      queryClient.invalidateQueries({ queryKey: ['crm-email-quotes'] });
+    },
+  });
+
   const entries = useMemo(() => [
     ...proposals.map(p => {
       const st = PROPOSAL_STATUSES[p.status] || PROPOSAL_STATUSES.input;
       return {
-        id: `p_${p.id}`, href: `/crm/proposals/${p.id}`, title: p.title,
+        id: `p_${p.id}`, rawId: p.id, kind: 'proposal', dealId: p.deal_id,
+        href: `/crm/proposals/${p.id}`, title: p.title,
         customer: p.customer_company,
+        preview: shortPreview(p.client_project_scope || p.client_core_business || p.notes),
+        totalNet: proposalTotalNet(p),
         typeKey: p.offer_type || (p.mode === 'short' ? 'bestand' : p.mode === 'email' ? 'email' : 'neukunde'),
         typeLabel: OFFER_TYPES[p.offer_type]?.label || MODE_LABELS[p.mode] || '—',
         typeChip: OFFER_TYPES[p.offer_type]?.chip || 'bg-muted text-muted-foreground',
@@ -49,8 +71,11 @@ export default function CrmProposals() {
     ...emailQuotes.map(q => {
       const st = QUOTE_STATUS[q.status] || {};
       return {
-        id: `q_${q.id}`, href: `/crm/quotes/${q.id}`, title: q.title,
+        id: `q_${q.id}`, rawId: q.id, kind: 'quote', dealId: q.deal_id,
+        href: `/crm/quotes/${q.id}`, title: q.title,
         customer: q.customer_name,
+        preview: shortPreview(q.intro_text || q.email_body || q.notes),
+        totalNet: Number(q.total_net) || null,
         typeKey: 'email',
         typeLabel: OFFER_TYPES.email.label,
         typeChip: OFFER_TYPES.email.chip,
@@ -153,8 +178,12 @@ export default function CrmProposals() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {filtered.map(e => <ProposalListCard key={e.id} entry={e} />)}
+        <div className="border rounded-xl bg-card overflow-hidden">
+          {filtered.map(e => (
+            <ProposalListRow key={e.id} entry={e}
+              onDelete={(entry) => deleteMutation.mutate(entry)}
+              isDeleting={deleteMutation.isPending && deleteMutation.variables?.id === e.id} />
+          ))}
         </div>
       )}
 
