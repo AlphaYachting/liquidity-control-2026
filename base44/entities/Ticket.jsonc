@@ -65,7 +65,8 @@
       "enum": [
         "pflicht",
         "addon",
-        "change_request"
+        "change_request",
+        "support"
       ],
       "default": "pflicht"
     },

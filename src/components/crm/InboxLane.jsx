@@ -2,7 +2,7 @@ import React from 'react';
 import InboxItemCard from '@/components/crm/InboxItemCard';
 
 // Eine Spur des Posteingangs — Leads bzw. Support/Störungen.
-export default function InboxLane({ titel, symbol: Symbol, hinweis, items, onConvert, onAssign, onChanged }) {
+export default function InboxLane({ titel, symbol: Symbol, hinweis, items, onConvert, onAssign, onSupportTicket, onChanged }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
@@ -18,7 +18,8 @@ export default function InboxLane({ titel, symbol: Symbol, hinweis, items, onCon
       ) : (
         items.map(item => (
           <InboxItemCard key={item.id} item={item}
-            onConvert={onConvert} onAssign={onAssign} onChanged={onChanged} />
+            onConvert={onConvert} onAssign={onAssign}
+            onSupportTicket={onSupportTicket} onChanged={onChanged} />
         ))
       )}
     </div>

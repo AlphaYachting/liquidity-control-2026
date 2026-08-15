@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Phone, Mail, PenLine, UserPlus, Trash2, MailCheck, Link2 } from 'lucide-react';
+import { Phone, Mail, PenLine, UserPlus, Trash2, MailCheck, Link2, LifeBuoy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import InboxItemBody from '@/components/crm/InboxItemBody';
@@ -13,7 +13,8 @@ const SOURCE_META = {
   manual: { icon: PenLine, label: 'Manuell', color: 'bg-muted text-muted-foreground' },
 };
 
-export default function InboxItemCard({ item, onConvert, onAssign, onChanged }) {
+export default function InboxItemCard({ item, onConvert, onAssign, onSupportTicket, onChanged }) {
+  const isSupport = item.track === 'support';
   const meta = SOURCE_META[item.source] || SOURCE_META.manual;
   const Icon = meta.icon;
   const strength = STRENGTH_META[item.lead_strength];
@@ -86,13 +87,22 @@ export default function InboxItemCard({ item, onConvert, onAssign, onChanged }) 
       </div>
       <InboxItemBody item={item} />
       <div className="flex flex-wrap gap-2 pl-12">
-        <Button size="sm" className="h-8 gap-1.5 text-xs" disabled={busy} onClick={() => onConvert(item)}>
-          <UserPlus className="w-3.5 h-3.5" /> Lead anlegen
-        </Button>
-        <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" disabled={busy}
-          onClick={() => onAssign(item)}>
-          <Link2 className="w-3.5 h-3.5" /> Zu Deal zuordnen
-        </Button>
+        {isSupport ? (
+          <Button size="sm" className="h-8 gap-1.5 text-xs" disabled={busy}
+            onClick={() => onSupportTicket?.(item)}>
+            <LifeBuoy className="w-3.5 h-3.5" /> Support-Ticket anlegen
+          </Button>
+        ) : (
+          <>
+            <Button size="sm" className="h-8 gap-1.5 text-xs" disabled={busy} onClick={() => onConvert(item)}>
+              <UserPlus className="w-3.5 h-3.5" /> Lead anlegen
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" disabled={busy}
+              onClick={() => onAssign(item)}>
+              <Link2 className="w-3.5 h-3.5" /> Zu Deal zuordnen
+            </Button>
+          </>
+        )}
         <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" disabled={busy}
           onClick={() => decide('nur_antwort')}>
           <MailCheck className="w-3.5 h-3.5" /> Kein Lead, beantworten

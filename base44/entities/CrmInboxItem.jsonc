@@ -125,6 +125,10 @@
     },
     "linked_deal_id": {
       "type": "string"
+    },
+    "linked_ticket_id": {
+      "type": "string",
+      "description": "Aus der Support-Anfrage entstandenes Ticket"
     }
   },
   "required": [

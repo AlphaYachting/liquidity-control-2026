@@ -7,6 +7,7 @@ import { PenLine, ArrowLeft, MailQuestion, AlertTriangle, Target, LifeBuoy } fro
 import { Link } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
 import InboxLane from '@/components/crm/InboxLane';
+import SupportTicketDialog from '@/components/crm/support/SupportTicketDialog';
 import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import InboxDuplicateDialog from '@/components/crm/InboxDuplicateDialog';
@@ -21,6 +22,7 @@ export default function CrmInbox() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [convertItem, setConvertItem] = useState(null);
   const [assignItem, setAssignItem] = useState(null);
+  const [supportItem, setSupportItem] = useState(null);
   const [duplicateHit, setDuplicateHit] = useState(null); // { item, deal }
   const [attachBusy, setAttachBusy] = useState(false);
   const [attachError, setAttachError] = useState(null);
@@ -172,12 +174,26 @@ export default function CrmInbox() {
             titel="Support" symbol={LifeBuoy}
             hinweis="Keine offenen Support-/Störungsmeldungen."
             items={supportItems}
-            onConvert={handleConvert} onAssign={setAssignItem} onChanged={refresh}
+            onConvert={handleConvert} onAssign={setAssignItem}
+            onSupportTicket={setSupportItem} onChanged={refresh}
           />
         </div>
       )}
 
       <InboxCaptureDialog open={captureOpen} onOpenChange={setCaptureOpen} onSaved={refresh} />
+      <SupportTicketDialog
+        open={Boolean(supportItem)}
+        onOpenChange={(o) => { if (!o) setSupportItem(null); }}
+        item={supportItem}
+        onDone={(ticket, back) => {
+          setSupportItem(null);
+          refresh();
+          toast({
+            title: `Support-Ticket „${ticket.title}" angelegt`,
+            description: back.ok ? undefined : 'Der Thread konnte in der E-Mail-Zentrale nicht markiert werden.',
+          });
+        }}
+      />
       <InboxAssignDealDialog
         open={Boolean(assignItem)}
         onOpenChange={(o) => { if (!o) setAssignItem(null); }}
