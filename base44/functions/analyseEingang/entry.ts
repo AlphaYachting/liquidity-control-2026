@@ -252,13 +252,41 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
           }
         }
 
-        // Ziel 2: Vorschlag ist gespeichert — es wird KEIN Posteingangs-Eintrag angelegt,
-        // jede Geschäftsmail bleibt in der E-Mail-Zentrale sichtbar und wird dort entschieden.
         if (suggested === 'supportticket') stats.support_faelle++;
         if (suggested === 'anfrage') stats.lead_verdacht++;
 
         const contactEmail = String(r.contact_email || (isFormMail ? '' : firstIn.from) || '').trim();
         const bodyText = (firstIn.text || '').slice(0, 5000);
+
+        // Ziel 2: Jede triage-relevante Mail landet im Posteingang — die
+        // Vorklassifizierung ist eine Empfehlung, entschieden wird dort.
+        if (suggested !== 'kein_lead') {
+          await db.CrmInboxItem.create({
+            source: 'email',
+            sender_name: r.contact_name || firstIn.from_name || '',
+            sender_email: contactEmail,
+            sender_phone: r.contact_phone || '',
+            subject: t.subject || '',
+            body: bodyText,
+            received_at: toIso(firstIn.received_at),
+            thread_id: String(t.id),
+            track: suggested === 'supportticket' ? 'support' : 'lead',
+            suggested_action: suggested,
+            request_nature: requestNature,
+            is_known_customer: isKnownCustomer,
+            customer_match: customerMatch,
+            matched_customer_name: customerName,
+            suggested_pipeline: isKnownCustomer ? 'existing_customer' : 'new_business',
+            inquiry_type: INQUIRY_TYPES.includes(r.inquiry_type) ? r.inquiry_type : undefined,
+            buying_signals: (r.buying_signals || [])
+              .filter((s) => s?.signal)
+              .map((s) => `${s.signal} — ${String(s.evidence || '').slice(0, 200)}`),
+            signal_count: rawSignals.length,
+            lead_strength: rawSignals.length >= 3 ? 'stark' : 'schwach',
+            status: 'new',
+            decision: 'offen',
+          });
+        }
 
         // Automatische Deal-Anlage ausschließlich für Formular-Anfragen
         const duplicate = findDuplicateDeal(openDeals, {

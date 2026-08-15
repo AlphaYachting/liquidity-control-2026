@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { PenLine, ArrowLeft, MailQuestion, AlertTriangle, Target, LifeBuoy } from 'lucide-react';
+import { PenLine, ArrowLeft, MailQuestion, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PageHeader from '@/components/shared/PageHeader';
-import InboxLane from '@/components/crm/InboxLane';
+import InboxItemCard from '@/components/crm/InboxItemCard';
 import SupportTicketDialog from '@/components/crm/support/SupportTicketDialog';
 import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
 import DealFormDialog from '@/components/crm/DealFormDialog';
@@ -34,15 +34,14 @@ export default function CrmInbox() {
     queryFn: () => base44.entities.CrmInboxItem.filter({ status: 'new', decision: 'offen' }, '-created_date', 100),
   });
 
-  // Starker Lead-Verdacht oben, schwacher darunter
+  // Eine gemeinsame Liste: Supportticket-Vorschläge und starke Leads oben, dann nach Datum
   const items = [...rawItems].sort((a, b) => {
-    const rank = (i) => (i.lead_strength === 'stark' ? 0 : i.lead_strength === 'schwach' ? 1 : 2);
-    return rank(a) - rank(b);
+    const rank = (i) =>
+      i.suggested_action === 'supportticket' ? 0 : i.lead_strength === 'stark' ? 1 : 2;
+    const diff = rank(a) - rank(b);
+    if (diff !== 0) return diff;
+    return new Date(b.received_at || b.created_date) - new Date(a.received_at || a.created_date);
   });
-
-  // Zwei Spuren: Lead-Verdacht und Support/Störung
-  const supportItems = items.filter(i => i.track === 'support');
-  const leadItems = items.filter(i => i.track !== 'support');
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['crm-inbox'] });
@@ -124,7 +123,7 @@ export default function CrmInbox() {
     <div className="space-y-4 max-w-6xl">
       <PageHeader
         title="CRM — Posteingang"
-        subtitle="Zwei Spuren — Lead-Verdacht und Support/Störung, je Eintrag entschieden"
+        subtitle="Alle triage-relevanten Anfragen in einer Liste — die KI schlägt vor, entschieden wird hier"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" className="gap-2" asChild>
@@ -163,20 +162,17 @@ export default function CrmInbox() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <InboxLane
-            titel="Leads" symbol={Target}
-            hinweis="Kein offener Lead-Verdacht."
-            items={leadItems}
-            onConvert={handleConvert} onAssign={setAssignItem} onChanged={refresh}
-          />
-          <InboxLane
-            titel="Support" symbol={LifeBuoy}
-            hinweis="Keine offenen Support-/Störungsmeldungen."
-            items={supportItems}
-            onConvert={handleConvert} onAssign={setAssignItem}
-            onSupportTicket={setSupportItem} onChanged={refresh}
-          />
+        <div className="space-y-3 max-w-3xl">
+          {items.map((item) => (
+            <InboxItemCard
+              key={item.id}
+              item={item}
+              onConvert={handleConvert}
+              onAssign={setAssignItem}
+              onSupportTicket={setSupportItem}
+              onChanged={refresh}
+            />
+          ))}
         </div>
       )}
 

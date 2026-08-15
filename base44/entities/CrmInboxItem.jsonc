@@ -48,6 +48,39 @@
       "default": "lead",
       "description": "Bearbeitungsspur im Posteingang \u2014 Lead-Verdacht oder Support/St\u00f6rung"
     },
+    "suggested_action": {
+      "type": "string",
+      "enum": [
+        "supportticket",
+        "anfrage",
+        "kein_lead"
+      ],
+      "description": "KI-Vorklassifizierung \u2014 Empfehlung, keine Sperre"
+    },
+    "request_nature": {
+      "type": "string",
+      "enum": [
+        "stoerung",
+        "aenderung_bestehend",
+        "neue_leistung",
+        "sonstiges"
+      ],
+      "description": "Art des Anliegens laut KI"
+    },
+    "is_known_customer": {
+      "type": "boolean",
+      "default": false,
+      "description": "Absenderdomain geh\u00f6rt zu einem Bestandskunden"
+    },
+    "customer_match": {
+      "type": "string",
+      "enum": [
+        "sicher",
+        "unsicher",
+        "unbekannt"
+      ],
+      "default": "unbekannt"
+    },
     "inquiry_type": {
       "type": "string",
       "enum": [

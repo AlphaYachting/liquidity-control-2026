@@ -6,6 +6,7 @@ import InboxItemBody from '@/components/crm/InboxItemBody';
 import InboxDismissDialog from '@/components/crm/InboxDismissDialog';
 import { decideInboxItem } from '@/components/crm/inboxDecision';
 import { INQUIRY_TYPE_LABELS, STRENGTH_META, parseSignal } from '@/components/crm/inboxSignals';
+import InboxSuggestionLabel from '@/components/crm/InboxSuggestionLabel';
 
 const SOURCE_META = {
   phone_ai: { icon: Phone, label: 'Telefon-KI', color: 'bg-violet-100 text-violet-600' },
@@ -14,7 +15,7 @@ const SOURCE_META = {
 };
 
 export default function InboxItemCard({ item, onConvert, onAssign, onSupportTicket, onChanged }) {
-  const isSupport = item.track === 'support';
+  const suggestion = item.suggested_action || (item.track === 'support' ? 'supportticket' : 'anfrage');
   const meta = SOURCE_META[item.source] || SOURCE_META.manual;
   const Icon = meta.icon;
   const strength = STRENGTH_META[item.lead_strength];
@@ -54,6 +55,7 @@ export default function InboxItemCard({ item, onConvert, onAssign, onSupportTick
             {[item.sender_name, item.sender_email, item.sender_phone].filter(Boolean).join(' · ') || 'Unbekannter Absender'}
           </p>
           <div className="flex items-center gap-1.5 flex-wrap mt-1">
+            <InboxSuggestionLabel item={item} />
             {strength && (
               <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${strength.color}`}>
                 {strength.label} · {item.signal_count || 0} Signale
@@ -87,25 +89,21 @@ export default function InboxItemCard({ item, onConvert, onAssign, onSupportTick
       </div>
       <InboxItemBody item={item} />
       <div className="flex flex-wrap gap-2 pl-12">
-        {isSupport ? (
-          <Button size="sm" className="h-8 gap-1.5 text-xs" disabled={busy}
-            onClick={() => onSupportTicket?.(item)}>
-            <LifeBuoy className="w-3.5 h-3.5" /> Support-Ticket anlegen
-          </Button>
-        ) : (
-          <>
-            <Button size="sm" className="h-8 gap-1.5 text-xs" disabled={busy} onClick={() => onConvert(item)}>
-              <UserPlus className="w-3.5 h-3.5" /> Lead anlegen
-            </Button>
-            <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" disabled={busy}
-              onClick={() => onAssign(item)}>
-              <Link2 className="w-3.5 h-3.5" /> Zu Deal zuordnen
-            </Button>
-          </>
-        )}
+        <Button size="sm" variant={suggestion === 'supportticket' ? 'default' : 'outline'}
+          className="h-8 gap-1.5 text-xs" disabled={busy} onClick={() => onSupportTicket?.(item)}>
+          <LifeBuoy className="w-3.5 h-3.5" /> Supportticket anlegen
+        </Button>
+        <Button size="sm" variant={suggestion === 'anfrage' ? 'default' : 'outline'}
+          className="h-8 gap-1.5 text-xs" disabled={busy} onClick={() => onConvert(item)}>
+          <UserPlus className="w-3.5 h-3.5" /> Deal / Lead anlegen
+        </Button>
+        <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" disabled={busy}
+          onClick={() => onAssign(item)}>
+          <Link2 className="w-3.5 h-3.5" /> Zu Deal zuordnen
+        </Button>
         <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" disabled={busy}
           onClick={() => decide('nur_antwort')}>
-          <MailCheck className="w-3.5 h-3.5" /> Kein Lead, beantworten
+          <MailCheck className="w-3.5 h-3.5" /> Kein Deal / kein Lead
         </Button>
         <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs text-muted-foreground" disabled={busy}
           onClick={() => setDismissOpen(true)}>
