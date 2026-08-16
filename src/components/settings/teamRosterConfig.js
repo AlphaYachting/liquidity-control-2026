@@ -1,13 +1,14 @@
 // Auswahllisten für die Personenverwaltung — deckungsgleich mit dem TeamMember-Schema
 export const PERSON_COLORS = [
-  { hex: '#2E5AAC', label: 'Blau' },
-  { hex: '#1F6F6B', label: 'Petrol' },
-  { hex: '#5B3E96', label: 'Violett' },
-  { hex: '#8A4B2A', label: 'Kupfer' },
-  { hex: '#465A70', label: 'Schiefer' },
-  { hex: '#7A2E5E', label: 'Beere' },
-  { hex: '#145C86', label: 'Stahlblau' },
-  { hex: '#33415C', label: 'Nachtblau' },
+  { hex: '#1D4ED8', label: 'Blau' },
+  { hex: '#0E9488', label: 'Türkis' },
+  { hex: '#16A34A', label: 'Grün' },
+  { hex: '#CA8A04', label: 'Ocker' },
+  { hex: '#EA580C', label: 'Orange' },
+  { hex: '#DC2626', label: 'Rot' },
+  { hex: '#DB2777', label: 'Magenta' },
+  { hex: '#9333EA', label: 'Violett' },
+  { hex: '#475569', label: 'Schiefer' },
 ];
 
 export const SYSTEM_ROLES = [

@@ -41,16 +41,17 @@
     "color": {
       "type": "string",
       "enum": [
-        "#2E5AAC",
-        "#1F6F6B",
-        "#5B3E96",
-        "#8A4B2A",
-        "#465A70",
-        "#7A2E5E",
-        "#145C86",
-        "#33415C"
+        "#1D4ED8",
+        "#0E9488",
+        "#16A34A",
+        "#CA8A04",
+        "#EA580C",
+        "#DC2626",
+        "#DB2777",
+        "#9333EA",
+        "#475569"
       ],
-      "description": "Personenfarbe \u2014 lebt ausschlie\u00dflich in der Fl\u00e4che des K\u00fcrzel-Chips"
+      "description": "Personenfarbe \u2014 klar unterscheidbare Grundt\u00f6ne, lebt in der Fl\u00e4che des K\u00fcrzel-Chips"
     },
     "weekly_focus_days": {
       "type": "number",
