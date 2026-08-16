@@ -45,6 +45,11 @@
     "support_kontingent_stunden": {
       "type": "number",
       "description": "monatliches Stundenkontingent bei Support"
+    },
+    "is_legacy": {
+      "type": "boolean",
+      "default": false,
+      "description": "Altprojekt \u2014 l\u00e4uft nur weiter, erh\u00e4lt keine Automatismen"
     }
   },
   "required": [

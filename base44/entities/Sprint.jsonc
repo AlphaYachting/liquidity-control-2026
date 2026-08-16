@@ -27,7 +27,7 @@
     "delivery_date": {
       "type": "string",
       "format": "date",
-      "description": "vertraglich zugesagter Liefertermin"
+      "description": "vertraglich zugesagter Liefertermin \u2014 gesetzt = Sprint-Verhalten, leer = laufender Beh\u00e4lter"
     },
     "sprint_amount": {
       "type": "number",
@@ -65,7 +65,6 @@
   "required": [
     "project_id",
     "size",
-    "start_date",
-    "delivery_date"
+    "start_date"
   ]
 }

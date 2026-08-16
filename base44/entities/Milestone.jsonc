@@ -28,7 +28,7 @@
     },
     "milestone_amount": {
       "type": "number",
-      "description": "Etappenbetrag netto, l\u00f6st bei Freigabe die Teilrechnung aus"
+      "description": "Etappenbetrag netto, l\u00f6st bei Freigabe die Teilrechnung aus \u2014 nur bei Sprint-Milestones gesetzt"
     },
     "planned_handover": {
       "type": "string",
@@ -38,7 +38,7 @@
     "planned_freeze": {
       "type": "string",
       "format": "date",
-      "description": "geplantes FREEZE-Datum \u2014 tr\u00e4gt die Liquidit\u00e4tsvorschau ab Tag 1"
+      "description": "geplantes FREEZE-Datum \u2014 nur bei Sprint-Milestones gesetzt"
     },
     "handover_date": {
       "type": "string",
@@ -100,8 +100,6 @@
     "sprint_id",
     "order",
     "title",
-    "state",
-    "milestone_amount",
-    "planned_freeze"
+    "state"
   ]
 }
