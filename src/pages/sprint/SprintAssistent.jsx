@@ -9,6 +9,7 @@ import { AlertTriangle } from 'lucide-react';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import StepModule, { milestoneAmount } from '@/components/sprint/assistent/StepModule';
 import StepRahmen, { rahmenValid, NEW_CLIENT } from '@/components/sprint/assistent/StepRahmen';
+import StepTypDetails, { typDetailsValid } from '@/components/sprint/assistent/StepTypDetails';
 import { PROJECT_TYPES } from '@/components/sprint/projectTypes';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { SPRINT_SIZES, fmtEUR, fmtDate, addWeeks } from '@/components/sprint/sprintConfig';
@@ -20,6 +21,7 @@ const EMPTY_SEED = {
   client_id: '', new_client_name: '', new_client_email: '',
   type: '', pm_email: '', title: '',
   sprint_target: 'neu', existing_project_id: '',
+  stundensatz: '', kontingent_stunden: '', recurring_contract_id: '', modell: 'aufwand',
 };
 
 // Allgemeiner Anlage-Wizard: Schritt 1 Rahmen für alle Typen, danach die
@@ -39,8 +41,9 @@ export default function SprintAssistent() {
   const { data, refetch } = useQuery({
     queryKey: ['sprintAssistentData'],
     queryFn: async () => {
-      const [clients, projects, modules, addOns, members, settings] = await Promise.all([
+      const [clients, contracts, projects, modules, addOns, members, settings] = await Promise.all([
         base44.entities.Client.list('name', 300),
+        base44.entities.RecurringContract.list('-created_date', 300),
         base44.entities.Project.list('-created_date', 200),
         base44.entities.ModuleTemplate.list('-created_date', 200),
         base44.entities.AddOnBlock.list('-created_date', 200),
@@ -48,7 +51,7 @@ export default function SprintAssistent() {
         base44.entities.Setting.filter({ group: 'fristen' }, 'key', 100),
       ]);
       return {
-        clients,
+        clients, contracts,
         projects: projects.filter((p) => p.status === 'aktiv'),
         modules: modules.filter((m) => m.active !== false),
         addOns: addOns.filter((a) => a.active !== false),
@@ -58,6 +61,7 @@ export default function SprintAssistent() {
   });
 
   const clients = data?.clients || [];
+  const contracts = data?.contracts || [];
   const projects = data?.projects || [];
   const modules = data?.modules || [];
   const addOns = data?.addOns || [];
@@ -65,6 +69,10 @@ export default function SprintAssistent() {
   const settings = data?.settings || [];
 
   const isSprint = seed.type === 'sprint';
+  const clientName = clients.find((c) => c.id === seed.client_id)?.name || '';
+  const clientContracts = contracts.filter(
+    (c) => (c.customer || '').trim().toLowerCase() === clientName.trim().toLowerCase(),
+  );
   const stepLabels = isSprint
     ? ['Rahmen', 'Sprint', 'Module', 'Übersicht']
     : ['Rahmen', 'Anlegen'];
@@ -92,6 +100,7 @@ export default function SprintAssistent() {
     (step === 1 && !rahmenValid(seed)) ||
     (isSprint && step === 2 && !sprintRahmenValid) ||
     (isSprint && step === 3 && !moduleValid);
+  const commitDisabled = isSprint ? !plan?.deliverable : !typDetailsValid(seed);
 
   // Neuer Kunde entsteht inline beim Verlassen des Rahmens
   const handleNext = async () => {
@@ -118,7 +127,10 @@ export default function SprintAssistent() {
       title: seed.title.trim(),
       pm_email: seed.pm_email,
       status: 'aktiv',
-      abrechnungsmodell: def.model || 'aufwand',
+      abrechnungsmodell: seed.type === 'legacy' ? seed.modell : def.model,
+      stundensatz: Number(seed.stundensatz) || undefined,
+      support_kontingent_stunden: seed.type === 'container' ? Number(seed.kontingent_stunden) || undefined : undefined,
+      recurring_contract_id: seed.type === 'container' ? seed.recurring_contract_id || undefined : undefined,
       is_legacy: seed.type === 'legacy',
     });
   };
@@ -127,8 +139,8 @@ export default function SprintAssistent() {
   const handleCreateContainer = async () => {
     setCreating(true);
     const project = await resolveProject();
-    await ensureContainer(project);
-    navigate('/sprint/projekte');
+    const { sprint } = await ensureContainer(project);
+    navigate(`/sprint/sprints/${sprint.id}`);
   };
 
   const handleCreateSprint = async () => {
@@ -235,18 +247,11 @@ export default function SprintAssistent() {
         )}
 
         {!isSprint && step === 2 && (
-          <div className="space-y-3">
-            <SectionLabel>Übersicht</SectionLabel>
-            <p className="text-sm text-foreground font-bold">
-              {seed.title} · {PROJECT_TYPES[seed.type]?.label}
+          <div className="space-y-4">
+            <p className="text-sm text-foreground">
+              <span className="font-bold">{seed.title}</span> · {PROJECT_TYPES[seed.type]?.label} · {clientName || '—'} · PM {seed.pm_email}
             </p>
-            <p className="text-sm text-muted-foreground">
-              Kunde: {clients.find((c) => c.id === seed.client_id)?.name || '—'} · PM: {seed.pm_email}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Es entsteht ein laufender Behälter mit offener Etappe — ohne Liefertermin und ohne Etappenbetrag.
-              Tickets können sofort abgelegt werden.
-            </p>
+            <StepTypDetails seed={seed} setSeed={setSeed} contracts={clientContracts} />
           </div>
         )}
 
@@ -349,7 +354,7 @@ export default function SprintAssistent() {
           ) : (
             <Button
               className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
-              disabled={creating || (isSprint && !plan?.deliverable)}
+              disabled={creating || commitDisabled}
               onClick={isSprint ? handleCreateSprint : handleCreateContainer}
             >
               {creating ? 'Legt an…' : isSprint ? 'Sprint anlegen' : 'Projekt anlegen'}
