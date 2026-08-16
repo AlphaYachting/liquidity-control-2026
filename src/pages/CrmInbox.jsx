@@ -34,14 +34,10 @@ export default function CrmInbox() {
     queryFn: () => base44.entities.CrmInboxItem.filter({ status: 'new', decision: 'offen' }, '-created_date', 100),
   });
 
-  // Eine gemeinsame Liste: Supportticket-Vorschläge und starke Leads oben, dann nach Datum
-  const items = [...rawItems].sort((a, b) => {
-    const rank = (i) =>
-      i.suggested_action === 'supportticket' ? 0 : i.lead_strength === 'stark' ? 1 : 2;
-    const diff = rank(a) - rank(b);
-    if (diff !== 0) return diff;
-    return new Date(b.received_at || b.created_date) - new Date(a.received_at || a.created_date);
-  });
+  // Eine gemeinsame Liste, streng nach Datum — neueste zuerst
+  const items = [...rawItems].sort(
+    (a, b) => new Date(b.received_at || b.created_date) - new Date(a.received_at || a.created_date),
+  );
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['crm-inbox'] });

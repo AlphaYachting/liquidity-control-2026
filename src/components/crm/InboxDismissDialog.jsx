@@ -24,7 +24,7 @@ export default function InboxDismissDialog({ open, onOpenChange, onConfirm }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Anfrage verwerfen</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Anfrage als erledigt ablegen</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div>
             <Label className="text-xs">Grund *</Label>
@@ -51,7 +51,7 @@ export default function InboxDismissDialog({ open, onOpenChange, onConfirm }) {
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
             <Button onClick={confirm} disabled={!complete || saving}>
-              {saving ? 'Speichert…' : 'Verwerfen'}
+              {saving ? 'Speichert…' : 'Als erledigt ablegen'}
             </Button>
           </div>
         </div>

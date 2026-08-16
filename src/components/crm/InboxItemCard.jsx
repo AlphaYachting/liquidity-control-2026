@@ -19,6 +19,11 @@ export default function InboxItemCard({ item, onConvert, onAssign, onSupportTick
   const meta = SOURCE_META[item.source] || SOURCE_META.manual;
   const Icon = meta.icon;
   const strength = STRENGTH_META[item.lead_strength];
+  // Liegt die Anfrage länger als zwei Tage unbeantwortet, wird die ganze Karte rot markiert
+  const tageOffen = Math.floor(
+    (Date.now() - new Date(item.received_at || item.created_date).getTime()) / 86400000,
+  );
+  const ueberfaellig = tageOffen >= 2;
   const [dismissOpen, setDismissOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const { toast } = useToast();
@@ -39,7 +44,9 @@ export default function InboxItemCard({ item, onConvert, onAssign, onSupportTick
   };
 
   return (
-    <div className="border rounded-xl p-4 bg-card shadow-sm space-y-2">
+    <div className={`border rounded-xl p-4 shadow-sm space-y-2 ${
+      ueberfaellig ? 'border-status-critical bg-status-critical-surface' : 'bg-card'
+    }`}>
       <div className="flex items-start gap-3">
         <div className={`p-2 rounded-lg shrink-0 ${meta.color}`}>
           <Icon className="w-4 h-4" />
@@ -56,6 +63,11 @@ export default function InboxItemCard({ item, onConvert, onAssign, onSupportTick
           </p>
           <div className="flex items-center gap-1.5 flex-wrap mt-1">
             <InboxSuggestionLabel item={item} />
+            {ueberfaellig && (
+              <span className="text-[11px] px-1.5 py-0.5 rounded-full font-semibold bg-status-critical text-white">
+                {tageOffen} Tage unbeantwortet
+              </span>
+            )}
             {strength && (
               <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${strength.color}`}>
                 {strength.label} · {item.signal_count || 0} Signale
@@ -107,7 +119,7 @@ export default function InboxItemCard({ item, onConvert, onAssign, onSupportTick
         </Button>
         <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs text-muted-foreground" disabled={busy}
           onClick={() => setDismissOpen(true)}>
-          <Trash2 className="w-3.5 h-3.5" /> Verwerfen
+          <Trash2 className="w-3.5 h-3.5" /> Erledigt (mit Grund)
         </Button>
       </div>
 
