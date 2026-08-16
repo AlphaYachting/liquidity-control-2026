@@ -5,19 +5,23 @@ import { base44 } from '@/api/base44Client';
 
 const norm = (s) => (s || '').toLowerCase().replace(/[^a-zäöüß0-9]/g, '');
 
-// Angebotsposition → Katalogmodul (Namensvergleich, sonst offen lassen)
+// Namensvorschlag für die Modulwahl im Übergabeblatt — nur Vorschlag, keine Entscheidung
+export function suggestModuleId(name, modules) {
+  const key = norm(name);
+  if (!key) return '';
+  const mod = modules.find((m) => norm(m.name) === key)
+    || modules.find((m) => norm(m.name).includes(key) || key.includes(norm(m.name)));
+  return mod ? mod.id : '';
+}
+
+// Nur ausdrücklich gewählte Module gehen in den Wizard. Positionen, für die
+// bewusst „ohne Modul / nach Aufwand" gewählt wurde, tragen keine Modul-ID —
+// nichts fällt unbemerkt weg, weil die Wahl im Übergabeblatt erzwungen wird.
 export function matchModules(positions, modules) {
   return positions.map((p, i) => {
-    if (p.module_template_id) {
-      const chosen = modules.find((m) => m.id === p.module_template_id);
-      if (chosen) {
-        return { key: `${chosen.id}-${i}`, module_template_id: chosen.id, name: p.name || chosen.name, amount: p.amount || chosen.standard_price || '', addon_ids: [] };
-      }
-    }
-    const key = norm(p.name);
-    const mod = modules.find((m) => norm(m.name) === key)
-      || modules.find((m) => key && (norm(m.name).includes(key) || key.includes(norm(m.name))));
-    return mod ? { key: `${mod.id}-${i}`, module_template_id: mod.id, name: mod.name, amount: p.amount || mod.standard_price || '', addon_ids: [] } : null;
+    const mod = modules.find((m) => m.id === p.module_template_id);
+    if (!mod) return null;
+    return { key: `${mod.id}-${i}`, module_template_id: mod.id, name: p.name || mod.name, amount: p.amount || mod.standard_price || '', addon_ids: [] };
   }).filter(Boolean);
 }
 

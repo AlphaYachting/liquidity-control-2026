@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import PositionModuleSelect from '@/components/crm/handover/PositionModuleSelect';
 import { Plus, Trash2 } from 'lucide-react';
 
 // Positionen von Hand erfassen, wenn kein Studio-Angebot vorliegt.
@@ -9,7 +9,7 @@ import { Plus, Trash2 } from 'lucide-react';
 // Auftragspositionen UND die Modulauswahl im Anlage-Wizard.
 export default function ManualPositionsEditor({ rows, modules, onChange }) {
   const set = (i, patch) => onChange(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  const add = () => onChange([...rows, { name: '', amount: '', module_template_id: '' }]);
+  const add = () => onChange([...rows, { name: '', amount: '', module_choice: '' }]);
   const remove = (i) => onChange(rows.filter((_, idx) => idx !== i));
 
   return (
@@ -34,12 +34,11 @@ export default function ManualPositionsEditor({ rows, modules, onChange }) {
             onChange={(e) => set(i, { amount: e.target.value })}
           />
           <div className="sm:col-span-4">
-            <Select value={r.module_template_id || ''} onValueChange={(v) => set(i, { module_template_id: v })}>
-              <SelectTrigger className="h-9"><SelectValue placeholder="Katalogmodul wählen" /></SelectTrigger>
-              <SelectContent>
-                {modules.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <PositionModuleSelect
+              value={r.module_choice}
+              modules={modules}
+              onChange={(v) => set(i, { module_choice: v })}
+            />
           </div>
           <div className="sm:col-span-1 flex justify-end">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => remove(i)} disabled={rows.length === 1}>

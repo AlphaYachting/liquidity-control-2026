@@ -14,6 +14,8 @@ import { proposalPositions, guessProjectType } from '@/lib/crm/proposalPositions
 import { commitHandover } from '@/lib/crm/handoverCommit';
 import ClientLinkStep from '@/components/crm/handover/ClientLinkStep';
 import ManualPositionsEditor from '@/components/crm/handover/ManualPositionsEditor';
+import PositionModuleSelect, { NO_MODULE } from '@/components/crm/handover/PositionModuleSelect';
+import { suggestModuleId } from '@/lib/crm/handoverCommit';
 
 const eur = (v) => new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v || 0);
 
@@ -33,7 +35,8 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
   const [pm, setPm] = useState('');
   const [saving, setSaving] = useState(false);
   const [client, setClient] = useState(null);
-  const [manualRows, setManualRows] = useState([{ name: '', amount: '', module_template_id: '' }]);
+  const [manualRows, setManualRows] = useState([{ name: '', amount: '', module_choice: '' }]);
+  const [moduleChoices, setModuleChoices] = useState({});
   const kunde = deal.linked_customer_name || deal.company_name || '';
 
   const { data, isLoading } = useQuery({
@@ -53,10 +56,20 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
   const manualMode = !isLoading && studioPositions.length === 0;
   // von Hand erfasste Zeilen zählen erst, wenn Leistung, Betrag und Katalogmodul stehen
   const manualPositions = useMemo(() => manualRows
-    .filter((r) => r.name.trim() && Number(r.amount) > 0 && r.module_template_id)
-    .map((r) => ({ name: r.name.trim(), amount: Number(r.amount), module_template_id: r.module_template_id })),
+    .filter((r) => r.name.trim() && Number(r.amount) > 0 && r.module_choice)
+    .map((r) => ({ name: r.name.trim(), amount: Number(r.amount), module_template_id: r.module_choice === NO_MODULE ? '' : r.module_choice })),
     [manualRows]);
-  const positions = manualMode ? manualPositions : studioPositions;
+
+  // Studio-Positionen: Namensvorschlag, offene Zeilen verlangen eine ausdrückliche Wahl
+  const modules = data?.modules || [];
+  const choiceFor = (p, i) => moduleChoices[i] ?? (suggestModuleId(p.name, modules) || '');
+  const studioReady = studioPositions.every((p, i) => Boolean(choiceFor(p, i)));
+  const studioMapped = studioPositions.map((p, i) => {
+    const choice = choiceFor(p, i);
+    return { ...p, module_template_id: choice === NO_MODULE ? '' : choice };
+  });
+
+  const positions = manualMode ? manualPositions : studioMapped;
   const positionsTotal = positions.reduce((s, p) => s + (p.amount || 0), 0);
   const total = positionsTotal > 0 ? positionsTotal : Number(deal.value_net) || 0;
   const ab = data ? computeAbPflicht({ deal, proposal: data.proposal, hasPreviousOrders: data.hasPreviousOrders }) : null;
@@ -76,7 +89,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
         projectType: typ,
         pm,
         abRequired: ab.required,
-        modules: data?.modules || [],
+        modules,
       });
       await base44.entities.CrmDeal.update(deal.id, {
         stage: PIPELINES[deal.pipeline]?.wonStage,
@@ -126,10 +139,15 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
             {manualMode ? (
               <ManualPositionsEditor rows={manualRows} modules={data?.modules || []} onChange={setManualRows} />
             ) : (
-              positions.map((p, i) => (
+              studioPositions.map((p, i) => (
                 <div key={i} className="px-3 py-2 flex items-center justify-between gap-3 border-b last:border-b-0">
-                  <span className="text-sm truncate">{p.name}{p.optional ? ' (optional)' : ''}</span>
-                  <span className="text-sm tabular-nums">{eur(p.amount)}</span>
+                  <span className="text-sm truncate flex-1">{p.name}{p.optional ? ' (optional)' : ''}</span>
+                  <PositionModuleSelect
+                    value={choiceFor(p, i)}
+                    modules={modules}
+                    onChange={(v) => setModuleChoices((prev) => ({ ...prev, [i]: v }))}
+                  />
+                  <span className="text-sm tabular-nums w-20 text-right">{eur(p.amount)}</span>
                 </div>
               ))
             )}
@@ -181,7 +199,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
 
           <div className="flex justify-end gap-2 border-t pt-3">
             <Button variant="outline" onClick={onCancel}>Abbrechen</Button>
-            <Button onClick={freigeben} disabled={saving || !ab || !client?.sevdesk_contact_id || positions.length === 0}>
+            <Button onClick={freigeben} disabled={saving || !ab || !client?.sevdesk_contact_id || positions.length === 0 || (!manualMode && !studioReady)}>
               {saving ? 'Wird angelegt…' : 'Freigeben & anlegen'}
 
             </Button>
