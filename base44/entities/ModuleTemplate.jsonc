@@ -24,10 +24,24 @@
       "enum": [
         "sprint",
         "support",
-        "container"
+        "container",
+        "intern"
       ],
       "default": "sprint",
       "description": "Arbeitsmodell, in dem dieses Modul \u00fcblicherweise verkauft wird"
+    },
+    "bundle_key": {
+      "type": "string",
+      "description": "gruppiert Phasen-Module zu EINEM Katalog-Produkt, z. B. website_neubau"
+    },
+    "bundle_order": {
+      "type": "number",
+      "description": "Reihenfolge der Phase innerhalb des Bundles (1..n)"
+    },
+    "is_hard_gate": {
+      "type": "boolean",
+      "default": false,
+      "description": "Phase mit hartem Freeze (z. B. Design)"
     },
     "active": {
       "type": "boolean",

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { X, Plus } from 'lucide-react';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import { fmtEUR } from '@/components/sprint/sprintConfig';
+import { splitModules } from '@/components/sprint/assistent/moduleBundles';
 
 // Schritt 2 des Sprint-Assistenten: Module wählen → Milestones, Etappenbeträge, Zusatzbausteine
 // Etappenbetrag = Modulpreis plus die Preise der gewählten Zusatzbausteine
@@ -13,9 +14,20 @@ export const milestoneAmount = (m, addOns) =>
 export default function StepModule({ modules, addOns, selected, setSelected, discount = 0 }) {
   const sum = selected.reduce((s, m) => s + milestoneAmount(m, addOns), 0);
 
-  const addModule = (mod) => {
-    setSelected([...selected, { key: `${mod.id}-${Date.now()}`, module_template_id: mod.id, name: mod.name, amount: mod.standard_price || '', addon_ids: [] }]);
-  };
+  const { bundles, singles } = splitModules(modules);
+
+  const asRow = (mod, i = 0) => ({
+    key: `${mod.id}-${Date.now()}-${i}`,
+    module_template_id: mod.id,
+    name: mod.name,
+    amount: mod.standard_price || '',
+    addon_ids: [],
+  });
+
+  const addModule = (mod) => setSelected([...selected, asRow(mod)]);
+
+  // Bundle = alle Phasen in bundle_order als eigene Milestones
+  const addBundle = (bundle) => setSelected([...selected, ...bundle.modules.map(asRow)]);
 
   const removeAt = (idx) => setSelected(selected.filter((_, i) => i !== idx));
 
@@ -36,10 +48,23 @@ export default function StepModule({ modules, addOns, selected, setSelected, dis
 
   return (
     <div className="space-y-6">
+      {bundles.length > 0 && (
+        <div>
+          <SectionLabel className="mb-2">Katalog-Produkte</SectionLabel>
+          <div className="flex flex-wrap gap-2">
+            {bundles.map((b) => (
+              <Button key={b.key} variant="outline" size="sm" className="rounded border-primary text-primary" onClick={() => addBundle(b)}>
+                <Plus className="w-3.5 h-3.5 mr-1" /> {b.label} · {b.modules.length} Phasen
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <SectionLabel className="mb-2">Module aus dem Katalog</SectionLabel>
         <div className="flex flex-wrap gap-2">
-          {modules.map((mod) => (
+          {singles.map((mod) => (
             <Button key={mod.id} variant="outline" size="sm" className="rounded" onClick={() => addModule(mod)}>
               <Plus className="w-3.5 h-3.5 mr-1" /> {mod.name}
             </Button>
