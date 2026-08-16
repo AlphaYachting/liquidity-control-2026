@@ -15,6 +15,8 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
   const [linkMode, setLinkMode] = useState(false);
+  const [manualHint, setManualHint] = useState(null);
+  const [manualId, setManualId] = useState('');
 
   useEffect(() => {
     const q = query.trim();
@@ -24,7 +26,7 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
     const timer = setTimeout(async () => {
       const all = await base44.entities.Client.list('-created_date', 500).catch(() => []);
       const hits = all.filter((c) => (c.name || '').toLowerCase().includes(q.toLowerCase())).slice(0, 10);
-      const res = await base44.functions.invoke('sevdeskContacts', { action: 'search', query: q }).catch(() => null);
+      const res = await base44.functions.invoke('fetchSevdeskContacts', { query: q }).catch(() => null);
       if (cancelled) return;
       setClients(hits);
       setContacts(res?.data?.contacts || []);
@@ -48,16 +50,28 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
   const chooseClient = (c) => { onClient(c); setLinkMode(!c.sevdesk_contact_id); };
 
   // (a) bestehender Client, dem noch die sevDesk-Verknüpfung fehlt
-  const linkContact = (contact) => run(`link-${contact.id}`, async () => {
-    const updated = await base44.entities.Client.update(client.id, { sevdesk_contact_id: contact.id });
-    onClient({ ...client, ...updated, sevdesk_contact_id: contact.id });
+  const linkContact = (contact) => run(`link-${contact.sevdesk_contact_id}`, async () => {
+    const id = contact.sevdesk_contact_id;
+    const updated = await base44.entities.Client.update(client.id, { sevdesk_contact_id: id });
+    onClient({ ...client, ...updated, sevdesk_contact_id: id });
+    setLinkMode(false);
+  });
+
+  // Ausgang nicht verfügbar: Kontakt-ID von Hand nachtragen
+  const saveManualId = () => run('manual', async () => {
+    const id = manualId.trim();
+    if (!id) throw new Error('Kontakt-ID fehlt');
+    const target = client || await base44.entities.Client.create({ name: query.trim(), ...clientFields() });
+    const updated = await base44.entities.Client.update(target.id, { sevdesk_contact_id: id });
+    onClient({ ...target, ...updated, sevdesk_contact_id: id });
+    setManualHint(null);
     setLinkMode(false);
   });
 
   // (b) sevDesk-Kontakt ohne Client → Client anlegen und ID übernehmen
-  const createFromContact = (contact) => run(`create-${contact.id}`, async () => {
+  const createFromContact = (contact) => run(`create-${contact.sevdesk_contact_id}`, async () => {
     const created = await base44.entities.Client.create({
-      name: contact.name, ...clientFields(), sevdesk_contact_id: contact.id,
+      name: contact.name, ...clientFields(), sevdesk_contact_id: contact.sevdesk_contact_id,
     });
     onClient(created);
     setLinkMode(false);
@@ -67,9 +81,14 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
   const createBoth = () => run('new', async () => {
     const name = query.trim();
     if (!name) throw new Error('Kundenname fehlt');
-    const res = await base44.functions.invoke('sevdeskContacts', { action: 'create', name });
-    const contactId = res?.data?.contact?.id;
-    if (!contactId) throw new Error(res?.data?.error || 'sevDesk hat keine Kontakt-ID zurückgegeben');
+    const res = await base44.functions.invoke('createSevdeskContact', {
+      name, contact_email: deal?.contact_email || '',
+    });
+    const contactId = res?.data?.sevdesk_contact_id;
+    if (!contactId) {
+      setManualHint(res?.data?.error || 'sevDesk hat keine Kontakt-ID geliefert');
+      return;
+    }
     const created = await base44.entities.Client.create({ name, ...clientFields(), sevdesk_contact_id: contactId });
     onClient(created);
     setLinkMode(false);
@@ -129,17 +148,17 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
             <div className="space-y-1">
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">sevDesk-Kontakte</p>
               {contacts.map((k) => (
-                <div key={k.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-md border">
+                <div key={k.sevdesk_contact_id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-md border">
                   <span className="text-sm truncate">{k.name}{k.customer_number ? ` · ${k.customer_number}` : ''}</span>
                   {client && !client.sevdesk_contact_id ? (
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1 shrink-0"
                       disabled={Boolean(busy)} onClick={() => linkContact(k)}>
-                      <Link2 className="w-3.5 h-3.5" /> {busy === `link-${k.id}` ? 'Verknüpft…' : 'Verknüpfen'}
+                      <Link2 className="w-3.5 h-3.5" /> {busy === `link-${k.sevdesk_contact_id}` ? 'Verknüpft…' : 'Verknüpfen'}
                     </Button>
                   ) : (
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1 shrink-0"
                       disabled={Boolean(busy)} onClick={() => createFromContact(k)}>
-                      <Plus className="w-3.5 h-3.5" /> {busy === `create-${k.id}` ? 'Legt an…' : 'Als Kunde übernehmen'}
+                      <Plus className="w-3.5 h-3.5" /> {busy === `create-${k.sevdesk_contact_id}` ? 'Legt an…' : 'Als Kunde übernehmen'}
                     </Button>
                   )}
                 </div>
@@ -151,6 +170,21 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
             <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" disabled={Boolean(busy)} onClick={createBoth}>
               <Plus className="w-3.5 h-3.5" /> {busy === 'new' ? 'Wird angelegt…' : `„${query.trim()}" neu anlegen (Kunde + sevDesk)`}
             </Button>
+          )}
+
+          {manualHint && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 space-y-2">
+              <p className="text-xs text-amber-800">
+                sevDesk hat den Kunden nicht angelegt ({manualHint}). Kunden in sevDesk anlegen und die
+                Kontakt-ID hier eintragen — ohne verknüpfte ID bleibt die Freigabe gesperrt.
+              </p>
+              <div className="flex gap-2">
+                <Input value={manualId} onChange={(e) => setManualId(e.target.value)} className="h-8 text-xs" placeholder="sevDesk Kontakt-ID" />
+                <Button size="sm" className="h-8 text-xs shrink-0" disabled={Boolean(busy)} onClick={saveManualId}>
+                  {busy === 'manual' ? 'Speichert…' : 'ID eintragen'}
+                </Button>
+              </div>
+            </div>
           )}
 
           {error && <p className="text-xs text-destructive">{error}</p>}
