@@ -12,6 +12,7 @@ import { PIPELINES } from '@/components/crm/stages';
 import { computeAbPflicht } from '@/lib/crm/abPflicht';
 import { proposalPositions, guessProjectType } from '@/lib/crm/proposalPositions';
 import { commitHandover } from '@/lib/crm/handoverCommit';
+import { threadTranscript } from '@/components/crm/support/threadDescription';
 import ClientLinkStep from '@/components/crm/handover/ClientLinkStep';
 import ManualPositionsEditor from '@/components/crm/handover/ManualPositionsEditor';
 import PositionModuleSelect, { NO_MODULE } from '@/components/crm/handover/PositionModuleSelect';
@@ -83,6 +84,9 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
     setSaving(true);
     try {
       const now = new Date().toISOString();
+      // Verlauf und Anfragetext als Projektkontext mitgeben
+      const transcript = deal.email_thread_id ? await threadTranscript(deal.email_thread_id).catch(() => '') : '';
+      const contextText = [deal.description, transcript].filter(Boolean).join('\n\n---\n\n');
       const { wizardState } = await commitHandover({
         deal, kunde: client.name, clientId: client.id, positions, total,
         advancePercent: advancePercent,
@@ -90,6 +94,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
         pm,
         abRequired: ab.required,
         modules,
+        contextText,
       });
       await base44.entities.CrmDeal.update(deal.id, {
         stage: PIPELINES[deal.pipeline]?.wonStage,

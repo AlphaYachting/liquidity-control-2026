@@ -27,7 +27,7 @@ export function matchModules(positions, modules) {
 
 // Der Kunde wird im Übergabeblatt ausdrücklich gewählt oder angelegt —
 // hier wird nie mehr geraten und kein Stummel-Client erzeugt.
-export async function commitHandover({ deal, kunde, clientId, positions, total, advancePercent, projectType, pm, abRequired, modules }) {
+export async function commitHandover({ deal, kunde, clientId, positions, total, advancePercent, projectType, pm, abRequired, modules, contextText }) {
   if (!clientId) throw new Error('Kein verknüpfter Kunde übergeben');
   const today = new Date().toISOString().split('T')[0];
 
@@ -75,6 +75,8 @@ export async function commitHandover({ deal, kunde, clientId, positions, total, 
         advance_percent: Number(advancePercent) || 0,
         ab_required: abRequired,
         pm,
+        context_text: contextText || '',
+        email_thread_id: deal.email_thread_id || '',
       },
     },
   };

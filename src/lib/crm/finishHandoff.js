@@ -25,6 +25,17 @@ export async function finishHandoff(handoff, project) {
     });
   }
 
+  // Kommunikation aus dem Deal wandert als erster Eintrag in den Kundenakt
+  if (handoff.context_text) {
+    await base44.entities.ProjectFileEntry.create({
+      project_id: project.id,
+      entry_type: 'update',
+      title: 'Kontext aus der Anfrage',
+      content: handoff.context_text,
+      entry_date: new Date().toISOString(),
+    });
+  }
+
   if (handoff.deal_id) {
     await base44.entities.CrmActivity.create({
       deal_id: handoff.deal_id,

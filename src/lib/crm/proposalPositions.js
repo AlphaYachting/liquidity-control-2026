@@ -48,7 +48,9 @@ export function guessProjectType(proposal, positions, modules = []) {
 
   let best = null;
   for (const p of positions || []) {
-    const hit = (modules || []).find((m) => m.default_arbeitsmodell && matchesModule(p.name, m.name));
+    // ausdrücklich gewähltes Katalogmodul schlägt jeden Namensabgleich
+    const hit = (p.module_template_id && (modules || []).find((m) => m.id === p.module_template_id))
+      || (modules || []).find((m) => m.default_arbeitsmodell && matchesModule(p.name, m.name));
     const type = hit ? MODEL_TO_TYPE[hit.default_arbeitsmodell] : null;
     if (type && (!best || TYPE_RANK[type] > TYPE_RANK[best])) best = type;
   }
@@ -58,6 +60,6 @@ export function guessProjectType(proposal, positions, modules = []) {
   if (/support|betreuung|wartung/.test(text)) return 'support';
   if (/kontingent|container|laufend|monatlich/.test(text)) return 'container';
   if (/regie|aufwand|stunden/.test(text)) return 'aufwand';
-  if (/website|web|relaunch|neubau|erweiterung|landingpage|shop|onlineshop|seite|blog/.test(text)) return 'sprint';
-  return 'paket';
+  // abgegrenzte Leistungen mit Liefertermin — auch kleine Print- und Design-Aufträge
+  return 'sprint';
 }
