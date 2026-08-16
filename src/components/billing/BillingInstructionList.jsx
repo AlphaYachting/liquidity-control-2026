@@ -12,6 +12,7 @@ import { de } from 'date-fns/locale';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import BillingInstructionEditDialog from './BillingInstructionEditDialog';
+import AdvanceInvoiceTask from './AdvanceInvoiceTask';
 
 const STATUS_CFG = {
   draft:                { label: 'Entwurf',                color: 'bg-gray-100 text-gray-600',     icon: CircleDot },
@@ -179,8 +180,11 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
         const StatusIcon = sc.icon;
         const linkedBlock = projectBlocks.find(b => b.id === instr.billing_block_id);
         const isExpanded = expandedId === instr.id;
-        const nextAction = NEXT_ACTION[instr.status] || null;
         const isAdvancing = advancingId === instr.id;
+        // Anzahlung: kein Automatismus — der Mensch stellt in sevDesk aus, die App gleicht ab
+        const isAdvanceTask = instr.invoice_type === 'advance_invoice'
+          && !['invoice_created', 'paid', 'cancelled'].includes(instr.status);
+        const nextAction = isAdvanceTask ? null : (NEXT_ACTION[instr.status] || null);
 
         return (
           <div key={instr.id} className="border rounded-xl hover:shadow-sm transition-shadow bg-card">
@@ -233,8 +237,19 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
                   </Button>
                 )}
 
+                {isAdvanceTask && (
+                  <AdvanceInvoiceTask
+                    instruction={instr}
+                    onRecorded={(record) => onUpdate(instr.id, {
+                      status: 'invoice_created',
+                      invoice_created_at: new Date().toISOString(),
+                      linked_invoice_id: record.id,
+                    })}
+                  />
+                )}
+
                 {/* sevDesk */}
-                {(instr.status === 'ready_for_backoffice' || instr.status === 'sent_to_backoffice' || instr.sevdesk_invoice_id) && (
+                {!isAdvanceTask && (instr.status === 'ready_for_backoffice' || instr.status === 'sent_to_backoffice' || instr.sevdesk_invoice_id) && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -387,7 +402,7 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
                       <ExternalLink className="w-3 h-3" /> In sevDesk öffnen
                     </a>
                   )}
-                  {!instr.sevdesk_invoice_id && (instr.status === 'ready_for_backoffice' || instr.status === 'sent_to_backoffice') && (
+                  {!isAdvanceTask && !instr.sevdesk_invoice_id && (instr.status === 'ready_for_backoffice' || instr.status === 'sent_to_backoffice') && (
                     <Button size="sm" variant="outline" className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
                       disabled={creatingDraft === instr.id}
                       onClick={() => handleCreateSevdeskDraft(instr.id)}>
