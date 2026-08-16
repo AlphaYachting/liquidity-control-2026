@@ -20,6 +20,10 @@
       "type": "string",
       "description": "AGB-Fassung, der der Kunde zugestimmt hat \u2014 tr\u00e4gt die stillschweigende Freigabe"
     },
+    "sevdesk_contact_id": {
+      "type": "string",
+      "description": "sevDesk Kontakt-ID des Kunden \u2014 Verkn\u00fcpfung f\u00fcr Rechnungen und Auftr\u00e4ge"
+    },
     "notes": {
       "type": "string"
     }
