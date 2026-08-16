@@ -17,7 +17,8 @@ import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { SPRINT_SIZES, fmtEUR, fmtDate, addWeeks } from '@/components/sprint/sprintConfig';
 import { planSprintDeadlines } from '@/lib/sprint/deadlines';
 import { verteileNachlass } from '@/lib/sprint/nachlass';
-import { resolveAssignee } from '@/lib/sprint/assignment';
+import StepZustaendigkeit from '@/components/sprint/assistent/StepZustaendigkeit';
+import { buildTicketPlan, ticketValue, unresolvedTickets, OPEN } from '@/lib/sprint/ticketPlan';
 
 const BLANK_CLIENT_FIELDS = { new_client_name: '', new_client_email: '' };
 
@@ -36,13 +37,15 @@ export default function SprintAssistent() {
   const [discount, setDiscount] = useState(initial.sprint.discount);
   const [selected, setSelected] = useState(initial.sprint.selected);
   const [containerModuleIds, setContainerModuleIds] = useState([]);
+  const [roleAssign, setRoleAssign] = useState({});
+  const [overrides, setOverrides] = useState({});
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
   const { data, refetch } = useQuery({
     queryKey: ['sprintAssistentData'],
     queryFn: async () => {
-      const [clients, contracts, projects, modules, addOns, members, settings] = await Promise.all([
+      const [clients, contracts, projects, modules, addOns, members, settings, ticketTemplates, addOnTicketTemplates] = await Promise.all([
         base44.entities.Client.list('name', 300),
         base44.entities.RecurringContract.list('-created_date', 300),
         base44.entities.Project.list('-created_date', 200),
@@ -50,9 +53,11 @@ export default function SprintAssistent() {
         base44.entities.AddOnBlock.list('-created_date', 200),
         base44.entities.TeamMember.filter({ active: true }, 'name', 100),
         base44.entities.Setting.filter({ group: 'fristen' }, 'key', 100),
+        base44.entities.TicketTemplate.list('order', 500),
+        base44.entities.AddOnTicketTemplate.list('order', 500),
       ]);
       return {
-        clients, contracts,
+        clients, contracts, ticketTemplates, addOnTicketTemplates,
         projects: projects.filter((p) => p.status === 'aktiv'),
         modules: modules.filter((m) => m.active !== false),
         addOns: addOns.filter((a) => a.active !== false),
@@ -68,6 +73,12 @@ export default function SprintAssistent() {
   const addOns = data?.addOns || [];
   const members = data?.members || [];
   const settings = data?.settings || [];
+  const ticketTemplates = data?.ticketTemplates || [];
+  const addOnTicketTemplates = data?.addOnTicketTemplates || [];
+
+  // Ticketliste des Sprints aus den gewählten Modulen
+  const ticketPlan = buildTicketPlan({ selected, ticketTemplates, addOnTicketTemplates });
+  const offeneSchritte = unresolvedTickets(ticketPlan, roleAssign, overrides, members);
 
   const isSprint = seed.type === 'sprint';
   const clientName = clients.find((c) => c.id === seed.client_id)?.name || '';
@@ -75,7 +86,7 @@ export default function SprintAssistent() {
     (c) => (c.customer || '').trim().toLowerCase() === clientName.trim().toLowerCase(),
   );
   const stepLabels = isSprint
-    ? ['Rahmen', 'Sprint', 'Module', 'Übersicht']
+    ? ['Rahmen', 'Sprint', 'Module', 'Zuständigkeiten', 'Übersicht']
     : ['Rahmen', 'Details', 'Module'];
   const lastStep = stepLabels.length;
 
@@ -101,8 +112,11 @@ export default function SprintAssistent() {
     (step === 1 && !rahmenValid(seed)) ||
     (isSprint && step === 2 && !sprintRahmenValid) ||
     (isSprint && step === 3 && !moduleValid) ||
+    (isSprint && step === 4 && offeneSchritte.length > 0) ||
     (!isSprint && step === 2 && !typDetailsValid(seed));
-  const commitDisabled = isSprint ? !plan?.deliverable : !typDetailsValid(seed);
+  const commitDisabled = isSprint
+    ? !plan?.deliverable || offeneSchritte.length > 0
+    : !typDetailsValid(seed);
 
   // Neuer Kunde entsteht inline beim Verlassen des Rahmens
   const handleNext = async () => {
@@ -190,38 +204,26 @@ export default function SprintAssistent() {
         released: false,
       });
 
-      const templates = await base44.entities.TicketTemplate.filter({ module_template_id: sel.module_template_id }, 'order', 200);
-      const tickets = templates.map((t, idx) => ({
-        milestone_id: milestone.id,
-        project_id: projectId,
-        order: idx + 1,
-        title: t.title,
-        role: t.role,
-        assignee_email: resolveAssignee(t.role, members),
-        milestone_state: t.milestone_state || 'produktion',
-        blocks_others: t.blocks_others || false,
-        status: 'offen',
-        origin: 'pflicht',
-        target_hours: t.target_hours || 0,
-        last_status_change: now,
-      }));
-
-      let order = tickets.length;
-      for (const addonId of sel.addon_ids) {
-        const addonTickets = await base44.entities.AddOnTicketTemplate.filter({ add_on_block_id: addonId }, 'order', 100);
-        addonTickets.forEach((t) => {
-          order += 1;
-          tickets.push({
-            milestone_id: milestone.id, project_id: projectId, order,
-            title: t.title, role: t.role,
-            assignee_email: resolveAssignee(t.role, members),
-            milestone_state: t.milestone_state || 'produktion',
-            blocks_others: t.blocks_others || false,
-            status: 'offen', origin: 'addon',
-            target_hours: t.target_hours || 0, last_status_change: now,
-          });
+      // Zuweisung aus dem Zuständigkeiten-Schritt: Ticket-Override vor Rollen-Default
+      const tickets = ticketPlan
+        .filter((t) => t.milestoneIndex === i)
+        .map((t, idx) => {
+          const person = ticketValue(t, roleAssign, overrides, members);
+          return {
+            milestone_id: milestone.id,
+            project_id: projectId,
+            order: idx + 1,
+            title: t.title,
+            role: t.role || undefined,
+            assignee_email: person === OPEN ? undefined : person,
+            milestone_state: t.milestone_state,
+            blocks_others: t.blocks_others,
+            status: 'offen',
+            origin: t.origin,
+            target_hours: t.target_hours,
+            last_status_change: now,
+          };
         });
-      }
       if (tickets.length) await base44.entities.Ticket.bulkCreate(tickets);
     }
 
@@ -303,6 +305,17 @@ export default function SprintAssistent() {
         )}
 
         {isSprint && step === 4 && (
+          <StepZustaendigkeit
+            plan={ticketPlan}
+            members={members}
+            roleAssign={roleAssign}
+            setRoleAssign={setRoleAssign}
+            overrides={overrides}
+            setOverrides={setOverrides}
+          />
+        )}
+
+        {isSprint && step === 5 && (
           <div className="space-y-4">
             <SectionLabel>Übersicht</SectionLabel>
             <div className="text-sm text-foreground">
@@ -345,6 +358,11 @@ export default function SprintAssistent() {
 
             {Number(discount) > 0 && (
               <p className="text-[13px] text-muted-foreground">Nachlass {fmtEUR(Number(discount))} bereits eingerechnet.</p>
+            )}
+            {offeneSchritte.length > 0 && (
+              <p className="text-sm text-status-attention">
+                Noch ohne Person: {offeneSchritte.map((t) => t.title).join(', ')} — bitte in den Zuständigkeiten zuweisen oder bewusst offen lassen.
+              </p>
             )}
             {createError && <p className="text-sm text-status-critical">{createError}</p>}
           </div>
