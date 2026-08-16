@@ -60,6 +60,7 @@ export function guessProjectType(proposal, positions, modules = []) {
   if (/support|betreuung|wartung/.test(text)) return 'support';
   if (/kontingent|container|laufend|monatlich/.test(text)) return 'container';
   if (/regie|aufwand|stunden/.test(text)) return 'aufwand';
-  // abgegrenzte Leistungen mit Liefertermin — auch kleine Print- und Design-Aufträge
-  return 'sprint';
+  // Web- und Print-Regel: abgegrenzte Leistungen mit Liefertermin
+  if (/website|web|relaunch|neubau|erweiterung|landingpage|shop|onlineshop|seite|blog|flyer|druck|brosch|visitenkarte|print/.test(text)) return 'sprint';
+  return 'paket';
 }
