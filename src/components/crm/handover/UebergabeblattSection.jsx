@@ -12,6 +12,7 @@ import { PIPELINES } from '@/components/crm/stages';
 import { computeAbPflicht } from '@/lib/crm/abPflicht';
 import { proposalPositions, guessProjectType } from '@/lib/crm/proposalPositions';
 import { commitHandover } from '@/lib/crm/handoverCommit';
+import ClientLinkStep from '@/components/crm/handover/ClientLinkStep';
 
 const eur = (v) => new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v || 0);
 
@@ -30,6 +31,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
   const [projectType, setProjectType] = useState(null);
   const [pm, setPm] = useState('');
   const [saving, setSaving] = useState(false);
+  const [client, setClient] = useState(null);
   const kunde = deal.linked_customer_name || deal.company_name || '';
 
   const { data, isLoading } = useQuery({
@@ -60,7 +62,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
     try {
       const now = new Date().toISOString();
       const { wizardState } = await commitHandover({
-        deal, kunde, positions, total,
+        deal, kunde: client.name, clientId: client.id, positions, total,
         advancePercent: advancePercent,
         projectType: typ,
         pm,
@@ -106,10 +108,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
         <>
           <p className="text-xs text-muted-foreground">{ab?.reason}</p>
 
-          <div>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Kunde</p>
-            <p className="text-sm font-medium">{kunde || '— kein Kunde hinterlegt'}</p>
-          </div>
+          <ClientLinkStep deal={deal} kunde={kunde} client={client} onClient={setClient} />
 
           <div className="rounded-lg border overflow-hidden">
             <div className="px-3 py-2 bg-muted/50 border-b">
@@ -173,7 +172,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
 
           <div className="flex justify-end gap-2 border-t pt-3">
             <Button variant="outline" onClick={onCancel}>Abbrechen</Button>
-            <Button onClick={freigeben} disabled={saving || !ab}>
+            <Button onClick={freigeben} disabled={saving || !ab || !client?.sevdesk_contact_id}>
               {saving ? 'Wird angelegt…' : 'Freigeben & anlegen'}
 
             </Button>
