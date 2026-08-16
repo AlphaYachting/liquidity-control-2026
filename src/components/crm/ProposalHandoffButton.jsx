@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Loader2, Presentation, ExternalLink } from 'lucide-react';
+import { threadTranscript } from '@/components/crm/support/threadDescription';
 
 // Ein Klick: Anfrage → Angebots-Studio. Es wird NICHTS gerechnet — der Handoff
 // legt nur das Angebot an und hinterlegt die Kundenanfrage als Quelldokument.
@@ -35,6 +36,22 @@ export default function ProposalHandoffButton({ deal, onDone, forceNew = false, 
       ].filter(Boolean).join('\n');
 
       const now = new Date().toISOString();
+      const threadId = deal.email_thread_id || deal.thread_id || deal.source_thread_id || '';
+      const conversation = threadId ? await threadTranscript(threadId) : '';
+
+      const sourceDocuments = [
+        { doc_type: 'briefing', label: 'Kundenanfrage (aus Pipeline)', text: inquiryText, size_chars: inquiryText.length, added_at: now },
+      ];
+      if (conversation) {
+        sourceDocuments.push({
+          doc_type: 'email',
+          label: 'Kunden-E-Mail (Konversation)',
+          text: conversation,
+          size_chars: conversation.length,
+          added_at: now,
+        });
+      }
+
       const proposal = await base44.entities.CrmProposal.create({
         deal_id: deal.id,
         title: deal.company_name ? `Angebot ${deal.company_name}` : 'Neues Angebot',
@@ -44,9 +61,7 @@ export default function ProposalHandoffButton({ deal, onDone, forceNew = false, 
         client_core_business: deal.enrichment_summary || '',
         client_project_scope: deal.description || '',
         status: 'input',
-        source_documents: [
-          { doc_type: 'briefing', label: 'Kundenanfrage (aus Pipeline)', text: inquiryText, size_chars: inquiryText.length, added_at: now },
-        ],
+        source_documents: sourceDocuments,
       });
 
       await base44.entities.CrmDeal.update(deal.id, {
