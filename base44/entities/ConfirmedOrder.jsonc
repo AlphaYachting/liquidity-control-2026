@@ -6,6 +6,19 @@
       "type": "string",
       "description": "Linked LiquidityProject ID"
     },
+    "deal_id": {
+      "type": "string",
+      "description": "R\u00fcckverkn\u00fcpfung zum CrmDeal, aus dem der Auftrag entstanden ist"
+    },
+    "proposal_id": {
+      "type": "string",
+      "description": "R\u00fcckverkn\u00fcpfung zum CrmProposal (Angebots-Studio)"
+    },
+    "advance_percent": {
+      "type": "number",
+      "default": 30,
+      "description": "Anzahlungsanteil in Prozent"
+    },
     "order_number": {
       "type": "string"
     },
