@@ -10,16 +10,19 @@ import SectionLabel from '@/components/sprint/SectionLabel';
 import StepModule, { milestoneAmount } from '@/components/sprint/assistent/StepModule';
 import StepRahmen, { rahmenValid, NEW_CLIENT } from '@/components/sprint/assistent/StepRahmen';
 import StepTypDetails, { typDetailsValid } from '@/components/sprint/assistent/StepTypDetails';
-import { PROJECT_TYPES } from '@/components/sprint/projectTypes';
+import { PROJECT_TYPES, PROJECT_TYPE_ORDER } from '@/components/sprint/projectTypes';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { SPRINT_SIZES, fmtEUR, fmtDate, addWeeks } from '@/components/sprint/sprintConfig';
 import { planSprintDeadlines } from '@/lib/sprint/deadlines';
 import { verteileNachlass } from '@/lib/sprint/nachlass';
 import { resolveAssignee } from '@/lib/sprint/assignment';
 
+// Direkte Links können den Typ vorwählen: /sprint/neu?typ=sprint
+const urlType = new URLSearchParams(window.location.search).get('typ') || '';
+
 const EMPTY_SEED = {
   client_id: '', new_client_name: '', new_client_email: '',
-  type: '', pm_email: '', title: '',
+  type: PROJECT_TYPE_ORDER.includes(urlType) ? urlType : '', pm_email: '', title: '',
   sprint_target: 'neu', existing_project_id: '',
   stundensatz: '', kontingent_stunden: '', recurring_contract_id: '', modell: 'aufwand',
 };

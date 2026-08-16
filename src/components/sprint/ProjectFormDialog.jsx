@@ -57,9 +57,8 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
     };
     Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
 
-    const saved = project?.id
-      ? await base44.entities.Project.update(project.id, data)
-      : await base44.entities.Project.create(data);
+    // Nur Bearbeiten — neue Projekte entstehen ausschließlich im Anlage-Wizard
+    const saved = await base44.entities.Project.update(project.id, data);
 
     if (def.container) await ensureContainer(saved);
 
@@ -73,7 +72,7 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
       <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="uppercase font-bold text-foreground">
-            {project ? 'Projekt bearbeiten' : 'Projekt anlegen'}
+            Projekt bearbeiten
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
