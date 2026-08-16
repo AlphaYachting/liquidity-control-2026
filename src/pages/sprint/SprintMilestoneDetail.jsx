@@ -3,7 +3,9 @@ import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import NeueAufgabeDialog from '@/components/sprint/NeueAufgabeDialog';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import Kontextleiste from '@/components/sprint/Kontextleiste';
 import Zustandskette from '@/components/sprint/Zustandskette';
@@ -27,6 +29,7 @@ export default function SprintMilestoneDetail() {
   const { milestoneId } = useParams();
   const qc = useQueryClient();
   const [filter, setFilter] = useState('alle');
+  const [addOpen, setAddOpen] = useState(false);
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => base44.auth.me() });
 
@@ -228,7 +231,12 @@ export default function SprintMilestoneDetail() {
         </div>
 
         <div className="bg-white rounded-lg border border-border p-5">
-          <SectionLabel className="mb-3">Aufgaben</SectionLabel>
+          <div className="flex items-center justify-between mb-3">
+            <SectionLabel>Aufgaben</SectionLabel>
+            <Button variant="outline" size="sm" className="rounded" onClick={() => setAddOpen(true)}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> Aufgabe hinzufügen
+            </Button>
+          </div>
           <Fortschrittszaehler
             className="mb-3"
             done={workDone}
@@ -271,6 +279,16 @@ export default function SprintMilestoneDetail() {
           />
         )}
       </div>
+
+      <NeueAufgabeDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        milestone={milestone}
+        tickets={tickets}
+        members={members}
+        previousMilestone={siblings.find((m) => m.order === (milestone.order || 0) - 1) || null}
+        onCreated={refresh}
+      />
 
       {!locked && (
         <MilestoneAktionsleiste

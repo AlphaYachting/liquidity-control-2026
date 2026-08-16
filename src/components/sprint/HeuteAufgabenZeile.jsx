@@ -20,6 +20,15 @@ export default function HeuteAufgabenZeile({ ticket, milestone, projectLabel, on
       >
         <div className="flex items-center gap-2">
           <span className="text-sm truncate" style={{ color: RITTLER.black, fontWeight: 500 }}>{ticket.title}</span>
+          {ticket.origin === 'change_request' && (
+            <span
+              className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-[2px] shrink-0"
+              style={{ color: STATUS_COLORS.attention, backgroundColor: STATUS_COLORS.attentionSurface }}
+              title="Change Request — separat nach Aufwand abrechnen"
+            >
+              Separat abrechnen
+            </span>
+          )}
           {ticket.blocks_others && ticket.status !== 'erledigt' && (
             <span
               className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-[2px] shrink-0"

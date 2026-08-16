@@ -4,7 +4,7 @@ import TicketStatusElement from '@/components/sprint/TicketStatusElement';
 import PersonenChip from '@/components/sprint/PersonenChip';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 
-const ORIGIN_LABEL = { addon: 'Zusatz', change_request: 'Change Request' };
+const ORIGIN_LABEL = { addon: 'Zusatz', change_request: 'Change Request · nach Aufwand abrechenbar' };
 
 // V3 — feste Zeilenhöhe, senkrechte Achsen, genau ein Bedienelement für den Status.
 export default function TicketZeile({ ticket, members, currentUserEmail, editable, onStatus, onAssignee }) {
