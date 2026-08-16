@@ -19,6 +19,7 @@ import { planSprintDeadlines } from '@/lib/sprint/deadlines';
 import { verteileNachlass } from '@/lib/sprint/nachlass';
 import StepZustaendigkeit from '@/components/sprint/assistent/StepZustaendigkeit';
 import { buildTicketPlan, ticketValue, unresolvedTickets, OPEN } from '@/lib/sprint/ticketPlan';
+import { finishHandoff } from '@/lib/crm/finishHandoff';
 
 const BLANK_CLIENT_FIELDS = { new_client_name: '', new_client_email: '' };
 
@@ -29,6 +30,8 @@ export default function SprintAssistent() {
   const location = useLocation();
   // Optionaler Startkeim — ohne ihn startet der Wizard leer
   const [initial] = useState(() => readWizardSeed(location.state));
+  // Beauftragung aus dem CRM — Auftrag existiert bereits, Projekt wird hier angelegt
+  const [handoff] = useState(() => location.state?.handoff || null);
   const [step, setStep] = useState(1);
   const [seed, setSeed] = useState({ ...BLANK_CLIENT_FIELDS, ...initial.seed });
   const [size, setSize] = useState(initial.sprint.size);
@@ -156,6 +159,7 @@ export default function SprintAssistent() {
     setCreating(true);
     const project = await resolveProject();
     const { sprint } = await ensureContainer(project, { module_ids: containerModuleIds });
+    if (handoff) await finishHandoff(handoff, project);
     navigate(`/sprint/sprints/${sprint.id}`);
   };
 
@@ -227,6 +231,7 @@ export default function SprintAssistent() {
       if (tickets.length) await base44.entities.Ticket.bulkCreate(tickets);
     }
 
+    if (handoff) await finishHandoff(handoff, project);
     navigate(`/sprint/sprints/${sprint.id}`);
   };
 

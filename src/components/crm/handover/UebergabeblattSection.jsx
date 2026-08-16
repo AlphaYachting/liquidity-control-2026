@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { Loader2, ClipboardCheck } from 'lucide-react';
 import { PIPELINES } from '@/components/crm/stages';
 import { computeAbPflicht } from '@/lib/crm/abPflicht';
 import { proposalPositions, guessProjectType } from '@/lib/crm/proposalPositions';
+import { commitHandover } from '@/lib/crm/handoverCommit';
 
 const eur = (v) => new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v || 0);
 
@@ -23,6 +25,7 @@ const PROJEKTTYPEN = [
 
 // Übergabeblatt: Angebot → Auftrag. Vor „Freigeben & anlegen" wird nichts gespeichert.
 export default function UebergabeblattSection({ deal, onDone, onCancel }) {
+  const navigate = useNavigate();
   const [advance, setAdvance] = useState(30);
   const [projectType, setProjectType] = useState(null);
   const [pm, setPm] = useState('');
@@ -32,12 +35,13 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
   const { data, isLoading } = useQuery({
     queryKey: ['uebergabe-kontext', deal.id],
     queryFn: async () => {
-      const [proposal, orders, team] = await Promise.all([
+      const [proposal, orders, team, modules] = await Promise.all([
         deal.proposal_id ? base44.entities.CrmProposal.get(deal.proposal_id).catch(() => null) : Promise.resolve(null),
         kunde ? base44.entities.ConfirmedOrder.filter({ customer: kunde }, '-created_date', 5) : Promise.resolve([]),
         base44.entities.TeamMember.filter({ active: true }, 'name', 100),
+        base44.entities.ModuleTemplate.list('-created_date', 200),
       ]);
-      return { proposal, hasPreviousOrders: (orders || []).length > 0, team: team || [] };
+      return { proposal, hasPreviousOrders: (orders || []).length > 0, team: team || [], modules: modules || [] };
     },
   });
 
@@ -52,46 +56,28 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
     setSaving(true);
     try {
       const now = new Date().toISOString();
-      const today = now.split('T')[0];
-      if (ab.required) {
-        const order = await base44.entities.ConfirmedOrder.create({
-          customer: kunde || deal.title,
-          project_name: deal.title,
-          deal_id: deal.id,
-          proposal_id: deal.proposal_id || '',
-          advance_percent: Number(advance) || 0,
-          total_net_amount: total,
-          confirmation_date: today,
-          status: 'confirmed',
-          source_type: 'manual',
-          responsible_project_manager: pm,
-          notes: `Projekttyp: ${typ}`,
-        });
-        if (positions.length > 0) {
-          await base44.entities.ConfirmedOrderItem.bulkCreate(positions.map((p, i) => ({
-            confirmed_order_id: order.id,
-            position: i + 1,
-            title: p.name,
-            unit_price: p.amount,
-            quantity: 1,
-            total_price: p.amount,
-          })));
-        }
-      }
+      const { wizardState } = await commitHandover({
+        deal, kunde, positions, total,
+        advancePercent: advance,
+        projectType: typ,
+        pm,
+        abRequired: ab.required,
+        modules: data?.modules || [],
+      });
       await base44.entities.CrmDeal.update(deal.id, {
         stage: PIPELINES[deal.pipeline]?.wonStage,
-        closed_at: today,
+        closed_at: now.split('T')[0],
       });
       await base44.entities.CrmActivity.create({
         deal_id: deal.id,
         activity_type: 'stage_change',
         title: 'Beauftragt',
-        content: ab.required
-          ? `Auftrag angelegt · ${eur(total)} · Anzahlung ${Number(advance) || 0} % (${eur(advanceAmount)}) · PM ${pm || '—'} — ${ab.reason}`
-          : `Ohne Auftragsbestätigung — ${ab.reason}`,
+        content: `Auftrag angelegt · ${eur(total)} · Anzahlung ${Number(advance) || 0} % (${eur(advanceAmount)}) · PM ${pm || '—'} — ${ab.reason}`,
         activity_date: now,
       });
       onDone?.();
+      // Projekt entsteht im bestehenden Anlage-Wizard, vorbefüllt aus dem Angebot
+      navigate('/sprint/neu', { state: wizardState });
     } finally {
       setSaving(false);
     }
@@ -173,6 +159,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
             <Button variant="outline" onClick={onCancel}>Abbrechen</Button>
             <Button onClick={freigeben} disabled={saving || !ab}>
               {saving ? 'Wird angelegt…' : 'Freigeben & anlegen'}
+
             </Button>
           </div>
         </>
