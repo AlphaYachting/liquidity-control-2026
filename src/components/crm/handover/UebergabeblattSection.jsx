@@ -51,7 +51,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
   const ab = data ? computeAbPflicht({ deal, proposal: data.proposal, hasPreviousOrders: data.hasPreviousOrders }) : null;
   // Ohne AB-Pflicht läuft die Abrechnung auf Regie — dann auch keine Anzahlung
   const regie = ab ? ab.regie === true : false;
-  const typ = projectType || (regie ? 'aufwand' : (data ? guessProjectType(data.proposal, positions) : 'paket'));
+  const typ = projectType || (regie ? 'aufwand' : (data ? guessProjectType(data.proposal, positions, data.modules) : 'paket'));
   const advancePercent = regie ? 0 : Number(advance) || 0;
   const advanceAmount = Math.round(advancePercent / 100 * total);
 
