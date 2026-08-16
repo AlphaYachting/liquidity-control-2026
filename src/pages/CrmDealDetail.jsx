@@ -10,6 +10,7 @@ import ActivityComposer from '@/components/crm/ActivityComposer';
 import AppointmentSection from '@/components/crm/AppointmentSection';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import WonLostDialog from '@/components/crm/WonLostDialog';
+import UebergabeblattDialog from '@/components/crm/handover/UebergabeblattDialog';
 import CustomerContextCard from '@/components/crm/CustomerContextCard';
 import DealInquiryCard from '@/components/crm/DealInquiryCard';
 import CompanyMasterDataCard from '@/components/crm/CompanyMasterDataCard';
@@ -180,7 +181,14 @@ export default function CrmDealDetail() {
       </div>
 
       <DealFormDialog open={editOpen} onOpenChange={setEditOpen} initialData={deal} onSaved={refreshAll} />
-      <WonLostDialog open={Boolean(closeMode)} onOpenChange={(o) => { if (!o) setCloseMode(null); }} deal={deal} mode={closeMode} onSaved={refreshAll} />
+      {/* Gewonnen führt nicht mehr in die Sackgasse, sondern ins Übergabeblatt */}
+      <UebergabeblattDialog
+        open={closeMode === 'won'}
+        onOpenChange={(o) => { if (!o) setCloseMode(null); }}
+        deal={deal}
+        onSaved={refreshAll}
+      />
+      <WonLostDialog open={closeMode === 'lost'} onOpenChange={(o) => { if (!o) setCloseMode(null); }} deal={deal} mode={closeMode} onSaved={refreshAll} />
     </div>
   );
 }

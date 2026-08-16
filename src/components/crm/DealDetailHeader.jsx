@@ -84,7 +84,7 @@ export default function DealDetailHeader({ deal, onEdit, onClose, onReopen, onDe
             {!closed && (
               <>
                 <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50" onClick={() => onClose('won')}>
-                  <Trophy className="w-3.5 h-3.5" /> Gewonnen
+                  <Trophy className="w-3.5 h-3.5" /> Beauftragen
                 </Button>
                 <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-red-600 border-red-200 hover:bg-red-50" onClick={() => onClose('lost')}>
                   <XCircle className="w-3.5 h-3.5" /> Verloren
