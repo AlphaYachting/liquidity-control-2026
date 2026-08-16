@@ -62,14 +62,8 @@ export default function SprintProjekte() {
           <Button variant="outline" className="rounded" asChild>
             <Link to="/sprint/katalog"><LayoutTemplate className="w-4 h-4 mr-1.5" /> Modul-Katalog</Link>
           </Button>
-          <Button variant="outline" className="rounded" onClick={() => setClientDialog({ open: true, client: null })}>
-            <Plus className="w-4 h-4 mr-1" /> Kunde
-          </Button>
-          <Button variant="outline" className="rounded" onClick={() => setProjectDialog({ open: true, project: null })}>
-            <Plus className="w-4 h-4 mr-1" /> Projekt
-          </Button>
           <Button className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded" asChild>
-            <Link to="/sprint/neu">Sprint anlegen</Link>
+            <Link to="/sprint/neu"><Plus className="w-4 h-4 mr-1" /> Neu anlegen</Link>
           </Button>
         </div>
       </div>
@@ -122,12 +116,17 @@ export default function SprintProjekte() {
           })}
           {projects.length === 0 && (
             <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-muted-foreground">
-              Noch kein Projekt — oben rechts anlegen.
+              Noch kein Projekt — oben rechts über „Neu anlegen" starten.
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="kunden" className="space-y-3 mt-4">
+          <div className="flex justify-end">
+            <Button variant="outline" className="rounded" onClick={() => setClientDialog({ open: true, client: null })}>
+              <Plus className="w-4 h-4 mr-1" /> Kunde anlegen
+            </Button>
+          </div>
           {clients.map((c) => (
             <div key={c.id} className="bg-white rounded-lg shadow-sm p-4 flex items-center gap-3">
               <div className="flex-1 min-w-0">
@@ -144,7 +143,7 @@ export default function SprintProjekte() {
           ))}
           {clients.length === 0 && (
             <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-muted-foreground">
-              Noch kein Kunde — oben rechts anlegen.
+              Noch kein Kunde — hier oben anlegen.
             </div>
           )}
         </TabsContent>

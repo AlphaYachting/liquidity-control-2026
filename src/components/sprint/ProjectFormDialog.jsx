@@ -32,6 +32,9 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
     setType(projectTypeOf(project));
   }, [open, project]);
 
+  // Nur Bearbeiten-Modus: neue Projekte entstehen ausschließlich im Assistenten
+  if (open && !project?.id) return null;
+
   const originalType = projectTypeOf(project);
   const sprintSwitchWarning = Boolean(project?.id) && type !== originalType
     && (type === 'sprint' || originalType === 'sprint');
