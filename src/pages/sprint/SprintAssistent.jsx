@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -10,34 +10,30 @@ import SectionLabel from '@/components/sprint/SectionLabel';
 import StepModule, { milestoneAmount } from '@/components/sprint/assistent/StepModule';
 import StepRahmen, { rahmenValid, NEW_CLIENT } from '@/components/sprint/assistent/StepRahmen';
 import StepTypDetails, { typDetailsValid } from '@/components/sprint/assistent/StepTypDetails';
-import { PROJECT_TYPES, PROJECT_TYPE_ORDER } from '@/components/sprint/projectTypes';
+import { PROJECT_TYPES } from '@/components/sprint/projectTypes';
+import { readWizardSeed } from '@/lib/sprint/wizardSeed';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { SPRINT_SIZES, fmtEUR, fmtDate, addWeeks } from '@/components/sprint/sprintConfig';
 import { planSprintDeadlines } from '@/lib/sprint/deadlines';
 import { verteileNachlass } from '@/lib/sprint/nachlass';
 import { resolveAssignee } from '@/lib/sprint/assignment';
 
-// Direkte Links können den Typ vorwählen: /sprint/neu?typ=sprint
-const urlType = new URLSearchParams(window.location.search).get('typ') || '';
-
-const EMPTY_SEED = {
-  client_id: '', new_client_name: '', new_client_email: '',
-  type: PROJECT_TYPE_ORDER.includes(urlType) ? urlType : '', pm_email: '', title: '',
-  sprint_target: 'neu', existing_project_id: '',
-  stundensatz: '', kontingent_stunden: '', recurring_contract_id: '', modell: 'aufwand',
-};
+const BLANK_CLIENT_FIELDS = { new_client_name: '', new_client_email: '' };
 
 // Allgemeiner Anlage-Wizard: Schritt 1 Rahmen für alle Typen, danach die
 // Sprintplanung nur für Sprintprojekte. Beträge und Termine werden gerechnet.
 export default function SprintAssistent() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Optionaler Startkeim — ohne ihn startet der Wizard leer
+  const [initial] = useState(() => readWizardSeed(location.state));
   const [step, setStep] = useState(1);
-  const [seed, setSeed] = useState(EMPTY_SEED);
-  const [size, setSize] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [deliveryDate, setDeliveryDate] = useState('');
-  const [discount, setDiscount] = useState('');
-  const [selected, setSelected] = useState([]);
+  const [seed, setSeed] = useState({ ...BLANK_CLIENT_FIELDS, ...initial.seed });
+  const [size, setSize] = useState(initial.sprint.size);
+  const [startDate, setStartDate] = useState(initial.sprint.startDate);
+  const [deliveryDate, setDeliveryDate] = useState(initial.sprint.deliveryDate);
+  const [discount, setDiscount] = useState(initial.sprint.discount);
+  const [selected, setSelected] = useState(initial.sprint.selected);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
