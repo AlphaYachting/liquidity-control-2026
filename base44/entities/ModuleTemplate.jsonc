@@ -19,6 +19,16 @@
     "standard_price": {
       "type": "number"
     },
+    "default_arbeitsmodell": {
+      "type": "string",
+      "enum": [
+        "sprint",
+        "support",
+        "container"
+      ],
+      "default": "sprint",
+      "description": "Arbeitsmodell, in dem dieses Modul \u00fcblicherweise verkauft wird"
+    },
     "active": {
       "type": "boolean",
       "default": true

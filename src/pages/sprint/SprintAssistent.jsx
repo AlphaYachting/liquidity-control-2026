@@ -10,6 +10,7 @@ import SectionLabel from '@/components/sprint/SectionLabel';
 import StepModule, { milestoneAmount } from '@/components/sprint/assistent/StepModule';
 import StepRahmen, { rahmenValid, NEW_CLIENT } from '@/components/sprint/assistent/StepRahmen';
 import StepTypDetails, { typDetailsValid } from '@/components/sprint/assistent/StepTypDetails';
+import StepContainerModule from '@/components/sprint/assistent/StepContainerModule';
 import { PROJECT_TYPES } from '@/components/sprint/projectTypes';
 import { readWizardSeed } from '@/lib/sprint/wizardSeed';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
@@ -34,6 +35,7 @@ export default function SprintAssistent() {
   const [deliveryDate, setDeliveryDate] = useState(initial.sprint.deliveryDate);
   const [discount, setDiscount] = useState(initial.sprint.discount);
   const [selected, setSelected] = useState(initial.sprint.selected);
+  const [containerModuleIds, setContainerModuleIds] = useState([]);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
@@ -74,7 +76,7 @@ export default function SprintAssistent() {
   );
   const stepLabels = isSprint
     ? ['Rahmen', 'Sprint', 'Module', 'Übersicht']
-    : ['Rahmen', 'Anlegen'];
+    : ['Rahmen', 'Details', 'Module'];
   const lastStep = stepLabels.length;
 
   const sprintRahmenValid = size && startDate && deliveryDate;
@@ -98,7 +100,8 @@ export default function SprintAssistent() {
   const nextDisabled =
     (step === 1 && !rahmenValid(seed)) ||
     (isSprint && step === 2 && !sprintRahmenValid) ||
-    (isSprint && step === 3 && !moduleValid);
+    (isSprint && step === 3 && !moduleValid) ||
+    (!isSprint && step === 2 && !typDetailsValid(seed));
   const commitDisabled = isSprint ? !plan?.deliverable : !typDetailsValid(seed);
 
   // Neuer Kunde entsteht inline beim Verlassen des Rahmens
@@ -138,7 +141,7 @@ export default function SprintAssistent() {
   const handleCreateContainer = async () => {
     setCreating(true);
     const project = await resolveProject();
-    const { sprint } = await ensureContainer(project);
+    const { sprint } = await ensureContainer(project, { module_ids: containerModuleIds });
     navigate(`/sprint/sprints/${sprint.id}`);
   };
 
@@ -252,6 +255,15 @@ export default function SprintAssistent() {
             </p>
             <StepTypDetails seed={seed} setSeed={setSeed} contracts={clientContracts} />
           </div>
+        )}
+
+        {!isSprint && step === 3 && (
+          <StepContainerModule
+            modules={modules}
+            moduleIds={containerModuleIds}
+            setModuleIds={setContainerModuleIds}
+            model={seed.type === 'support' ? 'support' : 'container'}
+          />
         )}
 
         {isSprint && step === 2 && (
