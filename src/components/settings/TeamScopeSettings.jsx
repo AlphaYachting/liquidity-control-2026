@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Save, Eye, UserCheck } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { SYSTEM_ROLES } from './teamRosterConfig';
 
 const AREAS = [
   { key: 'projects', label: 'Projekte' },
@@ -16,15 +17,15 @@ const AREAS = [
   { key: 'management', label: 'Führung' },
 ];
 
-// Admin-Verwaltung: Wer sieht nur die eigenen Projekte, wer sieht alles.
+// Zuständigkeit je Person aus dem Reiter „Personen" — Führung sieht alles.
 export default function TeamScopeSettings() {
   const { toast } = useToast();
   const [savingEmail, setSavingEmail] = useState(null);
   const [drafts, setDrafts] = useState({});
 
-  const { data: users = [], isLoading: lu } = useQuery({
-    queryKey: ['team-users'],
-    queryFn: () => base44.entities.User.list('-created_date', 200),
+  const { data: members = [], isLoading: lm } = useQuery({
+    queryKey: ['team-roster'],
+    queryFn: () => base44.entities.TeamMember.list('name', 200),
   });
 
   const { data: profiles = [], isLoading: lp, refetch } = useQuery({
@@ -32,12 +33,13 @@ export default function TeamScopeSettings() {
     queryFn: () => base44.entities.TeamMemberProfile.list('-created_date', 200),
   });
 
+  const people = members.filter((m) => m.active !== false);
   const profileFor = (email) => profiles.find((p) => p.user_email === email);
 
-  const valueFor = (user, field, fallback) => {
-    const d = drafts[user.email];
+  const valueFor = (person, field, fallback) => {
+    const d = drafts[person.email];
     if (d && d[field] !== undefined) return d[field];
-    const p = profileFor(user.email);
+    const p = profileFor(person.email);
     if (p && p[field] !== undefined && p[field] !== null) return p[field];
     return fallback;
   };
@@ -45,29 +47,32 @@ export default function TeamScopeSettings() {
   const setDraft = (email, field, value) =>
     setDrafts((prev) => ({ ...prev, [email]: { ...prev[email], [field]: value } }));
 
-  const save = async (user) => {
-    setSavingEmail(user.email);
-    const aliasesRaw = valueFor(user, 'pm_aliases', [user.full_name].filter(Boolean));
+  const defaultScope = (person) => (person.system_role === 'gf' ? 'all' : 'own');
+  const defaultAreas = (person) => (person.system_role === 'gf' ? ['projects', 'sales', 'backoffice', 'management'] : ['projects']);
+
+  const save = async (person) => {
+    setSavingEmail(person.email);
+    const aliasesRaw = valueFor(person, 'pm_aliases', [person.name].filter(Boolean));
     const payload = {
-      user_email: user.email,
-      display_name: user.full_name || user.email,
-      data_scope: valueFor(user, 'data_scope', user.role === 'admin' ? 'all' : 'own'),
-      work_areas: valueFor(user, 'work_areas', ['projects']),
+      user_email: person.email,
+      display_name: person.name || person.email,
+      data_scope: valueFor(person, 'data_scope', defaultScope(person)),
+      work_areas: valueFor(person, 'work_areas', defaultAreas(person)),
       pm_aliases: (Array.isArray(aliasesRaw) ? aliasesRaw : String(aliasesRaw).split(','))
         .map((a) => String(a).trim())
         .filter(Boolean),
       is_active: true,
     };
-    const existing = profileFor(user.email);
+    const existing = profileFor(person.email);
     if (existing) await base44.entities.TeamMemberProfile.update(existing.id, payload);
     else await base44.entities.TeamMemberProfile.create(payload);
-    setDrafts((prev) => ({ ...prev, [user.email]: undefined }));
+    setDrafts((prev) => ({ ...prev, [person.email]: undefined }));
     await refetch();
     setSavingEmail(null);
     toast({ title: 'Zuständigkeit gespeichert', description: payload.display_name });
   };
 
-  if (lu || lp) {
+  if (lm || lp) {
     return <div className="flex items-center gap-2 text-sm text-muted-foreground py-8"><Loader2 className="w-4 h-4 animate-spin" /> Team wird geladen...</div>;
   }
 
@@ -76,26 +81,39 @@ export default function TeamScopeSettings() {
       <CardHeader>
         <CardTitle className="text-base">Zuständigkeit & Sichtbarkeit</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Steuert, welche Projekte eine Person in „Mein Tag" sieht. Die Zuordnung erfolgt über die
-          Namen, unter denen sie in Projekten als Verantwortliche/r eingetragen ist.
+          Grundlage sind die Personen aus dem Reiter „Personen". Die Namen hier steuern, welche Projekte
+          eine Person in „Mein Tag" als eigene erkennt.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
-        {users.map((u) => {
-          const scope = valueFor(u, 'data_scope', u.role === 'admin' ? 'all' : 'own');
-          const areas = valueFor(u, 'work_areas', ['projects']);
-          const aliases = valueFor(u, 'pm_aliases', [u.full_name].filter(Boolean));
+        {people.length === 0 && (
+          <p className="text-sm text-muted-foreground">Noch keine aktiven Personen angelegt.</p>
+        )}
+        {people.map((u) => {
+          const scope = valueFor(u, 'data_scope', defaultScope(u));
+          const areas = valueFor(u, 'work_areas', defaultAreas(u));
+          const aliases = valueFor(u, 'pm_aliases', [u.name].filter(Boolean));
           const dirty = !!drafts[u.email];
 
           return (
             <div key={u.id} className="rounded-xl border p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold">{u.full_name || u.email}</p>
-                  <p className="text-xs text-muted-foreground">{u.email}</p>
+                <div className="flex items-center gap-3">
+                  <span
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
+                    style={{ backgroundColor: u.color || '#33415C' }}
+                  >
+                    {(u.name || '?').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase()}
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold">{u.name || u.email}</p>
+                    <p className="text-xs text-muted-foreground">{u.email}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px]">{u.role}</Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    {SYSTEM_ROLES.find((r) => r.key === u.system_role)?.label || u.system_role}
+                  </Badge>
                   <Badge className={scope === 'all' ? 'bg-blue-100 text-blue-700 border-0 gap-1' : 'bg-amber-100 text-amber-700 border-0 gap-1'}>
                     {scope === 'all' ? <Eye className="w-3 h-3" /> : <UserCheck className="w-3 h-3" />}
                     {scope === 'all' ? 'Sieht alles' : 'Nur eigene'}
@@ -122,7 +140,7 @@ export default function TeamScopeSettings() {
                   <Input
                     className="h-9 mt-1"
                     value={Array.isArray(aliases) ? aliases.join(', ') : aliases}
-                    placeholder="z.B. Alfons Rittler, A. Rittler"
+                    placeholder="z.B. Sebastian Haslinger, S. Haslinger"
                     onChange={(e) => setDraft(u.email, 'pm_aliases', e.target.value.split(','))}
                   />
                 </div>
