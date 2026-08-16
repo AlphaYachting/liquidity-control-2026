@@ -15,17 +15,22 @@ export function matchModules(positions, modules) {
   }).filter(Boolean);
 }
 
-async function resolveClientId(customerName) {
+async function resolveClientId(customerName, deal) {
   if (!customerName) return '';
   const found = await base44.entities.Client.filter({ name: customerName }, '-created_date', 1);
   if (found?.length) return found[0].id;
-  const created = await base44.entities.Client.create({ name: customerName });
+  const created = await base44.entities.Client.create({
+    name: customerName,
+    contact_person: deal?.contact_name || '',
+    contact_email: deal?.contact_email || 'unbekannt@example.com',
+    agb_version: 'offen',
+  });
   return created.id;
 }
 
 export async function commitHandover({ deal, kunde, positions, total, advancePercent, projectType, pm, abRequired, modules }) {
   const today = new Date().toISOString().split('T')[0];
-  const clientId = await resolveClientId(kunde);
+  const clientId = await resolveClientId(kunde, deal);
 
   const order = await base44.entities.ConfirmedOrder.create({
     customer: kunde || deal.title,
