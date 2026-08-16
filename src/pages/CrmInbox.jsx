@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -13,6 +13,7 @@ import DealFormDialog from '@/components/crm/DealFormDialog';
 import InboxDuplicateDialog from '@/components/crm/InboxDuplicateDialog';
 import { threadIdOf, markThreadAsLead, attachInboxItemToDeal } from '@/components/crm/inboxDecision';
 import InboxAssignDealDialog from '@/components/crm/InboxAssignDealDialog';
+import { descriptionFromThread } from '@/components/crm/support/threadDescription';
 import { useToast } from '@/components/ui/use-toast';
 import { findDuplicateDeal, CLOSED_STAGES } from '../../base44/shared/crmDuplicate.js';
 
@@ -28,6 +29,19 @@ export default function CrmInbox() {
   const [attachError, setAttachError] = useState(null);
   const { toast } = useToast();
   const [backchannelWarning, setBackchannelWarning] = useState(null);
+  const [threadText, setThreadText] = useState('');
+
+  // Fehlt der Anfragetext, den echten E-Mail-Verlauf nachladen — die Beschreibung
+  // des Deals darf nie ein bloßes „Anfrage" sein.
+  useEffect(() => {
+    setThreadText('');
+    if (!convertItem || convertItem.body) return;
+    const threadId = threadIdOf(convertItem);
+    if (!threadId) return;
+    let cancelled = false;
+    descriptionFromThread(threadId).then((text) => { if (!cancelled) setThreadText(text || ''); });
+    return () => { cancelled = true; };
+  }, [convertItem]);
 
   const { data: rawItems = [], isLoading } = useQuery({
     queryKey: ['crm-inbox'],
@@ -223,7 +237,8 @@ export default function CrmInbox() {
           contact_email: convertItem.sender_email || '',
           contact_phone: convertItem.sender_phone || '',
           source: convertItem.source,
-          description: convertItem.body || '',
+          description: (convertItem.body || threadText || '').slice(0, 4000),
+          email_thread_id: threadIdOf(convertItem) || '',
           linked_customer_name: convertItem.matched_customer_name || '',
         } : null}
         onSaved={handleDealSaved}

@@ -137,7 +137,8 @@ export default function ThreadActionBar({ thread, messages = [], onChanged }) {
           contact_name: item.sender_name || '',
           contact_email: item.sender_email || '',
           source: 'email',
-          description: item.body || '',
+          description: (item.body || '').slice(0, 4000),
+          email_thread_id: String(t.id),
           linked_customer_name: item.matched_customer_name || '',
         } : null}
         onSaved={handleLeadSaved}
