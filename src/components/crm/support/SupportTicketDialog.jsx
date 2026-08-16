@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { resolveSupportProject, createSupportTicket, SUPPORT_MODELS, DEFAULT_SUPPORT_RATE } from '@/components/crm/support/supportTicket';
+import { descriptionFromThread } from '@/components/crm/support/threadDescription';
 
 const ROLES = ['Beratung', 'Konzept', 'Text', 'Grafik', 'Web', 'Media', 'QS'];
 
@@ -15,6 +16,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [loadingThread, setLoadingThread] = useState(false);
 
   const { data: projects = [] } = useQuery({
     queryKey: ['support-projects'],
@@ -44,6 +46,22 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
     });
     setError(null);
   }, [open, item, projects]);
+
+  // Kommt die Anfrage aus der E-Mail-Zentrale, fehlt der Text — Verlauf nachladen.
+  useEffect(() => {
+    if (!open || !item) return;
+    const threadId = item.thread_id || item.id;
+    if (item.body || !threadId) return;
+    let cancelled = false;
+    setLoadingThread(true);
+    descriptionFromThread(threadId)
+      .then((text) => {
+        if (cancelled || !text) return;
+        setForm((f) => (f && !f.description ? { ...f, description: text } : f));
+      })
+      .finally(() => { if (!cancelled) setLoadingThread(false); });
+    return () => { cancelled = true; };
+  }, [open, item]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -103,7 +121,17 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
           </div>
           <div>
             <Label className="text-xs">Beschreibung</Label>
-            <Textarea rows={5} value={form.description} onChange={e => set('description', e.target.value)} />
+            <Textarea
+              rows={5}
+              value={form.description}
+              onChange={e => set('description', e.target.value)}
+              placeholder={loadingThread ? 'Verlauf wird geladen…' : 'Anliegen des Kunden kurz beschreiben'}
+            />
+            {!loadingThread && !form.description.trim() && (
+              <p className="text-xs text-status-attention mt-1">
+                Anliegen des Kunden kurz beschreiben — ein Ticket darf nicht nur den Betreff tragen.
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -144,7 +172,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Abbrechen</Button>
-          <Button onClick={submit} disabled={busy || !form.customer || !form.title}>
+          <Button onClick={submit} disabled={busy || loadingThread || !form.customer || !form.title || !form.description.trim()}>
             {busy ? 'Wird angelegt…' : 'Ticket anlegen'}
           </Button>
         </DialogFooter>
