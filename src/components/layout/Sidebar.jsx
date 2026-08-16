@@ -15,7 +15,7 @@ import { useUnlinkedOrdersCount } from '@/hooks/useUnlinkedOrdersCount';
 import { usePendingDunningCount } from '@/hooks/usePendingDunningCount';
 import { useCrmInboxCount } from '@/hooks/useCrmInboxCount';
 import { useEmailTriageCount } from '@/hooks/useEmailTriageCount';
-import { useEmailEscalations } from '@/hooks/useEmailEscalations';
+import { useEscalationAlertCount } from '@/hooks/useEscalationAlertCount';
 
 const navSections = [
   {
@@ -99,7 +99,7 @@ export default function Sidebar() {
   const pendingDunningCount = usePendingDunningCount();
   const crmInboxCount = useCrmInboxCount();
   const emailTriageCount = useEmailTriageCount();
-  const escalationCount = useEmailEscalations().data?.length || 0;
+  const escalationCount = useEscalationAlertCount();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
