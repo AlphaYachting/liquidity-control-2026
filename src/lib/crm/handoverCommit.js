@@ -8,6 +8,12 @@ const norm = (s) => (s || '').toLowerCase().replace(/[^a-zäöüß0-9]/g, '');
 // Angebotsposition → Katalogmodul (Namensvergleich, sonst offen lassen)
 export function matchModules(positions, modules) {
   return positions.map((p, i) => {
+    if (p.module_template_id) {
+      const chosen = modules.find((m) => m.id === p.module_template_id);
+      if (chosen) {
+        return { key: `${chosen.id}-${i}`, module_template_id: chosen.id, name: p.name || chosen.name, amount: p.amount || chosen.standard_price || '', addon_ids: [] };
+      }
+    }
     const key = norm(p.name);
     const mod = modules.find((m) => norm(m.name) === key)
       || modules.find((m) => key && (norm(m.name).includes(key) || key.includes(norm(m.name))));

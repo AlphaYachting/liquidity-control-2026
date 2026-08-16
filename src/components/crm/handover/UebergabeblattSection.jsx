@@ -13,6 +13,7 @@ import { computeAbPflicht } from '@/lib/crm/abPflicht';
 import { proposalPositions, guessProjectType } from '@/lib/crm/proposalPositions';
 import { commitHandover } from '@/lib/crm/handoverCommit';
 import ClientLinkStep from '@/components/crm/handover/ClientLinkStep';
+import ManualPositionsEditor from '@/components/crm/handover/ManualPositionsEditor';
 
 const eur = (v) => new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v || 0);
 
@@ -32,6 +33,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
   const [pm, setPm] = useState('');
   const [saving, setSaving] = useState(false);
   const [client, setClient] = useState(null);
+  const [manualRows, setManualRows] = useState([{ name: '', amount: '', module_template_id: '' }]);
   const kunde = deal.linked_customer_name || deal.company_name || '';
 
   const { data, isLoading } = useQuery({
@@ -47,7 +49,14 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
     },
   });
 
-  const positions = useMemo(() => proposalPositions(data?.proposal), [data?.proposal]);
+  const studioPositions = useMemo(() => proposalPositions(data?.proposal), [data?.proposal]);
+  const manualMode = !isLoading && studioPositions.length === 0;
+  // von Hand erfasste Zeilen zählen erst, wenn Leistung, Betrag und Katalogmodul stehen
+  const manualPositions = useMemo(() => manualRows
+    .filter((r) => r.name.trim() && Number(r.amount) > 0 && r.module_template_id)
+    .map((r) => ({ name: r.name.trim(), amount: Number(r.amount), module_template_id: r.module_template_id })),
+    [manualRows]);
+  const positions = manualMode ? manualPositions : studioPositions;
   const positionsTotal = positions.reduce((s, p) => s + (p.amount || 0), 0);
   const total = positionsTotal > 0 ? positionsTotal : Number(deal.value_net) || 0;
   const ab = data ? computeAbPflicht({ deal, proposal: data.proposal, hasPreviousOrders: data.hasPreviousOrders }) : null;
@@ -114,8 +123,8 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
             <div className="px-3 py-2 bg-muted/50 border-b">
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Auftragspositionen</p>
             </div>
-            {positions.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-muted-foreground">Keine Angebots-Module gefunden — Gesamtbetrag aus dem Deal übernommen.</p>
+            {manualMode ? (
+              <ManualPositionsEditor rows={manualRows} modules={data?.modules || []} onChange={setManualRows} />
             ) : (
               positions.map((p, i) => (
                 <div key={i} className="px-3 py-2 flex items-center justify-between gap-3 border-b last:border-b-0">
@@ -172,7 +181,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
 
           <div className="flex justify-end gap-2 border-t pt-3">
             <Button variant="outline" onClick={onCancel}>Abbrechen</Button>
-            <Button onClick={freigeben} disabled={saving || !ab || !client?.sevdesk_contact_id}>
+            <Button onClick={freigeben} disabled={saving || !ab || !client?.sevdesk_contact_id || positions.length === 0}>
               {saving ? 'Wird angelegt…' : 'Freigeben & anlegen'}
 
             </Button>
