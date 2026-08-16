@@ -46,6 +46,10 @@
       "type": "number",
       "description": "monatliches Stundenkontingent bei Support"
     },
+    "recurring_contract_id": {
+      "type": "string",
+      "description": "optional verkn\u00fcpfter laufender Vertrag (RecurringContract) bei Containerkunden"
+    },
     "is_legacy": {
       "type": "boolean",
       "default": false,

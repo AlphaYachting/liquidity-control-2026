@@ -1,39 +1,20 @@
 import { base44 } from '@/api/base44Client';
 import { threadIdOf } from '@/components/crm/inboxDecision';
 import { emailApi } from '@/components/crm/emails/emailApi';
+import { ensureContainer } from '@/lib/sprint/ensureContainer';
 
-const FAR_FUTURE = '2099-12-31';
 export const SUPPORT_MODELS = ['aufwand', 'support'];
 export const DEFAULT_SUPPORT_RATE = 130;
 
 const supportTitle = (customer) => `Support — ${customer}`;
 
-// Behälter (Sprint + offener Milestone) am Support-Projekt sicherstellen
+// Behälter (Sprint + offener Milestone) am Support-Projekt sicherstellen —
+// ohne Liefertermin, ohne Etappenbetrag.
 async function ensureSupportContainer(project) {
-  let sprint = (await base44.entities.Sprint.filter({ project_id: project.id }))[0];
-  if (!sprint) {
-    sprint = await base44.entities.Sprint.create({
-      project_id: project.id,
-      title: 'Laufender Support',
-      size: 'S',
-      start_date: new Date().toISOString().slice(0, 10),
-      delivery_date: FAR_FUTURE,
-      status: 'laufend',
-    });
-  }
-
-  let milestone = (await base44.entities.Milestone.filter({ sprint_id: sprint.id }))
-    .find(m => !m.released);
-  if (!milestone) {
-    milestone = await base44.entities.Milestone.create({
-      sprint_id: sprint.id,
-      order: 1,
-      title: 'Support-Anfragen',
-      state: 'produktion',
-      milestone_amount: 0,
-      planned_freeze: FAR_FUTURE,
-    });
-  }
+  const { milestone } = await ensureContainer(project, {
+    sprintTitle: 'Laufender Support',
+    milestoneTitle: 'Support-Anfragen',
+  });
   return milestone;
 }
 
