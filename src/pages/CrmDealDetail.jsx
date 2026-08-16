@@ -10,7 +10,7 @@ import ActivityComposer from '@/components/crm/ActivityComposer';
 import AppointmentSection from '@/components/crm/AppointmentSection';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import WonLostDialog from '@/components/crm/WonLostDialog';
-import UebergabeblattDialog from '@/components/crm/handover/UebergabeblattDialog';
+import UebergabeblattSection from '@/components/crm/handover/UebergabeblattSection';
 import CustomerContextCard from '@/components/crm/CustomerContextCard';
 import DealInquiryCard from '@/components/crm/DealInquiryCard';
 import CompanyMasterDataCard from '@/components/crm/CompanyMasterDataCard';
@@ -107,6 +107,15 @@ export default function CrmDealDetail() {
         onRefresh={refreshAll}
       />
 
+      {/* Beauftragen öffnet das Übergabeblatt direkt hier — vor der Freigabe entsteht nichts */}
+      {closeMode === 'won' && (
+        <UebergabeblattSection
+          deal={deal}
+          onCancel={() => setCloseMode(null)}
+          onDone={() => { setCloseMode(null); refreshAll(); }}
+        />
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Timeline */}
         <div className="lg:col-span-2 space-y-3">
@@ -181,13 +190,6 @@ export default function CrmDealDetail() {
       </div>
 
       <DealFormDialog open={editOpen} onOpenChange={setEditOpen} initialData={deal} onSaved={refreshAll} />
-      {/* Gewonnen führt nicht mehr in die Sackgasse, sondern ins Übergabeblatt */}
-      <UebergabeblattDialog
-        open={closeMode === 'won'}
-        onOpenChange={(o) => { if (!o) setCloseMode(null); }}
-        deal={deal}
-        onSaved={refreshAll}
-      />
       <WonLostDialog open={closeMode === 'lost'} onOpenChange={(o) => { if (!o) setCloseMode(null); }} deal={deal} mode={closeMode} onSaved={refreshAll} />
     </div>
   );
