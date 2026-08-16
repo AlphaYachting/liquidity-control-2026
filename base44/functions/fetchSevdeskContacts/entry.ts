@@ -14,10 +14,12 @@ export default async function (req) {
     if (!apiKey) return Response.json({ error: 'SEVDESK_API_KEY nicht gesetzt', contacts: [] }, { status: 200 });
 
     const body = await req.json().catch(() => ({}));
-    const q = norm(body.query);
+    const raw = String(body.query || '').trim();
+    const q = norm(raw);
     if (!q) return Response.json({ success: true, contacts: [] });
 
-    const res = await fetch(`${SEVDESK_BASE}/Contact?depth=1&limit=1000&offset=0`, {
+    // Suche serverseitig — der Kontaktbestand ist zu groß, um vollständig geladen zu werden
+    const res = await fetch(`${SEVDESK_BASE}/Contact?depth=1&limit=50&name=${encodeURIComponent(raw)}`, {
       headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
     });
     if (!res.ok) {
@@ -30,7 +32,7 @@ export default async function (req) {
         name: c.name || [c.surename, c.familyname].filter(Boolean).join(' ') || '',
         customer_number: c.customerNumber || '',
       }))
-      .filter((c) => norm(c.name).length >= 3 && (norm(c.name).includes(q) || q.includes(norm(c.name))))
+      .filter((c) => c.name)
       .slice(0, 20);
 
     return Response.json({ success: true, api_available: true, contacts });
