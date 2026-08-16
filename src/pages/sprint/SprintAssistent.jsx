@@ -5,20 +5,29 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle } from 'lucide-react';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import StepModule, { milestoneAmount } from '@/components/sprint/assistent/StepModule';
+import StepRahmen, { rahmenValid, NEW_CLIENT } from '@/components/sprint/assistent/StepRahmen';
+import { PROJECT_TYPES } from '@/components/sprint/projectTypes';
+import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { SPRINT_SIZES, fmtEUR, fmtDate, addWeeks } from '@/components/sprint/sprintConfig';
 import { planSprintDeadlines } from '@/lib/sprint/deadlines';
 import { verteileNachlass } from '@/lib/sprint/nachlass';
 import { resolveAssignee } from '@/lib/sprint/assignment';
 
-// S6 — Sprint anlegen: Beträge, Kennzahlen und alle Plantermine werden gerechnet, nicht getippt.
+const EMPTY_SEED = {
+  client_id: '', new_client_name: '', new_client_email: '',
+  type: '', pm_email: '', title: '',
+  sprint_target: 'neu', existing_project_id: '',
+};
+
+// Allgemeiner Anlage-Wizard: Schritt 1 Rahmen für alle Typen, danach die
+// Sprintplanung nur für Sprintprojekte. Beträge und Termine werden gerechnet.
 export default function SprintAssistent() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [projectId, setProjectId] = useState('');
+  const [seed, setSeed] = useState(EMPTY_SEED);
   const [size, setSize] = useState('');
   const [startDate, setStartDate] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
@@ -27,10 +36,11 @@ export default function SprintAssistent() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
-  const { data } = useQuery({
+  const { data, refetch } = useQuery({
     queryKey: ['sprintAssistentData'],
     queryFn: async () => {
-      const [projects, modules, addOns, members, settings] = await Promise.all([
+      const [clients, projects, modules, addOns, members, settings] = await Promise.all([
+        base44.entities.Client.list('name', 300),
         base44.entities.Project.list('-created_date', 200),
         base44.entities.ModuleTemplate.list('-created_date', 200),
         base44.entities.AddOnBlock.list('-created_date', 200),
@@ -38,6 +48,7 @@ export default function SprintAssistent() {
         base44.entities.Setting.filter({ group: 'fristen' }, 'key', 100),
       ]);
       return {
+        clients,
         projects: projects.filter((p) => p.status === 'aktiv'),
         modules: modules.filter((m) => m.active !== false),
         addOns: addOns.filter((a) => a.active !== false),
@@ -46,21 +57,25 @@ export default function SprintAssistent() {
     },
   });
 
+  const clients = data?.clients || [];
   const projects = data?.projects || [];
   const modules = data?.modules || [];
   const addOns = data?.addOns || [];
   const members = data?.members || [];
   const settings = data?.settings || [];
-  const project = projects.find((p) => p.id === projectId);
 
-  const step1Valid = projectId && size && startDate && deliveryDate;
+  const isSprint = seed.type === 'sprint';
+  const stepLabels = isSprint
+    ? ['Rahmen', 'Sprint', 'Module', 'Übersicht']
+    : ['Rahmen', 'Anlegen'];
+  const lastStep = stepLabels.length;
+
+  const sprintRahmenValid = size && startDate && deliveryDate;
   const etappenSumme = selected.reduce((s, m) => s + milestoneAmount(m, addOns), 0);
   const sprintAmount = Math.round(etappenSumme - (Number(discount) || 0));
-  // S1 — Nachlass anteilig eingerechnet: Summe der Etappenbeträge = Sprintbetrag
   const nettoBetraege = verteileNachlass(selected.map((m) => milestoneAmount(m, addOns)), Number(discount) || 0);
-  const step2Valid = selected.length > 0 && sprintAmount > 0;
+  const moduleValid = selected.length > 0 && sprintAmount > 0;
 
-  // Kennzahlen aus dem Katalog rechnen — nie von Hand eintragen
   const kennzahlen = selected.reduce((acc, m) => {
     const mod = modules.find((x) => x.id === m.module_template_id);
     const addonHours = m.addon_ids.reduce((s, id) => s + (Number(addOns.find((a) => a.id === id)?.target_hours) || 0), 0);
@@ -69,11 +84,54 @@ export default function SprintAssistent() {
     return acc;
   }, { hours: 0, focusDays: 0 });
 
-  const plan = step1Valid && selected.length
+  const plan = sprintRahmenValid && selected.length
     ? planSprintDeadlines({ startDate, deliveryDate, size, milestoneCount: selected.length, settings })
     : null;
 
-  const handleCreate = async () => {
+  const nextDisabled =
+    (step === 1 && !rahmenValid(seed)) ||
+    (isSprint && step === 2 && !sprintRahmenValid) ||
+    (isSprint && step === 3 && !moduleValid);
+
+  // Neuer Kunde entsteht inline beim Verlassen des Rahmens
+  const handleNext = async () => {
+    if (step === 1 && seed.client_id === NEW_CLIENT) {
+      setCreating(true);
+      const client = await base44.entities.Client.create({
+        name: seed.new_client_name.trim(),
+        contact_email: seed.new_client_email || '',
+      });
+      setSeed((s) => ({ ...s, client_id: client.id }));
+      await refetch();
+      setCreating(false);
+    }
+    setStep(step + 1);
+  };
+
+  const resolveProject = async () => {
+    if (isSprint && seed.sprint_target === 'folge') {
+      return projects.find((p) => p.id === seed.existing_project_id);
+    }
+    const def = PROJECT_TYPES[seed.type];
+    return base44.entities.Project.create({
+      client_id: seed.client_id,
+      title: seed.title.trim(),
+      pm_email: seed.pm_email,
+      status: 'aktiv',
+      abrechnungsmodell: def.model || 'aufwand',
+      is_legacy: seed.type === 'legacy',
+    });
+  };
+
+  // Laufender Behälter für alle Typen außer Sprint — ohne Termin, ohne Betrag
+  const handleCreateContainer = async () => {
+    setCreating(true);
+    const project = await resolveProject();
+    await ensureContainer(project);
+    navigate('/sprint/projekte');
+  };
+
+  const handleCreateSprint = async () => {
     if (!plan?.deliverable) return;
     const nettoSumme = nettoBetraege.reduce((s, n) => s + n, 0);
     if (nettoSumme !== sprintAmount) {
@@ -82,10 +140,12 @@ export default function SprintAssistent() {
     }
     setCreateError('');
     setCreating(true);
+    const project = await resolveProject();
+    const projectId = project.id;
     const now = new Date().toISOString();
     const sprint = await base44.entities.Sprint.create({
       project_id: projectId,
-      title: `${project?.title || 'Sprint'} — Sprint ${size}`,
+      title: `${project.title || 'Sprint'} — Sprint ${size}`,
       size,
       start_date: startDate,
       end_date: addWeeks(startDate, SPRINT_SIZES[size].weeks),
@@ -156,31 +216,42 @@ export default function SprintAssistent() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
-      <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Sprint anlegen</h1>
+      <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Neu anlegen</h1>
 
       <div>
         <div className="flex justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
-          <span className={step >= 1 ? 'text-primary' : ''}>1 · Rahmen</span>
-          <span className={step >= 2 ? 'text-primary' : ''}>2 · Module</span>
-          <span className={step >= 3 ? 'text-primary' : ''}>3 · Übersicht</span>
+          {stepLabels.map((label, idx) => (
+            <span key={label} className={step >= idx + 1 ? 'text-primary' : ''}>{idx + 1} · {label}</span>
+          ))}
         </div>
         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-primary transition-all" style={{ width: `${(step / 3) * 100}%` }} />
+          <div className="h-full bg-primary transition-all" style={{ width: `${(step / lastStep) * 100}%` }} />
         </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm p-6">
         {step === 1 && (
+          <StepRahmen seed={seed} setSeed={setSeed} clients={clients} members={members} projects={projects} />
+        )}
+
+        {!isSprint && step === 2 && (
+          <div className="space-y-3">
+            <SectionLabel>Übersicht</SectionLabel>
+            <p className="text-sm text-foreground font-bold">
+              {seed.title} · {PROJECT_TYPES[seed.type]?.label}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Kunde: {clients.find((c) => c.id === seed.client_id)?.name || '—'} · PM: {seed.pm_email}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Es entsteht ein laufender Behälter mit offener Etappe — ohne Liefertermin und ohne Etappenbetrag.
+              Tickets können sofort abgelegt werden.
+            </p>
+          </div>
+        )}
+
+        {isSprint && step === 2 && (
           <div className="space-y-5">
-            <div>
-              <Label>Projekt</Label>
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger className="max-w-md"><SelectValue placeholder="Projekt wählen" /></SelectTrigger>
-                <SelectContent>
-                  {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
             <div>
               <SectionLabel className="mb-2">Sprintgröße</SectionLabel>
               <div className="grid grid-cols-3 gap-3 max-w-lg">
@@ -211,15 +282,15 @@ export default function SprintAssistent() {
           </div>
         )}
 
-        {step === 2 && (
+        {isSprint && step === 3 && (
           <StepModule modules={modules} addOns={addOns} selected={selected} setSelected={setSelected} discount={discount} />
         )}
 
-        {step === 3 && (
+        {isSprint && step === 4 && (
           <div className="space-y-4">
             <SectionLabel>Übersicht</SectionLabel>
             <div className="text-sm text-foreground">
-              <p className="font-bold">{project?.title} · Sprint {size}</p>
+              <p className="font-bold">{seed.title} · Sprint {size}</p>
               <p className="text-muted-foreground">
                 {fmtDate(startDate)} bis {fmtDate(addWeeks(startDate, SPRINT_SIZES[size]?.weeks || 0))} · Liefertermin {fmtDate(deliveryDate)} · {fmtEUR(sprintAmount)}
               </p>
@@ -267,20 +338,21 @@ export default function SprintAssistent() {
           <Button variant="outline" className="rounded" disabled={step === 1 || creating} onClick={() => setStep(step - 1)}>
             Zurück
           </Button>
-          {step < 3 ? (
+          {step < lastStep ? (
             <Button
               className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
-              disabled={(step === 1 && !step1Valid) || (step === 2 && !step2Valid)}
-              onClick={() => setStep(step + 1)}
+              disabled={nextDisabled || creating}
+              onClick={handleNext}
             >
               Weiter
             </Button>
           ) : (
             <Button
               className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
-              disabled={creating || !plan?.deliverable} onClick={handleCreate}
+              disabled={creating || (isSprint && !plan?.deliverable)}
+              onClick={isSprint ? handleCreateSprint : handleCreateContainer}
             >
-              {creating ? 'Legt an…' : 'Sprint anlegen'}
+              {creating ? 'Legt an…' : isSprint ? 'Sprint anlegen' : 'Projekt anlegen'}
             </Button>
           )}
         </div>
