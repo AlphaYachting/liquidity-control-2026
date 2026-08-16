@@ -49,8 +49,11 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
   const positionsTotal = positions.reduce((s, p) => s + (p.amount || 0), 0);
   const total = positionsTotal > 0 ? positionsTotal : Number(deal.value_net) || 0;
   const ab = data ? computeAbPflicht({ deal, proposal: data.proposal, hasPreviousOrders: data.hasPreviousOrders }) : null;
-  const typ = projectType || (data ? guessProjectType(data.proposal, positions) : 'paket');
-  const advanceAmount = Math.round((Number(advance) || 0) / 100 * total);
+  // Ohne AB-Pflicht läuft die Abrechnung auf Regie — dann auch keine Anzahlung
+  const regie = ab ? ab.regie === true : false;
+  const typ = projectType || (regie ? 'aufwand' : (data ? guessProjectType(data.proposal, positions) : 'paket'));
+  const advancePercent = regie ? 0 : Number(advance) || 0;
+  const advanceAmount = Math.round(advancePercent / 100 * total);
 
   const freigeben = async () => {
     setSaving(true);
@@ -58,7 +61,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
       const now = new Date().toISOString();
       const { wizardState } = await commitHandover({
         deal, kunde, positions, total,
-        advancePercent: advance,
+        advancePercent: advancePercent,
         projectType: typ,
         pm,
         abRequired: ab.required,
@@ -72,7 +75,9 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
         deal_id: deal.id,
         activity_type: 'stage_change',
         title: 'Beauftragt',
-        content: `Auftrag angelegt · ${eur(total)} · Anzahlung ${Number(advance) || 0} % (${eur(advanceAmount)}) · PM ${pm || '—'} — ${ab.reason}`,
+        content: regie
+          ? `Auftrag angelegt · ${eur(total)} · ohne AB, Abrechnung auf Regie · PM ${pm || '—'} — ${ab.reason}`
+          : `Auftrag angelegt · ${eur(total)} · Anzahlung ${advancePercent} % (${eur(advanceAmount)}) · PM ${pm || '—'} — ${ab.reason}`,
         activity_date: now,
       });
       onDone?.();
@@ -145,14 +150,25 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label className="text-xs">Anzahlung %</Label>
-              <Input type="number" min="0" max="100" value={advance} onChange={(e) => setAdvance(e.target.value)} className="h-9" />
-            </div>
-            <div>
-              <Label className="text-xs">Anzahlungsbetrag</Label>
-              <p className="h-9 flex items-center text-sm font-semibold tabular-nums">{eur(advanceAmount)}</p>
-            </div>
+            {regie ? (
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Anzahlung</Label>
+                <p className="h-9 flex items-center text-sm text-muted-foreground">
+                  Keine Anzahlung — Abrechnung läuft auf Regie nach Aufwand.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Label className="text-xs">Anzahlung %</Label>
+                  <Input type="number" min="0" max="100" value={advance} onChange={(e) => setAdvance(e.target.value)} className="h-9" />
+                </div>
+                <div>
+                  <Label className="text-xs">Anzahlungsbetrag</Label>
+                  <p className="h-9 flex items-center text-sm font-semibold tabular-nums">{eur(advanceAmount)}</p>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 border-t pt-3">

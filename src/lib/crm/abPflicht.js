@@ -7,8 +7,16 @@ export const isRenderedProposal = (proposal) =>
 export function computeAbPflicht({ deal, proposal, hasPreviousOrders }) {
   const value = Number(deal?.value_net) || 0;
 
-  if (deal?.proposal_id && isRenderedProposal(proposal)) {
-    return { required: true, origin: 'studio', reason: 'Angebot aus dem Studio — Auftragsbestätigung immer nötig.' };
+  // Angebot vorhanden → immer volle Auftragsbestätigung
+  if (deal?.proposal_id || proposal) {
+    return {
+      required: true,
+      origin: 'studio',
+      regie: false,
+      reason: isRenderedProposal(proposal)
+        ? 'Angebot aus dem Studio — Auftragsbestätigung immer nötig.'
+        : 'Angebot vorhanden — Auftragsbestätigung immer nötig.',
+    };
   }
 
   const neukunde = !hasPreviousOrders;
@@ -16,6 +24,7 @@ export function computeAbPflicht({ deal, proposal, hasPreviousOrders }) {
     return {
       required: true,
       origin: 'adhoc',
+      regie: false,
       reason: [
         value > AB_SCHWELLE ? `Auftragswert über ${AB_SCHWELLE} €` : null,
         neukunde ? 'Neukunde ohne bisherigen Auftrag' : null,
@@ -26,6 +35,7 @@ export function computeAbPflicht({ deal, proposal, hasPreviousOrders }) {
   return {
     required: false,
     origin: 'adhoc',
+    regie: true,
     reason: 'Kleiner Zuruf eines Bestandskunden — läuft auf Regie, keine Auftragsbestätigung.',
   };
 }
