@@ -10,6 +10,7 @@ import { formatCurrency, getMonthLabel } from '@/lib/liquidityUtils';
 import { calculateNextMonthBillable } from '@/lib/reconciliationUtils';
 import ProjectDetailSlideOver from '@/components/projects/ProjectDetailSlideOver';
 import BillingMonthXlsExport from '@/components/forecast/BillingMonthXlsExport';
+import { invoicedKpi } from '@/lib/forecastInvoicedKpi';
 
 const WORK_STATUS_COLORS = {
   not_started: 'bg-gray-100 text-gray-600',
@@ -178,6 +179,9 @@ export default function NextMonthForecast() {
     AZ: 'Anzahlung', TR: 'Teilrechnung', ER: 'Schlussrechnung',
   };
 
+  const curInvoiced = invoicedKpi(curMonthInstructions, curMonthPlans);
+  const nextInvoiced = invoicedKpi(nextMonthInstructions, nextMonthPlans);
+
   const nextMonthLabel = getMonthLabel(result.next_month_str) || result.next_month_str;
   const curMonthLabel = getMonthLabel(curMonthStr) || curMonthStr;
   const hasCurrentMonthData = visibleCurBlocks.length > 0 || visibleCurInstructions.length > 0;
@@ -219,11 +223,8 @@ export default function NextMonthForecast() {
             subtitle={`${curMonthPlans.filter(p => ['open','planned','in_review'].includes(p.billing_status)).length} Einträge offen`} />
           <KpiCard title="Abrechnungsanweisungen" value={formatCurrency(totalCurInstructionNet)} variant="info"
             subtitle={`${curMonthInstructions.length} Anweisung(en)`} />
-          <KpiCard title="Davon übermittelt" value={formatCurrency(
-            curMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status))
-              .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0)
-          )} variant="success"
-            subtitle={`${curMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status)).length} an sevDesk`} />
+          <KpiCard title="Bereits verrechnet" value={formatCurrency(curInvoiced.amount)} variant="success"
+            subtitle={`${curInvoiced.count} Vorgang/Vorgänge${curInvoiced.manualCount ? ` · davon ${curInvoiced.manualCount} direkt verrechnet` : ''}`} />
         </div>
       </div>
 
@@ -248,11 +249,8 @@ export default function NextMonthForecast() {
             subtitle={`${nextMonthPlans.filter(p => ['open','planned','in_review'].includes(p.billing_status)).length} Einträge offen`} />
           <KpiCard title="Abrechnungsanweisungen" value={formatCurrency(totalInstructionNet)} variant="info"
             subtitle={`${nextMonthInstructions.length} Anweisung(en)`} />
-          <KpiCard title="Davon übermittelt" value={formatCurrency(
-            nextMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status))
-              .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0)
-          )} variant="success"
-            subtitle={`${nextMonthInstructions.filter(i => ['sent_to_backoffice','invoice_created','paid'].includes(i.status)).length} an sevDesk`} />
+          <KpiCard title="Bereits verrechnet" value={formatCurrency(nextInvoiced.amount)} variant="success"
+            subtitle={`${nextInvoiced.count} Vorgang/Vorgänge${nextInvoiced.manualCount ? ` · davon ${nextInvoiced.manualCount} direkt verrechnet` : ''}`} />
         </div>
       </div>
 
