@@ -9,12 +9,17 @@ import { computeNeedsReply } from '../../shared/emailWorkQueue.js';
 //   • "nachlauf" : ab dem gespeicherten Offset weiter in die Historie blättern
 // Der Index ist die Quelle der Arbeitsliste "Braucht Antwort".
 
-const CONCURRENCY = 6;
+// Die E-Mail-Datenbank begrenzt die Zugriffsrate — kleine Pakete mit Pause,
+// sonst bricht der Lauf mit "Rate limit exceeded" ab (Ursache der Ausfälle).
+const CONCURRENCY = 3;
+const PAUSE_MS = 250;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function mapLimited(items, fn) {
   const out = [];
   for (let i = 0; i < items.length; i += CONCURRENCY) {
     out.push(...await Promise.all(items.slice(i, i + CONCURRENCY).map(fn)));
+    if (i + CONCURRENCY < items.length) await sleep(PAUSE_MS);
   }
   return out;
 }
@@ -70,9 +75,9 @@ export default async function (req) {
 
     const body = await req.json().catch(() => ({}));
     const mode = body.mode || 'both';
-    const detailLimit = body.detail_limit ?? 40;
-    const pageSize = body.page_size ?? 200;
-    const backfillPages = body.backfill_pages ?? 3;
+    const detailLimit = body.detail_limit ?? 12;
+    const pageSize = body.page_size ?? 100;
+    const backfillPages = body.backfill_pages ?? 1;
 
     const stats = { fenster_geprueft: 0, neu: 0, aktualisiert: 0, details_geladen: 0, nachlauf_geprueft: 0, gesamt_verlaeufe: 0, fehler: [] };
 
