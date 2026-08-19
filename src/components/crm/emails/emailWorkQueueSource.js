@@ -11,6 +11,7 @@ export async function loadWorkQueueThreads(days = '30') {
     .filter((r) => {
       if (!cutoff) return true;
       const t = new Date(String(r.last_message_at || '').slice(0, 19).replace(' ', 'T') + 'Z').getTime();
-      return !t || t >= cutoff;
+      // Ohne belegtes Datum lässt sich die Relevanz nicht beurteilen — dann nicht anzeigen
+      return !!t && t >= cutoff;
     });
 }

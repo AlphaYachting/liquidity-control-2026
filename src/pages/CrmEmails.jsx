@@ -9,6 +9,7 @@ import EmailThreadDetail from '@/components/crm/emails/EmailThreadDetail';
 import EmailViewToggle from '@/components/crm/emails/EmailViewToggle';
 import { buildTriageList } from '@/components/crm/emails/emailTriage';
 import { loadWorkQueueThreads } from '@/components/crm/emails/emailWorkQueueSource';
+import { syncThreadIndexStatus } from '@/components/crm/emails/threadIndexSync';
 
 export default function CrmEmails() {
   const [filters, setFilters] = useState({ q: '', customer: '', status: 'all', days: '30', direction: 'all' });
@@ -70,6 +71,9 @@ export default function CrmEmails() {
   // Statuswechsel (erledigt / wieder öffnen) ohne Komplett-Reload:
   // Detailansicht und Liste werden lokal aktualisiert.
   const applyStatusChange = (threadId, newStatus) => {
+    // Entscheidung dauerhaft im Verlaufs-Verzeichnis festhalten, sonst kehrt
+    // der erledigte Verlauf beim nächsten Laden in die Arbeitsliste zurück.
+    syncThreadIndexStatus(threadId, newStatus);
     setThread((prev) =>
       prev?.thread?.id === threadId ? { ...prev, thread: { ...prev.thread, status: newStatus } } : prev
     );
