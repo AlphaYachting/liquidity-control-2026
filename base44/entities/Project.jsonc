@@ -8,6 +8,14 @@
     "title": {
       "type": "string"
     },
+    "description": {
+      "type": "string",
+      "description": "Briefing / Umfang des Projekts im Klartext"
+    },
+    "target_hours": {
+      "type": "number",
+      "description": "Planstunden \u00fcber das gesamte Projekt (Referenzwert)"
+    },
     "pm_email": {
       "type": "string",
       "format": "email",

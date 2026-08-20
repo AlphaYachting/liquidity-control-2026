@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import SprintKopf from '@/components/sprint/SprintKopf';
 import EtappenZeile from '@/components/sprint/EtappenZeile';
+import ProjektUebersicht from '@/components/sprint/uebersicht/ProjektUebersicht';
 import { sprintStatus } from '@/lib/sprint/status';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
@@ -14,7 +15,7 @@ export default function SprintDetail() {
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => base44.auth.me() });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['sprintDetail', sprintId],
     queryFn: async () => {
       const sprint = await base44.entities.Sprint.get(sprintId);
@@ -64,6 +65,14 @@ export default function SprintDetail() {
         client={client}
         milestones={milestones}
         status={status}
+      />
+
+      <ProjektUebersicht
+        project={project}
+        client={client}
+        sprint={sprint}
+        timeEntries={timeEntries}
+        onChanged={refetch}
       />
 
       <div>
