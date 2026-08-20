@@ -9,6 +9,7 @@ import { Loader2, Sparkles, Send, CalendarClock, Check, ChevronDown, ChevronRigh
 import ReplySlotFields from '@/components/crm/emails/ReplySlotFields';
 import { toPlainText } from '@/components/crm/quotes/emailBodyFormat';
 import { markDealContacted } from '@/components/crm/dealContact';
+import { markThreadAnswered } from '@/components/crm/emails/markThreadAnswered';
 
 const fmtSlot = (v) => {
   if (!v) return '';
@@ -20,7 +21,7 @@ const fmtSlot = (v) => {
 
 // KI-gestützte Antwort auf eine eingegangene Anfrage: Entwurf erzeugen, frei bearbeiten, senden.
 // Der Versand läuft über das lokale E-Mail-Programm; protokolliert wird am Deal (CrmActivity).
-export default function ReplyComposer({ threadId, dealId, recipient, onSent, bare = false }) {
+export default function ReplyComposer({ threadId, dealId, recipient, onSent, onAnswered, bare = false }) {
   const [intent, setIntent] = useState('terminvorschlag');
   const [slots, setSlots] = useState(['', '', '']);
   const [format, setFormat] = useState('video');
@@ -74,6 +75,9 @@ export default function ReplyComposer({ threadId, dealId, recipient, onSent, bar
         });
         await markDealContacted(dealId);
       }
+      // Der Verlauf gilt damit als beantwortet und fällt aus "Braucht Antwort"
+      await markThreadAnswered(threadId);
+      onAnswered?.('erledigt');
       window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailBody)}`, '_self');
       setSubject(''); setBody(''); setSlots(['', '', '']); setDone(true);
       onSent?.();

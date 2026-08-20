@@ -11,6 +11,7 @@ import ReplyComposer from '@/components/crm/emails/ReplyComposer';
 import ThreadDoneButton from '@/components/crm/emails/ThreadDoneButton';
 import ThreadSuggestionBadge from '@/components/crm/emails/ThreadSuggestionBadge';
 import ThreadActionBar from '@/components/crm/emails/ThreadActionBar';
+import { markThreadAnswered } from '@/components/crm/emails/markThreadAnswered';
 
 export default function EmailThreadDetail({ thread, loading, onRefresh, onStatusChanged }) {
   if (loading) {
@@ -57,7 +58,15 @@ export default function EmailThreadDetail({ thread, loading, onRefresh, onStatus
             <div className="flex items-start gap-2 shrink-0">
               {replyHref && (
                 <Button size="sm" variant="outline" asChild className="gap-2">
-                  <a href={replyHref}><Reply className="w-3.5 h-3.5" /> Antworten</a>
+                  <a
+                    href={replyHref}
+                    onClick={async () => {
+                      await markThreadAnswered(t.id);
+                      onStatusChanged ? onStatusChanged(t.id, 'erledigt') : onRefresh?.();
+                    }}
+                  >
+                    <Reply className="w-3.5 h-3.5" /> Antworten
+                  </a>
                 </Button>
               )}
               <ThreadDoneButton
@@ -121,7 +130,12 @@ export default function EmailThreadDetail({ thread, loading, onRefresh, onStatus
 
       <ThreadAnalysisPanel thread={t} messages={messages} onSaved={onRefresh} />
 
-      <ReplyComposer threadId={t.id} dealId={t.crm_deal_id} recipient={lastInbound?.from || ''} />
+      <ReplyComposer
+        threadId={t.id}
+        dealId={t.crm_deal_id}
+        recipient={lastInbound?.from || ''}
+        onAnswered={(s) => (onStatusChanged ? onStatusChanged(t.id, s) : onRefresh?.())}
+      />
 
       <ReplyDraftPanel thread={t} messages={messages} />
 
