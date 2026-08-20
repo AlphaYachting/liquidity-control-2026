@@ -7,6 +7,7 @@ import SectionLabel from '@/components/sprint/SectionLabel';
 import SprintKopf from '@/components/sprint/SprintKopf';
 import EtappenZeile from '@/components/sprint/EtappenZeile';
 import ProjektUebersicht from '@/components/sprint/uebersicht/ProjektUebersicht';
+import KommentarStrang from '@/components/sprint/kommentare/KommentarStrang';
 import { sprintStatus } from '@/lib/sprint/status';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
@@ -74,6 +75,13 @@ export default function SprintDetail() {
         timeEntries={timeEntries}
         onChanged={refetch}
       />
+
+      <div>
+        <SectionLabel className="mb-2">Kommentare & Notizen</SectionLabel>
+        <div className="bg-white rounded-lg border border-border p-4">
+          <KommentarStrang projectId={sprint.project_id} />
+        </div>
+      </div>
 
       <div>
         <SectionLabel className="mb-2">Etappen</SectionLabel>

@@ -6,6 +6,7 @@ import TicketStatusElement from '@/components/sprint/TicketStatusElement';
 import PersonenChip from '@/components/sprint/PersonenChip';
 import TicketDetailPanel from '@/components/sprint/ticket/TicketDetailPanel';
 import TicketInlineDetail from '@/components/sprint/ticket/TicketInlineDetail';
+import { schreibeSystemEintrag } from '@/lib/sprint/systemComment';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 
 const ORIGIN_LABEL = { addon: 'Zusatz', change_request: 'Change Request · nach Aufwand abrechenbar' };
@@ -81,7 +82,19 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
         </button>
 
         <div className="w-[130px] shrink-0" onClick={stop}>
-          <TicketStatusElement value={ticket.status} onChange={(s) => onStatus(ticket, s)} disabled={!editable} />
+          <TicketStatusElement
+            value={ticket.status}
+            onChange={async (s) => {
+              await onStatus(ticket, s);
+              await schreibeSystemEintrag({
+                project_id: ticket.project_id,
+                milestone_id: ticket.milestone_id,
+                ticket_id: ticket.id,
+                text: `Status von „${ticket.status}" auf „${s}" gesetzt.`,
+              });
+            }}
+            disabled={!editable}
+          />
         </div>
       </div>
 

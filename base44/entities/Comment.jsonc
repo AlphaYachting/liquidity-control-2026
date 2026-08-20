@@ -1,0 +1,32 @@
+{
+  "name": "Comment",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Projekt, zu dem der Eintrag geh\u00f6rt"
+    },
+    "milestone_id": {
+      "type": "string"
+    },
+    "ticket_id": {
+      "type": "string"
+    },
+    "author_email": {
+      "type": "string",
+      "description": "E-Mail der Person oder 'System' f\u00fcr automatische Eintr\u00e4ge"
+    },
+    "text": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "project_id",
+    "author_email",
+    "text"
+  ]
+}

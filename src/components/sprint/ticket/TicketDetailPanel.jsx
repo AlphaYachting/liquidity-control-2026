@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import SectionLabel from '@/components/sprint/SectionLabel';
 import TicketChecklist from '@/components/sprint/ticket/TicketChecklist';
 import TicketLinks from '@/components/sprint/ticket/TicketLinks';
+import KommentarStrang from '@/components/sprint/kommentare/KommentarStrang';
+import { schreibeSystemEintrag } from '@/lib/sprint/systemComment';
 import { ROLES, TICKET_STATUSES, TICKET_STATUS_LABELS, STATE_LABELS } from '@/components/sprint/sprintConfig';
 
 const STATES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
@@ -58,6 +60,14 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
       target_hours: plan || undefined,
       ...(form.status !== ticket.status ? { last_status_change: new Date().toISOString() } : {}),
     });
+    if (form.status !== ticket.status) {
+      await schreibeSystemEintrag({
+        project_id: ticket.project_id,
+        milestone_id: ticket.milestone_id,
+        ticket_id: ticket.id,
+        text: `Status von „${ticket.status}" auf „${form.status}" gesetzt.`,
+      });
+    }
     setSaving(false);
     onSaved?.();
     onOpenChange(false);
@@ -158,6 +168,11 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
           <div>
             <SectionLabel className="mb-1.5">Verweise</SectionLabel>
             <TicketLinks items={form.links || []} onChange={(links) => set({ links })} />
+          </div>
+
+          <div>
+            <SectionLabel className="mb-1.5">Kommentare & Notizen</SectionLabel>
+            <KommentarStrang projectId={ticket.project_id} ticketId={ticket.id} milestoneId={ticket.milestone_id} compact />
           </div>
 
           <div className="flex gap-2 pb-4">
