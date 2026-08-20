@@ -20,6 +20,10 @@
     "sender_phone": {
       "type": "string"
     },
+    "recipient": {
+      "type": "string",
+      "description": "An wen die Anfrage gegangen ist \u2014 Empf\u00e4ngeradresse(n) bzw. beteiligte interne Postf\u00e4cher"
+    },
     "subject": {
       "type": "string"
     },

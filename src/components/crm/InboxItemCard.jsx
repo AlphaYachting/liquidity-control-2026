@@ -59,7 +59,12 @@ export default function InboxItemCard({ item, onConvert, onAssign, onSupportTick
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
+            <span className="font-medium">Von:</span>{' '}
             {[item.sender_name, item.sender_email, item.sender_phone].filter(Boolean).join(' · ') || 'Unbekannter Absender'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium">An:</span>{' '}
+            {item.recipient || 'Empfänger nicht belegt'}
           </p>
           <div className="flex items-center gap-1.5 flex-wrap mt-1">
             <InboxSuggestionLabel item={item} />

@@ -4,6 +4,7 @@ import { isInternalDomain, isSystemDomain, isFreemailDomain, domainOf } from '..
 import { findDuplicateDeal, CLOSED_STAGES } from '../../shared/crmDuplicate.js';
 import { INQUIRY_TYPES, BUYING_SIGNALS, FORM_REGEX, REQUEST_NATURES, suggestAction } from '../../shared/leadScoring.js';
 import { ESCALATION_LEVELS, severityOf, upsertEscalation } from '../../shared/escalation.js';
+import { resolveRecipient } from '../../shared/mailRecipient.js';
 
 // EIN Lauf für den gesamten Eingang: pro Thread ein einziger KI-Aufruf, dessen
 // Ergebnis in beide Ziele geht — Kommunikationsfelder in die E-Mail-Datenbank,
@@ -266,6 +267,7 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
             sender_name: r.contact_name || firstIn.from_name || '',
             sender_email: contactEmail,
             sender_phone: r.contact_phone || '',
+            recipient: resolveRecipient(firstIn, msgs),
             subject: t.subject || '',
             body: bodyText,
             received_at: toIso(firstIn.received_at),
