@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Ampelpunkt from '@/components/sprint/Ampelpunkt';
 import PersonenStapel from '@/components/sprint/PersonenStapel';
+import TypPill from '@/components/sprint/TypPill';
 import { RITTLER, STATUS_COLORS, STATE_LABELS, fmtEUR, fmtDate, SPRINT_SIZES } from '@/components/sprint/sprintConfig';
 
 const AMPEL_COLOR = { plan: 'transparent', attention: STATUS_COLORS.attention, action: STATUS_COLORS.critical };
@@ -22,12 +23,14 @@ export default function ProjektZeile({ sprint, project, client, milestones, stat
       <div className="flex items-center gap-3 px-4 py-3">
         <Ampelpunkt status={AMPEL_SHAPE[status.ampel]} />
 
+        <TypPill project={project} />
+
         <div className="flex-1 min-w-0">
-          <p className="text-base font-bold uppercase truncate" style={{ color: RITTLER.black }}>
-            {client?.name || 'Kunde'}
+          <p className="text-[17px] font-medium truncate" style={{ color: RITTLER.black }}>
+            {project?.title || 'Projekt'}
           </p>
-          <p className="text-[13px] truncate" style={{ color: RITTLER.textSecondary }}>
-            {project?.title || 'Projekt'} · {sprint.title || `Sprint ${sprint.size}`} · {SPRINT_SIZES[sprint.size]?.label || sprint.size}
+          <p className="text-[12px] uppercase tracking-[0.5px] truncate" style={{ color: RITTLER.textSecondary }}>
+            {client?.name || 'Kunde'} · {sprint.title || `Sprint ${sprint.size}`} · {SPRINT_SIZES[sprint.size]?.label || sprint.size}
           </p>
         </div>
 

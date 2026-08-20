@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import KennzahlFeld from '@/components/sprint/KennzahlFeld';
+import TypPill from '@/components/sprint/TypPill';
 import { RITTLER, STATUS_COLORS, SPRINT_SIZES, fmtDate, fmtEUR } from '@/components/sprint/sprintConfig';
 
 const shortDate = (d) => (d ? fmtDate(d).slice(0, 6) : '—');
@@ -20,12 +21,13 @@ export default function SprintKopf({ sprint, project, client, milestones, status
           <Link to="/sprint/projekte" className="hover:text-foreground" style={{ color: RITTLER.textSecondary }}>
             <ArrowLeft className="w-4 h-4" />
           </Link>
+          <TypPill project={project} />
           <div className="min-w-0">
-            <h1 className="text-xl font-bold uppercase truncate" style={{ color: RITTLER.black }}>
-              {client?.name || 'Kunde'}
+            <h1 className="text-xl font-medium truncate" style={{ color: RITTLER.black }}>
+              {project?.title || 'Projekt'}
             </h1>
-            <p className="text-[13px] truncate" style={{ color: RITTLER.textSecondary }}>
-              {project?.title || 'Projekt'} · {sprint.title || `Sprint ${sprint.size}`} · {SPRINT_SIZES[sprint.size]?.label || sprint.size} · {sprint.status}
+            <p className="text-[13px] uppercase tracking-[0.5px] truncate" style={{ color: RITTLER.textSecondary }}>
+              {client?.name || 'Kunde'} · {sprint.title || `Sprint ${sprint.size}`} · {SPRINT_SIZES[sprint.size]?.label || sprint.size} · {sprint.status}
             </p>
           </div>
         </div>
