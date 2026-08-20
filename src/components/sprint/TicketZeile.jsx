@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronRight, ListChecks, Pencil } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
 import TicketStatusElement from '@/components/sprint/TicketStatusElement';
 import PersonenChip from '@/components/sprint/PersonenChip';
 import TicketDetailPanel from '@/components/sprint/ticket/TicketDetailPanel';
@@ -84,7 +85,16 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
         </div>
       </div>
 
-      {offen && <TicketInlineDetail ticket={ticket} />}
+      {offen && (
+        <TicketInlineDetail
+          ticket={ticket}
+          editable={editable}
+          onChecklist={async (checklist) => {
+            await base44.entities.Ticket.update(ticket.id, { checklist });
+            queryClient.invalidateQueries();
+          }}
+        />
+      )}
 
       <TicketDetailPanel
         ticket={ticket}
