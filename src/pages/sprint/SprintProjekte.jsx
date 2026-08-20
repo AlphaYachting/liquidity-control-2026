@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Pencil, LayoutTemplate, Plus } from 'lucide-react';
 import Ampelpunkt from '@/components/sprint/Ampelpunkt';
+import TypPill from '@/components/sprint/TypPill';
 import ClientFormDialog from '@/components/sprint/ClientFormDialog';
 import ProjectFormDialog from '@/components/sprint/ProjectFormDialog';
 import { fmtDate, fmtEUR, todayIso } from '@/components/sprint/sprintConfig';
@@ -83,12 +84,11 @@ export default function SprintProjekte() {
               <div key={p.id} className="bg-white rounded-lg shadow-sm p-4">
                 <div className="flex items-center gap-3">
                   <Ampelpunkt status={ampel.status} />
+                  <TypPill project={p} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-base font-bold uppercase text-foreground truncate">
-                      {clientById[p.client_id]?.name || 'Kunde'}
-                    </p>
-                    <p className="text-[13px] text-muted-foreground truncate">
-                      {p.title}{active ? ` · ${active.title || `Sprint ${active.size}`} · ${active.size}` : ''} · PM: {p.pm_email} · {ampel.hint}
+                    <p className="text-[17px] font-medium text-foreground truncate">{p.title}</p>
+                    <p className="text-[12px] uppercase tracking-[0.5px] text-muted-foreground truncate">
+                      {clientById[p.client_id]?.name || 'Kunde'}{active ? ` · ${active.title || `Sprint ${active.size}`} · ${active.size}` : ''} · PM: {p.pm_email} · {ampel.hint}
                     </p>
                   </div>
                   {active ? (
