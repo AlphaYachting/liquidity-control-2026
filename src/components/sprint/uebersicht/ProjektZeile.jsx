@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Ampelpunkt from '@/components/sprint/Ampelpunkt';
 import PersonenStapel from '@/components/sprint/PersonenStapel';
 import TypPill from '@/components/sprint/TypPill';
-import { RITTLER, STATUS_COLORS, STATE_LABELS, fmtEUR, fmtDate, SPRINT_SIZES } from '@/components/sprint/sprintConfig';
+import { RITTLER, STATUS_COLORS, STATE_LABELS, fmtEUR, fmtDate } from '@/components/sprint/sprintConfig';
 
 const AMPEL_COLOR = { plan: 'transparent', attention: STATUS_COLORS.attention, action: STATUS_COLORS.critical };
 const AMPEL_SHAPE = { plan: 'plan', attention: 'attention', action: 'critical' };
@@ -30,7 +30,7 @@ export default function ProjektZeile({ sprint, project, client, milestones, stat
             {project?.title || 'Projekt'}
           </p>
           <p className="text-[12px] uppercase tracking-[0.5px] truncate" style={{ color: RITTLER.textSecondary }}>
-            {client?.name || 'Kunde'} · {sprint.title || `Sprint ${sprint.size}`} · {SPRINT_SIZES[sprint.size]?.label || sprint.size}
+            {client?.name || 'Kunde'} · {sprint.title || sprint.size}
           </p>
         </div>
 

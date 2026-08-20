@@ -80,38 +80,55 @@ export default function SprintProjekte() {
             const projectSprints = sprints.filter((s) => s.project_id === p.id);
             const active = projectSprints.find((s) => s.status === 'laufend') || projectSprints.find((s) => s.status === 'geplant');
             const ampel = ampelFor(projectSprints);
+            const ziel = active || projectSprints[0];
+            const Karte = ziel ? Link : 'div';
+            const karteProps = ziel ? { to: `/sprint/sprints/${ziel.id}` } : {};
             return (
-              <div key={p.id} className="bg-white rounded-lg shadow-sm p-4">
+              <Karte
+                key={p.id}
+                {...karteProps}
+                className={`block bg-white rounded-lg shadow-sm p-4 ${ziel ? 'hover:bg-[#fafafa]' : ''}`}
+              >
                 <div className="flex items-center gap-3">
                   <Ampelpunkt status={ampel.status} />
                   <TypPill project={p} />
                   <div className="flex-1 min-w-0">
                     <p className="text-[17px] font-medium text-foreground truncate">{p.title}</p>
                     <p className="text-[12px] uppercase tracking-[0.5px] text-muted-foreground truncate">
-                      {clientById[p.client_id]?.name || 'Kunde'}{active ? ` · ${active.title || `Sprint ${active.size}`} · ${active.size}` : ''} · PM: {p.pm_email} · {ampel.hint}
+                      {clientById[p.client_id]?.name || 'Kunde'} · PM: {p.pm_email} · {ampel.hint}
                     </p>
                   </div>
                   {active ? (
-                    <Link to={`/sprint/sprints/${active.id}`} className="text-sm font-semibold text-primary/90 hover:underline">
-                      Sprint {active.size} · bis {fmtDate(active.delivery_date)}
-                    </Link>
+                    <span className="text-sm font-semibold text-foreground">
+                      {active.delivery_date ? `bis ${fmtDate(active.delivery_date)}` : 'laufend'}
+                    </span>
                   ) : (
-                    <span className="text-xs text-muted-foreground">Kein laufender Sprint</span>
+                    <span className="text-xs text-muted-foreground">kein aktiver Sprint/Behälter</span>
                   )}
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setProjectDialog({ open: true, project: p })}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setProjectDialog({ open: true, project: p }); }}
+                  >
                     <Pencil className="w-3.5 h-3.5" />
                   </Button>
                 </div>
                 {projectSprints.length > 1 && (
                   <div className="flex flex-wrap gap-2 mt-2 pl-5">
                     {projectSprints.map((s) => (
-                      <Link key={s.id} to={`/sprint/sprints/${s.id}`} className="text-[11px] px-2 py-0.5 rounded bg-muted text-foreground hover:bg-border">
-                        {s.title || `Sprint ${s.size}`} · {s.status}
+                      <Link
+                        key={s.id}
+                        to={`/sprint/sprints/${s.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[11px] px-2 py-0.5 rounded bg-muted text-foreground hover:bg-border"
+                      >
+                        {s.title || s.size} · {s.status}
                       </Link>
                     ))}
                   </div>
                 )}
-              </div>
+              </Karte>
             );
           })}
           {projects.length === 0 && (
