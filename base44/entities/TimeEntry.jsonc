@@ -11,6 +11,10 @@
     "sprint_id": {
       "type": "string"
     },
+    "ticket_id": {
+      "type": "string",
+      "description": "optional: Aufgabe, auf die gebucht wurde"
+    },
     "person_email": {
       "type": "string",
       "format": "email"

@@ -18,6 +18,37 @@
     "description": {
       "type": "string"
     },
+    "checklist": {
+      "type": "array",
+      "description": "Arbeitsschritte innerhalb des Tickets",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "done": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    },
+    "links": {
+      "type": "array",
+      "description": "Verweise auf Dateien, Entw\u00fcrfe, Dokumente",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "assignee_email": {
       "type": "string",
       "format": "email"
