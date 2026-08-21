@@ -10,6 +10,7 @@ import ProjektUebersicht from '@/components/sprint/uebersicht/ProjektUebersicht'
 import KommentarStrang from '@/components/sprint/kommentare/KommentarStrang';
 import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import AbrechnungSektion from '@/components/sprint/abrechnung/AbrechnungSektion';
 import { sprintStatus } from '@/lib/sprint/status';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
@@ -120,6 +121,11 @@ export default function SprintDetail() {
             <p className="p-10 text-center text-sm text-muted-foreground">Dieser Sprint hat keine Milestones.</p>
           )}
         </div>
+      </div>
+
+      <div>
+        <SectionLabel className="mb-2">Abrechnung</SectionLabel>
+        <AbrechnungSektion project={project} milestones={milestones} tickets={tickets} />
       </div>
     </div>
   );
