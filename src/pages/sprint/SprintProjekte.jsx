@@ -78,7 +78,15 @@ export default function SprintProjekte() {
       status,
       people: emails.map((e) => members.find((m) => m.email === e) || { email: e, name: e }),
     };
-  });
+  })
+    // gleiche Sortierung wie die Übersicht: Dringlichkeit, dann Liefertermin; Projekte ohne Sprint zuletzt
+    .sort((a, b) => {
+      if (!a.sprint && !b.sprint) return (a.project.title || '').localeCompare(b.project.title || '');
+      if (!a.sprint) return 1;
+      if (!b.sprint) return -1;
+      return a.status.urgency - b.status.urgency
+        || (a.sprint.delivery_date || '').localeCompare(b.sprint.delivery_date || '');
+    });
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
@@ -103,7 +111,7 @@ export default function SprintProjekte() {
         <TabsContent value="projekte" className="mt-4">
           <div className="bg-white rounded-lg border border-border overflow-hidden">
             {zeilen.map((z) => (
-              <div key={z.project.id}>
+              <div key={z.project.id} className="border-b border-[#eeeeee] last:border-0">
                 {z.sprint ? (
                   <ProjektZeile
                     sprint={z.sprint}
