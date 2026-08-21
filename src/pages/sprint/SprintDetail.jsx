@@ -74,6 +74,7 @@ export default function SprintDetail() {
       <Tabs defaultValue="uebersicht">
         <TabsList>
           <TabsTrigger value="uebersicht">Projektübersicht</TabsTrigger>
+          <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
           <TabsTrigger value="kommentare">Kommentare & Notizen</TabsTrigger>
           <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
         </TabsList>
@@ -86,6 +87,28 @@ export default function SprintDetail() {
             timeEntries={timeEntries}
             onChanged={refetch}
           />
+
+          <div className="mt-5">
+            <SectionLabel className="mb-2">Etappen</SectionLabel>
+            <div className="bg-white rounded-lg border border-border overflow-hidden">
+              {milestones.map((m) => (
+                <EtappenZeile
+                  key={m.id}
+                  milestone={m}
+                  tickets={tickets.filter((t) => t.milestone_id === m.id)}
+                  people={peopleOf(m.id)}
+                  currentUserEmail={me?.email}
+                />
+              ))}
+              {milestones.length === 0 && (
+                <p className="p-10 text-center text-sm text-muted-foreground">Dieser Sprint hat keine Milestones.</p>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="abrechnung" className="mt-4">
+          <AbrechnungSektion project={project} milestones={milestones} tickets={tickets} />
         </TabsContent>
 
         <TabsContent value="kommentare" className="mt-4">
@@ -104,29 +127,6 @@ export default function SprintDetail() {
           )}
         </TabsContent>
       </Tabs>
-
-      <div>
-        <SectionLabel className="mb-2">Etappen</SectionLabel>
-        <div className="bg-white rounded-lg border border-border overflow-hidden">
-          {milestones.map((m) => (
-            <EtappenZeile
-              key={m.id}
-              milestone={m}
-              tickets={tickets.filter((t) => t.milestone_id === m.id)}
-              people={peopleOf(m.id)}
-              currentUserEmail={me?.email}
-            />
-          ))}
-          {milestones.length === 0 && (
-            <p className="p-10 text-center text-sm text-muted-foreground">Dieser Sprint hat keine Milestones.</p>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <SectionLabel className="mb-2">Abrechnung</SectionLabel>
-        <AbrechnungSektion project={project} milestones={milestones} tickets={tickets} />
-      </div>
     </div>
   );
 }
