@@ -19,6 +19,13 @@
     "text": {
       "type": "string"
     },
+    "file_url": {
+      "type": "string",
+      "description": "optional angeh\u00e4ngtes Dokument"
+    },
+    "file_name": {
+      "type": "string"
+    },
     "created_at": {
       "type": "string",
       "format": "date-time"

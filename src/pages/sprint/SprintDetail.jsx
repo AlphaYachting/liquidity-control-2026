@@ -8,6 +8,8 @@ import SprintKopf from '@/components/sprint/SprintKopf';
 import EtappenZeile from '@/components/sprint/EtappenZeile';
 import ProjektUebersicht from '@/components/sprint/uebersicht/ProjektUebersicht';
 import KommentarStrang from '@/components/sprint/kommentare/KommentarStrang';
+import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { sprintStatus } from '@/lib/sprint/status';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
@@ -68,20 +70,39 @@ export default function SprintDetail() {
         status={status}
       />
 
-      <ProjektUebersicht
-        project={project}
-        client={client}
-        sprint={sprint}
-        timeEntries={timeEntries}
-        onChanged={refetch}
-      />
+      <Tabs defaultValue="uebersicht">
+        <TabsList>
+          <TabsTrigger value="uebersicht">Projektübersicht</TabsTrigger>
+          <TabsTrigger value="kommentare">Kommentare & Notizen</TabsTrigger>
+          <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
+        </TabsList>
 
-      <div>
-        <SectionLabel className="mb-2">Kommentare & Notizen</SectionLabel>
-        <div className="bg-white rounded-lg border border-border p-4">
-          <KommentarStrang projectId={sprint.project_id} />
-        </div>
-      </div>
+        <TabsContent value="uebersicht" className="mt-4">
+          <ProjektUebersicht
+            project={project}
+            client={client}
+            sprint={sprint}
+            timeEntries={timeEntries}
+            onChanged={refetch}
+          />
+        </TabsContent>
+
+        <TabsContent value="kommentare" className="mt-4">
+          <div className="bg-white rounded-lg border border-border p-4">
+            <KommentarStrang projectId={sprint.project_id} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="kommunikation" className="mt-4">
+          {client?.name ? (
+            <CustomerEmailSection customer={client.name} />
+          ) : (
+            <div className="bg-white rounded-lg border border-border p-4 text-sm text-muted-foreground">
+              Kein Kunde verknüpft — keine E-Mails zuordenbar.
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <div>
         <SectionLabel className="mb-2">Etappen</SectionLabel>
