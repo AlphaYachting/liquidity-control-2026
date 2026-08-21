@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Pencil } from 'lucide-react';
 import Ampelpunkt from '@/components/sprint/Ampelpunkt';
 import PersonenStapel from '@/components/sprint/PersonenStapel';
 import TypPill from '@/components/sprint/TypPill';
@@ -9,7 +10,7 @@ const AMPEL_COLOR = { plan: 'transparent', attention: STATUS_COLORS.attention, a
 const AMPEL_SHAPE = { plan: 'plan', attention: 'attention', action: 'critical' };
 
 // X4 Block 3 — Projektzeile: Kunde ist die Überschrift, alle Werte aus sprintStatus.
-export default function ProjektZeile({ sprint, project, client, milestones, status, people, currentUserEmail }) {
+export default function ProjektZeile({ sprint, project, client, milestones, status, people, currentUserEmail, onEdit }) {
   const fristFarbe = status.urgency <= 2 ? AMPEL_COLOR[status.ampel] : RITTLER.black;
 
   return (
@@ -78,6 +79,17 @@ export default function ProjektZeile({ sprint, project, client, milestones, stat
             {fmtEUR(status.releasedAmount)} von {fmtEUR(status.sprintAmount)}
           </p>
         </div>
+
+        {onEdit && (
+          <button
+            type="button"
+            title="Stammdaten bearbeiten"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(); }}
+            className="shrink-0 h-8 w-8 flex items-center justify-center rounded hover:bg-muted"
+          >
+            <Pencil className="w-3.5 h-3.5" style={{ color: RITTLER.textSecondary }} />
+          </button>
+        )}
       </div>
     </Link>
   );

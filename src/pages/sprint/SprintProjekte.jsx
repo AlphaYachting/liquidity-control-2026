@@ -6,27 +6,35 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Pencil, LayoutTemplate, Plus } from 'lucide-react';
-import Ampelpunkt from '@/components/sprint/Ampelpunkt';
-import TypPill from '@/components/sprint/TypPill';
+import ProjektZeile from '@/components/sprint/uebersicht/ProjektZeile';
+import ProjektZeileOhneSprint from '@/components/sprint/uebersicht/ProjektZeileOhneSprint';
 import ClientFormDialog from '@/components/sprint/ClientFormDialog';
 import ProjectFormDialog from '@/components/sprint/ProjectFormDialog';
-import { fmtDate, fmtEUR, todayIso } from '@/components/sprint/sprintConfig';
+import { sprintStatus } from '@/lib/sprint/status';
 
-// S3 — Projektliste + Stammdaten für Client und Project
+// S3 — Projektliste + Stammdaten für Client und Project (gleicher Informationsgehalt wie die Übersicht)
 export default function SprintProjekte() {
   const qc = useQueryClient();
   const [clientDialog, setClientDialog] = useState({ open: false, client: null });
   const [projectDialog, setProjectDialog] = useState({ open: false, project: null });
 
+  const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => base44.auth.me() });
+
   const { data, isLoading } = useQuery({
     queryKey: ['sprintProjekte'],
     queryFn: async () => {
-      const [clients, projects, sprints] = await Promise.all([
-        base44.entities.Client.list('-created_date', 200),
-        base44.entities.Project.list('-created_date', 200),
+      const [clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays] = await Promise.all([
+        base44.entities.Client.list('name', 300),
+        base44.entities.Project.list('-created_date', 300),
         base44.entities.Sprint.list('-created_date', 500),
+        base44.entities.Milestone.list('order', 1000),
+        base44.entities.Ticket.list('order', 3000),
+        base44.entities.TeamMember.filter({ active: true }, 'name', 100),
+        base44.entities.IntelligenceSignal.filter({ resolved: false }, '-triggered_at', 100),
+        base44.entities.TimeEntry.list('-entry_date', 3000),
+        base44.entities.FocusDay.list('-day', 2000),
       ]);
-      return { clients, projects, sprints };
+      return { clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays };
     },
   });
 
@@ -41,19 +49,36 @@ export default function SprintProjekte() {
     );
   }
 
-  const { clients, projects, sprints } = data;
+  const { clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays } = data;
   const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
-  const today = todayIso();
 
-  // Statusachse: leerer Kreis = nichts zu tun, Dreieck = Aufmerksamkeit, Quadrat = Handlung nötig
-  const ampelFor = (projectSprints) => {
-    const running = projectSprints.find((s) => s.status === 'laufend');
-    if (!running || !running.delivery_date) return { status: 'plan', hint: 'Im Plan' };
-    const rest = Math.round((new Date(running.delivery_date) - new Date(today)) / 86400000);
-    if (rest < 0) return { status: 'critical', hint: 'Liefertermin überschritten' };
-    if (rest <= 7) return { status: 'attention', hint: `Liefertermin in ${rest} Tagen` };
-    return { status: 'plan', hint: 'Im Plan' };
-  };
+  const zeilen = projects.map((project) => {
+    const projectSprints = sprints.filter((s) => s.project_id === project.id);
+    const sprint = projectSprints.find((s) => s.status === 'laufend') || projectSprints.find((s) => s.status === 'geplant');
+    if (!sprint) return { project, client: clientById[project.client_id], sprint: null, projectSprints };
+
+    const sprintMilestones = milestones.filter((m) => m.sprint_id === sprint.id);
+    const ids = sprintMilestones.map((m) => m.id);
+    const sprintTickets = tickets.filter((t) => ids.includes(t.milestone_id));
+    const status = sprintStatus({
+      sprint,
+      milestones: sprintMilestones,
+      tickets: sprintTickets,
+      timeEntries: timeEntries.filter((t) => t.project_id === project.id),
+      focusDays: focusDays.filter((f) => f.project_id === project.id && f.type === 'focus'),
+      signals: signals.filter((s) => s.sprint_id === sprint.id || s.project_id === project.id),
+    });
+    const emails = [...new Set(sprintTickets.filter((t) => t.assignee_email).map((t) => t.assignee_email))];
+    return {
+      project,
+      client: clientById[project.client_id],
+      sprint,
+      projectSprints,
+      milestones: sprintMilestones,
+      status,
+      people: emails.map((e) => members.find((m) => m.email === e) || { email: e, name: e }),
+    };
+  });
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
@@ -75,52 +100,34 @@ export default function SprintProjekte() {
           <TabsTrigger value="kunden">Kunden ({clients.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="projekte" className="space-y-3 mt-4">
-          {projects.map((p) => {
-            const projectSprints = sprints.filter((s) => s.project_id === p.id);
-            const active = projectSprints.find((s) => s.status === 'laufend') || projectSprints.find((s) => s.status === 'geplant');
-            const ampel = ampelFor(projectSprints);
-            const ziel = active || projectSprints[0];
-            const Karte = ziel ? Link : 'div';
-            const karteProps = ziel ? { to: `/sprint/sprints/${ziel.id}` } : {};
-            return (
-              <Karte
-                key={p.id}
-                {...karteProps}
-                className={`block bg-white rounded-lg shadow-sm p-4 ${ziel ? 'hover:bg-[#fafafa]' : ''}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Ampelpunkt status={ampel.status} />
-                  <TypPill project={p} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[17px] font-medium text-foreground truncate">{p.title}</p>
-                    <p className="text-[12px] uppercase tracking-[0.5px] text-muted-foreground truncate">
-                      {clientById[p.client_id]?.name || 'Kunde'} · PM: {p.pm_email} · {ampel.hint}
-                    </p>
-                  </div>
-                  {active ? (
-                    <span className="text-sm font-semibold text-foreground">
-                      {active.delivery_date ? `bis ${fmtDate(active.delivery_date)}` : 'laufend'}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">kein aktiver Sprint/Behälter</span>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setProjectDialog({ open: true, project: p }); }}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-                {projectSprints.length > 1 && (
-                  <div className="flex flex-wrap gap-2 mt-2 pl-5">
-                    {projectSprints.map((s) => (
+        <TabsContent value="projekte" className="mt-4">
+          <div className="bg-white rounded-lg border border-border overflow-hidden">
+            {zeilen.map((z) => (
+              <div key={z.project.id}>
+                {z.sprint ? (
+                  <ProjektZeile
+                    sprint={z.sprint}
+                    project={z.project}
+                    client={z.client}
+                    milestones={z.milestones}
+                    status={z.status}
+                    people={z.people}
+                    currentUserEmail={me?.email}
+                    onEdit={() => setProjectDialog({ open: true, project: z.project })}
+                  />
+                ) : (
+                  <ProjektZeileOhneSprint
+                    project={z.project}
+                    client={z.client}
+                    onEdit={() => setProjectDialog({ open: true, project: z.project })}
+                  />
+                )}
+                {z.projectSprints.length > 1 && (
+                  <div className="flex flex-wrap gap-2 px-4 pb-3 pl-12">
+                    {z.projectSprints.map((s) => (
                       <Link
                         key={s.id}
                         to={`/sprint/sprints/${s.id}`}
-                        onClick={(e) => e.stopPropagation()}
                         className="text-[11px] px-2 py-0.5 rounded bg-muted text-foreground hover:bg-border"
                       >
                         {s.title || s.size} · {s.status}
@@ -128,14 +135,14 @@ export default function SprintProjekte() {
                     ))}
                   </div>
                 )}
-              </Karte>
-            );
-          })}
-          {projects.length === 0 && (
-            <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-muted-foreground">
-              Noch kein Projekt — oben rechts über „Neu anlegen" starten.
-            </div>
-          )}
+              </div>
+            ))}
+            {projects.length === 0 && (
+              <p className="p-10 text-center text-sm text-muted-foreground">
+                Noch kein Projekt — oben rechts über „Neu anlegen" starten.
+              </p>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="kunden" className="space-y-3 mt-4">
