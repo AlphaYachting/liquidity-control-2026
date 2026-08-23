@@ -68,6 +68,7 @@ import RestructuringSetup from '@/pages/RestructuringSetup';
 import SprintHeute from '@/pages/sprint/SprintHeute';
 import SprintUebersicht from '@/pages/sprint/SprintUebersicht';
 import SprintProjekte from '@/pages/sprint/SprintProjekte';
+import Zeiten from '@/pages/Zeiten';
 import SprintModulKatalog from '@/pages/sprint/SprintModulKatalog';
 import SprintAssistent from '@/pages/sprint/SprintAssistent';
 import SprintDetail from '@/pages/sprint/SprintDetail';
@@ -160,6 +161,7 @@ const AuthenticatedApp = () => {
         <Route path="/audit-trail" element={<AdminRoute><AuditTrail /></AdminRoute>} />
         <Route path="/sprint" element={<SprintHeute />} />
         <Route path="/sprint/uebersicht" element={<SprintUebersicht />} />
+        <Route path="/zeiten" element={<Zeiten />} />
         <Route path="/sprint/projekte" element={<SprintProjekte />} />
         <Route path="/sprint/katalog" element={<SprintModulKatalog />} />
         <Route path="/sprint/neu" element={<SprintAssistent />} />

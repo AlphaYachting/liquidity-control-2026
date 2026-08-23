@@ -16,6 +16,10 @@
     "sprint_id": {
       "type": "string"
     },
+    "ticket_id": {
+      "type": "string",
+      "description": "Aufgabe, aus deren Kontext der Timer gestartet wurde"
+    },
     "gestartet_am": {
       "type": "string",
       "format": "date-time"

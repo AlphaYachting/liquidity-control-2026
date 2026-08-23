@@ -8,12 +8,39 @@
     },
     "tag": {
       "type": "string",
-      "format": "date"
+      "format": "date",
+      "description": "der Tag, auf den sich Pausen und Best\u00e4tigung beziehen"
+    },
+    "pausen": {
+      "type": "array",
+      "description": "vermerkte Pausen des Tages \u2014 z\u00e4hlen nicht als offene L\u00fccke",
+      "items": {
+        "type": "object",
+        "properties": {
+          "von": {
+            "type": "string",
+            "description": "Uhrzeit im Format HH:MM"
+          },
+          "bis": {
+            "type": "string",
+            "description": "Uhrzeit im Format HH:MM"
+          }
+        }
+      }
+    },
+    "tagesnorm_minuten": {
+      "type": "number",
+      "default": 480,
+      "description": "Sollarbeitszeit des Tages in Minuten"
     },
     "bestaetigt_am": {
       "type": "string",
       "format": "date-time",
       "description": "gesetzt = Buchungen dieses Tages sind festgeschrieben"
+    },
+    "bestaetigt_von": {
+      "type": "string",
+      "description": "wer den Tag best\u00e4tigt hat"
     },
     "notiz": {
       "type": "string"

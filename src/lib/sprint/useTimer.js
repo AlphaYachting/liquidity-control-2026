@@ -169,6 +169,7 @@ export function useTimer(email) {
       endedAt: ende,
       note: [aktuell.notiz, note].filter(Boolean).join(' · '),
       quelle: 'timer',
+      ticketId: aktuell.ticket_id,
     });
     await base44.entities.LaufendeZeitbuchung.delete(aktuell.id);
     cacheWrite(null);
@@ -177,7 +178,7 @@ export function useTimer(email) {
   }, [email, refresh]);
 
   // Je Person läuft genau ein Timer — ein zweiter Start braucht die ausdrückliche Bestätigung.
-  const start = useCallback(async (project, kuerzel, notiz = '', { force = false } = {}) => {
+  const start = useCallback(async (project, kuerzel, notiz = '', { force = false, ticketId } = {}) => {
     const bestehend = await laufendeVon(email);
     if (bestehend && !force) return { conflict: bestehend };
     if (bestehend) await stop();
@@ -188,6 +189,7 @@ export function useTimer(email) {
       client_id: felder.client_id,
       project_id: project.id,
       sprint_id: felder.sprint_id,
+      ...(ticketId ? { ticket_id: ticketId } : {}),
       gestartet_am: new Date().toISOString(),
       notiz,
       projekt_titel: project.title,

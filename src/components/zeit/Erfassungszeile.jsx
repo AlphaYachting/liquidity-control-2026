@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Play } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { base44 } from '@/api/base44Client';
@@ -12,13 +12,18 @@ import VorschauEtiketten from './VorschauEtiketten';
 import SchnellProjektDialog from './SchnellProjektDialog';
 
 // Eine Zeile statt Reiter, Suchfeld, Stundenfeld und Notizfeld.
-export default function Erfassungszeile({ email, onStart, onBooked }) {
+export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp, vorbelegung }) {
   const [text, setText] = useState('');
   const [gewaehlt, setGewaehlt] = useState(null);
   const [aktiv, setAktiv] = useState(0);
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState(false);
   const { suche, clients } = useProjektSuche(email);
+
+  // Ein Klick auf ein Loch im Tagesstreifen setzt dessen Zeitfenster hierher.
+  useEffect(() => {
+    if (vorbelegung?.wert) setText((t) => `${vorbelegung.wert} ${t}`.trim());
+  }, [vorbelegung]);
 
   const { fenster, minuten, projektWort, notiz } = useMemo(() => parseEingabe(text), [text]);
   const treffer = useMemo(() => suche(projektWort), [suche, projektWort]);
@@ -33,7 +38,7 @@ export default function Erfassungszeile({ email, onStart, onBooked }) {
   const buchen = async () => {
     if (!bereit) return;
     setBusy(true);
-    const tag = todayIso();
+    const tag = tagProp || todayIso();
     let zeiten;
     if (fenster) {
       zeiten = fensterZuIso(tag, fenster);
@@ -109,6 +114,7 @@ export default function Erfassungszeile({ email, onStart, onBooked }) {
         >
           Buchen
         </button>
+        {onStart && (
         <button
           type="button"
           disabled={busy || !projekt}
@@ -119,6 +125,7 @@ export default function Erfassungszeile({ email, onStart, onBooked }) {
         >
           <Play className="w-4 h-4" /> Timer
         </button>
+        )}
       </div>
 
       <SchnellProjektDialog

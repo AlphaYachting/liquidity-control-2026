@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronRight, ListChecks, Pencil } from 'lucide-react';
+import { setzeOffenesTicket } from '@/lib/sprint/offenesTicket';
 import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import TicketStatusElement from '@/components/sprint/TicketStatusElement';
@@ -19,6 +20,12 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
   const [offen, setOffen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const queryClient = useQueryClient();
+
+  // Ist das Panel offen, kennt der Timer die Aufgabe.
+  useEffect(() => {
+    setzeOffenesTicket(detailOpen ? ticket.id : null);
+    return () => setzeOffenesTicket(null);
+  }, [detailOpen, ticket.id]);
 
   const checklist = ticket.checklist || [];
   const erledigt = checklist.filter((c) => c.done).length;

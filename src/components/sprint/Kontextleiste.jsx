@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { RITTLER, STATUS_COLORS, fmtEUR, fmtDate, SPRINT_SIZES } from '@/components/sprint/sprintConfig';
+import SprintTimerStart from '@/components/sprint/timer/SprintTimerStart';
 
 // U10/X2 — Projektkontext bleibt beim Scrollen stehen. Kunde ist die Überschrift,
 // alle abgeleiteten Werte kommen aus sprintStatus (X1).
@@ -66,8 +67,9 @@ export default function Kontextleiste({ sprint, project, client, milestones, cur
             <p className="text-xs" style={{ color: RITTLER.textSecondary }}>{fmtDate(sprint?.delivery_date)}</p>
           </div>
 
-          {/* Platz für den Timer (Teil 5) — wird später gefüllt */}
-          <div className="hidden lg:block w-[160px] h-[56px] shrink-0" aria-hidden="true" />
+          <div className="hidden lg:block">
+            <SprintTimerStart project={project} client={client} />
+          </div>
         </div>
       </div>
     </div>
