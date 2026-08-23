@@ -3,6 +3,8 @@ import { werteTagAus, verschiebeTage } from './tagesAuswertung';
 
 export const MAX_LUECKE = 45;
 export const RUECKBLICK_TAGE = 14;
+// Solange die Demophase läuft, gilt kein Tag vor dem Systemstart als offen.
+export const SYSTEMSTART = '2026-08-24';
 
 export const istWerktag = (iso) => {
   const [y, m, d] = iso.split('-').map(Number);
@@ -25,6 +27,7 @@ export const istAbwesend = (focusDays, tag) =>
 // Offen = vergangener Werktag, keine Abwesenheit, kein bestätigter Tagesabschluss.
 export function ermittleOffeneTage({ heute, eintraege = [], abschluesse = [], focusDays = [] }) {
   return vergangeneWerktage(heute)
+    .filter((tag) => tag >= SYSTEMSTART)
     .filter((tag) => !istAbwesend(focusDays, tag))
     .filter((tag) => !abschluesse.some((a) => a.tag === tag && a.bestaetigt_am))
     .map((tag) => {

@@ -2,6 +2,8 @@
 // Keine Meldung an Vorgesetzte: die Buchungssperre wirkt bereits.
 
 const RUECKBLICK = 14;
+// Demophase: Tage vor dem Systemstart werden nicht eingefordert.
+const SYSTEMSTART = '2026-08-24';
 
 const dauerText = (min) => {
   const m = Math.max(0, Math.round(min));
@@ -34,7 +36,7 @@ export async function schritt10(ctx) {
     sr.FocusDay.list('-day', 2000),
   ]);
 
-  const tage = vergangeneWerktage(ctx.today);
+  const tage = vergangeneWerktage(ctx.today).filter((t) => t >= SYSTEMSTART);
   let n = 0;
 
   for (const member of members) {
