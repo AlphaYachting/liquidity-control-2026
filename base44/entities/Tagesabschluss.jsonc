@@ -42,6 +42,14 @@
       "type": "string",
       "description": "wer den Tag best\u00e4tigt hat"
     },
+    "woche_bestaetigt_am": {
+      "type": "string",
+      "format": "date-time",
+      "description": "gesetzt am Montag der Woche = ganze Woche best\u00e4tigt"
+    },
+    "woche_bestaetigt_von": {
+      "type": "string"
+    },
     "notiz": {
       "type": "string"
     }

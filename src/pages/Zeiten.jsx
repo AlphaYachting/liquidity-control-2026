@@ -12,6 +12,8 @@ import Tagesbilanz from '@/components/zeit/Tagesbilanz';
 import Buchungsliste from '@/components/zeit/Buchungsliste';
 import Vorschlagsliste from '@/components/zeit/Vorschlagsliste';
 import BuchungBearbeitenDialog from '@/components/zeit/BuchungBearbeitenDialog';
+import TagAbschliessen from '@/components/zeit/TagAbschliessen';
+import WocheBestaetigen from '@/components/zeit/WocheBestaetigen';
 import { werteTagAus, wochentage, verschiebeTage, uhr } from '@/lib/zeit/tagesAuswertung';
 
 // Die eigenen Zeiten: Woche im Rückblick, Erfassung, Tagesstreifen, Bilanz, Buchungen.
@@ -142,12 +144,6 @@ export default function Zeiten() {
 
       <Tagesbilanz auswertung={auswertung} />
 
-      {gesperrt && (
-        <p className="text-xs" style={{ color: RITTLER.textSecondary }}>
-          Dieser Tag ist bestätigt — Änderungen entstehen als Korrekturbuchung.
-        </p>
-      )}
-
       <Vorschlagsliste
         vorschlaege={vorschlaege.filter((v) => v.day === tag)}
         email={email}
@@ -163,6 +159,23 @@ export default function Zeiten() {
         onAendern={setBearbeiten}
         onLoeschen={loeschen}
         onGeaendert={refresh}
+      />
+
+      <TagAbschliessen
+        auswertung={auswertung}
+        abschluss={abschluss}
+        email={email}
+        tag={tag}
+        onSaved={refresh}
+      />
+
+      <WocheBestaetigen
+        tage={tage}
+        abschluesse={abschluesse}
+        eintraege={eintraege}
+        projektLabel={projektLabel}
+        email={email}
+        onSaved={refresh}
       />
 
       <BuchungBearbeitenDialog
