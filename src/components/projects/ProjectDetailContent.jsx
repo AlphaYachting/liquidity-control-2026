@@ -39,6 +39,7 @@ import ProjectCockpitHeader from '@/components/projects/ProjectCockpitHeader';
 import ProjectProgressBlock from '@/components/projects/ProjectProgressBlock';
 import ProjektAufgabenListe from '@/components/projects/ProjektAufgabenListe';
 import ProjektFaktenzeile from '@/components/projects/ProjektFaktenzeile';
+import useProjektAufgaben from '@/hooks/useProjektAufgaben';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
 import Sektion from '@/components/projects/Sektion';
@@ -266,6 +267,16 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
 
   const primaryOrder = linkedOrders[0] || null;
   const isLoading = lpLoading || ordersLoading || blocksLoading || invoicesLoading;
+
+  // Kennzahlen der Kontextzone — dieselben Werte gehen an die Projektintelligenz
+  const { kennzahlen: aufgabenKennzahlen } = useProjektAufgaben({ projectId, aworkProjectId: effectiveAworkProjectId });
+  const intelligenzFinanzen = {
+    billingPct: commercialBaseNet > 0 ? (adjustedInvoicedNet / commercialBaseNet) * 100 : 0,
+    paymentPct: commercialBaseNet > 0 ? (totalPaidGross / (commercialBaseNet * 1.2)) * 100 : 0,
+    orderNet: commercialBaseNet,
+    invoicedNet: adjustedInvoicedNet,
+    paidGross: totalPaidGross,
+  };
 
   if (isLoading) return (
     <div className="space-y-4">
@@ -734,6 +745,8 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         projectId={projectId}
         projectName={project.project_name}
         customer={project.customer}
+        kennzahlen={aufgabenKennzahlen}
+        finanzen={intelligenzFinanzen}
       />
 
       <AworkProjectPicker

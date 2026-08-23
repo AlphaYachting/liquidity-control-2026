@@ -11,10 +11,13 @@ import { ENTRY_TYPES } from '@/components/projects/kundenakt/kundenaktConfig';
 
 // Overlay zur Erfassung eines Kundenakt-Eintrags: tippen oder einsprechen,
 // optional Dokument anhängen, Typ und Titel schlägt die Projektintelligenz vor.
-export default function KundenaktEntryDialog({ open, onClose, projectId, projectName, customer, onSaved }) {
-  const [entryType, setEntryType] = useState('update');
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+export default function KundenaktEntryDialog({
+  open, onClose, projectId, projectName, customer, onSaved,
+  initialEntryType, initialTitle, initialContent,
+}) {
+  const [entryType, setEntryType] = useState(initialEntryType || 'update');
+  const [title, setTitle] = useState(initialTitle || '');
+  const [content, setContent] = useState(initialContent || '');
   const [file, setFile] = useState(null);
   const [summary, setSummary] = useState('');
   const [analysing, setAnalysing] = useState(false);
@@ -22,9 +25,20 @@ export default function KundenaktEntryDialog({ open, onClose, projectId, project
   const [error, setError] = useState(null);
 
   const reset = () => {
-    setEntryType('update'); setTitle(''); setContent(''); setFile(null);
+    setEntryType(initialEntryType || 'update');
+    setTitle(initialTitle || '');
+    setContent(initialContent || '');
+    setFile(null);
     setSummary(''); setError(null);
   };
+
+  // Vorbefüllung übernehmen, wenn das Overlay mit neuen Werten geöffnet wird
+  React.useEffect(() => {
+    if (!open) return;
+    if (initialEntryType) setEntryType(initialEntryType);
+    if (initialTitle !== undefined) setTitle(initialTitle || '');
+    if (initialContent !== undefined) setContent(initialContent || '');
+  }, [open, initialEntryType, initialTitle, initialContent]);
 
   const close = () => { reset(); onClose(); };
 
