@@ -102,7 +102,7 @@ export default function ProjectIntelligenceSheet({
   return (
     <>
       <Sheet open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
-        <SheetContent side="right" overlay={false} className="w-full sm:max-w-[440px] p-0 flex flex-col shadow-2xl">
+        <SheetContent side="right" overlay={false} className="w-full sm:max-w-[560px] p-0 flex flex-col shadow-2xl">
           <SheetHeader className="px-5 py-3 border-b shrink-0">
             <SheetTitle className="flex items-center justify-between gap-2 text-sm pr-6">
               <span className="flex items-center gap-2 min-w-0 truncate">
