@@ -8,6 +8,10 @@
     "title": {
       "type": "string"
     },
+    "kuerzel": {
+      "type": "string",
+      "description": "Kurzform f\u00fcr die Erfassungszeile, 2 bis 5 Zeichen (z. B. ami, grz)"
+    },
     "description": {
       "type": "string",
       "description": "Briefing / Umfang des Projekts im Klartext"
