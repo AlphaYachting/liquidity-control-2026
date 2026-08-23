@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { aendereZeit } from '@/lib/sprint/useTimer';
 import { minuteVonIso, isoVonMinute, uhr } from '@/lib/zeit/tagesAuswertung';
 
@@ -17,7 +16,6 @@ export default function BuchungBearbeitenDialog({ eintrag, open, onOpenChange, o
   const [von, setVon] = useState('09:00');
   const [bis, setBis] = useState('10:00');
   const [notiz, setNotiz] = useState('');
-  const [verrechenbar, setVerrechenbar] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -25,7 +23,6 @@ export default function BuchungBearbeitenDialog({ eintrag, open, onOpenChange, o
     setVon(eintrag.started_at ? uhr(minuteVonIso(eintrag.started_at)) : '09:00');
     setBis(eintrag.ended_at ? uhr(minuteVonIso(eintrag.ended_at)) : '10:00');
     setNotiz(eintrag.note || '');
-    setVerrechenbar(eintrag.verrechenbar !== false);
   }, [eintrag?.id, open]);
 
   if (!eintrag) return null;
@@ -38,7 +35,6 @@ export default function BuchungBearbeitenDialog({ eintrag, open, onOpenChange, o
       ended_at: isoVonMinute(eintrag.entry_date, zuMinute(bis)),
       duration_minutes: minuten,
       note: notiz,
-      verrechenbar,
     });
     setSaving(false);
     onOpenChange(false);
@@ -57,10 +53,6 @@ export default function BuchungBearbeitenDialog({ eintrag, open, onOpenChange, o
             <div><Label>Bis</Label><Input type="time" value={bis} onChange={(e) => setBis(e.target.value)} /></div>
           </div>
           <div><Label>Notiz</Label><Input value={notiz} onChange={(e) => setNotiz(e.target.value)} /></div>
-          <div className="flex items-center justify-between">
-            <Label>Verrechenbar</Label>
-            <Switch checked={verrechenbar} onCheckedChange={setVerrechenbar} />
-          </div>
           <Button className="w-full font-bold uppercase" disabled={saving || minuten <= 0} onClick={speichern}>
             {saving ? 'Speichert…' : 'Speichern'}
           </Button>

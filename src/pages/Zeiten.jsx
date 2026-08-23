@@ -153,6 +153,7 @@ export default function Zeiten() {
         gesperrt={gesperrt}
         onAendern={setBearbeiten}
         onLoeschen={loeschen}
+        onGeaendert={refresh}
       />
 
       <BuchungBearbeitenDialog

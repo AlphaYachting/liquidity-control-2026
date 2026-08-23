@@ -7,6 +7,8 @@ import { bucheZeit, stundenAus } from '@/lib/sprint/useTimer';
 import { parseEingabe } from '@/lib/zeit/eingabeParser';
 import { findeLuecke, fensterZuIso } from '@/lib/zeit/luecke';
 import { useProjektSuche } from '@/lib/zeit/useProjektSuche';
+import { letzteTaetigkeit, merkeTaetigkeit } from '@/lib/zeit/taetigkeit';
+import TaetigkeitWahl from './TaetigkeitWahl';
 import TrefferListe from './TrefferListe';
 import VorschauEtiketten from './VorschauEtiketten';
 import SchnellProjektDialog from './SchnellProjektDialog';
@@ -18,6 +20,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
   const [aktiv, setAktiv] = useState(0);
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState(false);
+  const [taetigkeit, setTaetigkeit] = useState(letzteTaetigkeit());
   const { suche, clients } = useProjektSuche(email);
 
   // Ein Klick auf ein Loch im Tagesstreifen setzt dessen Zeitfenster hierher.
@@ -54,8 +57,10 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
       startedAt: zeiten.started_at,
       endedAt: zeiten.ended_at,
       note: notiz,
+      taetigkeit: taetigkeit || undefined,
       quelle: fenster ? 'zeile' : 'luecke',
     });
+    merkeTaetigkeit(taetigkeit);
     setBusy(false);
     setText('');
     setGewaehlt(null);
@@ -95,6 +100,8 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
       />
 
       <VorschauEtiketten projekt={projekt} fenster={fenster} minuten={minuten} notiz={notiz} />
+
+      <TaetigkeitWahl email={email} wert={taetigkeit} onWaehlen={setTaetigkeit} />
 
       <TrefferListe
         treffer={treffer}
