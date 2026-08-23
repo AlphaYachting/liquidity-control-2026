@@ -13,6 +13,7 @@ import {
   X, RefreshCw, ShieldAlert, History, Sparkles, ListChecks, Loader2
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/liquidityUtils';
+import { schliesseZeitenAb } from '@/lib/zeit/abrechnungsstatus';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { generateDeterministicBillingSuggestion, checkBillingInstructionOverlap } from '@/lib/billingSuggestionUtils';
 import {
@@ -417,7 +418,16 @@ export default function BillingInstructionWizard({
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.BillingInstruction.create(data),
+    mutationFn: async (data) => {
+      const instruction = await base44.entities.BillingInstruction.create(data);
+      // Erst damit ist beantwortbar, welche Stunden noch nicht fakturiert sind.
+      await schliesseZeitenAb({
+        projectId: data.project_id,
+        instructionId: instruction.id,
+        stichtag: data.planned_invoice_date || undefined,
+      });
+      return instruction;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['billingInstructions'] });
       onClose();

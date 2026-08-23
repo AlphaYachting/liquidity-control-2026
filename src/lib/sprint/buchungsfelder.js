@@ -14,6 +14,19 @@ export const laufenderSprint = (sprints = []) =>
     .filter((s) => s.status === 'laufend')
     .sort((a, b) => (a.delivery_date || '9999-12-31').localeCompare(b.delivery_date || '9999-12-31'))[0] || null;
 
+// Support: liegt die neue Buchung über dem Monatskontingent des Projekts?
+export async function ueberKontingentPruefen({ projectId, tag, minuten }) {
+  const project = await base44.entities.Project.get(projectId);
+  const kontingent = Number(project.support_kontingent_stunden) || 0;
+  if (!kontingent) return false;
+  const monat = String(tag || '').slice(0, 7);
+  const rows = await base44.entities.TimeEntry.filter({ project_id: projectId }, '-entry_date', 500);
+  const bisher = rows
+    .filter((r) => String(r.entry_date || '').slice(0, 7) === monat)
+    .reduce((s, r) => s + (Number(r.duration_minutes) || 0), 0);
+  return bisher + (Number(minuten) || 0) > kontingent * 60;
+}
+
 // Alle Pflichtfelder einer Buchung — ohne jede Auswahl durch den Nutzer.
 export async function ermittleBuchungsfelder(projectId) {
   const [project, sprints] = await Promise.all([

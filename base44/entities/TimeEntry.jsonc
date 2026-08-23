@@ -116,6 +116,14 @@
       ],
       "default": "offen"
     },
+    "billing_instruction_id": {
+      "type": "string",
+      "description": "Abrechnungsanweisung, mit der diese Stunde fakturiert wurde"
+    },
+    "abgerechnet_am": {
+      "type": "string",
+      "format": "date-time"
+    },
     "stundensatz": {
       "type": "number",
       "description": "nur bei Kategorie 'aufwand' gesetzt"

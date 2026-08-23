@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { todayIso } from '@/components/sprint/sprintConfig';
-import { ermittleBuchungsfelder } from './buchungsfelder';
+import { ermittleBuchungsfelder, ueberKontingentPruefen } from './buchungsfelder';
+import { ermittleTaetigkeit } from '@/lib/zeit/taetigkeit';
 
 const KEY = 'sprint_timer_cache';
 const MAX_MINUTEN = 600; // 10 Stunden
@@ -56,20 +57,29 @@ export async function bucheZeit({
 }) {
   const felder = await ermittleBuchungsfelder(projectId);
   const minuten = Math.round(Number(durationMinutes) || 0);
+  const tag = entryDate || todayIso();
+  // Tätigkeit: eine Rolle wird still gesetzt, sonst zählt die Wahl bzw. die zuletzt verwendete.
+  const art = taetigkeit || (await ermittleTaetigkeit(email));
+  // Support über dem Monatskontingent wird als Mehrleistung gekennzeichnet.
+  const ueber = ueberKontingent !== undefined
+    ? ueberKontingent
+    : felder.kategorie === 'support' && minuten > 0
+      ? await ueberKontingentPruefen({ projectId, tag, minuten })
+      : false;
   return base44.entities.TimeEntry.create({
     ...felder,
     ...(verrechenbar === undefined ? {} : { verrechenbar, abrechenbar: verrechenbar }),
     ...(nichtVerrechenbarGrund ? { nicht_verrechenbar_grund: nichtVerrechenbarGrund } : {}),
-    ...(taetigkeit ? { taetigkeit } : {}),
+    ...(art ? { taetigkeit: art } : {}),
     ...(ticketId ? { ticket_id: ticketId } : {}),
     ...(korrekturZu ? { korrektur_zu: korrekturZu } : {}),
     person_email: email,
-    entry_date: entryDate || todayIso(),
+    entry_date: tag,
     started_at: startedAt,
     ended_at: endedAt,
     duration_minutes: minuten,
     hours: stundenAus(minuten),
-    ueber_kontingent: !!ueberKontingent,
+    ueber_kontingent: !!ueber,
     quelle,
     note,
     source: quelle === 'korrektur' ? 'korrigiert' : 'bestaetigt',
