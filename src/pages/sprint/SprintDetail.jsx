@@ -12,10 +12,14 @@ import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AbrechnungSektion from '@/components/sprint/abrechnung/AbrechnungSektion';
 import { sprintStatus } from '@/lib/sprint/status';
+import { Button } from '@/components/ui/button';
+import { BrainCircuit } from 'lucide-react';
+import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
 export default function SprintDetail() {
   const { sprintId } = useParams();
+  const [intelligenzOffen, setIntelligenzOffen] = React.useState(false);
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => base44.auth.me() });
 
@@ -72,12 +76,18 @@ export default function SprintDetail() {
       />
 
       <Tabs defaultValue="uebersicht">
-        <TabsList>
-          <TabsTrigger value="uebersicht">Projektübersicht</TabsTrigger>
-          <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
-          <TabsTrigger value="kommentare">Kommentare & Notizen</TabsTrigger>
-          <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-3">
+          <TabsList>
+            <TabsTrigger value="uebersicht">Projektübersicht</TabsTrigger>
+            <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
+            <TabsTrigger value="kommentare">Kommentare & Notizen</TabsTrigger>
+            <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
+          </TabsList>
+          <Button variant="ghost" size="sm" className="text-primary shrink-0"
+            onClick={() => setIntelligenzOffen(true)}>
+            <BrainCircuit className="w-4 h-4 mr-1.5" /> Projektintelligenz fragen
+          </Button>
+        </div>
 
         <TabsContent value="uebersicht" className="mt-4">
           <ProjektUebersicht
@@ -127,6 +137,14 @@ export default function SprintDetail() {
           )}
         </TabsContent>
       </Tabs>
+
+      <ProjectIntelligenceSheet
+        open={intelligenzOffen}
+        onClose={() => setIntelligenzOffen(false)}
+        projectId={sprint.project_id}
+        projectName={project?.title}
+        customer={client?.name}
+      />
     </div>
   );
 }
