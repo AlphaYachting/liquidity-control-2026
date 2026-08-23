@@ -3,6 +3,7 @@ import { todayInVienna } from './helpers.js';
 import { schritt1, schritt2, schritt3, schritt4, schritt5, schritt6, schritt7 } from './steps.js';
 import { schritt8 } from './zeitvorschlaege.js';
 import { schritt9 } from './erinnerung.js';
+import { schritt10 } from './offeneTage.js';
 
 const SCHRITTE = [
   { key: 'S1', label: 'Sprint-Status fortgeschrieben', run: schritt1 },
@@ -14,6 +15,7 @@ const SCHRITTE = [
   { key: 'S7', label: 'Signale aufgelöst', run: schritt7 },
   { key: 'S8', label: 'Zeitvorschläge', run: schritt8 },
   { key: 'S9', label: 'Erinnerung unbestätigte Tage', run: schritt9 },
+  { key: 'S10', label: 'Erinnerung offene Arbeitstage', run: schritt10 },
 ];
 
 const groupBy = (rows, key) => rows.reduce((acc, r) => {
