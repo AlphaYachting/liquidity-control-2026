@@ -97,7 +97,7 @@ export default function Sidebar() {
   const isAdmin = user?.role === 'admin';
   const unlinkedCount = useUnlinkedOrdersCount();
   const pendingDunningCount = usePendingDunningCount();
-  const crmInboxCount = useCrmInboxCount();
+  const crmInbox = useCrmInboxCount();
   const emailTriageCount = useEmailTriageCount();
   const escalationCount = useEscalationAlertCount();
   const [collapsed, setCollapsed] = useState(false);
@@ -115,10 +115,12 @@ export default function Sidebar() {
     const active = isActive(item.path);
     const badgeCount = item.path === '/confirmed-orders' ? unlinkedCount
       : item.path === '/receivables' ? pendingDunningCount
-      : item.path === '/crm/inbox' ? crmInboxCount
+      : item.path === '/crm/inbox' ? crmInbox.total
       : item.path === '/crm/emails' ? emailTriageCount : 0;
     // roter Zähler = Kunden-Eskalationen, hat im eingeklappten Zustand Vorrang
     const alertCount = item.path === '/crm/escalations' ? escalationCount : 0;
+    // überfällige Posteingangsanfragen färben den Zähler rot statt gelb
+    const badgeOverdue = item.path === '/crm/inbox' && crmInbox.overdue > 0;
     return (
       <Link
         key={item.path}
@@ -136,11 +138,14 @@ export default function Sidebar() {
         {!collapsed && <span className="truncate flex-1">{item.label}</span>}
         {(badgeCount > 0 || alertCount > 0) && (
           collapsed ? (
-            <span className={`absolute ml-6 -mt-4 w-2 h-2 rounded-full ${alertCount > 0 ? 'bg-red-600' : 'bg-amber-500'}`} />
+            <span className={`absolute ml-6 -mt-4 w-2 h-2 rounded-full ${alertCount > 0 || badgeOverdue ? 'bg-red-600' : 'bg-amber-500'}`} />
           ) : (
             <span className="flex-shrink-0 flex items-center gap-1">
               {badgeCount > 0 && (
-                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[11px] font-semibold flex items-center justify-center">
+                <span
+                  className={`min-w-[20px] h-5 px-1.5 rounded-full text-white text-[11px] font-semibold flex items-center justify-center ${badgeOverdue ? 'bg-red-600' : 'bg-amber-500'}`}
+                  title={badgeOverdue ? `${crmInbox.overdue} überfällig (älter als 48 Stunden)` : undefined}
+                >
                   {badgeCount}
                 </span>
               )}
