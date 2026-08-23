@@ -15,7 +15,7 @@ import SchreibweiseHilfe from './SchreibweiseHilfe';
 import SchnellProjektDialog from './SchnellProjektDialog';
 
 // Eine Zeile statt Reiter, Suchfeld, Stundenfeld und Notizfeld.
-export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp, vorbelegung }) {
+export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp, vorbelegung, pruefen }) {
   const [text, setText] = useState('');
   const [gewaehlt, setGewaehlt] = useState(null);
   const [aktiv, setAktiv] = useState(0);
@@ -43,8 +43,9 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
 
   const buchen = async () => {
     if (!bereit) return;
-    setBusy(true);
     const tag = tagProp || todayIso();
+    if (pruefen && !pruefen(tag)) return;
+    setBusy(true);
     let zeiten;
     if (fenster) {
       zeiten = fensterZuIso(tag, fenster);

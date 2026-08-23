@@ -6,11 +6,12 @@ import { bucheZeit } from '@/lib/sprint/useTimer';
 import { minuteVonIso, uhr, dauerText } from '@/lib/zeit/tagesAuswertung';
 
 // Vorschläge für das nachträgliche Erfassen — nichts davon wird automatisch gebucht.
-export default function Vorschlagsliste({ vorschlaege, email, projektLabel, onErledigt }) {
+export default function Vorschlagsliste({ vorschlaege, email, projektLabel, pruefen, onErledigt }) {
   const [busy, setBusy] = useState('');
   if (!vorschlaege.length) return null;
 
   const uebernehmen = async (v) => {
+    if (pruefen && !pruefen(v.day)) return;
     setBusy(v.id);
     const minuten = minuteVonIso(v.bis) - minuteVonIso(v.von);
     await bucheZeit({

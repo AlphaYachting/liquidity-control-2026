@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Clock } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { useTimer } from '@/lib/sprint/useTimer';
+import { useOffeneTage } from '@/lib/zeit/useOffeneTage';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import TimerKarte from './TimerKarte';
 import Erfassungszeile from '@/components/zeit/Erfassungszeile';
@@ -18,6 +19,8 @@ export default function TimerKnopf() {
   const { user } = useAuth();
   const email = user?.email;
   const { timer, running, label, start, stop } = useTimer(email);
+  const { aeltester } = useOffeneTage(email);
+  const navigate = useNavigate();
   const [offen, setOffen] = useState(false);
   const [tippzeile, setTippzeile] = useState(false);
   const { toast } = useToast();
@@ -46,10 +49,20 @@ export default function TimerKnopf() {
   };
 
   const stoppen = async (note, abzugMinuten) => {
+    // Gemessene Zeit geht nie verloren: bei offenem Tag läuft der Timer weiter statt zu buchen.
+    if (aeltester) {
+      setOffen(false);
+      navigate('/zeiten');
+      toast({
+        description: `${aeltester.tag.slice(8, 10)}.${aeltester.tag.slice(5, 7)}. ist noch offen — der Timer läuft weiter, gebucht wird, sobald der Tag abgeschlossen ist.`,
+      });
+      return;
+    }
     const res = await stop(note, abzugMinuten);
     setOffen(false);
     qc.invalidateQueries({ queryKey: ['sprintHeute'] });
     qc.invalidateQueries({ queryKey: ['projektKontext'] });
+    qc.invalidateQueries({ queryKey: ['offeneTage'] });
     if (res) toast({ description: `${res.hours} h auf ${res.projekt || 'Projekt'} gebucht.` });
   };
 
@@ -58,6 +71,7 @@ export default function TimerKnopf() {
     qc.invalidateQueries({ queryKey: ['sprintHeute'] });
     qc.invalidateQueries({ queryKey: ['projektKontext'] });
     qc.invalidateQueries({ queryKey: ['zeitProjektSuche'] });
+    qc.invalidateQueries({ queryKey: ['offeneTage'] });
     toast({ description: `${stunden} h auf ${titel} gebucht.` });
   };
 

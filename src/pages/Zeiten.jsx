@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -14,7 +14,11 @@ import Vorschlagsliste from '@/components/zeit/Vorschlagsliste';
 import BuchungBearbeitenDialog from '@/components/zeit/BuchungBearbeitenDialog';
 import TagAbschliessen from '@/components/zeit/TagAbschliessen';
 import WocheBestaetigen from '@/components/zeit/WocheBestaetigen';
-import { werteTagAus, wochentage, verschiebeTage, uhr } from '@/lib/zeit/tagesAuswertung';
+import OffeneTageHinweis from '@/components/zeit/OffeneTageHinweis';
+import { useToast } from '@/components/ui/use-toast';
+import { useOffeneTage } from '@/lib/zeit/useOffeneTage';
+import { istAbwesend } from '@/lib/zeit/offeneTage';
+import { werteTagAus, wochentage, verschiebeTage, uhr, dauerText } from '@/lib/zeit/tagesAuswertung';
 
 // Die eigenen Zeiten: Woche im Rückblick, Erfassung, Tagesstreifen, Bilanz, Buchungen.
 export default function Zeiten() {
@@ -25,6 +29,16 @@ export default function Zeiten() {
   const [vorbelegung, setVorbelegung] = useState(null);
   const [bearbeiten, setBearbeiten] = useState(null);
   const [jetzt, setJetzt] = useState(new Date());
+  const { toast } = useToast();
+  const { offeneTage, aeltester } = useOffeneTage(email);
+  const gesprungen = useRef(false);
+
+  // Die Seite öffnet auf dem ältesten offenen Tag, nicht auf heute.
+  useEffect(() => {
+    if (gesprungen.current || !aeltester) return;
+    gesprungen.current = true;
+    setTag(aeltester.tag);
+  }, [aeltester]);
 
   useEffect(() => {
     const i = setInterval(() => setJetzt(new Date()), 60000);
@@ -37,12 +51,14 @@ export default function Zeiten() {
     queryKey: ['zeitenSeite', email, tage[0]],
     enabled: !!email,
     queryFn: async () => {
-      const [eintraege, abschluesse, vorschlaege, projects, clients] = await Promise.all([
+      const [eintraege, abschluesse, vorschlaege, projects, clients, focusDays, members] = await Promise.all([
         base44.entities.TimeEntry.filter({ person_email: email }, '-entry_date', 500),
         base44.entities.Tagesabschluss.filter({ person_email: email }, '-tag', 60),
         base44.entities.Zeitvorschlag.filter({ person_email: email, status: 'offen' }, '-von', 100),
         base44.entities.Project.list('title', 500),
         base44.entities.Client.list('name', 500),
+        base44.entities.FocusDay.filter({ person_email: email }, '-day', 200),
+        base44.entities.TeamMember.filter({ email }, 'name', 1),
       ]);
       const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
       const projektInfo = Object.fromEntries(projects.map((p) => [p.id, {
@@ -50,11 +66,36 @@ export default function Zeiten() {
         kunde: clientById[p.client_id]?.name || '',
         kuerzel: (p.kuerzel || clientById[p.client_id]?.name || p.title).slice(0, 5).toUpperCase(),
       }]));
-      return { eintraege, abschluesse, vorschlaege, projektInfo };
+      return {
+        eintraege, abschluesse, vorschlaege, projektInfo, focusDays,
+        rolle: members[0]?.system_role || 'teammitglied',
+      };
     },
   });
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ['zeitenSeite'] });
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['zeitenSeite'] });
+    qc.invalidateQueries({ queryKey: ['offeneTage'] });
+  };
+
+  // Geplante Abwesenheit schließt den Tag von selbst — er gilt nie als offen.
+  useEffect(() => {
+    if (!data || !email) return;
+    const fehlende = tage
+      .filter((t) => t < todayIso() && istAbwesend(data.focusDays, t))
+      .filter((t) => !data.abschluesse.some((a) => a.tag === t && a.bestaetigt_am));
+    if (!fehlende.length) return;
+    (async () => {
+      for (const t of fehlende) {
+        const vorhanden = data.abschluesse.find((a) => a.tag === t);
+        const daten = { grund: 'abwesend', bestaetigt_am: new Date().toISOString(), bestaetigt_von: email };
+        if (vorhanden) await base44.entities.Tagesabschluss.update(vorhanden.id, daten);
+        else await base44.entities.Tagesabschluss.create({ person_email: email, tag: t, tagesnorm_minuten: 0, ...daten });
+      }
+      qc.invalidateQueries({ queryKey: ['zeitenSeite'] });
+      qc.invalidateQueries({ queryKey: ['offeneTage'] });
+    })();
+  }, [data, email, tage, qc]);
 
   if (isLoading || !data) {
     return (
@@ -65,17 +106,34 @@ export default function Zeiten() {
     );
   }
 
-  const { eintraege, abschluesse, vorschlaege, projektInfo } = data;
+  const { eintraege, abschluesse, vorschlaege, projektInfo, focusDays, rolle } = data;
   const istHeute = tag === todayIso();
+  const darfFremdOeffnen = rolle === 'pm' || rolle === 'gf';
+
+  // Neue Zeit nur am ältesten offenen Tag — die Ansicht springt dorthin und sagt warum.
+  const pruefeTag = (zielTag) => {
+    if (!aeltester || zielTag === aeltester.tag) return true;
+    setTag(aeltester.tag);
+    toast({
+      description: `${aeltester.tag.slice(8, 10)}.${aeltester.tag.slice(5, 7)}. ist noch offen (${aeltester.offenMinuten > 0 ? `${dauerText(aeltester.offenMinuten)} fehlen` : 'nichts erfasst'}) — bis zum Abschluss dieses Tages wird keine neue Zeit gebucht.`,
+    });
+    return false;
+  };
   const jetztMinute = jetzt.getHours() * 60 + jetzt.getMinutes();
   const pausenVon = (t) => abschluesse.find((a) => a.tag === t)?.pausen || [];
 
-  const wochenTage = tage.map((t) => werteTagAus({
-    tag: t,
-    eintraege: eintraege.filter((e) => e.entry_date === t),
-    pausen: pausenVon(t),
+  const wochenTage = tage.map((t) => ({
+    ...werteTagAus({
+      tag: t,
+      eintraege: eintraege.filter((e) => e.entry_date === t),
+      pausen: pausenVon(t),
+      istHeute: t === todayIso(),
+      jetztMinute,
+    }),
     istHeute: t === todayIso(),
-    jetztMinute,
+    istZukunft: t > todayIso(),
+    abgeschlossen: !!abschluesse.find((a) => a.tag === t)?.bestaetigt_am,
+    grund: abschluesse.find((a) => a.tag === t)?.grund,
   }));
 
   const tagesEintraege = eintraege
@@ -84,6 +142,7 @@ export default function Zeiten() {
   const auswertung = werteTagAus({ tag, eintraege: tagesEintraege, pausen: pausenVon(tag), istHeute, jetztMinute });
   const abschluss = abschluesse.find((a) => a.tag === tag);
   const gesperrt = !!abschluss?.bestaetigt_am;
+  const wocheBestaetigt = !!abschluesse.find((a) => a.tag === tage[0])?.woche_bestaetigt_am;
 
   const projektLabel = (e) => {
     const info = projektInfo[e.project_id];
@@ -116,6 +175,13 @@ export default function Zeiten() {
         <p className="text-sm" style={{ color: RITTLER.textSecondary }}>{user?.full_name || email}</p>
       </div>
 
+      <OffeneTageHinweis
+        offeneTage={offeneTage}
+        aeltester={aeltester}
+        gewaehlt={tag}
+        onWaehlen={setTag}
+      />
+
       <Wochenstreifen
         tage={wochenTage}
         gewaehlt={tag}
@@ -133,6 +199,7 @@ export default function Zeiten() {
           <Erfassungszeile
             email={email}
             tag={tag}
+            pruefen={pruefeTag}
             vorbelegung={vorbelegung}
             onBooked={() => { setVorbelegung(null); refresh(); }}
           />
@@ -154,6 +221,7 @@ export default function Zeiten() {
         vorschlaege={vorschlaege.filter((v) => v.day === tag)}
         email={email}
         projektLabel={projektLabel}
+        pruefen={pruefeTag}
         onErledigt={refresh}
       />
 
@@ -172,6 +240,8 @@ export default function Zeiten() {
         abschluss={abschluss}
         email={email}
         tag={tag}
+        wocheBestaetigt={wocheBestaetigt}
+        darfFremdOeffnen={darfFremdOeffnen}
         onSaved={refresh}
       />
 
