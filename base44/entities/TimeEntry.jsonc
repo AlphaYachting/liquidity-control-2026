@@ -21,10 +21,26 @@
     },
     "entry_date": {
       "type": "string",
-      "format": "date"
+      "format": "date",
+      "description": "Buchungstag \u2014 beim Timer der Tag des STARTS"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "tats\u00e4chlicher Beginn"
+    },
+    "ended_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "tats\u00e4chliches Ende"
+    },
+    "duration_minutes": {
+      "type": "number",
+      "description": "ungerundete Dauer in Minuten \u2014 die f\u00fchrende Gr\u00f6\u00dfe"
     },
     "hours": {
-      "type": "number"
+      "type": "number",
+      "description": "abgeleitet aus duration_minutes (Minuten / 60, zwei Nachkommastellen)"
     },
     "note": {
       "type": "string"
@@ -40,9 +56,56 @@
       ],
       "description": "Abrechnungsmodell des Projekts zum Buchungszeitpunkt \u2014 wird mitgeschrieben, nie sp\u00e4ter abgeleitet"
     },
-    "abrechenbar": {
+    "taetigkeit": {
+      "type": "string",
+      "enum": [
+        "Beratung",
+        "Konzept",
+        "Text",
+        "Grafik",
+        "Web",
+        "Media",
+        "QS"
+      ]
+    },
+    "verrechenbar": {
       "type": "boolean",
       "default": true
+    },
+    "nicht_verrechenbar_grund": {
+      "type": "string",
+      "enum": [
+        "kulanz",
+        "interne_nacharbeit",
+        "fehler",
+        "einarbeitung",
+        "akquise",
+        "intern"
+      ]
+    },
+    "ueber_kontingent": {
+      "type": "boolean",
+      "default": false
+    },
+    "korrektur_zu": {
+      "type": "string",
+      "description": "Id der Buchung, die diese Buchung korrigiert"
+    },
+    "quelle": {
+      "type": "string",
+      "enum": [
+        "timer",
+        "zeile",
+        "luecke",
+        "spur",
+        "korrektur"
+      ],
+      "default": "timer"
+    },
+    "abrechenbar": {
+      "type": "boolean",
+      "default": true,
+      "description": "abgel\u00f6st durch verrechenbar \u2014 nur noch f\u00fcr Altauswertungen mitgeschrieben"
     },
     "abrechnungsstatus": {
       "type": "string",
@@ -71,6 +134,57 @@
     "project_id",
     "person_email",
     "entry_date",
-    "hours"
-  ]
+    "duration_minutes"
+  ],
+  "rls": {
+    "create": {
+      "data.person_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "system_role": "pm"
+          }
+        },
+        {
+          "user_condition": {
+            "system_role": "gf"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
 }

@@ -38,7 +38,9 @@ export async function ermittleBuchungsfelder(projectId) {
     project_id: projectId,
     sprint_id: sprint?.id || '',
     kategorie,
+    verrechenbar: kategorie !== 'intern',
     abrechenbar: kategorie !== 'intern',
+    ...(kategorie === 'intern' ? { nicht_verrechenbar_grund: 'intern' } : {}),
     abrechnungsstatus: 'offen',
     ...(stundensatz ? { stundensatz } : {}),
   };

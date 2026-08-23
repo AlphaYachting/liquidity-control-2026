@@ -1,0 +1,55 @@
+{
+  "name": "Tagesabschluss",
+  "type": "object",
+  "properties": {
+    "person_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "tag": {
+      "type": "string",
+      "format": "date"
+    },
+    "bestaetigt_am": {
+      "type": "string",
+      "format": "date-time",
+      "description": "gesetzt = Buchungen dieses Tages sind festgeschrieben"
+    },
+    "notiz": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "person_email",
+    "tag"
+  ],
+  "rls": {
+    "create": {
+      "data.person_email": "{{user.email}}"
+    },
+    "update": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

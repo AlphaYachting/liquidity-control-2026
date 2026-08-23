@@ -22,8 +22,17 @@ const cacheWrite = (timer) => {
 };
 
 const minutenSeit = (iso) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
-export const stundenAus = (minuten) => Math.max(0.25, Math.round((minuten / 60) * 4) / 4);
+
+// Rundung ausschließlich für die Anzeige eines Abrechnungsbetrags — niemals vor dem Speichern.
+export const viertelstundeAus = (minuten) => Math.max(0.25, Math.round((minuten / 60) * 4) / 4);
+export const stundenAus = (minuten) => Math.round((minuten / 60) * 100) / 100;
 export const zeitLabel = (minuten) => `${Math.floor(minuten / 60)}:${String(minuten % 60).padStart(2, '0')}`;
+
+// Tag im lokalen Kalender — ein Timer von 23:30 bis 00:30 gehört auf den Starttag.
+export const tagVon = (iso) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 export const kuerzelOf = (name = '') =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '—';
@@ -33,17 +42,88 @@ const laufendeVon = async (email) => {
   return rows[0] || null;
 };
 
-// Eine Buchung aus Stunden erzeugen — die Pflichtfelder werden immer mitgeschrieben.
-export async function bucheZeit({ projectId, email, hours, note = '' }) {
+// Ist der Tag dieser Person bereits festgeschrieben?
+export async function tagBestaetigt(email, tag) {
+  const rows = await base44.entities.Tagesabschluss.filter({ person_email: email, tag }, '-tag', 1);
+  return !!rows[0]?.bestaetigt_am;
+}
+
+// Eine Buchung anlegen — die volle Minutenzahl wird gespeichert, hours daraus abgeleitet.
+export async function bucheZeit({
+  projectId, email, durationMinutes, note = '', entryDate,
+  startedAt, endedAt, taetigkeit, verrechenbar, nichtVerrechenbarGrund,
+  ueberKontingent, quelle = 'timer', korrekturZu, ticketId,
+}) {
   const felder = await ermittleBuchungsfelder(projectId);
+  const minuten = Math.round(Number(durationMinutes) || 0);
   return base44.entities.TimeEntry.create({
     ...felder,
+    ...(verrechenbar === undefined ? {} : { verrechenbar, abrechenbar: verrechenbar }),
+    ...(nichtVerrechenbarGrund ? { nicht_verrechenbar_grund: nichtVerrechenbarGrund } : {}),
+    ...(taetigkeit ? { taetigkeit } : {}),
+    ...(ticketId ? { ticket_id: ticketId } : {}),
+    ...(korrekturZu ? { korrektur_zu: korrekturZu } : {}),
     person_email: email,
-    entry_date: todayIso(),
-    hours,
+    entry_date: entryDate || todayIso(),
+    started_at: startedAt,
+    ended_at: endedAt,
+    duration_minutes: minuten,
+    hours: stundenAus(minuten),
+    ueber_kontingent: !!ueberKontingent,
+    quelle,
     note,
-    source: 'bestaetigt',
+    source: quelle === 'korrektur' ? 'korrigiert' : 'bestaetigt',
   });
+}
+
+// Ändern der eigenen Buchung. Ist der Tag bestätigt, entsteht eine Korrekturbuchung.
+export async function aendereZeit(id, patch = {}) {
+  const original = await base44.entities.TimeEntry.get(id);
+  const daten = { ...patch };
+
+  if (daten.duration_minutes !== undefined) {
+    daten.duration_minutes = Math.round(Number(daten.duration_minutes) || 0);
+    daten.hours = stundenAus(daten.duration_minutes);
+  }
+  if (daten.verrechenbar !== undefined) daten.abrechenbar = daten.verrechenbar;
+
+  if (await tagBestaetigt(original.person_email, original.entry_date)) {
+    const neueMinuten = daten.duration_minutes ?? original.duration_minutes ?? 0;
+    const differenz = neueMinuten - (Number(original.duration_minutes) || 0);
+    return bucheZeit({
+      projectId: daten.project_id || original.project_id,
+      email: original.person_email,
+      durationMinutes: differenz,
+      entryDate: original.entry_date,
+      startedAt: daten.started_at || original.started_at,
+      endedAt: daten.ended_at || original.ended_at,
+      note: daten.note ?? `Korrektur zu ${original.entry_date}`,
+      taetigkeit: daten.taetigkeit || original.taetigkeit,
+      verrechenbar: daten.verrechenbar ?? original.verrechenbar,
+      quelle: 'korrektur',
+      korrekturZu: original.id,
+    });
+  }
+
+  return base44.entities.TimeEntry.update(id, daten);
+}
+
+// Löschen der eigenen Buchung. Ist der Tag bestätigt, wird die Dauer per Korrektur ausgeglichen.
+export async function loescheZeit(id) {
+  const original = await base44.entities.TimeEntry.get(id);
+  if (await tagBestaetigt(original.person_email, original.entry_date)) {
+    return bucheZeit({
+      projectId: original.project_id,
+      email: original.person_email,
+      durationMinutes: -(Number(original.duration_minutes) || 0),
+      entryDate: original.entry_date,
+      note: `Storno zu ${original.entry_date}`,
+      verrechenbar: original.verrechenbar,
+      quelle: 'korrektur',
+      korrekturZu: original.id,
+    });
+  }
+  return base44.entities.TimeEntry.delete(id);
 }
 
 export function useTimer(email) {
@@ -78,17 +158,22 @@ export function useTimer(email) {
       await refresh();
       return null;
     }
-    const hours = stundenAus(minutenSeit(aktuell.gestartet_am));
+    const minuten = minutenSeit(aktuell.gestartet_am);
+    const ende = new Date().toISOString();
     await bucheZeit({
       projectId: aktuell.project_id,
       email,
-      hours,
+      durationMinutes: minuten,
+      entryDate: tagVon(aktuell.gestartet_am),
+      startedAt: aktuell.gestartet_am,
+      endedAt: ende,
       note: [aktuell.notiz, note].filter(Boolean).join(' · '),
+      quelle: 'timer',
     });
     await base44.entities.LaufendeZeitbuchung.delete(aktuell.id);
     cacheWrite(null);
     await refresh();
-    return { hours, projekt: aktuell.projekt_titel };
+    return { hours: stundenAus(minuten), minuten, projekt: aktuell.projekt_titel };
   }, [email, refresh]);
 
   // Je Person läuft genau ein Timer — ein zweiter Start braucht die ausdrückliche Bestätigung.

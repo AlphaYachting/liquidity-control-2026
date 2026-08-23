@@ -36,5 +36,56 @@
     "person_email",
     "project_id",
     "gestartet_am"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.person_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "system_role": "pm"
+          }
+        },
+        {
+          "user_condition": {
+            "system_role": "gf"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
 }

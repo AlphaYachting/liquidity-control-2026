@@ -31,7 +31,13 @@ export default function TimerStart({ email, onStart, onBooked }) {
 
   const buchen = async () => {
     setBusy(true);
-    await bucheZeit({ projectId: projekt.id, email, hours: Number(stunden), note: notiz });
+    await bucheZeit({
+      projectId: projekt.id,
+      email,
+      durationMinutes: Math.round(Number(stunden) * 60),
+      note: notiz,
+      quelle: 'zeile',
+    });
     setBusy(false);
     onBooked?.(Number(stunden), projekt.title);
   };
