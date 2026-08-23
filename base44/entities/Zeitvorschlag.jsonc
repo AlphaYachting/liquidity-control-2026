@@ -1,0 +1,90 @@
+{
+  "name": "Zeitvorschlag",
+  "type": "object",
+  "properties": {
+    "person_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "day": {
+      "type": "string",
+      "format": "date",
+      "description": "Tag, auf den sich der Vorschlag bezieht"
+    },
+    "von": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "bis": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "ticket_id": {
+      "type": "string"
+    },
+    "beleg": {
+      "type": "string",
+      "description": "Klartext der Herleitung \u2014 woraus der Vorschlag entstanden ist"
+    },
+    "vorgeschlagene_notiz": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "offen",
+        "uebernommen",
+        "verworfen"
+      ],
+      "default": "offen"
+    }
+  },
+  "required": [
+    "person_email",
+    "day",
+    "von",
+    "bis",
+    "project_id"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -10,6 +10,7 @@ import Wochenstreifen from '@/components/zeit/Wochenstreifen';
 import Tagesstreifen from '@/components/zeit/Tagesstreifen';
 import Tagesbilanz from '@/components/zeit/Tagesbilanz';
 import Buchungsliste from '@/components/zeit/Buchungsliste';
+import Vorschlagsliste from '@/components/zeit/Vorschlagsliste';
 import BuchungBearbeitenDialog from '@/components/zeit/BuchungBearbeitenDialog';
 import { werteTagAus, wochentage, verschiebeTage, uhr } from '@/lib/zeit/tagesAuswertung';
 
@@ -34,9 +35,10 @@ export default function Zeiten() {
     queryKey: ['zeitenSeite', email, tage[0]],
     enabled: !!email,
     queryFn: async () => {
-      const [eintraege, abschluesse, projects, clients] = await Promise.all([
+      const [eintraege, abschluesse, vorschlaege, projects, clients] = await Promise.all([
         base44.entities.TimeEntry.filter({ person_email: email }, '-entry_date', 500),
         base44.entities.Tagesabschluss.filter({ person_email: email }, '-tag', 60),
+        base44.entities.Zeitvorschlag.filter({ person_email: email, status: 'offen' }, '-von', 100),
         base44.entities.Project.list('title', 500),
         base44.entities.Client.list('name', 500),
       ]);
@@ -46,7 +48,7 @@ export default function Zeiten() {
         kunde: clientById[p.client_id]?.name || '',
         kuerzel: (p.kuerzel || clientById[p.client_id]?.name || p.title).slice(0, 5).toUpperCase(),
       }]));
-      return { eintraege, abschluesse, projektInfo };
+      return { eintraege, abschluesse, vorschlaege, projektInfo };
     },
   });
 
@@ -61,7 +63,7 @@ export default function Zeiten() {
     );
   }
 
-  const { eintraege, abschluesse, projektInfo } = data;
+  const { eintraege, abschluesse, vorschlaege, projektInfo } = data;
   const istHeute = tag === todayIso();
   const jetztMinute = jetzt.getHours() * 60 + jetzt.getMinutes();
   const pausenVon = (t) => abschluesse.find((a) => a.tag === t)?.pausen || [];
@@ -145,6 +147,13 @@ export default function Zeiten() {
           Dieser Tag ist bestätigt — Änderungen entstehen als Korrekturbuchung.
         </p>
       )}
+
+      <Vorschlagsliste
+        vorschlaege={vorschlaege.filter((v) => v.day === tag)}
+        email={email}
+        projektLabel={projektLabel}
+        onErledigt={refresh}
+      />
 
       <Buchungsliste
         auswertung={auswertung}
