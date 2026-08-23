@@ -1,0 +1,22 @@
+{
+  "name": "ProjektIntelligenzGespraech",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "LiquidityProject, zu dem das Gespr\u00e4ch geh\u00f6rt"
+    },
+    "conversation_id": {
+      "type": "string",
+      "description": "Conversation der Projektintelligenz"
+    },
+    "letzter_zugriff": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "project_id",
+    "conversation_id"
+  ]
+}

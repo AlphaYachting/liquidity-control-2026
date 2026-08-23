@@ -1,7 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 
-// Meldet stillstehende Projekte mit gebundenem offenem Betrag.
-// Schreibt nichts und versendet nichts — liefert nur die Liste.
+// Stehende Übersicht der Projektintelligenz: Stillstand, Budget-Risiko,
+// Abrechnungslücke und ungepflegte Planwerte.
+// Schreibt nichts und versendet nichts — liefert nur Listen.
 const TAG = 86400000;
 
 function planqualitaet(snapshot) {
@@ -17,62 +18,115 @@ export default async function (req) {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (user.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-    const projekte = await base44.asServiceRole.entities.LiquidityProject.filter(
+    const svc = base44.asServiceRole;
+    const projekte = await svc.entities.LiquidityProject.filter(
       { is_active_for_billing: true }, '-created_date', 2000
     );
-    const snapshots = await base44.asServiceRole.entities.AworkProjectSnapshot.list('-created_date', 3000);
+    const snapshots = await svc.entities.AworkProjectSnapshot.list('-created_date', 3000);
     const snapshotNachId = new Map(snapshots.map(s => [s.awork_project_id, s]));
 
+    // Zeitbuchungen einmal vollständig laden und je awork-Projekt verdichten
+    const minutenNachId = {};
+    const letzteNachId = {};
+    let skip = 0;
+    while (true) {
+      const page = await svc.entities.AworkTimeEntry.list('-entry_date', 1000, skip);
+      for (const e of page) {
+        const id = e.awork_project_id;
+        if (!id) continue;
+        minutenNachId[id] = (minutenNachId[id] || 0) + (Number(e.duration_minutes) || 0);
+        if (e.entry_date && (!letzteNachId[id] || e.entry_date > letzteNachId[id])) letzteNachId[id] = e.entry_date;
+      }
+      if (page.length < 1000) break;
+      skip += 1000;
+      if (skip > 20000) break;
+    }
+
     const heute = Date.now();
-    const befunde = [];
+    const stillstand = [];
+    const budget = [];
+    const planwertFehlt = [];
+    const abrechnung = [];
 
     for (const p of projekte) {
       const offen = Number(p.open_amount) || 0;
-      if (offen <= 0) continue;
-
-      let letzte = null;
-      let minuten = 0;
-      if (p.awork_project_id) {
-        const buchungen = await base44.asServiceRole.entities.AworkTimeEntry.filter(
-          { awork_project_id: p.awork_project_id }, '-entry_date', 500
-        );
-        minuten = buchungen.reduce((s, b) => s + (Number(b.duration_minutes) || 0), 0);
-        letzte = buchungen.map(b => b.entry_date).filter(Boolean).sort().reverse()[0] || null;
-      }
-
-      const tage = letzte ? Math.floor((heute - new Date(letzte).getTime()) / TAG) : null;
-      if (tage !== null && tage < 14) continue;
-
       const snapshot = p.awork_project_id ? snapshotNachId.get(p.awork_project_id) : null;
       const qualitaet = planqualitaet(snapshot);
-      const schweregrad = tage === null || tage >= 45 ? 'kritisch' : tage >= 28 ? 'warnung' : 'hinweis';
+      const minuten = p.awork_project_id ? (minutenNachId[p.awork_project_id] || 0) : 0;
+      const letzte = p.awork_project_id ? (letzteNachId[p.awork_project_id] || null) : null;
+      const tage = letzte ? Math.floor((heute - new Date(letzte).getTime()) / TAG) : null;
 
-      befunde.push({
+      const gesamt = Number(p.total_net_amount) || 0;
+      const abgerechnet = Number(p.already_invoiced_amount) || 0;
+      const abrechnungPct = gesamt > 0 ? Math.round((abgerechnet / gesamt) * 100) : 0;
+      const fortschritt = Math.round(
+        (Number(p.real_progress_percent) > 0 ? Number(p.real_progress_percent) : 0)
+        || Number(snapshot?.progress_percent) || Number(p.awork_progress_percent) || 0
+      );
+      const aufgabenGesamt = Number(snapshot?.tasks_count) || 0;
+      const aufgabenErledigt = Number(snapshot?.tasks_done_count) || 0;
+      const aufgabenPct = aufgabenGesamt > 0 ? Math.round((aufgabenErledigt / aufgabenGesamt) * 100) : null;
+      const auslastung = qualitaet === 'ok'
+        ? Math.round((Number(snapshot.tracked_duration_minutes) / Number(snapshot.time_budget_minutes)) * 100)
+        : null;
+
+      const basis = {
+        project_id: p.id,
         customer: p.customer || '',
         project_name: p.project_name || '',
         letzte_buchung: letzte,
         tage_seit_buchung: tage,
         open_amount_net: offen,
         gebuchte_stunden: Math.round((minuten / 60) * 10) / 10,
-        aufgaben_erledigt: Number(snapshot?.tasks_done_count) || 0,
-        aufgaben_gesamt: Number(snapshot?.tasks_count) || 0,
+        aufgaben_erledigt: aufgabenErledigt,
+        aufgaben_gesamt: aufgabenGesamt,
+        aufgaben_pct: aufgabenPct,
+        fortschritt_pct: fortschritt,
+        abrechnung_pct: abrechnungPct,
+        luecke_pct: fortschritt - abrechnungPct,
+        auslastung_pct: auslastung,
         abrechnungsmodell: p.abrechnungsmodell || 'unbekannt',
         planqualitaet: qualitaet,
         budget_ampel_erlaubt: qualitaet === 'ok',
         budget_hinweis: qualitaet === 'ok' ? null : 'Planwert nicht gepflegt',
-        schweregrad,
-      });
+      };
+
+      // 1. Steht still
+      if (offen > 0 && (tage === null || tage >= 14)) {
+        stillstand.push({
+          ...basis,
+          schweregrad: tage === null || tage >= 45 ? 'kritisch' : tage >= 28 ? 'warnung' : 'hinweis',
+        });
+      }
+
+      // 2. Budget reisst — nur bei gepflegtem Planwert
+      if (qualitaet === 'ok') {
+        const reisst = (auslastung > 100 && basis.abrechnungsmodell === 'pauschal')
+          || (auslastung > 80 && aufgabenPct !== null && aufgabenPct < 60);
+        if (reisst) budget.push(basis);
+      } else if (offen > 0) {
+        planwertFehlt.push(basis);
+      }
+
+      // 3. Abrechnung hinkt
+      if (offen > 0 && basis.luecke_pct > 20) abrechnung.push(basis);
     }
 
-    befunde.sort((a, b) => b.open_amount_net - a.open_amount_net);
+    stillstand.sort((a, b) => b.open_amount_net - a.open_amount_net);
+    budget.sort((a, b) => (b.auslastung_pct || 0) - (a.auslastung_pct || 0));
+    abrechnung.sort((a, b) => b.open_amount_net - a.open_amount_net);
+    planwertFehlt.sort((a, b) => b.open_amount_net - a.open_amount_net);
 
     return Response.json({
       geprueft: projekte.length,
-      befunde_anzahl: befunde.length,
-      gebundener_betrag_netto: befunde.reduce((s, b) => s + b.open_amount_net, 0),
-      befunde,
+      gebundener_betrag_netto: stillstand.reduce((s, b) => s + b.open_amount_net, 0),
+      stillstand,
+      budget,
+      planwertFehlt,
+      abrechnung,
+      befunde: stillstand,
+      befunde_anzahl: stillstand.length,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

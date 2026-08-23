@@ -68,6 +68,7 @@ import RestructuringSetup from '@/pages/RestructuringSetup';
 import SprintHeute from '@/pages/sprint/SprintHeute';
 import SprintUebersicht from '@/pages/sprint/SprintUebersicht';
 import SprintProjekte from '@/pages/sprint/SprintProjekte';
+import SprintIntelligence from '@/pages/sprint/SprintIntelligence';
 import Zeiten from '@/pages/Zeiten';
 import SprintModulKatalog from '@/pages/sprint/SprintModulKatalog';
 import SprintAssistent from '@/pages/sprint/SprintAssistent';
@@ -163,6 +164,7 @@ const AuthenticatedApp = () => {
         <Route path="/sprint/uebersicht" element={<SprintUebersicht />} />
         <Route path="/zeiten" element={<Zeiten />} />
         <Route path="/sprint/projekte" element={<SprintProjekte />} />
+        <Route path="/sprint/intelligence" element={<SprintIntelligence />} />
         <Route path="/sprint/katalog" element={<SprintModulKatalog />} />
         <Route path="/sprint/neu" element={<SprintAssistent />} />
         <Route path="/sprint/sprints/:sprintId" element={<SprintDetail />} />

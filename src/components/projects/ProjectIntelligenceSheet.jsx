@@ -14,7 +14,7 @@ import { faktenBlock } from '@/components/projects/intelligenzFakten';
 export default function ProjectIntelligenceSheet({
   open, onClose, projectId, projectName, customer, kennzahlen, finanzen, kontext,
 }) {
-  const storageKey = `projectIntelligence.conversation.${projectId}`;
+  const [gespraech, setGespraech] = useState(null); // gespeicherter Datensatz je Projekt
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -26,12 +26,21 @@ export default function ProjectIntelligenceSheet({
 
   const contextPrefix = `Kontext: Ausgangspunkt ist das Projekt "${projectName || ''}" des Kunden "${customer || ''}" (LiquidityProject.id = ${projectId}). Hat der Kunde weitere Aufträge oder Projekte, nenne sie und sage, ob deine Antwort sie abdeckt. Triff keine Aussage über einen Auftrag, den du nicht geladen hast. Lade dazu auch den digitalen Kundenakt (ProjectFileEntry nach project_id) und gewichte dokumentierte Vereinbarungen am stärksten.\n\n${faktenBlock(kennzahlen, finanzen, kontext)}Frage: `;
 
-  // Gespeichertes Gespräch beim Öffnen wiederherstellen
+  // Dauerhaft gespeichertes Gespräch beim Öffnen wiederherstellen
   useEffect(() => {
-    if (!open || conversation) return;
-    const savedId = sessionStorage.getItem(storageKey);
-    if (savedId) setConversation({ id: savedId });
-  }, [open, storageKey, conversation]);
+    if (!open || conversation || !projectId) return;
+    let aktiv = true;
+    (async () => {
+      const treffer = await base44.entities.ProjektIntelligenzGespraech.filter(
+        { project_id: projectId }, '-letzter_zugriff', 1
+      );
+      if (!aktiv || !treffer[0]) return;
+      setGespraech(treffer[0]);
+      setConversation({ id: treffer[0].conversation_id });
+      base44.entities.ProjektIntelligenzGespraech.update(treffer[0].id, { letzter_zugriff: new Date().toISOString() });
+    })();
+    return () => { aktiv = false; };
+  }, [open, projectId, conversation]);
 
   useEffect(() => {
     if (!conversation) return;
@@ -45,8 +54,9 @@ export default function ProjectIntelligenceSheet({
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' }); }, [messages.length]);
 
-  const neuesGespraech = () => {
-    sessionStorage.removeItem(storageKey);
+  const neuesGespraech = async () => {
+    if (gespraech) await base44.entities.ProjektIntelligenzGespraech.delete(gespraech.id);
+    setGespraech(null);
     setConversation(null);
     setMessages([]);
     setSending(false);
@@ -65,7 +75,10 @@ export default function ProjectIntelligenceSheet({
           metadata: { name: `${projectLabel} · ${new Date().toLocaleDateString('de-AT')}` },
         });
         setConversation(conv);
-        sessionStorage.setItem(storageKey, conv.id);
+        const record = await base44.entities.ProjektIntelligenzGespraech.create({
+          project_id: projectId, conversation_id: conv.id, letzter_zugriff: new Date().toISOString(),
+        });
+        setGespraech(record);
       }
       await base44.agents.addMessage(conv, { role: 'user', content: contextPrefix + msg });
     } catch {

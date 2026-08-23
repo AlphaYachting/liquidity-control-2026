@@ -48,6 +48,7 @@ const navSections = [
       { path: '/sprint', label: 'Heute', icon: Rocket },
       { path: '/zeiten', label: 'Zeiten', icon: Clock },
       { path: '/sprint/projekte', label: 'Projekte', icon: Layers },
+      { path: '/sprint/intelligence', label: 'Projekt-Intelligence', icon: BrainCircuit },
       { path: '/sprint/planung', label: 'Planung', icon: CalendarRange },
       { path: '/sprint/steuerung', label: 'Steuerung', icon: Gauge },
     ],
