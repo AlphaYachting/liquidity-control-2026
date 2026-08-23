@@ -58,6 +58,37 @@
       "type": "number",
       "description": "monatliches Stundenkontingent bei Support"
     },
+    "rundung_minuten": {
+      "type": "number",
+      "enum": [
+        0,
+        15,
+        30,
+        60
+      ],
+      "description": "Rundungsschritt der Verrechnung \u2014 0 = keine Rundung. Leer = Voreinstellung aus Setting"
+    },
+    "rundung_art": {
+      "type": "string",
+      "enum": [
+        "auf",
+        "kaufmaennisch"
+      ],
+      "default": "auf"
+    },
+    "rundung_basis": {
+      "type": "string",
+      "enum": [
+        "buchung",
+        "tag_projekt"
+      ],
+      "default": "tag_projekt",
+      "description": "je Buchung oder je Tag und Projekt gerundet"
+    },
+    "mindestbuchung_minuten": {
+      "type": "number",
+      "description": "0 = keine Mindestbuchung"
+    },
     "recurring_contract_id": {
       "type": "string",
       "description": "optional verkn\u00fcpfter laufender Vertrag (RecurringContract) bei Containerkunden"

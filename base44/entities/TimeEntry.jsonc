@@ -38,6 +38,11 @@
       "type": "number",
       "description": "ungerundete Dauer in Minuten \u2014 die f\u00fchrende Gr\u00f6\u00dfe"
     },
+    "dauer_geschaetzt": {
+      "type": "boolean",
+      "default": false,
+      "description": "Altbuchung \u2014 duration_minutes aus gerundeten Stunden abgeleitet, nicht echt gemessen"
+    },
     "hours": {
       "type": "number",
       "description": "abgeleitet aus duration_minutes"

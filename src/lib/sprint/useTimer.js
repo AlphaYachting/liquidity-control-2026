@@ -24,8 +24,7 @@ const cacheWrite = (timer) => {
 
 const minutenSeit = (iso) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
 
-// Rundung ausschließlich für die Anzeige eines Abrechnungsbetrags — niemals vor dem Speichern.
-export const viertelstundeAus = (minuten) => Math.max(0.25, Math.round((minuten / 60) * 4) / 4);
+// Keine Rundung beim Erfassen — die Verrechnungsrundung lebt in src/lib/zeit/rundung.js.
 export const stundenAus = (minuten) => Math.round((minuten / 60) * 100) / 100;
 export const zeitLabel = (minuten) => `${Math.floor(minuten / 60)}:${String(minuten % 60).padStart(2, '0')}`;
 

@@ -10,6 +10,7 @@ import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { kuerzelVorschlag } from '@/lib/zeit/useProjektSuche';
 import { PROJECT_TYPES, PROJECT_TYPE_ORDER, projectTypeOf } from '@/components/sprint/projectTypes';
 import ProjectTypeFields from '@/components/sprint/ProjectTypeFields';
+import RundungsFelder from '@/components/sprint/RundungsFelder';
 
 const EMPTY = {
   client_id: '', title: '', pm_email: '', status: 'aktiv', total_budget: '',
@@ -53,6 +54,10 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
       total_budget: Number(form.total_budget) || 0,
       abrechnungsmodell: def.model || form.abrechnungsmodell || 'aufwand',
       is_legacy: type === 'legacy',
+      rundung_minuten: Number(form.rundung_minuten) || 0,
+      rundung_art: form.rundung_art || 'auf',
+      rundung_basis: form.rundung_basis || 'tag_projekt',
+      mindestbuchung_minuten: Number(form.mindestbuchung_minuten) || 0,
       stundensatz: type === 'support' ? Number(form.stundensatz) || 0 : undefined,
       support_kontingent_stunden: type === 'container' ? Number(form.support_kontingent_stunden) || 0 : undefined,
       recurring_contract_id: type === 'container' ? (form.recurring_contract_id || '') : undefined,
@@ -128,6 +133,8 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
           <div><Label>Gesamtbudget netto (EUR)</Label><Input type="number" value={form.total_budget} onChange={(e) => setForm((f) => ({ ...f, total_budget: e.target.value }))} /></div>
 
           <ProjectTypeFields type={type} form={form} setForm={setForm} contracts={contracts} />
+
+          <RundungsFelder form={form} setForm={setForm} />
 
           <Button
             className="w-full bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"

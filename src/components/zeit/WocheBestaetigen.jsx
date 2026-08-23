@@ -5,11 +5,13 @@ import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { dauerText } from '@/lib/zeit/tagesAuswertung';
 import { GRUND_LABEL } from './VerrechenbarSchalter';
 import TaetigkeitBalken from './TaetigkeitBalken';
+import RundungsZeile from './RundungsZeile';
+import { verrechneteMinutenGesamt } from '@/lib/zeit/rundung';
 
 const summe = (rows) => rows.reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0);
 
 // Erscheint erst, wenn alle fünf Tage abgeschlossen sind.
-export default function WocheBestaetigen({ tage, abschluesse, eintraege, projektLabel, email, onSaved }) {
+export default function WocheBestaetigen({ tage, abschluesse, eintraege, projektLabel, email, projekteById = {}, settings = {}, onSaved }) {
   const [busy, setBusy] = useState(false);
   const montag = tage[0];
   const alleAb = tage.every((t) => abschluesse.some((a) => a.tag === t && a.bestaetigt_am));
@@ -59,6 +61,7 @@ export default function WocheBestaetigen({ tage, abschluesse, eintraege, projekt
           <p className="text-sm" style={{ color: RITTLER.textSecondary }}>
             verrechenbar {dauerText(verrechenbar)} · nicht verrechenbar {dauerText(nicht)}
           </p>
+          <RundungsZeile werte={verrechneteMinutenGesamt(wochenEintraege, projekteById, settings)} titel="Woche" />
         </div>
         {bestaetigt ? (
           <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: STATUS_COLORS.doneText }}>

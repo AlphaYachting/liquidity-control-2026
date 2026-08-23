@@ -1,9 +1,11 @@
 import React from 'react';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import BuchungZeile from './BuchungZeile';
+import { regelnFuer } from '@/lib/zeit/rundung';
 
 // Jede Buchung des Tages als Zeile — Korrekturen stehen unter ihrem Original.
-export default function Buchungsliste({ auswertung, eintraege, projektLabel, gesperrt, onAendern, onLoeschen, onGeaendert }) {
+export default function Buchungsliste({ auswertung, eintraege, projektLabel, gesperrt, projekteById = {}, settings = {}, onAendern, onLoeschen, onGeaendert }) {
+  const regelnVon = (e) => regelnFuer(projekteById[e.project_id], settings);
   const ueberschneidend = new Set(auswertung.blocks.filter((b) => b.ueberschneidet).map((b) => b.entry.id));
 
   if (!eintraege.length) {
@@ -31,6 +33,7 @@ export default function Buchungsliste({ auswertung, eintraege, projektLabel, ges
             ueberschneidet={ueberschneidend.has(e.id)}
             gesperrt={gesperrt}
             korrigiert={!!korrekturenZu[e.id]}
+            regeln={regelnVon(e)}
             onAendern={onAendern}
             onLoeschen={onLoeschen}
             onGeaendert={onGeaendert}

@@ -2,6 +2,7 @@ import React from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { minuteVonIso, uhr, dauerText, MODELL_TEXT, MODELL_FARBE } from '@/lib/zeit/tagesAuswertung';
+import { verrechnetJeBuchung } from '@/lib/zeit/rundung';
 import VerrechenbarSchalter from './VerrechenbarSchalter';
 import TaetigkeitEtikett from './TaetigkeitEtikett';
 
@@ -25,8 +26,13 @@ const zaehler = (e) => {
 
 // Eine Buchung als Zeile. Korrekturen stehen eingerückt unter dem Original.
 export default function BuchungZeile({
-  eintrag: e, label, ueberschneidet, gesperrt, korrigiert, istKorrektur, onAendern, onLoeschen, onGeaendert,
+  eintrag: e, label, ueberschneidet, gesperrt, korrigiert, istKorrektur, regeln,
+  onAendern, onLoeschen, onGeaendert,
 }) {
+  // Ein eigener Verrechnungswert je Zeile besteht nur bei Basis 'buchung'.
+  const verrechnetMinuten = regeln && regeln.rundung_basis === 'buchung' && !e.dauer_geschaetzt
+    ? verrechnetJeBuchung(e, regeln)
+    : null;
   const fenster = e.started_at && e.ended_at
     ? `${uhr(minuteVonIso(e.started_at))}–${uhr(minuteVonIso(e.ended_at))}`
     : 'ohne Zeitfenster';
@@ -44,6 +50,11 @@ export default function BuchungZeile({
           <p className={`text-xs ${korrigiert ? 'line-through' : ''}`} style={{ color: RITTLER.textSecondary }}>
             {dauerText(e.duration_minutes)}
           </p>
+          {verrechnetMinuten !== null && verrechnetMinuten !== (Number(e.duration_minutes) || 0) && (
+            <p className="text-[11px]" style={{ color: RITTLER.textSecondary }}>
+              verrechnet {(Math.round((verrechnetMinuten / 60) * 100) / 100).toLocaleString('de-AT')} h
+            </p>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <p className={`text-sm font-medium truncate ${korrigiert ? 'line-through' : ''}`} style={{ color: RITTLER.black }}>

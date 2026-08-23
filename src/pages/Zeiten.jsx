@@ -9,6 +9,9 @@ import Erfassungszeile from '@/components/zeit/Erfassungszeile';
 import Wochenstreifen from '@/components/zeit/Wochenstreifen';
 import Tagesstreifen from '@/components/zeit/Tagesstreifen';
 import Tagesbilanz from '@/components/zeit/Tagesbilanz';
+import RundungsZeile from '@/components/zeit/RundungsZeile';
+import { verrechneteMinutenGesamt } from '@/lib/zeit/rundung';
+import { useRundungsSettings } from '@/lib/zeit/useRundungsregeln';
 import TaetigkeitBalken from '@/components/zeit/TaetigkeitBalken';
 import Buchungsliste from '@/components/zeit/Buchungsliste';
 import Vorschlagsliste from '@/components/zeit/Vorschlagsliste';
@@ -32,6 +35,7 @@ export default function Zeiten() {
   const [jetzt, setJetzt] = useState(new Date());
   const { toast } = useToast();
   const { offeneTage, aeltester } = useOffeneTage(email);
+  const rundungsSettings = useRundungsSettings();
   const gesprungen = useRef(false);
 
   // Die Seite öffnet auf dem ältesten offenen Tag, nicht auf heute.
@@ -62,13 +66,14 @@ export default function Zeiten() {
         base44.entities.TeamMember.filter({ email }, 'name', 1),
       ]);
       const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
+      const projekteById = Object.fromEntries(projects.map((p) => [p.id, p]));
       const projektInfo = Object.fromEntries(projects.map((p) => [p.id, {
         titel: p.title,
         kunde: clientById[p.client_id]?.name || '',
         kuerzel: (p.kuerzel || clientById[p.client_id]?.name || p.title).slice(0, 5).toUpperCase(),
       }]));
       return {
-        eintraege, abschluesse, vorschlaege, projektInfo, focusDays,
+        eintraege, abschluesse, vorschlaege, projektInfo, projekteById, focusDays,
         rolle: members[0]?.system_role || 'teammitglied',
       };
     },
@@ -107,7 +112,7 @@ export default function Zeiten() {
     );
   }
 
-  const { eintraege, abschluesse, vorschlaege, projektInfo, focusDays, rolle } = data;
+  const { eintraege, abschluesse, vorschlaege, projektInfo, projekteById, focusDays, rolle } = data;
   const istHeute = tag === todayIso();
   const darfFremdOeffnen = rolle === 'pm' || rolle === 'gf';
 
@@ -218,6 +223,8 @@ export default function Zeiten() {
 
       <Tagesbilanz auswertung={auswertung} />
 
+      <RundungsZeile werte={verrechneteMinutenGesamt(tagesEintraege, projekteById, rundungsSettings)} titel="Tag" />
+
       {tagesEintraege.length > 0 && (
         <div className="bg-white rounded border p-4" style={{ borderColor: RITTLER.line }}>
           <TaetigkeitBalken eintraege={tagesEintraege} titel="Tätigkeit am Tag" />
@@ -237,6 +244,8 @@ export default function Zeiten() {
         eintraege={tagesEintraege}
         projektLabel={projektLabel}
         gesperrt={gesperrt}
+        projekteById={projekteById}
+        settings={rundungsSettings}
         onAendern={setBearbeiten}
         onLoeschen={loeschen}
         onGeaendert={refresh}
@@ -258,6 +267,8 @@ export default function Zeiten() {
         eintraege={eintraege}
         projektLabel={projektLabel}
         email={email}
+        projekteById={projekteById}
+        settings={rundungsSettings}
         onSaved={refresh}
       />
 

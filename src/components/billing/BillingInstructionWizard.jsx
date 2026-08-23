@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { schliesseZeitenAb } from '@/lib/zeit/abrechnungsstatus';
+import RundungsDifferenzZeile from '@/components/billing/RundungsDifferenzZeile';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { generateDeterministicBillingSuggestion, checkBillingInstructionOverlap } from '@/lib/billingSuggestionUtils';
 import {
@@ -1264,6 +1265,7 @@ export default function BillingInstructionWizard({
                 </p>
               </div>
             </div>
+            <RundungsDifferenzZeile projectId={project?.id} />
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">
