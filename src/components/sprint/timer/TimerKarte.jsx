@@ -3,7 +3,7 @@ import { Square, Coffee } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useProjektKontext } from '@/lib/sprint/useProjektKontext';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
-import { letzteTaetigkeit } from '@/lib/zeit/taetigkeit';
+import { letzteTaetigkeit, TAETIGKEIT_LABEL } from '@/lib/zeit/taetigkeit';
 import { dauerText, uhr } from '@/lib/zeit/tagesAuswertung';
 import KategorieZeile from './KategorieZeile';
 import BudgetZeile from './BudgetZeile';
@@ -49,7 +49,7 @@ export default function TimerKarte({ timer, label, schmal, onStop }) {
       </p>
       <KategorieZeile kategorie={kontext?.kategorie} />
       {taetigkeit && (
-        <p className="text-[13px]" style={{ color: RITTLER.textSecondary }}>Tätigkeit: {taetigkeit}</p>
+        <p className="text-[13px]" style={{ color: RITTLER.textSecondary }}>Tätigkeit: {TAETIGKEIT_LABEL[taetigkeit] || taetigkeit}</p>
       )}
       {!schmal && <BudgetZeile budget={kontext?.budget} />}
 
