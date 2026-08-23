@@ -9,6 +9,7 @@ import Erfassungszeile from '@/components/zeit/Erfassungszeile';
 import Wochenstreifen from '@/components/zeit/Wochenstreifen';
 import Tagesstreifen from '@/components/zeit/Tagesstreifen';
 import Tagesbilanz from '@/components/zeit/Tagesbilanz';
+import TaetigkeitBalken from '@/components/zeit/TaetigkeitBalken';
 import Buchungsliste from '@/components/zeit/Buchungsliste';
 import Vorschlagsliste from '@/components/zeit/Vorschlagsliste';
 import BuchungBearbeitenDialog from '@/components/zeit/BuchungBearbeitenDialog';
@@ -216,6 +217,12 @@ export default function Zeiten() {
       />
 
       <Tagesbilanz auswertung={auswertung} />
+
+      {tagesEintraege.length > 0 && (
+        <div className="bg-white rounded border p-4" style={{ borderColor: RITTLER.line }}>
+          <TaetigkeitBalken eintraege={tagesEintraege} titel="Tätigkeit am Tag" />
+        </div>
+      )}
 
       <Vorschlagsliste
         vorschlaege={vorschlaege.filter((v) => v.day === tag)}

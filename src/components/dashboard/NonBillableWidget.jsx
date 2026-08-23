@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Clock, AlertTriangle, TrendingUp, TrendingDown, Minus, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import TaetigkeitsMix from './TaetigkeitsMix';
 
 const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
@@ -310,6 +311,11 @@ export default function NonBillableWidget() {
               isCurrentMonth={true}
             />
           )}
+        </div>
+
+        {/* Tätigkeiten je Person im laufenden Monat */}
+        <div className="border-t pt-4">
+          <TaetigkeitsMix entries={entries} month={curMonth} />
         </div>
 
       </CardContent>

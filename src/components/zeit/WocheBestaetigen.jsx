@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { dauerText } from '@/lib/zeit/tagesAuswertung';
 import { GRUND_LABEL } from './VerrechenbarSchalter';
+import TaetigkeitBalken from './TaetigkeitBalken';
 
 const summe = (rows) => rows.reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0);
 
@@ -74,6 +75,10 @@ export default function WocheBestaetigen({ tage, abschluesse, eintraege, projekt
             Woche bestätigen
           </button>
         )}
+      </div>
+
+      <div className="pt-2 border-t" style={{ borderColor: RITTLER.line }}>
+        <TaetigkeitBalken eintraege={wochenEintraege} titel="Tätigkeit in der Woche" />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t" style={{ borderColor: RITTLER.line }}>

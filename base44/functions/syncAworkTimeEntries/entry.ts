@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { taetigkeitAusAwork } from '../../shared/taetigkeitAusAwork.js';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -98,6 +99,8 @@ Deno.serve(async (req) => {
 
     const toCreate = [];
     const toUpdate = [];
+    // Migrationsbericht: wie viele Zeilen je Tätigkeit zugeordnet wurden
+    const taetigkeitStats = { beratung: 0, vertrieb: 0, umsetzung: 0 };
 
     for (const e of allEntries) {
       const entryDate = (e.startDateLocal || '').split('T')[0];
@@ -108,11 +111,14 @@ Deno.serve(async (req) => {
       const durationMins = typeof e.duration === 'number' ? Math.round(e.duration / 60) : 0;
 
       const existing = existingDataMap[e.id];
+      const taetigkeit = taetigkeitAusAwork(e.typeOfWork?.name || '');
+      taetigkeitStats[taetigkeit] += 1;
 
       // Update nur wenn sich relevante Felder geändert haben
       if (existing) {
         const changed = existing.is_billable !== isBillable ||
                         existing.is_billed !== isBilled ||
+                        existing.taetigkeit !== taetigkeit ||
                         existing.duration_minutes !== durationMins;
         if (!changed) continue; // Keine Änderung — überspringen
       }
@@ -127,6 +133,7 @@ Deno.serve(async (req) => {
         user_name: e.user ? `${e.user.firstName || ''} ${e.user.lastName || ''}`.trim() : '',
         type_of_work_id: e.typeOfWorkId || '',
         type_of_work_name: e.typeOfWork?.name || '',
+        taetigkeit,
         task_id: e.taskId || '',
         task_name: e.task?.name || '',
         duration_minutes: durationMins,
@@ -185,12 +192,13 @@ Deno.serve(async (req) => {
         records_created: created,
         records_updated: updated,
         records_failed: failed,
-        notes: `Zeitbuchungen: ${fromDate} – ${toDate}`
+        notes: `Zeitbuchungen: ${fromDate} – ${toDate} · Tätigkeit: Beratung ${taetigkeitStats.beratung}, Vertrieb ${taetigkeitStats.vertrieb}, Umsetzung ${taetigkeitStats.umsetzung}`
       }).catch(() => {});
     }
 
     return Response.json({
       success: true,
+      taetigkeit_zuordnung: taetigkeitStats,
       period: { from: fromDate, to: toDate },
       pages_fetched: page,
       entries_fetched: allEntries.length,

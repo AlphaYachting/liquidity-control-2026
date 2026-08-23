@@ -2,6 +2,7 @@ import React from 'react';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { zeitfensterLabel } from '@/lib/zeit/eingabeParser';
 import { dauerText, MODELL_TEXT } from '@/lib/zeit/tagesAuswertung';
+import { TAETIGKEIT_LABEL } from '@/lib/zeit/taetigkeit';
 
 // Was verstanden wurde — ein Satz in Klartext, darunter eine Zeile Zusatz.
 export default function VorschauSatz({ projekt, fenster, minuten, notiz, taetigkeit }) {
@@ -26,7 +27,7 @@ export default function VorschauSatz({ projekt, fenster, minuten, notiz, taetigk
     ? [
       MODELL_TEXT[modell] || 'Zeitbuchung',
       modell === 'intern' ? 'nicht verrechenbar' : 'wird fakturiert',
-      taetigkeit || null,
+      TAETIGKEIT_LABEL[taetigkeit] || null,
       betrag !== null ? `€ ${betrag}` : null,
     ].filter(Boolean).join(' · ')
     : '';

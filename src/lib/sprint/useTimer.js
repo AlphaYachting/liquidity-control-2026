@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { todayIso } from '@/components/sprint/sprintConfig';
 import { ermittleBuchungsfelder, ueberKontingentPruefen } from './buchungsfelder';
-import { ermittleTaetigkeit } from '@/lib/zeit/taetigkeit';
+import { vorbelegeTaetigkeit } from '@/lib/zeit/taetigkeit';
 
 const KEY = 'sprint_timer_cache';
 const MAX_MINUTEN = 600; // 10 Stunden
@@ -53,13 +53,18 @@ export async function tagBestaetigt(email, tag) {
 export async function bucheZeit({
   projectId, email, durationMinutes, note = '', entryDate,
   startedAt, endedAt, taetigkeit, verrechenbar, nichtVerrechenbarGrund,
-  ueberKontingent, quelle = 'timer', korrekturZu, ticketId,
+  ueberKontingent, quelle = 'timer', korrekturZu, ticketId, ausCrm,
 }) {
   const felder = await ermittleBuchungsfelder(projectId);
   const minuten = Math.round(Number(durationMinutes) || 0);
   const tag = entryDate || todayIso();
-  // Tätigkeit: eine Rolle wird still gesetzt, sonst zählt die Wahl bzw. die zuletzt verwendete.
-  const art = taetigkeit || (await ermittleTaetigkeit(email));
+  // Tätigkeit: die Vorbelegung greift immer, eine ausdrückliche Wahl hat Vorrang.
+  const art = taetigkeit || (await vorbelegeTaetigkeit({
+    kategorie: felder.kategorie,
+    ticketId,
+    nichtVerrechenbarGrund,
+    ausCrm,
+  }));
   // Support über dem Monatskontingent wird als Mehrleistung gekennzeichnet.
   const ueber = ueberKontingent !== undefined
     ? ueberKontingent

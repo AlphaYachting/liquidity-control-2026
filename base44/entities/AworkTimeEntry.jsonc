@@ -30,6 +30,15 @@
     "type_of_work_name": {
       "type": "string"
     },
+    "taetigkeit": {
+      "type": "string",
+      "enum": [
+        "beratung",
+        "vertrieb",
+        "umsetzung"
+      ],
+      "description": "aus type_of_work_name abgeleitete T\u00e4tigkeit der Zeitbuchung"
+    },
     "task_id": {
       "type": "string"
     },

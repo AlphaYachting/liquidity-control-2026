@@ -40,7 +40,7 @@
     },
     "hours": {
       "type": "number",
-      "description": "abgeleitet aus duration_minutes (Minuten / 60, zwei Nachkommastellen)"
+      "description": "abgeleitet aus duration_minutes"
     },
     "note": {
       "type": "string"
@@ -54,19 +54,16 @@
         "paket",
         "intern"
       ],
-      "description": "Abrechnungsmodell des Projekts zum Buchungszeitpunkt \u2014 wird mitgeschrieben, nie sp\u00e4ter abgeleitet"
+      "description": "Abrechnungsmodell des Projekts zum Buchungszeitpunkt"
     },
     "taetigkeit": {
       "type": "string",
       "enum": [
-        "Beratung",
-        "Konzept",
-        "Text",
-        "Grafik",
-        "Web",
-        "Media",
-        "QS"
-      ]
+        "beratung",
+        "vertrieb",
+        "umsetzung"
+      ],
+      "description": "Art der Arbeit in der Zeitbuchung \u2014 wird immer vorbelegt, die sieben Rollen bleiben der Aufgabenzuteilung"
     },
     "verrechenbar": {
       "type": "boolean",

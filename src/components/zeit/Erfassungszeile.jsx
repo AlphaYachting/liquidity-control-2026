@@ -103,7 +103,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
 
       <SchreibweiseHilfe />
 
-      <TaetigkeitWahl email={email} wert={taetigkeit} onWaehlen={setTaetigkeit} />
+      <TaetigkeitWahl wert={taetigkeit} onWaehlen={setTaetigkeit} />
 
       {listeOffen && (
         <TrefferListe

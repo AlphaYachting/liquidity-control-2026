@@ -3,6 +3,7 @@ import { Pencil, Trash2 } from 'lucide-react';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { minuteVonIso, uhr, dauerText, MODELL_TEXT, MODELL_FARBE } from '@/lib/zeit/tagesAuswertung';
 import VerrechenbarSchalter from './VerrechenbarSchalter';
+import TaetigkeitEtikett from './TaetigkeitEtikett';
 
 const Etikett = ({ children, farbe, flaeche }) => (
   <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-[2px]"
@@ -49,11 +50,11 @@ export default function BuchungZeile({
             {label.voll}
           </p>
           <p className="text-xs truncate" style={{ color: RITTLER.textSecondary }}>
-            {MODELL_TEXT[e.kategorie] || 'Zeitbuchung'} · {zaehler(e)}
-            {e.taetigkeit ? ` · ${e.taetigkeit}` : ''}{e.note ? ` · ${e.note}` : ''}
+            {MODELL_TEXT[e.kategorie] || 'Zeitbuchung'} · {zaehler(e)}{e.note ? ` · ${e.note}` : ''}
           </p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          <TaetigkeitEtikett eintrag={e} onGeaendert={onGeaendert} />
           {istKorrektur && (
             <Etikett farbe={STATUS_COLORS.attention} flaeche={STATUS_COLORS.attentionSurface}>Korrektur</Etikett>
           )}
