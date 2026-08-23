@@ -8,29 +8,11 @@ import { toast } from 'sonner';
 import { QUICK_FRAGEN } from '@/components/projects/projektIntelligenzFragen';
 import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntryDialog';
 
-const std = (min) => Math.round((min || 0) / 60);
-const eur = (v) => Math.round(v || 0).toLocaleString('de-AT');
-const kurz = (iso) => iso ? new Date(iso).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' }) : 'kein Termin gesetzt';
-
-function faktenBlock(kennzahlen, finanzen) {
-  if (!kennzahlen && !finanzen) return '';
-  const k = kennzahlen || {};
-  const f = finanzen || {};
-  return `Diese Werte sind bereits berechnet und verbindlich — verwende sie unverändert und leite sie nicht neu her:
-Aufgaben erledigt: ${k.erledigt || 0} von ${k.gesamt || 0} (${Math.round(k.erledigt_prozent || 0)} %)
-Zeitbudget: ${std(k.gebuchte_minuten)} von ${std(k.geplante_minuten)} Stunden (${k.budget_verbraucht_prozent === null || k.budget_verbraucht_prozent === undefined ? '—' : Math.round(k.budget_verbraucht_prozent)} %)
-blockierte Aufgaben: ${k.blockiert || 0}
-nächste Frist: ${kurz(k.naechste_frist)}
-Abrechnungsfortschritt: ${Math.round(f.billingPct || 0)} %
-Zahlungsfortschritt: ${Math.round(f.paymentPct || 0)} %
-Auftragswert netto: ${eur(f.orderNet)} EUR, davon fakturiert ${eur(f.invoicedNet)} EUR, bezahlt ${eur(f.paidGross)} EUR
-
-`;
-}
+import { faktenBlock } from '@/components/projects/intelligenzFakten';
 
 // Projektintelligenz als begleitendes Panel — die Seite dahinter bleibt sichtbar und bedienbar.
 export default function ProjectIntelligenceSheet({
-  open, onClose, projectId, projectName, customer, kennzahlen, finanzen,
+  open, onClose, projectId, projectName, customer, kennzahlen, finanzen, kontext,
 }) {
   const storageKey = `projectIntelligence.conversation.${projectId}`;
   const [conversation, setConversation] = useState(null);
@@ -42,7 +24,7 @@ export default function ProjectIntelligenceSheet({
 
   const projectLabel = [customer, projectName].filter(Boolean).join(' · ') || 'Projekt';
 
-  const contextPrefix = `Kontext: Es geht ausschließlich um das Projekt "${projectName || ''}" des Kunden "${customer || ''}" (LiquidityProject.id = ${projectId}). Lade dazu auch den digitalen Kundenakt (ProjectFileEntry nach project_id) und gewichte dokumentierte Vereinbarungen am stärksten.\n\n${faktenBlock(kennzahlen, finanzen)}Frage: `;
+  const contextPrefix = `Kontext: Ausgangspunkt ist das Projekt "${projectName || ''}" des Kunden "${customer || ''}" (LiquidityProject.id = ${projectId}). Hat der Kunde weitere Aufträge oder Projekte, nenne sie und sage, ob deine Antwort sie abdeckt. Triff keine Aussage über einen Auftrag, den du nicht geladen hast. Lade dazu auch den digitalen Kundenakt (ProjectFileEntry nach project_id) und gewichte dokumentierte Vereinbarungen am stärksten.\n\n${faktenBlock(kennzahlen, finanzen, kontext)}Frage: `;
 
   // Gespeichertes Gespräch beim Öffnen wiederherstellen
   useEffect(() => {
