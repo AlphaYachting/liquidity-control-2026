@@ -361,7 +361,6 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         onSync={handleAworkSync}
         isSyncing={isSyncing}
       />
-      <ProjektFaktenzeile projectId={projectId} aworkProjectId={effectiveAworkProjectId} />
       </div>
       </div>
 
