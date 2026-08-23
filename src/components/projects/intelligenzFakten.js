@@ -42,6 +42,7 @@ ${zeitbuchungZeile}
 nächste Frist: ${kurz(k.naechste_frist)}
 Abrechnungsfortschritt: ${Math.round(f.billingPct || 0)} %   Zahlungsfortschritt: ${Math.round(f.paymentPct || 0)} %
 
+Abrechnungsmodell: ${f.abrechnungsmodell || 'unbekannt'}
 Auftragswert netto: ${eur(f.orderNet)} EUR
 fakturiert netto: ${eur(f.invoicedNet)} EUR | fakturiert brutto: ${eur(f.invoicedGross)} EUR
 bezahlt netto: ${eur(f.paidNet)} EUR | bezahlt brutto: ${eur(f.paidGross)} EUR

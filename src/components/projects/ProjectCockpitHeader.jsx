@@ -67,6 +67,17 @@ export default function ProjectCockpitHeader({ project, embedded, onBack, onUpda
         <StatusBadge status={project.status} />
         <CommunicationStatusBadge customer={project.customer} />
         <select
+          value={project.abrechnungsmodell || 'unbekannt'}
+          onChange={e => onUpdate({ abrechnungsmodell: e.target.value })}
+          className="text-xs rounded-md px-2 py-1 border border-border cursor-pointer font-medium bg-muted text-muted-foreground"
+        >
+          <option value="unbekannt">Modell: unbekannt</option>
+          <option value="pauschal">Modell: Pauschal</option>
+          <option value="stundenkontingent">Modell: Stundenkontingent</option>
+          <option value="retainer">Modell: Retainer</option>
+          <option value="aufwand">Modell: nach Aufwand</option>
+        </select>
+        <select
           value={project.risk_status || 'none'}
           onChange={e => onUpdate({ risk_status: e.target.value })}
           className={`text-xs rounded-md px-2 py-1 border border-border cursor-pointer font-medium ${

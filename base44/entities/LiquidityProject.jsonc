@@ -33,6 +33,18 @@
         "other"
       ]
     },
+    "abrechnungsmodell": {
+      "type": "string",
+      "enum": [
+        "pauschal",
+        "stundenkontingent",
+        "retainer",
+        "aufwand",
+        "unbekannt"
+      ],
+      "default": "unbekannt",
+      "description": "Vertragsmodell \u2014 Bewertungsma\u00dfstab f\u00fcr Budgetaussagen"
+    },
     "source_sheet": {
       "type": "string"
     },

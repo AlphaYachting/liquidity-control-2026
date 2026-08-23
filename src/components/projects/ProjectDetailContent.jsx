@@ -283,6 +283,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
     warnings: fin?.warnings || [],
     unmatchedInvoiceCount: (fin?.likelyUnmatchedInvoices || []).length,
     commercialBaseSource: fin?.commercialBaseSource || '',
+    abrechnungsmodell: project?.abrechnungsmodell || 'unbekannt',
   };
   const intelligenzKontext = useProjektIntelligenzKontext({
     projectId,
