@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
+import { kuerzelVorschlag } from '@/lib/zeit/useProjektSuche';
 import { PROJECT_TYPES, PROJECT_TYPE_ORDER, projectTypeOf } from '@/components/sprint/projectTypes';
 import ProjectTypeFields from '@/components/sprint/ProjectTypeFields';
 
@@ -46,6 +47,7 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
     const data = {
       client_id: form.client_id,
       title: form.title,
+      kuerzel: (form.kuerzel || '').toLowerCase(),
       pm_email: form.pm_email,
       status: form.status,
       total_budget: Number(form.total_budget) || 0,
@@ -102,6 +104,15 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
             </Select>
           </div>
           <div><Label>Projekttitel *</Label><Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></div>
+          <div>
+            <Label>Kürzel (für die Zeiterfassung)</Label>
+            <Input
+              maxLength={5}
+              placeholder={kuerzelVorschlag(clients.find((c) => c.id === form.client_id)?.name || form.title)}
+              value={form.kuerzel || ''}
+              onChange={(e) => setForm((f) => ({ ...f, kuerzel: e.target.value.slice(0, 5) }))}
+            />
+          </div>
           <div><Label>Projektmanager (E-Mail) *</Label><Input type="email" value={form.pm_email} onChange={(e) => setForm((f) => ({ ...f, pm_email: e.target.value }))} /></div>
           <div>
             <Label>Status</Label>

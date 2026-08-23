@@ -17,6 +17,7 @@ export default function SprintProjekte() {
   const qc = useQueryClient();
   const [clientDialog, setClientDialog] = useState({ open: false, client: null });
   const [projectDialog, setProjectDialog] = useState({ open: false, project: null });
+  const [nurOhnePm, setNurOhnePm] = useState(false);
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => base44.auth.me() });
 
@@ -52,7 +53,10 @@ export default function SprintProjekte() {
   const { clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays } = data;
   const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
 
-  const zeilen = projects.map((project) => {
+  const ohnePmAnzahl = projects.filter((p) => !p.pm_email).length;
+  const sichtbar = nurOhnePm ? projects.filter((p) => !p.pm_email) : projects;
+
+  const zeilen = sichtbar.map((project) => {
     const projectSprints = sprints.filter((s) => s.project_id === project.id);
     const sprint = projectSprints.find((s) => s.status === 'laufend') || projectSprints.find((s) => s.status === 'geplant');
     if (!sprint) return { project, client: clientById[project.client_id], sprint: null, projectSprints };
@@ -108,7 +112,16 @@ export default function SprintProjekte() {
           <TabsTrigger value="kunden">Kunden ({clients.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="projekte" className="mt-4">
+        <TabsContent value="projekte" className="mt-4 space-y-3">
+          <button
+            type="button"
+            onClick={() => setNurOhnePm((v) => !v)}
+            className={`text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded border ${
+              nurOhnePm ? 'bg-primary text-white border-primary' : 'bg-white text-muted-foreground border-border'
+            }`}
+          >
+            Ohne Projektmanager zugeordnet ({ohnePmAnzahl})
+          </button>
           <div className="bg-white rounded-lg border border-border overflow-hidden">
             {zeilen.map((z) => (
               <div key={z.project.id} className="border-b border-[#eeeeee] last:border-0">
@@ -145,9 +158,11 @@ export default function SprintProjekte() {
                 )}
               </div>
             ))}
-            {projects.length === 0 && (
+            {zeilen.length === 0 && (
               <p className="p-10 text-center text-sm text-muted-foreground">
-                Noch kein Projekt — oben rechts über „Neu anlegen" starten.
+                {nurOhnePm
+                  ? 'Jedes Projekt hat einen Projektmanager.'
+                  : 'Noch kein Projekt — oben rechts über „Neu anlegen" starten.'}
               </p>
             )}
           </div>
