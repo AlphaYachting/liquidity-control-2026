@@ -10,7 +10,8 @@ import { useProjektSuche } from '@/lib/zeit/useProjektSuche';
 import { letzteTaetigkeit, merkeTaetigkeit } from '@/lib/zeit/taetigkeit';
 import TaetigkeitWahl from './TaetigkeitWahl';
 import TrefferListe from './TrefferListe';
-import VorschauEtiketten from './VorschauEtiketten';
+import VorschauSatz from './VorschauSatz';
+import SchreibweiseHilfe from './SchreibweiseHilfe';
 import SchnellProjektDialog from './SchnellProjektDialog';
 
 // Eine Zeile statt Reiter, Suchfeld, Stundenfeld und Notizfeld.
@@ -21,6 +22,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState(false);
   const [taetigkeit, setTaetigkeit] = useState(letzteTaetigkeit());
+  const [listeOffen, setListeOffen] = useState(true);
   const { suche, clients } = useProjektSuche(email);
 
   // Ein Klick auf ein Loch im Tagesstreifen setzt dessen Zeitfenster hierher.
@@ -36,6 +38,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
   const uebernehmen = (p) => {
     setGewaehlt(p);
     setAktiv(0);
+    setListeOffen(false);
   };
 
   const buchen = async () => {
@@ -87,29 +90,29 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
 
   return (
     <div className="p-5">
-      <p className="text-[11px] font-bold uppercase tracking-[2px]" style={{ color: RITTLER.textSecondary }}>
-        Zeit erfassen
-      </p>
       <Input
         autoFocus
-        className="mt-2"
         placeholder="ami 2,5 Wireframes überarbeitet"
         value={text}
-        onChange={(e) => { setText(e.target.value); setGewaehlt(null); }}
+        onChange={(e) => { setText(e.target.value); setGewaehlt(null); setListeOffen(true); }}
         onKeyDown={tasten}
       />
 
-      <VorschauEtiketten projekt={projekt} fenster={fenster} minuten={minuten} notiz={notiz} />
+      <VorschauSatz projekt={projekt} fenster={fenster} minuten={minuten} notiz={notiz} taetigkeit={taetigkeit} />
+
+      <SchreibweiseHilfe />
 
       <TaetigkeitWahl email={email} wert={taetigkeit} onWaehlen={setTaetigkeit} />
 
-      <TrefferListe
-        treffer={treffer}
-        aktiv={aktiv}
-        wort={projektWort}
-        onWaehlen={uebernehmen}
-        onAnlegen={() => setDialog(true)}
-      />
+      {listeOffen && (
+        <TrefferListe
+          treffer={treffer}
+          aktiv={aktiv}
+          wort={projektWort}
+          onWaehlen={uebernehmen}
+          onAnlegen={() => setDialog(true)}
+        />
+      )}
 
       <div className="flex gap-2 mt-3">
         <button

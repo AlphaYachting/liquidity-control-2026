@@ -8,6 +8,8 @@ import { useTimer } from '@/lib/sprint/useTimer';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import TimerKarte from './TimerKarte';
 import Erfassungszeile from '@/components/zeit/Erfassungszeile';
+import ErfassungsFenster from '@/components/zeit/ErfassungsFenster';
+import SchnellProjekte from '@/components/zeit/SchnellProjekte';
 
 // Knopf im Sprint-Modul und bei laufendem Timer — die Zeile selbst ist überall mit T erreichbar.
 export default function TimerKnopf() {
@@ -17,6 +19,7 @@ export default function TimerKnopf() {
   const email = user?.email;
   const { timer, running, label, start, stop } = useTimer(email);
   const [offen, setOffen] = useState(false);
+  const [tippzeile, setTippzeile] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -42,8 +45,8 @@ export default function TimerKnopf() {
     return res;
   };
 
-  const stoppen = async () => {
-    const res = await stop();
+  const stoppen = async (note, abzugMinuten) => {
+    const res = await stop(note, abzugMinuten);
     setOffen(false);
     qc.invalidateQueries({ queryKey: ['sprintHeute'] });
     qc.invalidateQueries({ queryKey: ['projektKontext'] });
@@ -86,17 +89,17 @@ export default function TimerKnopf() {
       )}
 
       {offen && (
-        <div className="fixed inset-0 z-50" onClick={() => setOffen(false)}>
-          <div className="absolute inset-0 bg-black/25" />
-          <div
-            className="absolute left-0 right-0 bottom-0 bg-white rounded-t-xl sm:left-auto sm:bottom-24 sm:right-6 sm:w-[420px] sm:rounded-lg shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {running
-              ? <TimerKarte timer={timer} label={label} schmal={!imSprintModul} onStop={stoppen} />
-              : <Erfassungszeile email={email} onStart={starten} onBooked={gebucht} />}
-          </div>
-        </div>
+        <ErfassungsFenster onClose={() => { setOffen(false); setTippzeile(false); }}>
+          {running ? (
+            <TimerKarte timer={timer} label={label} schmal={!imSprintModul} onStop={stoppen} />
+          ) : tippzeile ? (
+            <Erfassungszeile email={email} onStart={starten} onBooked={gebucht} />
+          ) : (
+            <div className="p-5">
+              <SchnellProjekte email={email} onStart={starten} onTippzeile={() => setTippzeile(true)} />
+            </div>
+          )}
+        </ErfassungsFenster>
       )}
     </>
   );

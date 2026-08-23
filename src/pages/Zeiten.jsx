@@ -125,12 +125,18 @@ export default function Zeiten() {
       />
 
       <div className="bg-white rounded border" style={{ borderColor: RITTLER.line }}>
-        <Erfassungszeile
-          email={email}
-          tag={tag}
-          vorbelegung={vorbelegung}
-          onBooked={() => { setVorbelegung(null); refresh(); }}
-        />
+        {tag > todayIso() ? (
+          <p className="p-5 text-sm" style={{ color: RITTLER.textSecondary }}>
+            Dieser Tag ist noch nicht dran — hier lässt sich erst ab dem Tag selbst erfassen.
+          </p>
+        ) : (
+          <Erfassungszeile
+            email={email}
+            tag={tag}
+            vorbelegung={vorbelegung}
+            onBooked={() => { setVorbelegung(null); refresh(); }}
+          />
+        )}
       </div>
 
       <Tagesstreifen

@@ -162,13 +162,14 @@ export function useTimer(email) {
 
   const refresh = useCallback(() => qc.invalidateQueries({ queryKey: ['laufendeZeitbuchung', email] }), [qc, email]);
 
-  const stop = useCallback(async (note = '') => {
+  // Pausenminuten werden von der gemessenen Dauer abgezogen.
+  const stop = useCallback(async (note = '', abzugMinuten = 0) => {
     const aktuell = await laufendeVon(email);
     if (!aktuell) {
       await refresh();
       return null;
     }
-    const minuten = minutenSeit(aktuell.gestartet_am);
+    const minuten = Math.max(0, minutenSeit(aktuell.gestartet_am) - (Number(abzugMinuten) || 0));
     const ende = new Date().toISOString();
     await bucheZeit({
       projectId: aktuell.project_id,
