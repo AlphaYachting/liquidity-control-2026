@@ -38,6 +38,7 @@ import ProjektKommunikationBlock from '@/components/projects/ProjektKommunikatio
 import ProjectCockpitHeader from '@/components/projects/ProjectCockpitHeader';
 import ProjectProgressBlock from '@/components/projects/ProjectProgressBlock';
 import ProjektAufgabenListe from '@/components/projects/ProjektAufgabenListe';
+import ProjektFaktenzeile from '@/components/projects/ProjektFaktenzeile';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
 import Sektion from '@/components/projects/Sektion';
@@ -341,7 +342,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
       </div>
 
       {/* Gemeinsame Kontextzeile beider Reiter — awork-Bezug + Fakten */}
-      <div className="border-t border-border/60 pt-3">
+      <div className="border-t border-border/60 pt-3 space-y-2">
       <AworkStatusBar
         data={aworkData}
         projectId={projectId}
@@ -349,6 +350,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         onSync={handleAworkSync}
         isSyncing={isSyncing}
       />
+      <ProjektFaktenzeile projectId={projectId} aworkProjectId={effectiveAworkProjectId} />
       </div>
       </div>
 
