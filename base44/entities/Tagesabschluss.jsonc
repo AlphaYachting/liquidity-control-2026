@@ -33,6 +33,16 @@
       "default": 480,
       "description": "Sollarbeitszeit des Tages in Minuten"
     },
+    "grund": {
+      "type": "string",
+      "enum": [
+        "erfasst",
+        "frei",
+        "abwesend"
+      ],
+      "default": "erfasst",
+      "description": "erfasst = Zeiten gebucht, frei = Urlaub/Krankheit/Feiertag, abwesend = aus FocusDay abgeleitet"
+    },
     "bestaetigt_am": {
       "type": "string",
       "format": "date-time",
@@ -70,6 +80,16 @@
         {
           "user_condition": {
             "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "system_role": "pm"
+          }
+        },
+        {
+          "user_condition": {
+            "system_role": "gf"
           }
         }
       ]
