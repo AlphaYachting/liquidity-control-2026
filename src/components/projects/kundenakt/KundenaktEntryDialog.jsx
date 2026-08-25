@@ -10,16 +10,14 @@ import VoiceFeedbackInput from '@/components/crm/emails/VoiceFeedbackInput';
 import { ENTRY_TYPES } from '@/components/projects/kundenakt/kundenaktConfig';
 import KundenaktZusageFelder from '@/components/projects/kundenakt/KundenaktZusageFelder';
 
-const heuteIso = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+import { heuteIso, projektstandBlock } from '@/components/projects/kundenakt/kundenaktAusformulierung';
 
 // Overlay zur Erfassung eines Kundenakt-Eintrags: tippen oder einsprechen,
 // optional Dokument anhängen, Typ und Titel schlägt die Projektintelligenz vor.
 export default function KundenaktEntryDialog({
   open, onClose, projectId, projectName, customer, onSaved,
   initialEntryType, initialTitle, initialContent, autoAnalyse,
+  initialSummary, initialDate, initialParticipants, initialFollowUpText, initialFollowUpDate,
   kennzahlen, finanzen,
 }) {
   const [entryType, setEntryType] = useState(initialEntryType || 'update');
@@ -54,31 +52,19 @@ export default function KundenaktEntryDialog({
     if (initialEntryType) setEntryType(initialEntryType);
     if (initialTitle !== undefined) setTitle(initialTitle || '');
     if (initialContent !== undefined) setContent(initialContent || '');
+    if (initialSummary !== undefined) setSummary(initialSummary || '');
+    if (initialDate) setGespraechsDatum(initialDate);
+    if (initialParticipants !== undefined) setParticipants(initialParticipants || '');
+    if (initialFollowUpText || initialFollowUpDate) {
+      setFollowUpText(initialFollowUpText || '');
+      setFollowUpDate(initialFollowUpDate || '');
+      setZusageOffen(true);
+    }
     if (autoAnalyse && initialContent) analyse(initialContent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialEntryType, initialTitle, initialContent, autoAnalyse]);
 
   const close = () => { reset(); onClose(); };
-
-  // Bereits berechnete Kennzahlen — das Modell soll sie nicht neu herleiten
-  const projektstand = () => {
-    if (!kennzahlen && !finanzen) return '';
-    const std = (m) => Math.round((m || 0) / 60);
-    const teile = [];
-    if (kennzahlen) {
-      teile.push(`Aufgaben erledigt ${kennzahlen.erledigt} von ${kennzahlen.gesamt}`);
-      teile.push(`Zeitbudget ${std(kennzahlen.gebuchte_minuten)} von ${std(kennzahlen.geplante_minuten)} Stunden`);
-      teile.push(`${kennzahlen.blockiert} blockiert`);
-      teile.push(`nächste Frist ${kennzahlen.naechste_frist
-        ? new Date(kennzahlen.naechste_frist).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' })
-        : 'keine'}`);
-    }
-    if (finanzen) {
-      teile.push(`Auftragswert netto ${Math.round(finanzen.orderNet || 0)} EUR`);
-      teile.push(`fakturiert ${Math.round(finanzen.invoicedNet || 0)} EUR`);
-    }
-    return `Aktueller Projektstand (verbindlich, nicht neu herleiten):\n${teile.join(', ')}.`;
-  };
 
   const analyse = async (textOverride) => {
     const eingabe = textOverride ?? content;
@@ -88,7 +74,7 @@ export default function KundenaktEntryDialog({
         prompt: `Du unterstützt den digitalen Kundenakt der Agentur Rittler & Co.
 Heutiges Datum: ${heuteIso()}
 Projekt: ${projectName || '—'} | Kunde: ${customer || '—'}
-${projektstand()}
+${projektstandBlock(kennzahlen, finanzen)}
 Eingabe des Mitarbeiters (getippt oder eingesprochen):
 """${eingabe}"""
 ${file ? `Angehängtes Dokument: ${file.name}` : ''}
