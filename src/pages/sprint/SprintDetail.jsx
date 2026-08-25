@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { BrainCircuit } from 'lucide-react';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
 import FesthaltenKnopf from '@/components/projects/kundenakt/FesthaltenKnopf';
+import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
+import useKundenaktProjektId from '@/hooks/useKundenaktProjektId';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
 export default function SprintDetail() {
