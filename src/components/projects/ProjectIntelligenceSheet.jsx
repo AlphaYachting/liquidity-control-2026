@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { BrainCircuit, Send, RotateCcw, FolderPlus } from 'lucide-react';
+import { BrainCircuit, Send, RotateCcw, FolderPlus, Mic, Square } from 'lucide-react';
+import useSpracheingabe from '@/lib/useSpracheingabe';
 import MessageBubble from '@/components/agent/MessageBubble';
 import { toast } from 'sonner';
 import { QUICK_FRAGEN } from '@/components/projects/projektIntelligenzFragen';
@@ -21,6 +22,7 @@ export default function ProjectIntelligenceSheet({
   const [sending, setSending] = useState(false);
   const [aktEntry, setAktEntry] = useState(null);
   const endRef = useRef(null);
+  const sprache = useSpracheingabe(setInput);
 
   const projectLabel = [customer, projectName].filter(Boolean).join(' · ') || 'Projekt';
 
@@ -148,18 +150,38 @@ export default function ProjectIntelligenceSheet({
             <div ref={endRef} />
           </div>
 
-          <div className="p-3 border-t bg-card shrink-0 flex gap-2">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-              rows={2}
-              placeholder="Frage zu diesem Projekt… (Enter zum Senden)"
-              className="flex-1 resize-none rounded-xl border bg-background px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-            <Button onClick={() => send()} disabled={!input.trim() || sending} size="icon" className="rounded-xl">
-              <Send className="w-4 h-4" />
-            </Button>
+          <div className="p-3 border-t bg-card shrink-0 space-y-1.5">
+            <div className="flex gap-2">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+                rows={2}
+                placeholder="Frage zu diesem Projekt… (Enter zum Senden)"
+                className="flex-1 resize-none rounded-xl border bg-background px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              {sprache.supported && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={sprache.listening ? 'destructive' : 'outline'}
+                  className="rounded-xl"
+                  title={sprache.listening ? 'Aufnahme stoppen' : 'Frage einsprechen'}
+                  onClick={() => (sprache.listening ? sprache.stop() : sprache.start(input))}
+                >
+                  {sprache.listening ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </Button>
+              )}
+              <Button onClick={() => send()} disabled={!input.trim() || sending} size="icon" className="rounded-xl">
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
+            {sprache.listening && (
+              <p className="text-[10px] text-destructive flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
+                Aufnahme läuft — der gesprochene Text erscheint live im Feld.
+              </p>
+            )}
           </div>
         </SheetContent>
       </Sheet>
