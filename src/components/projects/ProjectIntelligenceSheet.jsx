@@ -15,6 +15,7 @@ import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntry
 import { faktenBlock } from '@/components/projects/intelligenzFakten';
 
 const MARKER = '[FESTHALTEN_ANGEBOTEN]';
+const GESPEICHERT_HINWEIS = 'Soeben wurde folgender Eintrag im Kundenakt gespeichert:';
 
 // Projektintelligenz als begleitendes Panel — die Seite dahinter bleibt sichtbar und bedienbar.
 export default function ProjectIntelligenceSheet({
@@ -207,17 +208,18 @@ Bestätige den Eintrag in einem Satz und nenne dann höchstens zwei Konsequenzen
             ) : (
               messages.map((m, i) => {
                 const text = typeof m.content === 'string' ? m.content : '';
-                const angebot = m.role === 'assistant' && text.includes(MARKER);
-                const sichtbar = angebot ? { ...m, content: text.replace(MARKER, '').trimEnd() } : m;
-                const vorherigeEingabe = () => {
-                  const vor = messages[i - 1];
-                  const roh = typeof vor?.content === 'string' ? vor.content : '';
-                  return roh.split('Frage: ').pop().trim();
-                };
+                const vorText = typeof messages[i - 1]?.content === 'string' ? messages[i - 1].content : '';
+                // Antwort auf eine Speicher-Quittung — hier keine weiteren Festhalte-Angebote,
+                // sonst dreht sich die Erfassung im Kreis.
+                const istQuittung = m.role === 'assistant' && vorText.includes(GESPEICHERT_HINWEIS);
+                const angebot = m.role === 'assistant' && text.includes(MARKER) && !istQuittung;
+                const sichtbar = text.includes(MARKER)
+                  ? { ...m, content: text.replace(MARKER, '').trimEnd() } : m;
+                const vorherigeEingabe = () => vorText.split('Frage: ').pop().trim();
                 return (
                   <div key={m.id || `${m.role}-${i}`} className="space-y-1">
                     <MessageBubble message={sichtbar} />
-                    {m.role === 'assistant' && text.trim() && (
+                    {m.role === 'assistant' && text.trim() && !istQuittung && (
                       <div className="flex flex-wrap items-center gap-3">
                         <button onClick={() => uebernehmen(m)}
                           className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
