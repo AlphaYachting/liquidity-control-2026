@@ -50,6 +50,12 @@ export default function SprintDetail() {
     },
   });
 
+  const { projektId: aktProjektId } = useKundenaktProjektId({
+    customer: data?.client?.name,
+    title: data?.project?.title,
+    fallbackId: data?.sprint?.project_id,
+  });
+
   if (isLoading || !data) {
     return (
       <div className="max-w-[1200px] mx-auto space-y-4">
@@ -84,6 +90,7 @@ export default function SprintDetail() {
         <div className="flex items-center justify-between gap-3">
           <TabsList>
             <TabsTrigger value="uebersicht">Projektübersicht</TabsTrigger>
+            <TabsTrigger value="kundenakt">Kundenakt</TabsTrigger>
             <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
             <TabsTrigger value="kommentare">Kommentare & Notizen</TabsTrigger>
             <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
@@ -124,6 +131,15 @@ export default function SprintDetail() {
           </div>
         </TabsContent>
 
+        <TabsContent value="kundenakt" className="mt-4">
+          <KundenaktTab
+            projectId={aktProjektId}
+            projectName={project?.title}
+            customer={client?.name}
+            onFesthalten={() => oeffneIntelligenz('erfassung')}
+          />
+        </TabsContent>
+
         <TabsContent value="abrechnung" className="mt-4">
           <AbrechnungSektion project={project} milestones={milestones} tickets={tickets} />
         </TabsContent>
@@ -149,7 +165,7 @@ export default function SprintDetail() {
         open={intelligenzOffen}
         startModus={intelligenzModus}
         onClose={() => setIntelligenzOffen(false)}
-        projectId={sprint.project_id}
+        projectId={aktProjektId}
         projectName={project?.title}
         customer={client?.name}
       />
