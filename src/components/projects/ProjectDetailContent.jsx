@@ -396,9 +396,9 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
           <TabsTrigger value="stand" className={TAB_CLS}>Projektverlauf</TabsTrigger>
           <TabsTrigger value="abrechnung" className={TAB_CLS}>Abrechnung</TabsTrigger>
         </TabsList>
-          <Button size="sm" variant="ghost" className="gap-2 shrink-0 text-primary hover:text-primary"
+          <Button size="sm" className="gap-2 shrink-0 mb-1 shadow-sm"
             onClick={() => setShowIntelligence(true)}>
-            <BrainCircuit className="w-3.5 h-3.5" /> Projektintelligenz fragen
+            <BrainCircuit className="w-4 h-4" /> Projektintelligenz
           </Button>
         </div>
 

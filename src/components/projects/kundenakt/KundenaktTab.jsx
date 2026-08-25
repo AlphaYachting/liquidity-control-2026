@@ -26,8 +26,9 @@ export default function KundenaktTab({ projectId, projectName, customer }) {
       titel="Kundenakt"
       symbol={FolderOpen}
       aktion={
-        <Button size="sm" onClick={() => setShowDialog(true)} className="gap-2 shrink-0">
-          <Plus className="w-3.5 h-3.5" /> Eintrag erfassen
+        <Button size="sm" variant="outline" onClick={() => setShowDialog(true)}
+          className="gap-2 shrink-0 text-muted-foreground">
+          <Plus className="w-3.5 h-3.5" /> Manuell erfassen
         </Button>
       }
     >
