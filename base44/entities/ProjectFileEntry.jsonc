@@ -43,6 +43,24 @@
     "ai_summary": {
       "type": "string",
       "description": "Kernaussage aus der Projektintelligenz"
+    },
+    "follow_up_text": {
+      "type": "string",
+      "description": "Was zugesagt wurde, in einem Satz"
+    },
+    "follow_up_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Bis wann die Zusage erf\u00fcllt sein muss"
+    },
+    "follow_up_done": {
+      "type": "boolean",
+      "default": false,
+      "description": "Zusage erledigt"
+    },
+    "participants": {
+      "type": "string",
+      "description": "Wer am Gespr\u00e4ch beteiligt war"
     }
   },
   "required": [
