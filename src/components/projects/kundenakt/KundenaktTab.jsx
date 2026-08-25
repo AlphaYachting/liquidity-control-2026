@@ -3,14 +3,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, FolderOpen } from 'lucide-react';
+import { PenLine, FolderOpen } from 'lucide-react';
 import Sektion from '@/components/projects/Sektion';
 import KundenaktTimeline from '@/components/projects/kundenakt/KundenaktTimeline';
 import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntryDialog';
 
 // Digitaler Kundenakt des Projekts — Vereinbarungen, Updates und Dokumente
 // als Timeline, neueste Eingabe oben.
-export default function KundenaktTab({ projectId, projectName, customer }) {
+export default function KundenaktTab({ projectId, projectName, customer, onFesthalten }) {
   const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
 
@@ -26,9 +26,8 @@ export default function KundenaktTab({ projectId, projectName, customer }) {
       titel="Kundenakt"
       symbol={FolderOpen}
       aktion={
-        <Button size="sm" variant="outline" onClick={() => setShowDialog(true)}
-          className="gap-2 shrink-0 text-muted-foreground">
-          <Plus className="w-3.5 h-3.5" /> Manuell erfassen
+        <Button size="sm" onClick={onFesthalten} className="gap-2 shrink-0">
+          <PenLine className="w-3.5 h-3.5" /> Festhalten
         </Button>
       }
     >

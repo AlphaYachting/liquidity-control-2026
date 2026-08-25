@@ -42,7 +42,7 @@ import ProjektFaktenzeile from '@/components/projects/ProjektFaktenzeile';
 import useProjektAufgaben from '@/hooks/useProjektAufgaben';
 import useProjektIntelligenzKontext from '@/hooks/useProjektIntelligenzKontext';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
-import WasIstPassiertZeile from '@/components/projects/kundenakt/WasIstPassiertZeile';
+import FesthaltenKnopf from '@/components/projects/kundenakt/FesthaltenKnopf';
 import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntryDialog';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
 import Sektion from '@/components/projects/Sektion';
@@ -67,6 +67,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem(TAB_STORAGE_KEY) || 'stand');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showIntelligence, setShowIntelligence] = useState(false);
+  const [intelligenzModus, setIntelligenzModus] = useState('frage');
   const [aktEingabe, setAktEingabe] = useState(null); // { text, analyse }
   const [editingPM, setEditingPM] = useState(false);
   const [pmValue, setPmValue] = useState('');
@@ -378,10 +379,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         onSync={handleAworkSync}
         isSyncing={isSyncing}
       />
-      <WasIstPassiertZeile
-        onFesthalten={(text) => setAktEingabe({ text, analyse: false })}
-        onStrukturieren={(text) => setAktEingabe({ text, analyse: true })}
-      />
+      <FesthaltenKnopf onFesthalten={() => { setIntelligenzModus('erfassung'); setShowIntelligence(true); }} />
       </div>
       </div>
 
@@ -397,7 +395,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
           <TabsTrigger value="abrechnung" className={TAB_CLS}>Abrechnung</TabsTrigger>
         </TabsList>
           <Button size="sm" className="gap-2 shrink-0 mb-1 shadow-sm"
-            onClick={() => setShowIntelligence(true)}>
+            onClick={() => { setIntelligenzModus('frage'); setShowIntelligence(true); }}>
             <BrainCircuit className="w-4 h-4" /> Projektintelligenz
           </Button>
         </div>
@@ -407,6 +405,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
             projectId={projectId}
             projectName={project.project_name}
             customer={project.customer}
+            onFesthalten={() => { setIntelligenzModus('erfassung'); setShowIntelligence(true); }}
           />
         </TabsContent>
 
@@ -774,6 +773,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
 
       <ProjectIntelligenceSheet
         open={showIntelligence}
+        startModus={intelligenzModus}
         onClose={() => setShowIntelligence(false)}
         projectId={projectId}
         projectName={project.project_name}

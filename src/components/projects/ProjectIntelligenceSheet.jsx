@@ -18,7 +18,7 @@ const MARKER = '[FESTHALTEN_ANGEBOTEN]';
 
 // Projektintelligenz als begleitendes Panel — die Seite dahinter bleibt sichtbar und bedienbar.
 export default function ProjectIntelligenceSheet({
-  open, onClose, projectId, projectName, customer, kennzahlen, finanzen, kontext,
+  open, onClose, projectId, projectName, customer, kennzahlen, finanzen, kontext, startModus = 'frage',
 }) {
   const [gespraech, setGespraech] = useState(null); // gespeicherter Datensatz je Projekt
   const [conversation, setConversation] = useState(null);
@@ -33,6 +33,7 @@ export default function ProjectIntelligenceSheet({
   const [formuliert, setFormuliert] = useState(false);
   const [speichernd, setSpeichernd] = useState(false);
   const endRef = useRef(null);
+  const feldRef = useRef(null);
   const sprache = useSpracheingabe(setInput);
 
   const projectLabel = [customer, projectName].filter(Boolean).join(' · ') || 'Projekt';
@@ -66,6 +67,14 @@ export default function ProjectIntelligenceSheet({
   }, [conversation?.id]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' }); }, [messages.length]);
+
+  // Beim Öffnen den gewünschten Modus setzen und den Cursor direkt ins Feld legen
+  useEffect(() => {
+    if (!open) return;
+    setModus(startModus);
+    const t = setTimeout(() => feldRef.current?.focus(), 120);
+    return () => clearTimeout(t);
+  }, [open, startModus]);
 
   const neuesGespraech = async () => {
     if (gespraech) await base44.entities.ProjektIntelligenzGespraech.delete(gespraech.id);
@@ -183,11 +192,11 @@ Bestätige den Eintrag in einem Satz und nenne dann höchstens zwei Konsequenzen
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
             {messages.length === 0 ? (
               <div className="space-y-2">
-                <ProjektupdateEinstieg onStart={() => setModus('erfassung')} />
                 <p className="text-sm text-muted-foreground">
-                  Frag die Projektintelligenz zu diesem Projekt — sie kennt Auftrag, awork-Daten,
-                  Rechnungen, Kommunikation und den Kundenakt.
+                  Frag zu diesem Projekt oder halte fest, was passiert ist — die Projektintelligenz
+                  kennt Auftrag, awork-Daten, Rechnungen, Kommunikation und den Kundenakt.
                 </p>
+                <ProjektupdateEinstieg onStart={() => { setModus('erfassung'); feldRef.current?.focus(); }} />
                 {QUICK_FRAGEN.map((q, i) => (
                   <button key={i} onClick={() => send(q.text)} disabled={sending}
                     className="block w-full text-left text-sm px-3 py-2 rounded-xl border bg-card hover:bg-muted transition-colors disabled:opacity-50">
@@ -277,6 +286,7 @@ Bestätige den Eintrag in einem Satz und nenne dann höchstens zwei Konsequenzen
             )}
             <div className="flex gap-2">
               <textarea
+                ref={feldRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
