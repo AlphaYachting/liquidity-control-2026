@@ -42,6 +42,8 @@ import ProjektFaktenzeile from '@/components/projects/ProjektFaktenzeile';
 import useProjektAufgaben from '@/hooks/useProjektAufgaben';
 import useProjektIntelligenzKontext from '@/hooks/useProjektIntelligenzKontext';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
+import WasIstPassiertZeile from '@/components/projects/kundenakt/WasIstPassiertZeile';
+import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntryDialog';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
 import Sektion from '@/components/projects/Sektion';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -65,6 +67,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem(TAB_STORAGE_KEY) || 'stand');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showIntelligence, setShowIntelligence] = useState(false);
+  const [aktEingabe, setAktEingabe] = useState(null); // { text, analyse }
   const [editingPM, setEditingPM] = useState(false);
   const [pmValue, setPmValue] = useState('');
   const [showAworkPicker, setShowAworkPicker] = useState(false);
@@ -374,6 +377,10 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         onSelectProject={() => setShowAworkPicker(true)}
         onSync={handleAworkSync}
         isSyncing={isSyncing}
+      />
+      <WasIstPassiertZeile
+        onFesthalten={(text) => setAktEingabe({ text, analyse: false })}
+        onStrukturieren={(text) => setAktEingabe({ text, analyse: true })}
       />
       </div>
       </div>
@@ -751,6 +758,19 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
           onClose={() => setShowDeleteDialog(false)}
         />
       )}
+
+      <KundenaktEntryDialog
+        open={!!aktEingabe}
+        onClose={() => setAktEingabe(null)}
+        projectId={projectId}
+        projectName={project.project_name}
+        customer={project.customer}
+        initialContent={aktEingabe?.text || ''}
+        autoAnalyse={aktEingabe?.analyse}
+        kennzahlen={aufgabenKennzahlen}
+        finanzen={intelligenzFinanzen}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ['projektZusagen', projectId] })}
+      />
 
       <ProjectIntelligenceSheet
         open={showIntelligence}
