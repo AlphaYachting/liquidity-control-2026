@@ -120,6 +120,39 @@ Deno.serve(async (req) => {
       maxLevelByInvoice[key] = Math.max(maxLevelByInvoice[key] || 0, r.dunning_level || 0);
     }
 
+    // 3b. Rückabgleich: Entwürfe, die in sevDesk bereits versendet/festgeschrieben wurden, übernehmen
+    const nochOffeneEntwuerfe = existingRecords.filter(
+      r => r.status === 'draft_created' && r.sevdesk_reminder_id
+        && openInvoiceIds.has(String(r.sevdesk_invoice_id))
+    );
+    const versendetUpdates = [];
+    for (let i = 0; i < nochOffeneEntwuerfe.length; i += 5) {
+      const chunk = nochOffeneEntwuerfe.slice(i, i + 5);
+      const geladen = await Promise.all(chunk.map(async (r) => {
+        const d = await sevdeskGet(`/Invoice/${r.sevdesk_reminder_id}`, apiKey).catch(() => null);
+        return { r, mahnung: d?.objects?.[0] || null };
+      }));
+      for (const { r, mahnung } of geladen) {
+        if (!mahnung) continue;
+        const versendet = parseInt(mahnung.status || '0', 10) >= 200;
+        if (!versendet) continue;
+        versendetUpdates.push({
+          id: r.id,
+          status: 'approved',
+          approved_by: 'sevDesk',
+          approved_at: mahnung.sendDate || new Date().toISOString(),
+        });
+      }
+    }
+    let versendetErkannt = versendetUpdates.length;
+    if (!dryRun && versendetUpdates.length > 0) {
+      await base44.asServiceRole.entities.DunningRecord.bulkUpdate(versendetUpdates);
+      for (const u of versendetUpdates) {
+        const rec = existingRecords.find(x => x.id === u.id);
+        if (rec) rec.status = 'approved';
+      }
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -228,6 +261,7 @@ Deno.serve(async (req) => {
       checked: candidates.length,
       created: dryRun ? results.length : created,
       closed,
+      already_sent: versendetErkannt,
       skipped,
       errors_count: errorsCount,
       errors: errors.slice(0, 10),

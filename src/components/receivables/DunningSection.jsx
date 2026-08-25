@@ -82,7 +82,8 @@ export default function DunningSection() {
       {runResult && (
         <p className="text-xs text-emerald-700">
           Mahnlauf abgeschlossen: {runResult.checked} Rechnungen geprüft, {runResult.created} neue Mahnentwürfe,
-          {' '}{runResult.closed || 0} bezahlte Entwürfe geschlossen, {runResult.skipped} übersprungen
+          {' '}{runResult.closed || 0} bezahlte Entwürfe geschlossen, {runResult.already_sent || 0} in sevDesk bereits versendet,
+          {' '}{runResult.skipped} übersprungen
           {runResult.errors_count > 0 ? `, ${runResult.errors_count} Fehler` : ''}.
         </p>
       )}
