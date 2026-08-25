@@ -53,11 +53,13 @@
       "type": "string",
       "enum": [
         "draft_created",
+        "closed_paid",
         "approved",
         "rejected",
         "error"
       ],
-      "default": "draft_created"
+      "default": "draft_created",
+      "description": "closed_paid = Entwurf automatisch geschlossen, weil die Rechnung in sevDesk nicht mehr offen ist"
     },
     "error_message": {
       "type": "string"

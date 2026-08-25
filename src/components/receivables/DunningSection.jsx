@@ -36,10 +36,11 @@ export default function DunningSection() {
 
   const pending = records.filter(r => r.status === 'draft_created');
 
-  // Sortierung: nicht abgelehnte zuerst (Zahlungserinnerung vor Mahnungen), Abgelehnte ganz unten
+  // Sortierung: offene Vorgänge zuerst, abgelehnte und bezahlte ganz unten
+  const abgeschlossen = (s) => (s === 'rejected' || s === 'closed_paid' ? 1 : 0);
   const sortedRecords = [...records].sort((a, b) => {
-    const aRejected = a.status === 'rejected' ? 1 : 0;
-    const bRejected = b.status === 'rejected' ? 1 : 0;
+    const aRejected = abgeschlossen(a.status);
+    const bRejected = abgeschlossen(b.status);
     if (aRejected !== bRejected) return aRejected - bRejected;
     if ((a.dunning_level || 1) !== (b.dunning_level || 1)) return (a.dunning_level || 1) - (b.dunning_level || 1);
     return (b.created_date || '').localeCompare(a.created_date || '');
@@ -80,7 +81,8 @@ export default function DunningSection() {
       )}
       {runResult && (
         <p className="text-xs text-emerald-700">
-          Mahnlauf abgeschlossen: {runResult.checked} Rechnungen geprüft, {runResult.created} neue Mahnentwürfe, {runResult.skipped} übersprungen
+          Mahnlauf abgeschlossen: {runResult.checked} Rechnungen geprüft, {runResult.created} neue Mahnentwürfe,
+          {' '}{runResult.closed || 0} bezahlte Entwürfe geschlossen, {runResult.skipped} übersprungen
           {runResult.errors_count > 0 ? `, ${runResult.errors_count} Fehler` : ''}.
         </p>
       )}

@@ -48,6 +48,8 @@ function parseAmount(val) {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+const today0Iso = () => new Date().toISOString().slice(0, 10);
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -91,6 +93,26 @@ Deno.serve(async (req) => {
 
     // 3. Bestehende Mahnvorgänge laden — Deduplizierung pro (Rechnung, Stufe)
     const existingRecords = await base44.asServiceRole.entities.DunningRecord.list(null, 2000);
+
+    // 3a. Rückabgleich: offene Entwürfe zu Rechnungen, die in sevDesk nicht mehr offen sind, schließen
+    const openInvoiceIds = new Set(allRaw.map(i => String(i.id)));
+    const stale = existingRecords.filter(
+      r => r.status === 'draft_created' && r.sevdesk_invoice_id && !openInvoiceIds.has(String(r.sevdesk_invoice_id))
+    );
+    let closed = 0;
+    if (!dryRun && stale.length > 0) {
+      await base44.asServiceRole.entities.DunningRecord.bulkUpdate(
+        stale.map(r => ({
+          id: r.id,
+          status: 'closed_paid',
+          notes: [r.notes, `Automatisch geschlossen am ${today0Iso()} — Rechnung in sevDesk nicht mehr offen.`]
+            .filter(Boolean).join(' ').slice(0, 1000),
+        }))
+      );
+      closed = stale.length;
+    } else if (dryRun) {
+      closed = stale.length;
+    }
     const maxLevelByInvoice = {};
     for (const r of existingRecords) {
       const key = r.sevdesk_invoice_id;
@@ -196,7 +218,7 @@ Deno.serve(async (req) => {
         entity_type: 'dunning_run',
         entity_id: 'daily_check',
         user_email: user?.email || 'system',
-        details: `Mahnlauf: ${candidates.length} geprüft, ${created} Mahnentwürfe erstellt, ${skipped} übersprungen, ${errorsCount} Fehler`
+        details: `Mahnlauf: ${candidates.length} geprüft, ${created} Mahnentwürfe erstellt, ${closed} bezahlte Entwürfe geschlossen, ${skipped} übersprungen, ${errorsCount} Fehler`
       }).catch(() => null);
     }
 
@@ -205,6 +227,7 @@ Deno.serve(async (req) => {
       dry_run: dryRun,
       checked: candidates.length,
       created: dryRun ? results.length : created,
+      closed,
       skipped,
       errors_count: errorsCount,
       errors: errors.slice(0, 10),
