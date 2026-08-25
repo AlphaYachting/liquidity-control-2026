@@ -28,6 +28,25 @@ function mapAworkTask(t) {
     letzte_aktivitaet: t.last_activity_at || null,
     geplante_minuten: Number(t.planned_duration_minutes) || 0,
     gebuchte_minuten: Number(t.tracked_duration_minutes) || 0,
+    herkunft: 'aufgabe',
+  };
+}
+
+// Zweite Quelle: offene Zusagen aus dem digitalen Kundenakt — verbindlicher als eine Aufgabe.
+function mapZusage(e) {
+  return {
+    id: e.id,
+    titel: e.follow_up_text || e.title || 'Zusage',
+    bearbeiter: 'zugesagt',
+    faellig_am: e.follow_up_date || null,
+    status_text: 'Zusage',
+    ist_blockiert: false,
+    ist_erledigt: false,
+    liste: '',
+    letzte_aktivitaet: e.entry_date || null,
+    geplante_minuten: 0,
+    gebuchte_minuten: 0,
+    herkunft: 'zusage',
   };
 }
 
@@ -87,11 +106,24 @@ export default function useProjektAufgaben({ projectId, aworkProjectId }) {
     enabled: !!aworkProjectId,
   });
 
+  const { data: zusagenRoh = [] } = useQuery({
+    queryKey: ['projektZusagen', projectId || null],
+    queryFn: () => base44.entities.ProjectFileEntry.filter({ project_id: projectId, follow_up_done: false }),
+    enabled: !!projectId,
+  });
+
   return useMemo(() => {
+    const zusagen = zusagenRoh.filter(e => !!e.follow_up_date).map(mapZusage);
     if (!aworkProjectId) {
-      return { aufgaben: [], kennzahlen: { ...LEER }, quelle: 'intern', isLoading: false, isError: false };
+      return {
+        aufgaben: zusagen,
+        kennzahlen: berechneKennzahlen(zusagen, []),
+        quelle: 'intern',
+        isLoading: false,
+        isError: false,
+      };
     }
-    const alle = rohdaten.map(mapAworkTask);
+    const alle = [...rohdaten.map(mapAworkTask), ...zusagen];
     return {
       aufgaben: alle.filter(a => !a.ist_erledigt),
       kennzahlen: berechneKennzahlen(alle, rohdaten),
@@ -99,5 +131,5 @@ export default function useProjektAufgaben({ projectId, aworkProjectId }) {
       isLoading,
       isError,
     };
-  }, [aworkProjectId, projectId, rohdaten, isLoading, isError]);
+  }, [aworkProjectId, projectId, rohdaten, zusagenRoh, isLoading, isError]);
 }

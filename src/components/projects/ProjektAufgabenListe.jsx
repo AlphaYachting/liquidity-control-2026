@@ -4,6 +4,9 @@ import { Link2, RefreshCw, Loader2, ExternalLink, ListChecks } from 'lucide-reac
 import Sektion from '@/components/projects/Sektion';
 import Ampelpunkt from '@/components/sprint/Ampelpunkt';
 import useProjektAufgaben from '@/hooks/useProjektAufgaben';
+import { useQueryClient } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
+import { ENTRY_TYPES } from '@/components/projects/kundenakt/kundenaktConfig';
 
 // Reine Leseansicht: geschrieben wird in awork, sonst gibt es zwei Wahrheiten über denselben Task.
 
@@ -58,12 +61,20 @@ function Gruppe({ titel, children }) {
   );
 }
 
-function Zeile({ status, titel, bearbeiter, hinweis, hinweisClass = 'text-muted-foreground' }) {
+function Zeile({ status, titel, bearbeiter, hinweis, hinweisClass = 'text-muted-foreground', istZusage, onErledigt }) {
+  const Handschlag = ENTRY_TYPES.vereinbarung.icon;
   return (
     <div className="flex items-center gap-2 py-1.5 text-sm">
       {status ? <Ampelpunkt status={status} /> : <span className="w-[10px] flex-shrink-0" />}
       <span className="flex-1 min-w-0 truncate" title={titel}>{titel}</span>
-      <span className="text-xs text-muted-foreground w-28 truncate text-right">{bearbeiter || '—'}</span>
+      {istZusage ? (
+        <span className="w-28 flex items-center justify-end gap-1 text-xs text-muted-foreground">
+          <Handschlag className="w-3.5 h-3.5" />
+          <button type="button" onClick={onErledigt} className="hover:underline">erledigt</button>
+        </span>
+      ) : (
+        <span className="text-xs text-muted-foreground w-28 truncate text-right">{bearbeiter || '—'}</span>
+      )}
       {hinweis && <span className={`text-xs w-44 text-right ${hinweisClass}`}>{hinweis}</span>}
     </div>
   );
@@ -73,6 +84,12 @@ export default function ProjektAufgabenListe({
   projectId, aworkProjectId, onSelectProject, onSync, isSyncing,
 }) {
   const { aufgaben, kennzahlen, quelle } = useProjektAufgaben({ projectId, aworkProjectId });
+  const queryClient = useQueryClient();
+
+  const zusageErledigt = async (id) => {
+    await base44.entities.ProjectFileEntry.update(id, { follow_up_done: true });
+    queryClient.invalidateQueries({ queryKey: ['projektZusagen', projectId || null] });
+  };
 
   if (quelle === 'intern' || !aworkProjectId) {
     return (
@@ -91,6 +108,7 @@ export default function ProjektAufgabenListe({
   }
 
   const haengtFest = aufgaben.filter(a => {
+    if (a.herkunft === 'zusage') return a.faellig_am && kalendertageBis(a.faellig_am) < 0;
     if (a.ist_blockiert) return true;
     const tage = arbeitstageSeit(a.letzte_aktivitaet);
     return tage !== null && tage > 5;
@@ -149,7 +167,11 @@ export default function ProjektAufgabenListe({
                     status="critical"
                     titel={a.titel}
                     bearbeiter={a.bearbeiter}
-                    hinweis={a.ist_blockiert ? 'blockiert' : `seit ${tage} Arbeitstagen ohne Bewegung`}
+                    istZusage={a.herkunft === 'zusage'}
+                    onErledigt={() => zusageErledigt(a.id)}
+                    hinweis={a.herkunft === 'zusage'
+                      ? `Zusage ${fristText(a.faellig_am)}`
+                      : a.ist_blockiert ? 'blockiert' : `seit ${tage} Arbeitstagen ohne Bewegung`}
                     hinweisClass="text-status-critical"
                   />
                 );
@@ -165,6 +187,8 @@ export default function ProjektAufgabenListe({
                   status={fristStatus(a.faellig_am)}
                   titel={a.titel}
                   bearbeiter={a.bearbeiter}
+                  istZusage={a.herkunft === 'zusage'}
+                  onErledigt={() => zusageErledigt(a.id)}
                   hinweis={fristText(a.faellig_am)}
                   hinweisClass={fristStatus(a.faellig_am) === 'critical' ? 'text-status-critical' : 'text-muted-foreground'}
                 />
