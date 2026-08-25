@@ -75,7 +75,7 @@ export default function ProjectIntelligenceSheet({
     setSending(false);
   };
 
-  const send = async (text) => {
+  const send = async (text, alsFrage = true) => {
     const msg = (text || input).trim();
     if (!msg || sending) return;
     setInput('');
@@ -93,7 +93,8 @@ export default function ProjectIntelligenceSheet({
         });
         setGespraech(record);
       }
-      await base44.agents.addMessage(conv, { role: 'user', content: contextPrefix + msg });
+      const prefix = alsFrage ? contextPrefix : contextPrefix.replace(/Frage: $/, '');
+      await base44.agents.addMessage(conv, { role: 'user', content: prefix + msg });
     } catch {
       toast.error('Nachricht konnte nicht verarbeitet werden.');
       setInput(msg);
@@ -126,7 +127,16 @@ export default function ProjectIntelligenceSheet({
     try {
       await speichereEintrag(projectId, vorschlag);
       toast.success('Im Kundenakt festgehalten.');
+      const gespeichert = vorschlag;
       zurueckInFragemodus();
+      // Die Projektintelligenz soll den Eintrag einordnen — keine Frage, keine Rückfragen
+      send(`Soeben wurde folgender Eintrag im Kundenakt gespeichert:
+Art: ${gespeichert.entry_type} | Datum: ${gespeichert.entry_date}
+${gespeichert.title}
+${gespeichert.content}
+${gespeichert.follow_up_text ? `Zugesagt: ${gespeichert.follow_up_text}${gespeichert.follow_up_date ? ` bis ${gespeichert.follow_up_date}` : ''}` : ''}
+
+Bestätige den Eintrag in einem Satz und nenne dann höchstens zwei Konsequenzen, die sich daraus für dieses Projekt ergeben — offene oder überfällige Zusagen, Auswirkung auf Zeitbudget oder Abrechnung, Widerspruch zu einer früheren Vereinbarung. Wenn sich nichts Nennenswertes ergibt, antworte nur mit der Bestätigung. Stelle keine Rückfragen.`, false);
     } catch (e) {
       toast.error('Speichern fehlgeschlagen: ' + (e?.message || ''));
     }
