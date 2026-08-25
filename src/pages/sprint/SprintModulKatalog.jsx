@@ -15,6 +15,7 @@ export default function SprintModulKatalog() {
   const [newName, setNewName] = useState('');
   const [newHours, setNewHours] = useState('');
   const [newPrice, setNewPrice] = useState('');
+  const [suche, setSuche] = useState('');
 
   const { data: modules = [] } = useQuery({
     queryKey: ['moduleTemplates'],
@@ -35,6 +36,8 @@ export default function SprintModulKatalog() {
   };
 
   const selected = modules.find((m) => m.id === selectedId);
+  const aktive = modules.filter((m) => m.active !== false);
+  const gefiltert = aktive.filter((m) => (m.name || '').toLowerCase().includes(suche.trim().toLowerCase()));
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
@@ -42,22 +45,32 @@ export default function SprintModulKatalog() {
 
       <div className="grid lg:grid-cols-2 gap-5 items-start">
         <div className="bg-white rounded-lg shadow-sm p-5">
-          <SectionLabel className="mb-3">Module</SectionLabel>
-          <div className="space-y-2">
-            {modules.filter((m) => m.active !== false).map((m) => (
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <SectionLabel>Module</SectionLabel>
+            <span className="text-xs text-muted-foreground">{aktive.length} aktiv</span>
+          </div>
+          <Input placeholder="Modul suchen…" value={suche} onChange={(e) => setSuche(e.target.value)} className="mb-3" />
+          <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
+            {gefiltert.map((m) => (
               <button
                 key={m.id} type="button" onClick={() => setSelectedId(m.id)}
-                className={`w-full text-left rounded px-3 py-2.5 transition-colors ${
-                  selectedId === m.id ? 'bg-primary text-white' : 'bg-muted text-foreground hover:bg-primary/10'
+                className={`w-full text-left rounded border px-3 py-2.5 transition-colors ${
+                  selectedId === m.id
+                    ? 'border-primary bg-primary/10'
+                    : 'border-transparent bg-muted hover:border-primary/40'
                 }`}
               >
-                <span className="font-semibold text-sm">{m.name}</span>
-                <span className={`text-xs ml-2 ${selectedId === m.id ? 'text-white/80' : 'text-muted-foreground'}`}>
-                  {m.target_hours ? `${m.target_hours} h` : ''}{m.standard_price ? ` · ${fmtEUR(m.standard_price)}` : ''}
-                </span>
+                <p className="font-semibold text-sm text-foreground truncate">{m.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {m.target_hours ? `${m.target_hours} h` : 'keine Sollstunden'}
+                  {m.standard_price ? ` · ${fmtEUR(m.standard_price)}` : ''}
+                </p>
               </button>
             ))}
-            {modules.length === 0 && <p className="text-sm text-muted-foreground">Noch kein Modul — unten das erste anlegen.</p>}
+            {aktive.length === 0 && <p className="text-sm text-muted-foreground">Noch kein Modul — unten das erste anlegen.</p>}
+            {aktive.length > 0 && gefiltert.length === 0 && (
+              <p className="text-sm text-muted-foreground">Kein Modul passt zur Suche.</p>
+            )}
           </div>
           <div className="flex flex-col sm:flex-row gap-2 mt-4">
             <Input placeholder="Modulname, z. B. Landingpage" value={newName} onChange={(e) => setNewName(e.target.value)} className="flex-1" />
@@ -70,7 +83,12 @@ export default function SprintModulKatalog() {
         </div>
 
         {selected ? (
-          <ModulTemplateEditor key={selected.id} module={selected} />
+          <ModulTemplateEditor
+            key={selected.id}
+            module={selected}
+            onModuleChanged={() => qc.invalidateQueries({ queryKey: ['moduleTemplates'] })}
+            onModuleDeleted={() => { setSelectedId(null); qc.invalidateQueries({ queryKey: ['moduleTemplates'] }); }}
+          />
         ) : (
           <div className="bg-white rounded-lg shadow-sm p-10 text-center text-sm text-muted-foreground">
             Modul links auswählen, um die Pflichtkette zu bearbeiten.

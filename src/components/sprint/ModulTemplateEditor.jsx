@@ -4,12 +4,14 @@ import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowUp, ArrowDown, Trash2, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import { ROLES } from '@/components/sprint/sprintConfig';
+import TicketTemplateZeile from '@/components/sprint/TicketTemplateZeile';
+import ModulKopfFelder from '@/components/sprint/ModulKopfFelder';
 
-// Pflichtkette eines Moduls: TicketTemplates sortiert nach order, mit Auf-/Ab-Verschieben
-export default function ModulTemplateEditor({ module }) {
+// Pflichtkette eines Moduls: TicketTemplates sortiert nach order, einzeln bearbeitbar
+export default function ModulTemplateEditor({ module, onModuleChanged, onModuleDeleted }) {
   const qc = useQueryClient();
   const [newTitle, setNewTitle] = useState('');
   const [newRole, setNewRole] = useState('Konzept');
@@ -62,26 +64,20 @@ export default function ModulTemplateEditor({ module }) {
   return (
     <div className="bg-white rounded-lg shadow-sm p-5">
       <SectionLabel className="mb-1">Pflichtkette</SectionLabel>
-      <h3 className="font-bold text-foreground uppercase mb-4">{module.name}</h3>
+      <ModulKopfFelder module={module} onChanged={onModuleChanged} onDeleted={onModuleDeleted} />
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {templates.map((t, idx) => (
-          <div key={t.id} className="flex items-center gap-2 bg-muted rounded px-3 py-2">
-            <span className="text-xs text-muted-foreground w-5">{idx + 1}.</span>
-            <span className="flex-1 text-sm text-foreground font-medium">{t.title}</span>
-            <span className="text-xs text-muted-foreground">{t.role}</span>
-            <span className="text-[11px] text-muted-foreground uppercase">{PHASES.find((p) => p.value === t.milestone_state)?.label || '—'}</span>
-            {t.target_hours > 0 && <span className="text-xs text-muted-foreground">{t.target_hours} h</span>}
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleMove(idx, -1)} disabled={idx === 0}>
-              <ArrowUp className="w-3.5 h-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleMove(idx, 1)} disabled={idx === templates.length - 1}>
-              <ArrowDown className="w-3.5 h-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleDelete(t)}>
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
-          </div>
+          <TicketTemplateZeile
+            key={t.id}
+            template={t}
+            index={idx}
+            letzte={idx === templates.length - 1}
+            phasen={PHASES}
+            onMove={handleMove}
+            onDelete={handleDelete}
+            onChanged={refresh}
+          />
         ))}
         {templates.length === 0 && (
           <p className="text-sm text-muted-foreground">Noch keine Ticketvorlagen — unten die erste anlegen.</p>
