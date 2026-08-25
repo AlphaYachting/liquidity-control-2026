@@ -26,7 +26,7 @@ export default function KundenaktTab({ projectId, projectName, customer, onFesth
       titel="Kundenakt"
       symbol={FolderOpen}
       aktion={
-        <Button size="sm" onClick={onFesthalten} className="gap-2 shrink-0">
+        <Button size="sm" variant="ghost" onClick={onFesthalten} className="gap-2 shrink-0 text-muted-foreground hover:text-foreground">
           <PenLine className="w-3.5 h-3.5" /> Festhalten
         </Button>
       }

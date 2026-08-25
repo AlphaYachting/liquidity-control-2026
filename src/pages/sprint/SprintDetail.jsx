@@ -15,7 +15,6 @@ import { sprintStatus } from '@/lib/sprint/status';
 import { Button } from '@/components/ui/button';
 import { BrainCircuit } from 'lucide-react';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
-import FesthaltenKnopf from '@/components/projects/kundenakt/FesthaltenKnopf';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import useKundenaktProjektId from '@/hooks/useKundenaktProjektId';
 
@@ -96,7 +95,6 @@ export default function SprintDetail() {
             <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-2 shrink-0">
-            <FesthaltenKnopf onFesthalten={() => oeffneIntelligenz('erfassung')} />
             <Button size="sm" className="shadow-sm shrink-0" onClick={() => oeffneIntelligenz('frage')}>
               <BrainCircuit className="w-4 h-4 mr-1.5" /> Projektintelligenz
             </Button>
