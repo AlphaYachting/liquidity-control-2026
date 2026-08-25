@@ -15,11 +15,14 @@ import { sprintStatus } from '@/lib/sprint/status';
 import { Button } from '@/components/ui/button';
 import { BrainCircuit } from 'lucide-react';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
+import FesthaltenKnopf from '@/components/projects/kundenakt/FesthaltenKnopf';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
 export default function SprintDetail() {
   const { sprintId } = useParams();
   const [intelligenzOffen, setIntelligenzOffen] = React.useState(false);
+  const [intelligenzModus, setIntelligenzModus] = React.useState('frage');
+  const oeffneIntelligenz = (modus) => { setIntelligenzModus(modus); setIntelligenzOffen(true); };
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => base44.auth.me() });
 
@@ -83,10 +86,12 @@ export default function SprintDetail() {
             <TabsTrigger value="kommentare">Kommentare & Notizen</TabsTrigger>
             <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
           </TabsList>
-          <Button variant="ghost" size="sm" className="text-primary shrink-0"
-            onClick={() => setIntelligenzOffen(true)}>
-            <BrainCircuit className="w-4 h-4 mr-1.5" /> Projektintelligenz fragen
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <FesthaltenKnopf onFesthalten={() => oeffneIntelligenz('erfassung')} />
+            <Button size="sm" className="shadow-sm shrink-0" onClick={() => oeffneIntelligenz('frage')}>
+              <BrainCircuit className="w-4 h-4 mr-1.5" /> Projektintelligenz
+            </Button>
+          </div>
         </div>
 
         <TabsContent value="uebersicht" className="mt-4">
@@ -140,6 +145,7 @@ export default function SprintDetail() {
 
       <ProjectIntelligenceSheet
         open={intelligenzOffen}
+        startModus={intelligenzModus}
         onClose={() => setIntelligenzOffen(false)}
         projectId={sprint.project_id}
         projectName={project?.title}
