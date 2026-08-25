@@ -64,7 +64,11 @@ export default function InboxItemCard({ item, onConvert, onAssign, onSupportTick
           </p>
           <p className="text-xs text-muted-foreground">
             <span className="font-medium">An:</span>{' '}
-            {item.recipient || 'Empfänger nicht belegt'}
+            {item.recipient || (
+              <span title="Die E-Mail-Datenbank speichert kein Empfängerfeld. Belegbar ist der Empfänger nur über eine „An:“-Zeile im Text oder eine eigene Antwort im Verlauf — beides fehlt hier.">
+                nicht in der Datenbank hinterlegt
+              </span>
+            )}
           </p>
           <div className="flex items-center gap-1.5 flex-wrap mt-1">
             <InboxSuggestionLabel item={item} />
