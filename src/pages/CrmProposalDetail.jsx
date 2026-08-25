@@ -410,7 +410,15 @@ export default function CrmProposalDetail() {
         </div>
       )}
 
-      {['config_ready', 'rendering', 'rendered'].includes(proposal.status) && <RenderPanel proposal={proposal} config={config} onRefresh={refresh} />}
+      {['config_ready', 'rendering', 'rendered'].includes(proposal.status) && (
+        <RenderPanel
+          proposal={proposal}
+          config={config}
+          onRefresh={refresh}
+          onRegenerateConfig={approveMappingAndConfig}
+          regenerating={busy === 'config'}
+        />
+      )}
 
       <div className="pt-2 border-t">
         <DeleteProposalButton proposal={proposal} disabled={!!busy} />

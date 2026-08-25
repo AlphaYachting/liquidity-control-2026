@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, FileText, Loader2, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { Download, FileText, Loader2, ExternalLink, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 
-export default function RenderPanel({ proposal, config, onRefresh }) {
+export default function RenderPanel({ proposal, config, onRefresh, onRegenerateConfig, regenerating }) {
   const [showConfig, setShowConfig] = useState(false);
   const [rendering, setRendering] = useState(false);
   const [error, setError] = useState(null);
@@ -12,15 +12,19 @@ export default function RenderPanel({ proposal, config, onRefresh }) {
   // E-Mail-Angebote haben bewusst kein PDF — kein Renderbereich.
   if (proposal.offer_type === 'email') return null;
 
-  const configStr = config ? JSON.stringify(config, null, 2) : '';
+  const hasConfig = !!config && Object.keys(config).length > 0;
+  const configStr = hasConfig ? JSON.stringify(config, null, 2) : '';
 
   const downloadConfig = () => {
     const blob = new Blob([configStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = `angebot_config_${proposal.customer_company || proposal.id}.json`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
 
   const generatePdf = async () => {
@@ -46,11 +50,22 @@ export default function RenderPanel({ proposal, config, onRefresh }) {
         <CardTitle className="text-sm">Schritt 4 — Render-Config & PDF</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
+        {!hasConfig && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2.5">
+            Die Config ist leer — der KI-Lauf hat keine Inhalte geliefert. Bitte die Config neu erzeugen, dann sind Download und PDF möglich.
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={downloadConfig} disabled={!config} className="gap-2">
+          <Button variant="outline" size="sm" onClick={downloadConfig} disabled={!hasConfig} className="gap-2">
             <Download className="w-3.5 h-3.5" /> Config-JSON herunterladen
           </Button>
-          <Button size="sm" onClick={generatePdf} disabled={rendering || !config} className="gap-2">
+          {onRegenerateConfig && (
+            <Button variant="outline" size="sm" onClick={onRegenerateConfig} disabled={regenerating} className="gap-2">
+              {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              {regenerating ? 'Config wird erstellt…' : 'Config neu erzeugen'}
+            </Button>
+          )}
+          <Button size="sm" onClick={generatePdf} disabled={rendering || !hasConfig} className="gap-2">
             {rendering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
             {rendering ? 'PDF wird erstellt…' : proposal.pdf_url ? 'PDF neu erzeugen' : 'PDF erzeugen'}
           </Button>
@@ -78,7 +93,7 @@ export default function RenderPanel({ proposal, config, onRefresh }) {
           </div>
         )}
 
-        {config && (
+        {hasConfig && (
           <div>
             <button onClick={() => setShowConfig(s => !s)} className="flex items-center gap-1 text-xs font-medium">
               {showConfig ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}

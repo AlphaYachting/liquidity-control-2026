@@ -96,10 +96,13 @@ const MAPPING_SCHEMA = {
   },
 };
 
+// Die Config ist ein freies Objekt mit variablen Feldnamen. Als schema-freies
+// object lieferte die KI regelmäßig ein leeres {} — daher wird sie als JSON-TEXT
+// angefordert und hier geparst.
 const CONFIG_SCHEMA = {
   type: 'object',
   properties: {
-    config: { type: 'object', additionalProperties: true, description: 'Finale client_config als JSON' },
+    config_json: { type: 'string', description: 'Die vollständige finale client_config als JSON-Text (Objekt in geschweiften Klammern)' },
   },
 };
 
@@ -252,7 +255,7 @@ ${notes}
 ${analysis ? `FREIGEGEBENE ANALYSE (Stopp 1):\n${JSON.stringify(analysis, null, 2)}\n\n` : ''}FREIGEGEBENES MAPPING & POSITIONEN (Stopp 2):
 ${JSON.stringify(mapping, null, 2)}
 
-AUFGABE — Step 4 des Skills: Erzeuge die FINALE Config als JSON-Objekt im Feld "config".
+AUFGABE — Step 4 des Skills: Erzeuge die FINALE Config und gib sie als JSON-TEXT im Feld "config_json" zurück (ein vollständiges JSON-Objekt in geschweiften Klammern, ohne Code-Fences). Das Feld darf niemals leer sein.
 - Schlüssel = Feldnamen der client_config (CLIENT_NAME, CLIENT_COMPANY, PROPOSAL_TITLE_LINES, VORAB_TEXT, POSITIONS, PRICE_ROWS, TOTAL_NET, TOTAL_GROSS, RESULTS, TIMELINE, TOC, ...).
 - Python-Tupel als JSON-Arrays, None als null, alle Texte final und in Consulting-Qualität gemäß text-quality-rules.md und text-templates.md.
 - SPRINT_MODE = ${proposal.sprint_mode ? 'true (alle SPRINT_*-Felder befüllen gemäß sprint-rules.md)' : 'false'}.
@@ -261,6 +264,11 @@ AUFGABE — Step 4 des Skills: Erzeuge die FINALE Config als JSON-Objekt im Feld
     response_json_schema: CONFIG_SCHEMA,
   });
   onProgress('KI-Antwort wird geprüft & strukturiert…');
-  const result = await ensureShape(raw, 'config', CONFIG_SCHEMA);
-  return result?.config ? unwrapLLM(result.config) : result;
+  const result = await ensureShape(raw, 'config_json', CONFIG_SCHEMA);
+  const candidate = result?.config_json ?? result?.config ?? result;
+  const config = unwrapLLM(candidate);
+  if (!config || typeof config !== 'object' || Object.keys(config).length === 0) {
+    throw new Error('Die KI hat eine leere Config geliefert. Bitte den Lauf erneut starten.');
+  }
+  return config;
 }
