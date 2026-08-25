@@ -10,27 +10,6 @@ import VoiceFeedbackInput from '@/components/crm/emails/VoiceFeedbackInput';
 import { ENTRY_TYPES } from '@/components/projects/kundenakt/kundenaktConfig';
 import KundenaktZusageFelder from '@/components/projects/kundenakt/KundenaktZusageFelder';
 
-// Bereits berechnete Kennzahlen als verbindlicher Faktenblock — nichts wird neu hergeleitet.
-const faktenblock = (kennzahlen, finanzen) => {
-  if (!kennzahlen && !finanzen) return '';
-  const teile = [];
-  if (kennzahlen) {
-    teile.push(`Aufgaben erledigt ${kennzahlen.erledigt || 0} von ${kennzahlen.gesamt || 0}`);
-    const plan = Math.round((kennzahlen.geplante_minuten || 0) / 60);
-    const gebucht = Math.round((kennzahlen.gebuchte_minuten || 0) / 60);
-    teile.push(`Zeitbudget ${gebucht} von ${plan} Stunden`);
-    teile.push(`${kennzahlen.blockiert || 0} blockiert`);
-    teile.push(`nächste Frist ${kennzahlen.naechste_frist
-      ? new Date(kennzahlen.naechste_frist).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' })
-      : 'keine'}`);
-  }
-  if (finanzen) {
-    teile.push(`Auftragswert netto ${Math.round(finanzen.orderNet || 0)} EUR`);
-    teile.push(`fakturiert ${Math.round(finanzen.invoicedNet || 0)} EUR`);
-  }
-  return `Aktueller Projektstand (verbindlich, nicht neu herleiten):\n${teile.join(', ')}.`;
-};
-
 const heuteIso = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -41,7 +20,6 @@ const heuteIso = () => {
 export default function KundenaktEntryDialog({
   open, onClose, projectId, projectName, customer, onSaved,
   initialEntryType, initialTitle, initialContent,
-  kennzahlen, finanzen, autoAnalyse = false,
 }) {
   const [entryType, setEntryType] = useState(initialEntryType || 'update');
   const [title, setTitle] = useState(initialTitle || '');
@@ -53,7 +31,6 @@ export default function KundenaktEntryDialog({
   const [followUpDate, setFollowUpDate] = useState('');
   const [zusageOffen, setZusageOffen] = useState(false);
   const [summary, setSummary] = useState('');
-  const [hinweis, setHinweis] = useState('');
   const [analysing, setAnalysing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -66,7 +43,7 @@ export default function KundenaktEntryDialog({
     setGespraechsDatum(heuteIso());
     setParticipants('');
     setFollowUpText(''); setFollowUpDate(''); setZusageOffen(false);
-    setSummary(''); setHinweis(''); setError(null);
+    setSummary(''); setError(null);
   };
 
   // Vorbefüllung übernehmen, wenn das Overlay mit neuen Werten geöffnet wird
@@ -77,36 +54,22 @@ export default function KundenaktEntryDialog({
     if (initialContent !== undefined) setContent(initialContent || '');
   }, [open, initialEntryType, initialTitle, initialContent]);
 
-  // Weg "Strukturieren": Analyse startet direkt beim Öffnen, genau einmal
-  const autoRef = React.useRef(false);
-  React.useEffect(() => {
-    if (!open) { autoRef.current = false; return; }
-    if (autoAnalyse && !autoRef.current && initialContent) {
-      autoRef.current = true;
-      analyse(initialContent);
-    }
-  }, [open, autoAnalyse, initialContent]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const close = () => { reset(); onClose(); };
 
-  const analyse = async (textOverride) => {
-    const eingabe = textOverride ?? content;
+  const analyse = async () => {
     setAnalysing(true); setError(null);
     try {
       const res = await base44.integrations.Core.InvokeLLM({
         prompt: `Du unterstützt den digitalen Kundenakt der Agentur Rittler & Co.
 Heutiges Datum: ${heuteIso()}
 Projekt: ${projectName || '—'} | Kunde: ${customer || '—'}
-${faktenblock(kennzahlen, finanzen)}
 Eingabe des Mitarbeiters (getippt oder eingesprochen):
-"""${eingabe}"""
+"""${content}"""
 ${file ? `Angehängtes Dokument: ${file.name}` : ''}
 
 Bestimme die Art des Eintrags (vereinbarung = verbindliche Absprache mit dem Kunden, update = Statusmeldung zum Projekt, dokument = das Dokument selbst ist der Inhalt), einen sachlichen Kurztitel (max. 8 Wörter) und eine Kernaussage in einem Satz. Nichts erfinden, nur was in der Eingabe steht.
 
-Erkenne zusätzlich: (a) auf welches Datum sich die Eingabe bezieht — relative Angaben wie 'gestern' oder 'letzten Dienstag' beziehe auf das heutige Datum, das dir im Kontext genannt wird; ohne Angabe nimm heute. (b) ob eine Zusage oder ein nächster Schritt vereinbart wurde, und bis wann. Relative Fristen wie 'bis Freitag' oder 'nächste Woche' rechne in ein konkretes Datum um. Wenn keine Zusage erkennbar ist, lass beide Felder leer — erfinde keine.
-
-Wenn die Eingabe dem Projektstand widerspricht — etwa eine Aussage zum Budget, die nicht zu den Zahlen passt — vermerke das in einem zusätzlichen Feld hinweis. Widersprich nicht der Eingabe des Mitarbeiters; er war beim Gespräch dabei und du nicht. Weise nur darauf hin.`,
+Erkenne zusätzlich: (a) auf welches Datum sich die Eingabe bezieht — relative Angaben wie 'gestern' oder 'letzten Dienstag' beziehe auf das heutige Datum, das dir im Kontext genannt wird; ohne Angabe nimm heute. (b) ob eine Zusage oder ein nächster Schritt vereinbart wurde, und bis wann. Relative Fristen wie 'bis Freitag' oder 'nächste Woche' rechne in ein konkretes Datum um. Wenn keine Zusage erkennbar ist, lass beide Felder leer — erfinde keine.`,
         response_json_schema: {
           type: 'object',
           properties: {
@@ -116,14 +79,12 @@ Wenn die Eingabe dem Projektstand widerspricht — etwa eine Aussage zum Budget,
             entry_date: { type: 'string' },
             follow_up_text: { type: 'string' },
             follow_up_date: { type: 'string' },
-            hinweis: { type: 'string' },
           },
         },
       });
       if (res?.entry_type) setEntryType(res.entry_type);
       if (res?.title) setTitle(res.title);
       if (res?.summary) setSummary(res.summary);
-      setHinweis(res?.hinweis || '');
       if (res?.entry_date) setGespraechsDatum(String(res.entry_date).slice(0, 10));
       if (res?.follow_up_text || res?.follow_up_date) {
         if (res.follow_up_text) setFollowUpText(res.follow_up_text);
@@ -199,7 +160,7 @@ Wenn die Eingabe dem Projektstand widerspricht — etwa eine Aussage zum Budget,
             </div>
           </div>
 
-          <Button size="sm" variant="outline" onClick={() => analyse()}
+          <Button size="sm" variant="outline" onClick={analyse}
             disabled={analysing || saving || (!content && !file)} className="gap-2">
             {analysing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             {analysing ? 'Projektintelligenz prüft…' : 'Art und Titel vorschlagen'}
@@ -252,9 +213,6 @@ Wenn die Eingabe dem Projektstand widerspricht — etwa eine Aussage zum Budget,
             <p className="text-xs text-muted-foreground flex items-start gap-1.5">
               <Check className="w-3.5 h-3.5 text-status-done shrink-0 mt-0.5" /> {summary}
             </p>
-          )}
-          {hinweis && (
-            <p className="text-xs text-muted-foreground italic">Hinweis: {hinweis}</p>
           )}
           {error && <p className="text-xs text-destructive">{error}</p>}
 

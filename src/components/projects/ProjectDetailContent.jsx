@@ -42,8 +42,6 @@ import ProjektFaktenzeile from '@/components/projects/ProjektFaktenzeile';
 import useProjektAufgaben from '@/hooks/useProjektAufgaben';
 import useProjektIntelligenzKontext from '@/hooks/useProjektIntelligenzKontext';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
-import SchnellErfassungZeile from '@/components/projects/kundenakt/SchnellErfassungZeile';
-import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntryDialog';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
 import Sektion from '@/components/projects/Sektion';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -75,7 +73,6 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
   const [pdfViewer, setPdfViewer] = useState(null);
   const [editingNextInvoiceNote, setEditingNextInvoiceNote] = useState(false);
   const [nextInvoiceNote, setNextInvoiceNote] = useState('');
-  const [schnellErfassung, setSchnellErfassung] = useState(null);
 
   const { data: project = null, isLoading: lpLoading } = useQuery({
     queryKey: ['project', projectId],
@@ -377,10 +374,6 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         onSelectProject={() => setShowAworkPicker(true)}
         onSync={handleAworkSync}
         isSyncing={isSyncing}
-      />
-      <SchnellErfassungZeile
-        onFesthalten={(text) => setSchnellErfassung({ text, auto: false })}
-        onStrukturieren={(text) => setSchnellErfassung({ text, auto: true })}
       />
       </div>
       </div>
@@ -768,19 +761,6 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         kennzahlen={aufgabenKennzahlen}
         finanzen={intelligenzFinanzen}
         kontext={intelligenzKontext}
-      />
-
-      <KundenaktEntryDialog
-        open={!!schnellErfassung}
-        onClose={() => setSchnellErfassung(null)}
-        projectId={projectId}
-        projectName={project.project_name}
-        customer={project.customer}
-        initialContent={schnellErfassung?.text || ''}
-        autoAnalyse={schnellErfassung?.auto || false}
-        kennzahlen={aufgabenKennzahlen}
-        finanzen={intelligenzFinanzen}
-        onSaved={() => queryClient.invalidateQueries({ queryKey: ['projektZusagen', projectId] })}
       />
 
       <AworkProjectPicker
