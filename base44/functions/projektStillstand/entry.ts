@@ -101,6 +101,7 @@ export default async function (req) {
         project_id: p.id,
         customer: p.customer || '',
         project_name: p.project_name || '',
+        project_manager: p.project_manager || '',
         letzte_buchung: letzte,
         tage_seit_buchung: tage,
         auftrag_netto: gesamt,
