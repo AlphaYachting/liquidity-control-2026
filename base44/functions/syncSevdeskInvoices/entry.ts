@@ -103,7 +103,7 @@ function shouldSkipMatching(inv) {
   return inv.status === '100' || inv.status === '50'; // draft or cancelled
 }
 
-function buildRecord(inv, matchResult, existing, recordIdBySevdeskId = {}, recordById = {}) {
+function buildRecord(inv, matchResult, existing, recordIdBySevdeskId = {}, recordById = {}, ordersById = {}) {
   const invoiceDate = inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null;
 
   let dueDate = null;
@@ -165,7 +165,10 @@ function buildRecord(inv, matchResult, existing, recordIdBySevdeskId = {}, recor
   }
 
   let confirmedOrderId = matchResult?.order?.id || existing?.confirmed_order_id || null;
-  let projectId = existing?.project_id || null;
+  // Projekt wird aus dem zugeordneten Auftrag geerbt — sonst hängt die Rechnung
+  // am Auftrag, erscheint aber in keinem Projekt-Cockpit.
+  let projectId = existing?.project_id
+    || (confirmedOrderId ? (ordersById[confirmedOrderId]?.project_id || null) : null);
   let billingBlockId = existing?.billing_block_id || null;
   const matchStatus = matchResult ? 'auto_matched' : (existing?.match_status || 'unmatched');
   const matchConfidence = matchResult?.confidence || existing?.match_confidence || 0;
@@ -276,6 +279,8 @@ Deno.serve(async (req) => {
       recordById[r.id] = r;
     }
 
+    const ordersById = Object.fromEntries(allOrders.map(o => [o.id, o]));
+
     const ordersBySevdeskId = {};
     for (const o of allOrders) {
       const sid = extractSevdeskIdFromNotes(o.notes);
@@ -315,7 +320,7 @@ Deno.serve(async (req) => {
         const matchResult = shouldSkipMatching(inv) ? null : findMatchingOrder(inv, allOrders, ordersBySevdeskId);
         // If already manually matched, don't overwrite with auto-match
         const effectiveMatch = (existing?.match_status === 'manually_matched') ? null : matchResult;
-        let record = buildRecord(inv, effectiveMatch, existing, recordIdBySevdeskId, recordById);
+        let record = buildRecord(inv, effectiveMatch, existing, recordIdBySevdeskId, recordById, ordersById);
 
         // Für Teilzahlungen: Payments separat abrufen (sevDesk liefert sumGrossPay nicht im Listen-Endpoint)
         if (record.payment_status === 'partially_paid') {

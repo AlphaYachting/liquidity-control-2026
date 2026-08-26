@@ -1,21 +1,27 @@
-// Was in einem Monat tatsächlich verrechnet bzw. ans Backoffice übermittelt ist.
-// Wichtig: Rechnungen entstehen manchmal ausserhalb des Systems — dann wird nur die
-// Rechnungsplanung auf „verrechnet" gestellt, ohne Abrechnungsanweisung. Diese Fälle
-// zählen hier mit, sonst zeigt die Kennzahl zu wenig.
-// „Verrechnet" heisst: in sevDesk existiert ein festgeschriebener Beleg.
-// 'sent_to_backoffice' zählt bewusst NICHT mit — dahinter steht höchstens ein
-// Entwurf, den sevDesk nicht als Umsatz kennt. Genau das liess die beiden
-// Stände auseinanderlaufen.
-const INSTRUCTION_DONE = ['invoice_created', 'paid'];
+// Führend ist, was in sevDesk verschickt wurde — nicht der Status einer Anweisung
+// und nicht eine Rechnungsplanung. Gezählt wird ausschliesslich der festgeschriebene
+// Beleg: is_sent = true, also kein Entwurf, und nicht storniert.
+// Gutschriften/Korrekturen tragen einen negativen Nettobetrag und kürzen die Summe
+// dadurch von selbst — genau wie in der Buchhaltung.
+const COUNTS_AS_SENT = (inv) =>
+  inv.is_sent === true &&
+  inv.payment_status !== 'draft' &&
+  inv.payment_status !== 'cancelled';
 
-export function invoicedKpi(instructions, plans) {
-  const doneInstructions = instructions.filter(i => INSTRUCTION_DONE.includes(i.status));
-  const manualPlans = plans.filter(p => p.billing_status === 'invoiced' && !p.linked_billing_instruction_id);
+export function invoicedKpi(invoices, monthStr) {
+  const sent = (invoices || []).filter(i =>
+    COUNTS_AS_SENT(i) && (i.invoice_date || '').substring(0, 7) === monthStr
+  );
   return {
-    amount:
-      doneInstructions.reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0) +
-      manualPlans.reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0),
-    count: doneInstructions.length + manualPlans.length,
-    manualCount: manualPlans.length,
+    amount: sent.reduce((s, i) => s + (Number(i.net_amount) || 0), 0),
+    count: sent.length,
   };
+}
+
+// Anweisungen, die als verrechnet gelten, ohne dass ein sevDesk-Beleg daran hängt.
+// Solche Fälle behaupten Umsatz, den sevDesk nicht kennt — sie müssen sichtbar sein.
+export function instructionsWithoutProof(instructions) {
+  return (instructions || []).filter(i =>
+    ['invoice_created', 'paid'].includes(i.status) && !i.sevdesk_invoice_id
+  );
 }

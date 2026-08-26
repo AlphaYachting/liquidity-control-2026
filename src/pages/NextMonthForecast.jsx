@@ -10,7 +10,7 @@ import { formatCurrency, getMonthLabel } from '@/lib/liquidityUtils';
 import { calculateNextMonthBillable } from '@/lib/reconciliationUtils';
 import ProjectDetailSlideOver from '@/components/projects/ProjectDetailSlideOver';
 import BillingMonthXlsExport from '@/components/forecast/BillingMonthXlsExport';
-import { invoicedKpi } from '@/lib/forecastInvoicedKpi';
+import { invoicedKpi, instructionsWithoutProof } from '@/lib/forecastInvoicedKpi';
 
 const WORK_STATUS_COLORS = {
   not_started: 'bg-gray-100 text-gray-600',
@@ -179,8 +179,10 @@ export default function NextMonthForecast() {
     AZ: 'Anzahlung', TR: 'Teilrechnung', ER: 'Schlussrechnung',
   };
 
-  const curInvoiced = invoicedKpi(curMonthInstructions, curMonthPlans);
-  const nextInvoiced = invoicedKpi(nextMonthInstructions, nextMonthPlans);
+  // Führend: was in sevDesk verschickt wurde
+  const curInvoiced = invoicedKpi(invoices, curMonthStr);
+  const nextInvoiced = invoicedKpi(invoices, nextMonthStr);
+  const ohneBeleg = instructionsWithoutProof([...curMonthInstructions, ...nextMonthInstructions]);
 
   const nextMonthLabel = getMonthLabel(result.next_month_str) || result.next_month_str;
   const curMonthLabel = getMonthLabel(curMonthStr) || curMonthStr;
