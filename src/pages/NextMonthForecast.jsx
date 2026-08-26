@@ -11,6 +11,7 @@ import { calculateNextMonthBillable } from '@/lib/reconciliationUtils';
 import ProjectDetailSlideOver from '@/components/projects/ProjectDetailSlideOver';
 import BillingMonthXlsExport from '@/components/forecast/BillingMonthXlsExport';
 import { invoicedKpi, instructionsWithoutProof } from '@/lib/forecastInvoicedKpi';
+import AnweisungOhneBelegHinweis from '@/components/forecast/AnweisungOhneBelegHinweis';
 
 const WORK_STATUS_COLORS = {
   not_started: 'bg-gray-100 text-gray-600',
@@ -226,7 +227,7 @@ export default function NextMonthForecast() {
           <KpiCard title="Abrechnungsanweisungen" value={formatCurrency(totalCurInstructionNet)} variant="info"
             subtitle={`${curMonthInstructions.length} Anweisung(en)`} />
           <KpiCard title="Bereits verrechnet" value={formatCurrency(curInvoiced.amount)} variant="success"
-            subtitle={`${curInvoiced.count} Vorgang/Vorgänge${curInvoiced.manualCount ? ` · davon ${curInvoiced.manualCount} direkt verrechnet` : ''}`} />
+            subtitle={`${curInvoiced.count} sevDesk-Rechnung(en)`} />
         </div>
       </div>
 
@@ -252,9 +253,11 @@ export default function NextMonthForecast() {
           <KpiCard title="Abrechnungsanweisungen" value={formatCurrency(totalInstructionNet)} variant="info"
             subtitle={`${nextMonthInstructions.length} Anweisung(en)`} />
           <KpiCard title="Bereits verrechnet" value={formatCurrency(nextInvoiced.amount)} variant="success"
-            subtitle={`${nextInvoiced.count} Vorgang/Vorgänge${nextInvoiced.manualCount ? ` · davon ${nextInvoiced.manualCount} direkt verrechnet` : ''}`} />
+            subtitle={`${nextInvoiced.count} sevDesk-Rechnung(en)`} />
         </div>
       </div>
+
+      <AnweisungOhneBelegHinweis instructions={ohneBeleg} />
 
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">
