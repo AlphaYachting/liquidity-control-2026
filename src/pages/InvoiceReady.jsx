@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
 import { CheckSquare, ExternalLink, Info, AlertTriangle, ChevronDown, ChevronUp, Filter, FileText, Loader2, Pencil } from 'lucide-react';
 import BillingInstructionEditDialog from '@/components/billing/BillingInstructionEditDialog';
+import SevdeskAbgleichPanel from '@/components/billing/SevdeskAbgleichPanel';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import { Card, CardContent } from '@/components/ui/card';
@@ -134,6 +135,8 @@ export default function InvoiceReady() {
           Anweisungen werden im <strong>Projekt-Cockpit</strong> erstellt (Abschnitt "Abrechnung & Liquidität").
         </AlertDescription>
       </Alert>
+
+      <SevdeskAbgleichPanel />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
