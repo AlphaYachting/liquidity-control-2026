@@ -2,7 +2,11 @@
 // Wichtig: Rechnungen entstehen manchmal ausserhalb des Systems — dann wird nur die
 // Rechnungsplanung auf „verrechnet" gestellt, ohne Abrechnungsanweisung. Diese Fälle
 // zählen hier mit, sonst zeigt die Kennzahl zu wenig.
-const INSTRUCTION_DONE = ['sent_to_backoffice', 'invoice_created', 'paid'];
+// „Verrechnet" heisst: in sevDesk existiert ein festgeschriebener Beleg.
+// 'sent_to_backoffice' zählt bewusst NICHT mit — dahinter steht höchstens ein
+// Entwurf, den sevDesk nicht als Umsatz kennt. Genau das liess die beiden
+// Stände auseinanderlaufen.
+const INSTRUCTION_DONE = ['invoice_created', 'paid'];
 
 export function invoicedKpi(instructions, plans) {
   const doneInstructions = instructions.filter(i => INSTRUCTION_DONE.includes(i.status));
