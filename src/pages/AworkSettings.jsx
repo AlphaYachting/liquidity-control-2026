@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import PageHeader from '@/components/shared/PageHeader';
+import ArchivExportPanel from '@/components/awork/ArchivExportPanel';
 import { Settings, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Clock, Loader2, ShieldCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -30,6 +31,7 @@ const SYNC_TYPE_LABELS = {
   project_tasks: 'Projektaufgaben',
   time_entries: 'Zeitbuchungen',
   full: 'Vollständig',
+  archive_export: 'Archiv-Export',
 };
 
 export default function AworkSettings() {
@@ -249,6 +251,8 @@ export default function AworkSettings() {
           )}
         </div>
       )}
+
+      <ArchivExportPanel />
 
       {/* Sync Logs */}
       <Card>

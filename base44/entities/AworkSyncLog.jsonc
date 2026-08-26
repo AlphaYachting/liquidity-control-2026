@@ -9,7 +9,8 @@
         "tasks",
         "project_tasks",
         "time_entries",
-        "full"
+        "full",
+        "archive_export"
       ],
       "default": "projects"
     },
