@@ -85,7 +85,8 @@ export default function SprintIntelligence() {
             columns={[
               ...basisSpalten,
               { label: 'Fortschritt', align: 'right', get: r => `${r.fortschritt_pct}%` },
-              { label: 'Abgerechnet', align: 'right', get: r => `${r.abrechnung_pct}%` },
+              { label: 'Auftrag netto', align: 'right', get: r => eur(r.auftrag_netto) },
+              { label: 'Abgerechnet', align: 'right', get: r => `${eur(r.abgerechnet_netto)} · ${r.abrechnung_pct}%` },
               { label: 'Lücke', align: 'right', get: r => `${r.luecke_pct}%` },
               { label: 'Offen netto', align: 'right', get: r => eur(r.open_amount_net) },
             ]}

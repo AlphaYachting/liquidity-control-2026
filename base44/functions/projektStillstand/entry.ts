@@ -26,6 +26,31 @@ export default async function (req) {
     const snapshots = await svc.entities.AworkProjectSnapshot.list('-created_date', 3000);
     const snapshotNachId = new Map(snapshots.map(s => [s.awork_project_id, s]));
 
+    // Geld kommt aus den echten Belegen, nicht aus den Excel-Altfeldern des Projekts.
+    // Gezählt wird nur, was in sevDesk festgeschrieben und nicht storniert ist;
+    // Gutschriften tragen einen negativen Netto und kürzen die Summe von selbst.
+    const rechnungen = await svc.entities.InvoiceRecord.list('-invoice_date', 5000);
+
+    // Auftragsvolumen aus den bestätigten Aufträgen — die Vertragsgrundlage.
+    const auftraege = await svc.entities.ConfirmedOrder.list('-created_date', 3000);
+    const auftragsvolumenNachProjekt = {};
+    const projektNachAuftrag = {};
+    for (const o of auftraege) {
+      if (!o.project_id || o.status === 'cancelled') continue;
+      projektNachAuftrag[o.id] = o.project_id;
+      auftragsvolumenNachProjekt[o.project_id] = (auftragsvolumenNachProjekt[o.project_id] || 0) + (Number(o.total_net_amount) || 0);
+    }
+
+    const abgerechnetNachProjekt = {};
+    for (const r of rechnungen) {
+      if (r.is_sent !== true) continue;
+      if (r.payment_status === 'draft' || r.payment_status === 'cancelled') continue;
+      // Viele sevDesk-Rechnungen hängen nur am Auftrag — dann über den Auftrag zuordnen.
+      const pid = r.project_id || (r.confirmed_order_id ? projektNachAuftrag[r.confirmed_order_id] : null);
+      if (!pid) continue;
+      abgerechnetNachProjekt[pid] = (abgerechnetNachProjekt[pid] || 0) + (Number(r.net_amount) || 0);
+    }
+
     // Zeitbuchungen einmal vollständig laden und je awork-Projekt verdichten
     const minutenNachId = {};
     const letzteNachId = {};
@@ -50,16 +75,17 @@ export default async function (req) {
     const abrechnung = [];
 
     for (const p of projekte) {
-      const offen = Number(p.open_amount) || 0;
       const snapshot = p.awork_project_id ? snapshotNachId.get(p.awork_project_id) : null;
       const qualitaet = planqualitaet(snapshot);
       const minuten = p.awork_project_id ? (minutenNachId[p.awork_project_id] || 0) : 0;
       const letzte = p.awork_project_id ? (letzteNachId[p.awork_project_id] || null) : null;
       const tage = letzte ? Math.floor((heute - new Date(letzte).getTime()) / TAG) : null;
 
-      const gesamt = Number(p.total_net_amount) || 0;
-      const abgerechnet = Number(p.already_invoiced_amount) || 0;
+      // Auftrag schlägt Excel-Altwert; abgerechnet ist ausschliesslich der sevDesk-Belegstand.
+      const gesamt = auftragsvolumenNachProjekt[p.id] ?? (Number(p.total_net_amount) || 0);
+      const abgerechnet = abgerechnetNachProjekt[p.id] || 0;
       const abrechnungPct = gesamt > 0 ? Math.round((abgerechnet / gesamt) * 100) : 0;
+      const offen = Math.max(0, gesamt - abgerechnet);
       const fortschritt = Math.round(
         (Number(p.real_progress_percent) > 0 ? Number(p.real_progress_percent) : 0)
         || Number(snapshot?.progress_percent) || Number(p.awork_progress_percent) || 0
@@ -77,6 +103,8 @@ export default async function (req) {
         project_name: p.project_name || '',
         letzte_buchung: letzte,
         tage_seit_buchung: tage,
+        auftrag_netto: gesamt,
+        abgerechnet_netto: abgerechnet,
         open_amount_net: offen,
         gebuchte_stunden: Math.round((minuten / 60) * 10) / 10,
         aufgaben_erledigt: aufgabenErledigt,
