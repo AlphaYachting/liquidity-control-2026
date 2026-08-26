@@ -28,7 +28,8 @@
         "running",
         "success",
         "partial",
-        "failed"
+        "failed",
+        "unvollstaendig"
       ],
       "default": "running"
     },

@@ -23,6 +23,7 @@ const SYNC_STATUS_CONFIG = {
   success: { label: 'Erfolgreich', color: 'bg-emerald-100 text-emerald-700' },
   partial: { label: 'Teilweise', color: 'bg-amber-100 text-amber-700' },
   failed: { label: 'Fehlgeschlagen', color: 'bg-red-100 text-red-700' },
+  unvollstaendig: { label: 'Unvollständig', color: 'bg-red-100 text-red-700' },
 };
 
 const SYNC_TYPE_LABELS = {
