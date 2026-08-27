@@ -30,19 +30,25 @@ export default function Receivables() {
   });
 
   // Höchste aktive Mahnstufe pro sevDesk-Rechnung
-  const dunningLevelByInvoice = {};
+  // Versendete Mahnungen ('approved') haben Vorrang vor reinen sevDesk-Entwürfen
+  const dunningByInvoice = {};
   dunningRecords.forEach(d => {
-    if (d.status === 'rejected' || !d.sevdesk_invoice_id) return;
-    dunningLevelByInvoice[d.sevdesk_invoice_id] = Math.max(
-      dunningLevelByInvoice[d.sevdesk_invoice_id] || 0, d.dunning_level || 0
-    );
+    if (d.status === 'rejected' || d.status === 'error' || d.status === 'closed_paid' || !d.sevdesk_invoice_id) return;
+    const sent = d.status === 'approved';
+    const level = d.dunning_level || 0;
+    const cur = dunningByInvoice[d.sevdesk_invoice_id];
+    if (!cur || (sent && !cur.sent) || (sent === cur.sent && level > cur.level)) {
+      dunningByInvoice[d.sevdesk_invoice_id] = { level, label: d.level_label || '', sent };
+    }
   });
 
   const enriched = (liveData?.invoices || []).map(r => ({
     ...r,
     calc_overdue_days: calcOverdueDays(r.due_date),
     aging_bucket: getAgingBucket(calcOverdueDays(r.due_date)),
-    dunning_level: dunningLevelByInvoice[r.id] || 0,
+    dunning_level: dunningByInvoice[r.id]?.level || 0,
+    dunning_label: dunningByInvoice[r.id]?.label || '',
+    dunning_sent: dunningByInvoice[r.id]?.sent === true,
   }));
 
   const filtered = enriched.filter(r => {
@@ -72,7 +78,15 @@ export default function Receivables() {
           ? <Badge className="bg-red-100 text-red-700">{v} Tage überfällig</Badge>
           : <Badge className="bg-slate-100 text-slate-700">offen, nicht fällig</Badge>,
     },
-    { key: 'dunning_level', label: 'Mahnstufe', render: (v) => v > 0 ? <Badge className="bg-amber-100 text-amber-700">Stufe {v}</Badge> : '—' },
+    {
+      key: 'dunning_level',
+      label: 'Mahnstand',
+      render: (v, row) => {
+        if (!(v > 0)) return <span className="text-xs text-muted-foreground">noch nicht gemahnt</span>;
+        if (!row.dunning_sent) return <Badge className="bg-slate-100 text-slate-600">Entwurf: {row.dunning_label || `Stufe ${v}`}</Badge>;
+        return <Badge className={v >= 2 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}>{row.dunning_label || `Stufe ${v}`} versendet</Badge>;
+      },
+    },
   ];
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-64" /><Skeleton className="h-[400px]" /></div>;

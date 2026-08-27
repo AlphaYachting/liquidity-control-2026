@@ -67,11 +67,18 @@ export default function MasseverwalterReport() {
     {
       key: 'dunning_level',
       label: 'Mahnstand',
-      render: (v, row) => v > 0
-        ? <Badge className={v >= 2 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}>
-            {row.dunning_label || `Stufe ${v}`}{row.dunning_date ? ` · ${new Date(row.dunning_date).toLocaleDateString('de-AT')}` : ''}
+      render: (v, row) => {
+        if (!(v > 0)) return <span className="text-xs text-muted-foreground">noch nicht gemahnt</span>;
+        const datum = row.dunning_date ? ` · ${new Date(row.dunning_date).toLocaleDateString('de-AT')}` : '';
+        if (!row.dunning_sent) {
+          return <Badge className="bg-slate-100 text-slate-600">Entwurf: {row.dunning_label || `Stufe ${v}`} — noch nicht versendet</Badge>;
+        }
+        return (
+          <Badge className={v >= 2 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}>
+            {row.dunning_label || `Stufe ${v}`} versendet{datum}
           </Badge>
-        : <span className="text-xs text-muted-foreground">—</span>,
+        );
+      },
     },
     {
       key: 'calc_overdue_days',

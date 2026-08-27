@@ -22,14 +22,24 @@ export default async function(req: Request): Promise<Response> {
     // Mahnstand je Rechnung — höchste erreichte Stufe, verworfene/fehlerhafte Vorgänge zählen nicht
     const base44 = createClientFromRequest(req);
     const dunnings = await base44.asServiceRole.entities.DunningRecord.list('-created_date', 1000);
-    const byInvoice: Record<string, { level: number; label: string; date: string }> = {};
+    // Versendet (status 'approved') zählt vor blossem Entwurf (status 'draft_created').
+    const byInvoice: Record<string, { level: number; label: string; date: string; sent: boolean }> = {};
     for (const d of dunnings) {
-      if (d.status === 'rejected' || d.status === 'error') continue;
+      if (d.status === 'rejected' || d.status === 'error' || d.status === 'closed_paid') continue;
       const key = String(d.sevdesk_invoice_id || '');
       if (!key) continue;
+      const sent = d.status === 'approved';
       const level = Number(d.dunning_level) || 0;
-      if (!byInvoice[key] || level > byInvoice[key].level) {
-        byInvoice[key] = { level, label: d.level_label || '', date: (d.created_date || '').substring(0, 10) };
+      const cur = byInvoice[key];
+      // Versendete Stufen haben immer Vorrang; innerhalb gleicher Art gilt die höhere Stufe
+      const besser = !cur || (sent && !cur.sent) || (sent === cur.sent && level > cur.level);
+      if (besser) {
+        byInvoice[key] = {
+          level,
+          label: d.level_label || '',
+          date: ((sent ? d.approved_at : d.created_date) || '').substring(0, 10),
+          sent,
+        };
       }
     }
 
@@ -40,6 +50,7 @@ export default async function(req: Request): Promise<Response> {
         dunning_level: d?.level || 0,
         dunning_label: d?.label || '',
         dunning_date: d?.date || null,
+        dunning_sent: d?.sent === true,
       };
     });
     const totalOpen = invoices.reduce((s, i) => s + i.open_amount, 0);
