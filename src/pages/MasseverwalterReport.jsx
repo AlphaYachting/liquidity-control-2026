@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
 import { FileText, AlertTriangle } from 'lucide-react';
 import KpiCard from '@/components/shared/KpiCard';
 import DataTable from '@/components/shared/DataTable';
@@ -16,9 +15,18 @@ export default function MasseverwalterReport() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    base44.functions.invoke('publicMasseverwalterReport', { key: accessKey })
-      .then((res) => setData(res.data))
-      .catch((e) => setError(e?.response?.data?.error || e?.message || 'Bericht konnte nicht geladen werden'));
+    // Direkter Aufruf des öffentlichen Endpunkts — ohne Login und ohne SDK-Token
+    fetch('/functions/publicMasseverwalterReport', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: accessKey }),
+    })
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok || json.error) throw new Error(json.error || `Fehler ${res.status}`);
+        setData(json);
+      })
+      .catch((e) => setError(e?.message || 'Bericht konnte nicht geladen werden'));
   }, [accessKey]);
 
   if (error) {
