@@ -107,8 +107,21 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      navigateToLogin();
-      return null;
+      // Schutz gegen Endlos-Weiterleitung: nur einmal je Sitzung zum Login schicken
+      if (sessionStorage.getItem('login_redirect_done') !== '1') {
+        sessionStorage.setItem('login_redirect_done', '1');
+        navigateToLogin();
+        return null;
+      }
+      return (
+        <div className="fixed inset-0 flex items-center justify-center bg-background p-6">
+          <div className="text-center max-w-sm">
+            <p className="font-semibold">Anmeldung erforderlich</p>
+            <p className="mt-2 text-sm text-muted-foreground">Die Anmeldung konnte nicht abgeschlossen werden. Bitte erneut anmelden.</p>
+            <button onClick={() => { sessionStorage.removeItem('login_redirect_done'); navigateToLogin(); }} className="mt-4 px-4 py-2 rounded bg-primary text-primary-foreground text-sm">Zur Anmeldung</button>
+          </div>
+        </div>
+      );
     }
   }
 
