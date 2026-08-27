@@ -46,6 +46,7 @@ export default function MasseverwalterReport() {
     calc_overdue_days: calcOverdueDays(r.due_date),
   }));
   const istBezahlt = (r) => r.payment_status === 'paid' || (Number(r.open_amount) || 0) <= 0.01;
+  const totalGross = invoices.reduce((s, r) => s + (Number(r.gross_amount) || 0), 0);
   const totalOpen = invoices.reduce((s, r) => s + (Number(r.open_amount) || 0), 0);
   const totalPaid = invoices.reduce((s, r) => s + (Number(r.paid_amount) || 0), 0);
   const totalOverdue = invoices
@@ -95,11 +96,11 @@ export default function MasseverwalterReport() {
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <KpiCard title="Offene Forderungen" value={formatCurrency(totalOpen)} subtitle="Summe offener Beträge (brutto)" variant="warning" />
+              <KpiCard title="Fakturiert ab 24.07." value={formatCurrency(totalGross)} subtitle={`${invoices.length} Rechnungen (brutto)`} />
               <KpiCard title="Bereits bezahlt" value={formatCurrency(totalPaid)} subtitle={`${paidCount} Rechnungen vollständig bezahlt`} variant="success" />
+              <KpiCard title="Offene Forderungen" value={formatCurrency(totalOpen)} subtitle="Fakturiert minus bezahlt (brutto)" variant="warning" />
               <KpiCard title="Überfällig" value={formatCurrency(totalOverdue)} subtitle="Offen & Fälligkeit überschritten" variant="danger" />
               <KpiCard title="Kritische Fälle" value={criticalCount} subtitle="> 30 Tage überfällig" variant={criticalCount > 0 ? 'danger' : 'default'} />
-              <KpiCard title="Gesamt Positionen" value={invoices.length} subtitle="Rechnungen ab 24.07." />
             </div>
             <DataTable columns={columns} data={invoices} />
           </>
