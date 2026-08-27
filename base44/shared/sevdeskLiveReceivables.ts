@@ -30,6 +30,7 @@ async function fetchAllByStatus(status: number, apiKey: string) {
 function mapInvoices(invoices: any[]) {
   return invoices.map(inv => {
     const grossAmount = parseAmount(inv.sumGross);
+    const netAmount = parseAmount(inv.sumNet);
     const openAmount = parseAmount(inv.sumOpenAmount) > 0
       ? parseAmount(inv.sumOpenAmount)
       : Math.max(0, grossAmount - parseAmount(inv.paidAmount));
@@ -48,6 +49,10 @@ function mapInvoices(invoices: any[]) {
       invoice_date: inv.invoiceDate ? inv.invoiceDate.substring(0, 10) : null,
       due_date: dueDate,
       gross_amount: grossAmount,
+      net_amount: netAmount,
+      // Netto-Anteile des offenen bzw. bezahlten Betrags — anteilig zum Bruttobetrag
+      open_net: grossAmount > 0 ? Math.round((openAmount / grossAmount) * netAmount * 100) / 100 : 0,
+      paid_net: grossAmount > 0 ? Math.round(((grossAmount - openAmount) / grossAmount) * netAmount * 100) / 100 : 0,
       open_amount: openAmount,
       paid_amount: Math.max(0, grossAmount - openAmount),
       payment_status: openAmount <= 0.01
