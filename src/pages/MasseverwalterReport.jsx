@@ -37,9 +37,14 @@ export default function MasseverwalterReport() {
     ...r,
     calc_overdue_days: calcOverdueDays(r.due_date),
   }));
+  const istBezahlt = (r) => r.payment_status === 'paid' || (Number(r.open_amount) || 0) <= 0.01;
   const totalOpen = invoices.reduce((s, r) => s + (Number(r.open_amount) || 0), 0);
-  const totalOverdue = invoices.filter((r) => r.calc_overdue_days > 0).reduce((s, r) => s + (Number(r.open_amount) || 0), 0);
-  const criticalCount = invoices.filter((r) => r.calc_overdue_days > 30).length;
+  const totalPaid = invoices.reduce((s, r) => s + (Number(r.paid_amount) || 0), 0);
+  const totalOverdue = invoices
+    .filter((r) => !istBezahlt(r) && r.calc_overdue_days > 0)
+    .reduce((s, r) => s + (Number(r.open_amount) || 0), 0);
+  const criticalCount = invoices.filter((r) => !istBezahlt(r) && r.calc_overdue_days > 30).length;
+  const paidCount = invoices.filter(istBezahlt).length;
 
   const columns = [
     { key: 'payment_status', label: 'Status', render: (v) => <StatusBadge status={v} /> },

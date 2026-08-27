@@ -1,4 +1,4 @@
-import { fetchLiveOpenReceivables } from '../../shared/sevdeskLiveReceivables.ts';
+import { fetchLiveReceivablesWithPaid } from '../../shared/sevdeskLiveReceivables.ts';
 
 // Öffentlicher Bericht für den Masseverwalter — KEIN Login, Zugriff nur über
 // den unerratbaren Schlüssel im Link. Nur Rechnungen ab dem Stichtag 24.07.
@@ -15,9 +15,10 @@ export default async function(req: Request): Promise<Response> {
     const apiKey = Deno.env.get('SEVDESK_API_KEY');
     if (!apiKey) return Response.json({ error: 'SEVDESK_API_KEY not set' }, { status: 500 });
 
-    const all = await fetchLiveOpenReceivables(apiKey);
+    const all = await fetchLiveReceivablesWithPaid(apiKey);
     const invoices = all.filter((inv) => inv.invoice_date && inv.invoice_date >= CUTOFF_DATE);
     const totalOpen = invoices.reduce((s, i) => s + i.open_amount, 0);
+    const totalPaid = invoices.reduce((s, i) => s + i.paid_amount, 0);
 
     return Response.json({
       success: true,
@@ -25,6 +26,7 @@ export default async function(req: Request): Promise<Response> {
       generated_at: new Date().toISOString(),
       count: invoices.length,
       total_open_gross: Math.round(totalOpen * 100) / 100,
+      total_paid_gross: Math.round(totalPaid * 100) / 100,
       invoices,
     });
   } catch (error) {

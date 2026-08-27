@@ -12,25 +12,22 @@ async function sevdeskGet(path: string, apiKey: string) {
 
 const parseAmount = (val: unknown) => parseFloat(String(val || '0')) || 0;
 
-export async function fetchLiveOpenReceivables(apiKey: string) {
-  // 200 = versendet/offen, 750 = teilweise bezahlt — paginiert
-  async function fetchAllByStatus(status: number) {
-    const all: any[] = [];
-    let offset = 0;
-    const pageSize = 100;
-    while (true) {
-      const page = await sevdeskGet(`/Invoice?limit=${pageSize}&offset=${offset}&embed=contact&status=${status}`, apiKey);
-      const items = page.objects || [];
-      all.push(...items);
-      if (items.length < pageSize) break;
-      offset += pageSize;
-    }
-    return all;
+// 200 = versendet/offen, 750 = teilweise bezahlt, 1000 = bezahlt — paginiert
+async function fetchAllByStatus(status: number, apiKey: string) {
+  const all: any[] = [];
+  let offset = 0;
+  const pageSize = 100;
+  while (true) {
+    const page = await sevdeskGet(`/Invoice?limit=${pageSize}&offset=${offset}&embed=contact&status=${status}`, apiKey);
+    const items = page.objects || [];
+    all.push(...items);
+    if (items.length < pageSize) break;
+    offset += pageSize;
   }
+  return all;
+}
 
-  const [raw200, raw750] = await Promise.all([fetchAllByStatus(200), fetchAllByStatus(750)]);
-  const invoices = [...raw200, ...raw750].filter(inv => inv.invoiceType !== 'GS');
-
+function mapInvoices(invoices: any[]) {
   return invoices.map(inv => {
     const grossAmount = parseAmount(inv.sumGross);
     const openAmount = parseAmount(inv.sumOpenAmount) > 0
@@ -52,7 +49,32 @@ export async function fetchLiveOpenReceivables(apiKey: string) {
       due_date: dueDate,
       gross_amount: grossAmount,
       open_amount: openAmount,
-      payment_status: parseAmount(inv.paidAmount) > 0 ? 'partially_paid' : 'open',
+      paid_amount: Math.max(0, grossAmount - openAmount),
+      payment_status: openAmount <= 0.01
+        ? 'paid'
+        : parseAmount(inv.paidAmount) > 0 ? 'partially_paid' : 'open',
     };
-  }).filter(inv => inv.open_amount > 0);
+  });
+}
+
+// Nur offene Forderungen — Wahrheitsquelle für die Forderungs-KPIs.
+export async function fetchLiveOpenReceivables(apiKey: string) {
+  const [raw200, raw750] = await Promise.all([
+    fetchAllByStatus(200, apiKey),
+    fetchAllByStatus(750, apiKey),
+  ]);
+  const invoices = [...raw200, ...raw750].filter(inv => inv.invoiceType !== 'GS');
+  return mapInvoices(invoices).filter(inv => inv.open_amount > 0);
+}
+
+// Alle festgeschriebenen Rechnungen inklusive bereits bezahlter — für den
+// Masseverwalter-Bericht, damit bezahlte Rechnungen als bezahlt erkennbar sind.
+export async function fetchLiveReceivablesWithPaid(apiKey: string) {
+  const [raw200, raw750, raw1000] = await Promise.all([
+    fetchAllByStatus(200, apiKey),
+    fetchAllByStatus(750, apiKey),
+    fetchAllByStatus(1000, apiKey),
+  ]);
+  const invoices = [...raw200, ...raw750, ...raw1000].filter(inv => inv.invoiceType !== 'GS');
+  return mapInvoices(invoices);
 }
