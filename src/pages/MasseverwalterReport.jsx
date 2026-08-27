@@ -52,9 +52,18 @@ export default function MasseverwalterReport() {
     { key: 'invoice_number', label: 'RE-Nr.' },
     { key: 'invoice_date', label: 'RE-Datum' },
     { key: 'gross_amount', label: 'Brutto', render: (v) => formatCurrency(v), cellClass: 'text-right' },
+    { key: 'paid_amount', label: 'Bezahlt', render: (v) => formatCurrency(v), cellClass: 'text-right' },
     { key: 'open_amount', label: 'Offen', render: (v) => formatCurrency(v), cellClass: 'text-right font-medium' },
     { key: 'due_date', label: 'Fällig' },
-    { key: 'calc_overdue_days', label: 'Überfällig', render: (v) => v > 0 ? <Badge className="bg-red-100 text-red-700">{v} Tage</Badge> : <Badge className="bg-emerald-100 text-emerald-700">OK</Badge> },
+    {
+      key: 'calc_overdue_days',
+      label: 'Zahlungsstand',
+      render: (v, row) => istBezahlt(row)
+        ? <Badge className="bg-emerald-100 text-emerald-700">✓ Bezahlt</Badge>
+        : v > 0
+          ? <Badge className="bg-red-100 text-red-700">{v} Tage überfällig</Badge>
+          : <Badge className="bg-slate-100 text-slate-700">offen, nicht fällig</Badge>,
+    },
   ];
 
   return (
@@ -67,7 +76,7 @@ export default function MasseverwalterReport() {
           <div>
             <h1 className="text-xl font-bold">Offene Forderungen — Bericht für den Masseverwalter</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Rittler & Co. — alle offenen Rechnungen ab dem 24.07.2026, live aus der Buchhaltung (sevDesk)
+              Rittler & Co. — alle Rechnungen ab dem 24.07.2026 mit ihrem tatsächlichen Zahlungsstand, live aus der Buchhaltung (sevDesk)
               {data?.generated_at && ` · Stand: ${new Date(data.generated_at).toLocaleString('de-AT')}`}
             </p>
           </div>
@@ -77,11 +86,12 @@ export default function MasseverwalterReport() {
           <div className="space-y-4"><Skeleton className="h-24" /><Skeleton className="h-[400px]" /></div>
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <KpiCard title="Offene Forderungen" value={formatCurrency(totalOpen)} subtitle="Summe offener Beträge (brutto)" variant="warning" />
+              <KpiCard title="Bereits bezahlt" value={formatCurrency(totalPaid)} subtitle={`${paidCount} Rechnungen vollständig bezahlt`} variant="success" />
               <KpiCard title="Überfällig" value={formatCurrency(totalOverdue)} subtitle="Offen & Fälligkeit überschritten" variant="danger" />
               <KpiCard title="Kritische Fälle" value={criticalCount} subtitle="> 30 Tage überfällig" variant={criticalCount > 0 ? 'danger' : 'default'} />
-              <KpiCard title="Gesamt Positionen" value={invoices.length} subtitle="Offene Rechnungen ab 24.07." />
+              <KpiCard title="Gesamt Positionen" value={invoices.length} subtitle="Rechnungen ab 24.07." />
             </div>
             <DataTable columns={columns} data={invoices} />
           </>
