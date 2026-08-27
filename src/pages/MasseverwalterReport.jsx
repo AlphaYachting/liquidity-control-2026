@@ -65,6 +65,15 @@ export default function MasseverwalterReport() {
     { key: 'open_amount', label: 'Offen', render: (v) => formatCurrency(v), cellClass: 'text-right font-medium' },
     { key: 'due_date', label: 'Fällig' },
     {
+      key: 'dunning_level',
+      label: 'Mahnstand',
+      render: (v, row) => v > 0
+        ? <Badge className={v >= 2 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}>
+            {row.dunning_label || `Stufe ${v}`}{row.dunning_date ? ` · ${new Date(row.dunning_date).toLocaleDateString('de-AT')}` : ''}
+          </Badge>
+        : <span className="text-xs text-muted-foreground">—</span>,
+    },
+    {
       key: 'calc_overdue_days',
       label: 'Zahlungsstand',
       render: (v, row) => istBezahlt(row)
