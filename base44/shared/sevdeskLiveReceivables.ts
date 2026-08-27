@@ -27,6 +27,20 @@ async function fetchAllByStatus(status: number, apiKey: string) {
   return all;
 }
 
+// Storno-Rechnungen (SR) und Gutschriften (GS) fliegen raus — und mit einer
+// Storno-Rechnung auch die von ihr stornierte Originalrechnung (Feld origin).
+function ohneStornos(invoices: any[]) {
+  const stornierteOriginale = new Set<string>();
+  for (const inv of invoices) {
+    if (inv.invoiceType === 'SR' && inv.origin?.id) stornierteOriginale.add(String(inv.origin.id));
+  }
+  return invoices.filter(inv =>
+    inv.invoiceType !== 'GS' &&
+    inv.invoiceType !== 'SR' &&
+    !stornierteOriginale.has(String(inv.id))
+  );
+}
+
 function mapInvoices(invoices: any[]) {
   return invoices.map(inv => {
     const grossAmount = parseAmount(inv.sumGross);
@@ -64,11 +78,15 @@ function mapInvoices(invoices: any[]) {
 
 // Nur offene Forderungen — Wahrheitsquelle für die Forderungs-KPIs.
 export async function fetchLiveOpenReceivables(apiKey: string) {
-  const [raw200, raw750] = await Promise.all([
+  // Status 1000 wird mitgeladen, weil Storno-Rechnungen dort liegen und ihre
+  // Originalrechnung sonst weiter als offen erscheinen würde.
+  const [raw200, raw750, raw1000] = await Promise.all([
     fetchAllByStatus(200, apiKey),
     fetchAllByStatus(750, apiKey),
+    fetchAllByStatus(1000, apiKey),
   ]);
-  const invoices = [...raw200, ...raw750].filter(inv => inv.invoiceType !== 'GS');
+  raw750.push(...raw1000.filter((inv: any) => inv.invoiceType === 'SR'));
+  const invoices = ohneStornos([...raw200, ...raw750]);
   return mapInvoices(invoices).filter(inv => inv.open_amount > 0);
 }
 
@@ -80,6 +98,6 @@ export async function fetchLiveReceivablesWithPaid(apiKey: string) {
     fetchAllByStatus(750, apiKey),
     fetchAllByStatus(1000, apiKey),
   ]);
-  const invoices = [...raw200, ...raw750, ...raw1000].filter(inv => inv.invoiceType !== 'GS');
+  const invoices = ohneStornos([...raw200, ...raw750, ...raw1000]);
   return mapInvoices(invoices);
 }
