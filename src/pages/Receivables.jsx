@@ -63,7 +63,15 @@ export default function Receivables() {
     { key: 'gross_amount', label: 'Brutto', render: (v) => formatCurrency(v), cellClass: 'text-right' },
     { key: 'open_amount', label: 'Offen', render: (v) => formatCurrency(v), cellClass: 'text-right font-medium' },
     { key: 'due_date', label: 'Fällig' },
-    { key: 'calc_overdue_days', label: 'Überfällig', render: (v) => v > 0 ? <Badge className="bg-red-100 text-red-700">{v} Tage</Badge> : <Badge className="bg-emerald-100 text-emerald-700">OK</Badge> },
+    {
+      key: 'calc_overdue_days',
+      label: 'Zahlungsstand',
+      render: (v, row) => (Number(row.open_amount) || 0) <= 0.01
+        ? <Badge className="bg-emerald-100 text-emerald-700">✓ Bezahlt</Badge>
+        : v > 0
+          ? <Badge className="bg-red-100 text-red-700">{v} Tage überfällig</Badge>
+          : <Badge className="bg-slate-100 text-slate-700">offen, nicht fällig</Badge>,
+    },
     { key: 'dunning_level', label: 'Mahnstufe', render: (v) => v > 0 ? <Badge className="bg-amber-100 text-amber-700">Stufe {v}</Badge> : '—' },
   ];
 
