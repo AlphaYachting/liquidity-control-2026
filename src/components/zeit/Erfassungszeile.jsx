@@ -12,11 +12,19 @@ import HauptKnopf from './HauptKnopf';
 import FussVerweise from './FussVerweise';
 import TrefferListe from './TrefferListe';
 import VorschauSatz from './VorschauSatz';
-import SchreibweiseHilfe from './SchreibweiseHilfe';
+import FeldGruppe from './FeldGruppe';
 import SchnellProjektDialog from './SchnellProjektDialog';
 
 // Eine Zeile statt Reiter, Suchfeld, Stundenfeld und Notizfeld.
-export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp, vorbelegung, pruefen }) {
+const gestern = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp, vorbelegung, pruefen, onZurueck }) {
+  // Nachtragen heißt: erst der Tag, dann alles andere. Vorbelegt ist gestern.
+  const [datum, setDatum] = useState(gestern());
   const [text, setText] = useState('');
   const [gewaehlt, setGewaehlt] = useState(null);
   const [aktiv, setAktiv] = useState(0);
@@ -45,7 +53,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
 
   const buchen = async () => {
     if (!bereit) return;
-    const tag = tagProp || todayIso();
+    const tag = tagProp || datum || todayIso();
     if (pruefen && !pruefen(tag)) return;
     setBusy(true);
     let zeiten;
@@ -98,29 +106,34 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
 
   return (
     <div className="px-4 pt-[14px] pb-4">
-      <Input
-        autoFocus
-        placeholder="ami 2,5 Wireframes überarbeitet"
-        value={text}
-        onChange={(e) => { setText(e.target.value); setGewaehlt(null); setListeOffen(true); }}
-        onKeyDown={tasten}
-      />
+      {!tagProp && (
+        <FeldGruppe label="Für welchen Tag">
+          <Input type="date" value={datum} max={todayIso()} onChange={(e) => setDatum(e.target.value)} />
+        </FeldGruppe>
+      )}
 
-      <VorschauSatz projekt={projekt} fenster={fenster} minuten={minuten} notiz={notiz} taetigkeit={taetigkeit} />
+      <FeldGruppe label="Was und wie lange" className={tagProp ? '' : 'mt-[11px]'}>
+        <Input
+          autoFocus
+          placeholder="hw 2,5 Wireframes überarbeitet"
+          value={text}
+          onChange={(e) => { setText(e.target.value); setGewaehlt(null); setListeOffen(true); }}
+          onKeyDown={tasten}
+        />
+      </FeldGruppe>
 
-      <SchreibweiseHilfe />
-
-      <TaetigkeitWahl wert={taetigkeit} onWaehlen={setTaetigkeit} />
+      <VorschauSatz projekt={projekt} minuten={minuten} notiz={notiz} eingabe={projektWort} />
 
       {listeOffen && (
         <TrefferListe
           treffer={treffer}
-          aktiv={aktiv}
           wort={projektWort}
           onWaehlen={uebernehmen}
           onAnlegen={() => setDialog(true)}
         />
       )}
+
+      {projekt && <div className="mt-2"><TaetigkeitWahl wert={taetigkeit} onWaehlen={setTaetigkeit} /></div>}
 
       <HauptKnopf
         disabled={busy || !bereit}
@@ -130,9 +143,10 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
         Buchen
       </HauptKnopf>
 
-      {onStart && (
-        <FussVerweise rechts={projekt ? { text: 'stattdessen Timer starten', onClick: timerStarten } : null} />
-      )}
+      <FussVerweise
+        links={onZurueck ? { text: '← zurück zum Timer', onClick: onZurueck } : null}
+        rechts={onStart && projekt ? { text: 'stattdessen Timer starten', onClick: timerStarten } : null}
+      />
 
       <SchnellProjektDialog
         open={dialog}

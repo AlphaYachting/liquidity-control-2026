@@ -12,8 +12,8 @@ export default function TaetigkeitWahl({ wert, onWaehlen }) {
       <button
         type="button"
         onClick={() => setOffen((o) => !o)}
-        className="text-[11.5px] underline decoration-dotted"
-        style={{ color: RITTLER.textSecondary }}
+        className="text-[11.5px] px-2 py-0.5 rounded border transition-colors hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]"
+        style={{ color: RITTLER.textSecondary, borderColor: RITTLER.line }}
       >
         Tätigkeit: {TAETIGKEIT_LABEL[gewaehlt]}
       </button>

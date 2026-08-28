@@ -181,7 +181,12 @@ export default function TimerKnopf() {
               onWeiterlaufen={schliessen}
             />
           ) : tippzeile ? (
-            <Erfassungszeile email={email} onStart={starten} onBooked={gebucht} />
+            <Erfassungszeile
+              email={email}
+              onStart={starten}
+              onBooked={gebucht}
+              onZurueck={running ? () => setTippzeile(false) : undefined}
+            />
           ) : running ? (
             <TimerKarte
               timer={timer}
