@@ -41,11 +41,16 @@ export default function MasseverwalterReport() {
     );
   }
 
-  const invoices = (data?.invoices || []).map((r) => ({
-    ...r,
-    calc_overdue_days: calcOverdueDays(r.due_date),
-  }));
   const istBezahlt = (r) => r.payment_status === 'paid' || (Number(r.open_amount) || 0) <= 0.01;
+  const tageOffen = (r) => (r.invoice_date
+    ? Math.floor((Date.now() - new Date(r.invoice_date).getTime()) / 86400000)
+    : 0);
+  // Reihenfolge: erst die fälligen, dann die offenen ohne Fälligkeit, zuletzt die
+  // bezahlten — innerhalb jeder Gruppe die am längsten offene Rechnung zuerst.
+  const gruppe = (r) => (istBezahlt(r) ? 2 : calcOverdueDays(r.due_date) > 0 ? 0 : 1);
+  const invoices = (data?.invoices || [])
+    .map((r) => ({ ...r, calc_overdue_days: calcOverdueDays(r.due_date) }))
+    .sort((a, b) => gruppe(a) - gruppe(b) || tageOffen(b) - tageOffen(a));
   const totalNet = invoices.reduce((s, r) => s + (Number(r.net_amount) || 0), 0);
   const totalOpen = invoices.reduce((s, r) => s + (Number(r.open_net) || 0), 0);
   const totalPaid = invoices.reduce((s, r) => s + (Number(r.paid_net) || 0), 0);
