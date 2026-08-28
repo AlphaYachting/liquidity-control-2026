@@ -15,6 +15,10 @@
       "type": "string",
       "description": "optional: Aufgabe, auf die gebucht wurde"
     },
+    "laufende_id": {
+      "type": "string",
+      "description": "Id der LaufendeZeitbuchung, aus der diese Buchung entstand \u2014 wird nur von zeitStoppen gesetzt und macht den Aufruf wiederholbar"
+    },
     "person_email": {
       "type": "string",
       "format": "email"

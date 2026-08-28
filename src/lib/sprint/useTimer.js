@@ -18,8 +18,14 @@ const cacheRead = (email) => {
   }
 };
 const cacheWrite = (timer) => {
-  if (timer) localStorage.setItem(KEY, JSON.stringify(timer));
+  if (timer) localStorage.setItem(KEY, JSON.stringify({ ...timer, cache_stand: Date.now() }));
   else localStorage.removeItem(KEY);
+};
+// Der Zwischenspeicher darf einen gelöschten Timer nicht wiederbeleben: älter als
+// eine Minute wird er ignoriert und der Serverstand abgewartet.
+const cacheFrisch = (email) => {
+  const t = cacheRead(email);
+  return t && Date.now() - (Number(t.cache_stand) || 0) < 60000 ? t : undefined;
 };
 
 const minutenSeit = (iso) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
@@ -37,8 +43,12 @@ export const tagVon = (iso) => {
 export const kuerzelOf = (name = '') =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '—';
 
+// Je Person darf es nur EINE laufende Zeile geben: die jüngste gilt, der Rest wird entfernt.
 const laufendeVon = async (email) => {
-  const rows = await base44.entities.LaufendeZeitbuchung.filter({ person_email: email }, '-gestartet_am', 1);
+  const rows = await base44.entities.LaufendeZeitbuchung.filter({ person_email: email }, '-gestartet_am', 50);
+  for (const alt of rows.slice(1)) {
+    await base44.entities.LaufendeZeitbuchung.delete(alt.id).catch(() => null);
+  }
   return rows[0] || null;
 };
 
@@ -147,7 +157,7 @@ export function useTimer(email) {
   const { data: timer } = useQuery({
     queryKey: ['laufendeZeitbuchung', email],
     enabled: !!email,
-    initialData: () => cacheRead(email),
+    initialData: () => cacheFrisch(email),
     queryFn: async () => {
       const t = await laufendeVon(email);
       cacheWrite(t);
@@ -166,45 +176,59 @@ export function useTimer(email) {
 
   const refresh = useCallback(() => qc.invalidateQueries({ queryKey: ['laufendeZeitbuchung', email] }), [qc, email]);
 
-  // Pausenminuten werden von der gemessenen Dauer abgezogen.
+  // Das Stoppen läuft serverseitig in einem wiederholbaren Aufruf. Pausenminuten
+  // werden von der gemessenen Dauer abgezogen. Scheitert es, läuft der Timer weiter.
   const stop = useCallback(async (note = '', abzugMinuten = 0) => {
     const aktuell = await laufendeVon(email);
     if (!aktuell) {
       await refresh();
       return null;
     }
-    const minuten = Math.max(0, minutenSeit(aktuell.gestartet_am) - (Number(abzugMinuten) || 0));
-    const ende = new Date().toISOString();
-    const eintrag = await bucheZeit({
-      projectId: aktuell.project_id,
-      email,
-      durationMinutes: minuten,
-      entryDate: tagVon(aktuell.gestartet_am),
-      startedAt: aktuell.gestartet_am,
-      endedAt: ende,
-      note: [aktuell.notiz, note].filter(Boolean).join(' · '),
-      quelle: 'timer',
-      ticketId: aktuell.ticket_id,
-    });
-    await base44.entities.LaufendeZeitbuchung.delete(aktuell.id);
-    cacheWrite(null);
-    await refresh();
-    return {
-      hours: stundenAus(minuten),
-      minuten,
-      projekt: aktuell.projekt_titel,
-      eintragId: eintrag?.id,
-      projectId: aktuell.project_id,
-      ticketId: aktuell.ticket_id,
-      datum: tagVon(aktuell.gestartet_am),
-    };
-  }, [email, refresh]);
+    try {
+      const res = await base44.functions.invoke('zeitStoppen', {
+        laufende_id: aktuell.id,
+        notiz: note,
+        abzug_minuten: Number(abzugMinuten) || 0,
+        entry_date: tagVon(aktuell.gestartet_am),
+      });
+      const daten = res?.data || {};
+      if (daten.fehler || !daten.erfolg) throw new Error(daten.fehler || 'Buchung nicht gespeichert');
+
+      // Sofort und ohne Neuladen: ein Neuladen könnte die gelöschte Zeile noch liefern.
+      cacheWrite(null);
+      qc.setQueryData(['laufendeZeitbuchung', email], null);
+      return {
+        hours: daten.stunden,
+        minuten: daten.minuten,
+        projekt: daten.projekt_titel || aktuell.projekt_titel,
+        eintragId: daten.time_entry?.id,
+        projectId: aktuell.project_id,
+        ticketId: aktuell.ticket_id,
+        datum: daten.entry_date || tagVon(aktuell.gestartet_am),
+      };
+    } catch (e) {
+      // Nichts wurde gelöscht — die gemessene Zeit ist erhalten.
+      return {
+        fehler: e?.response?.data?.fehler || e.message || 'Buchung nicht gespeichert',
+        minuten: Math.max(0, minutenSeit(aktuell.gestartet_am) - (Number(abzugMinuten) || 0)),
+        projekt: aktuell.projekt_titel,
+        projectId: aktuell.project_id,
+      };
+    }
+  }, [email, refresh, qc]);
 
   // Je Person läuft genau ein Timer — ein zweiter Start braucht die ausdrückliche Bestätigung.
   const start = useCallback(async (project, kuerzel, notiz = '', { force = false, ticketId } = {}) => {
     const bestehend = await laufendeVon(email);
     if (bestehend && !force) return { conflict: bestehend };
-    if (bestehend) await stop();
+    if (bestehend) {
+      const res = await stop();
+      // Nicht gebucht heißt nicht umschalten — sonst geht die gemessene Zeit verloren.
+      if (res?.fehler) return { fehler: res.fehler };
+    }
+    // Eindeutigkeit erzwingen: etwaige Reste derselben Person entfernen.
+    const reste = await base44.entities.LaufendeZeitbuchung.filter({ person_email: email }, '-gestartet_am', 50);
+    for (const alt of reste) await base44.entities.LaufendeZeitbuchung.delete(alt.id).catch(() => null);
 
     const felder = await ermittleBuchungsfelder(project.id);
     const neu = await base44.entities.LaufendeZeitbuchung.create({
@@ -223,10 +247,9 @@ export function useTimer(email) {
     return { started: neu };
   }, [email, refresh, stop]);
 
-  // Zehn Stunden sind die Grenze — danach stoppt das System selbst.
-  useEffect(() => {
-    if (running && elapsedMinutes >= MAX_MINUTEN) stop('automatisch gestoppt');
-  }, [running, elapsedMinutes, stop]);
+  // Zehn Stunden sind die Grenze — das System bucht dann NICHT selbst, sondern legt
+  // die Buchung zur Bestätigung vor. Vermutlich wurde vergessen zu stoppen.
+  const ueberzogen = running && elapsedMinutes >= MAX_MINUTEN;
 
-  return { timer, running, elapsedMinutes, label: zeitLabel(elapsedMinutes), start, stop };
+  return { timer, running, elapsedMinutes, ueberzogen, label: zeitLabel(elapsedMinutes), start, stop, refresh };
 }

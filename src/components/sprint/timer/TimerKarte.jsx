@@ -14,9 +14,10 @@ const jetztMinute = () => {
 };
 
 // Laufender Timer: Uhr, Kontext, Pause und Stoppen mit Notiz.
-export default function TimerKarte({ timer, label, schmal, onStop }) {
+export default function TimerKarte({ timer, label, schmal, onStop, ueberzogen, elapsedMinutes = 0 }) {
   const [busy, setBusy] = useState(false);
   const [notiz, setNotiz] = useState('');
+  const [korrektur, setKorrektur] = useState('');
   const [pausen, setPausen] = useState([]);
   const [pauseAb, setPauseAb] = useState(null);
   const { data: kontext } = useProjektKontext(timer.project_id);
@@ -34,7 +35,12 @@ export default function TimerKarte({ timer, label, schmal, onStop }) {
 
   const stoppen = async () => {
     setBusy(true);
-    const abzug = pausenMinuten + (pauseAb === null ? 0 : Math.max(0, jetztMinute() - pauseAb));
+    let abzug = pausenMinuten + (pauseAb === null ? 0 : Math.max(0, jetztMinute() - pauseAb));
+    // Korrigierte Dauer schlägt die gemessene — der Rest wird als Abzug verbucht.
+    const gewuenscht = Number(String(korrektur).replace(',', '.'));
+    if (korrektur && gewuenscht > 0) {
+      abzug = Math.max(0, Math.round(elapsedMinutes - gewuenscht * 60));
+    }
     await onStop(notiz, abzug);
     setBusy(false);
   };
@@ -61,6 +67,24 @@ export default function TimerKarte({ timer, label, schmal, onStop }) {
         <p className="text-xs mt-2" style={{ color: STATUS_COLORS.attention }}>
           {pauseAb !== null ? `Pause läuft seit ${uhr(pauseAb)}` : `Pause ${dauerText(pausenMinuten)} — wird abgezogen`}
         </p>
+      )}
+
+      {ueberzogen && (
+        <div
+          className="mt-3 p-3 rounded"
+          style={{ backgroundColor: STATUS_COLORS.attentionSurface, color: STATUS_COLORS.attention }}
+        >
+          <p className="text-[13px] font-bold">Über zehn Stunden gelaufen</p>
+          <p className="text-[12.5px] mt-0.5">
+            Vermutlich wurde vergessen zu stoppen. Gebucht wird erst, wenn du bestätigst — korrigiere die Dauer, wenn sie nicht stimmt.
+          </p>
+          <Input
+            className="mt-2 bg-white"
+            placeholder="Tatsächliche Dauer in Stunden, z. B. 3,5"
+            value={korrektur}
+            onChange={(e) => setKorrektur(e.target.value)}
+          />
+        </div>
       )}
 
       <Input

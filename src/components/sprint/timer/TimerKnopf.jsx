@@ -14,6 +14,7 @@ import ErfassungsFenster from '@/components/zeit/ErfassungsFenster';
 import SchnellProjekte from '@/components/zeit/SchnellProjekte';
 import VorauswahlStart from '@/components/zeit/VorauswahlStart';
 import BuchungBestaetigung from '@/components/zeit/BuchungBestaetigung';
+import NichtGebucht from '@/components/zeit/NichtGebucht';
 
 // Knopf im Sprint-Modul und bei laufendem Timer — die Zeile selbst ist überall mit T erreichbar.
 export default function TimerKnopf() {
@@ -21,13 +22,15 @@ export default function TimerKnopf() {
   const imSprintModul = pathname === '/sprint' || pathname.startsWith('/sprint/');
   const { user } = useAuth();
   const email = user?.email;
-  const { timer, running, label, start, stop } = useTimer(email);
+  const { timer, running, label, start, stop, ueberzogen, elapsedMinutes } = useTimer(email);
   const { aeltester } = useOffeneTage(email);
   const kontext = useZeitKontext();
   const navigate = useNavigate();
   const [offen, setOffen] = useState(false);
   const [tippzeile, setTippzeile] = useState(false);
   const [bestaetigung, setBestaetigung] = useState(null);
+  const [nichtGebucht, setNichtGebucht] = useState(null);
+  const [letzterStopp, setLetzterStopp] = useState({ note: '', abzugMinuten: 0 });
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -47,7 +50,12 @@ export default function TimerKnopf() {
 
   if (!email) return null;
 
-  const schliessen = () => { setOffen(false); setTippzeile(false); setBestaetigung(null); };
+  const schliessen = () => {
+    setOffen(false);
+    setTippzeile(false);
+    setBestaetigung(null);
+    setNichtGebucht(null);
+  };
 
   const auffrischen = () => {
     qc.invalidateQueries({ queryKey: ['sprintHeute'] });
@@ -74,6 +82,12 @@ export default function TimerKnopf() {
       return;
     }
     const res = await stop(note, abzugMinuten);
+    // Gescheitert: der Timer läuft weiter, das Fenster sagt es ausdrücklich.
+    if (res?.fehler) {
+      setLetzterStopp({ note, abzugMinuten });
+      setNichtGebucht(res);
+      return;
+    }
     auffrischen();
     // Die Bestätigung bleibt im Fenster stehen — sie verdeckt die Pille nicht.
     if (res) {
@@ -137,8 +151,24 @@ export default function TimerKnopf() {
               onFertig={schliessen}
               onRueckgaengig={auffrischen}
             />
+          ) : nichtGebucht ? (
+            <NichtGebucht
+              info={nichtGebucht}
+              onNochmal={async () => {
+                setNichtGebucht(null);
+                await stoppen(letzterStopp.note, letzterStopp.abzugMinuten);
+              }}
+              onWeiterlaufen={schliessen}
+            />
           ) : running ? (
-            <TimerKarte timer={timer} label={label} schmal={!imSprintModul} onStop={stoppen} />
+            <TimerKarte
+              timer={timer}
+              label={label}
+              schmal={!imSprintModul}
+              onStop={stoppen}
+              ueberzogen={ueberzogen}
+              elapsedMinutes={elapsedMinutes}
+            />
           ) : tippzeile ? (
             <Erfassungszeile email={email} onStart={starten} onBooked={gebucht} />
           ) : hatKontext ? (
