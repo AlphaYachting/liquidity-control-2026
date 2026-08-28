@@ -8,6 +8,8 @@ import { useProjektKontext } from '@/lib/sprint/useProjektKontext';
 import { kuerzelVorschlag } from '@/lib/zeit/useProjektSuche';
 import ProjektKopf from './ProjektKopf';
 import ZahlenBlock from './ZahlenBlock';
+import HauptKnopf from './HauptKnopf';
+import FussVerweise from './FussVerweise';
 
 // Ruhezustand mit Projektbezug: keine Suche, sondern die Seite, auf der man steht.
 export default function VorauswahlStart({ kontext, onStart, onSuche, onNachtragen }) {
@@ -42,7 +44,7 @@ export default function VorauswahlStart({ kontext, onStart, onSuche, onNachtrage
   };
 
   return (
-    <div className="p-[14px]">
+    <div className="px-4 pt-[14px] pb-4">
       <ProjektKopf kunde={kunde} titel={projekt?.title} kategorie={pk?.kategorie} aufgabe={aufgabe} />
 
       <ZahlenBlock kontext={pk} />
@@ -56,24 +58,19 @@ export default function VorauswahlStart({ kontext, onStart, onSuche, onNachtrage
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); starten(); } }}
       />
 
-      <button
-        type="button"
+      <HauptKnopf
         disabled={busy || !projekt}
+        grund="Es fehlt noch das Projekt."
         onClick={starten}
-        className="mt-3 w-full h-11 rounded flex items-center justify-center gap-2 text-white text-sm font-bold uppercase tracking-wide disabled:opacity-60"
-        style={{ backgroundColor: RITTLER.pink }}
+        icon={<Play className="w-4 h-4" />}
       >
-        <Play className="w-4 h-4" /> Starten
-      </button>
+        Starten
+      </HauptKnopf>
 
-      <div className="flex items-center gap-4 mt-4">
-        <button type="button" onClick={onSuche} className="text-xs underline" style={{ color: RITTLER.textSecondary }}>
-          anderes Projekt …
-        </button>
-        <button type="button" onClick={onNachtragen} className="text-xs underline" style={{ color: RITTLER.textSecondary }}>
-          Zeit nachtragen
-        </button>
-      </div>
+      <FussVerweise
+        links={{ text: 'anderes Projekt …', onClick: onSuche }}
+        rechts={{ text: 'Zeit nachtragen', onClick: onNachtragen }}
+      />
     </div>
   );
 }

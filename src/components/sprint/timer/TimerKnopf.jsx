@@ -126,6 +126,14 @@ export default function TimerKnopf() {
 
   const hatKontext = !!kontext.project_id && kontext.quelle !== 'keiner';
 
+  // Der Fenstertitel benennt den Zustand — eine Kopfzeile für alle.
+  const titel = sperre ? 'Timer läuft bereits'
+    : bestaetigung ? 'Gebucht'
+    : nichtGebucht ? 'Nicht gebucht'
+    : tippzeile ? 'Zeit nachtragen'
+    : running ? 'Läuft'
+    : 'Zeit erfassen';
+
   return (
     <>
       {(imSprintModul || running || hatKontext) && (
@@ -154,7 +162,7 @@ export default function TimerKnopf() {
       )}
 
       {offen && (
-        <ErfassungsFenster onClose={schliessen}>
+        <ErfassungsFenster onClose={schliessen} titel={titel}>
           {sperre ? (
             <SperrHinweis aeltester={aeltester} onAbschluss={zumAbschluss} onZurueck={() => setSperre(false)} />
           ) : bestaetigung ? (
@@ -172,17 +180,17 @@ export default function TimerKnopf() {
               }}
               onWeiterlaufen={schliessen}
             />
+          ) : tippzeile ? (
+            <Erfassungszeile email={email} onStart={starten} onBooked={gebucht} />
           ) : running ? (
             <TimerKarte
               timer={timer}
               label={label}
-              schmal={!imSprintModul}
               onStop={stoppen}
+              onWechseln={() => setTippzeile(true)}
               ueberzogen={ueberzogen}
               elapsedMinutes={elapsedMinutes}
             />
-          ) : tippzeile ? (
-            <Erfassungszeile email={email} onStart={starten} onBooked={gebucht} />
           ) : hatKontext ? (
             <VorauswahlStart
               kontext={kontext}
@@ -191,7 +199,7 @@ export default function TimerKnopf() {
               onNachtragen={() => setTippzeile(true)}
             />
           ) : (
-            <div className="p-5">
+            <div className="px-4 pt-[14px] pb-4">
               <SchnellProjekte email={email} onStart={starten} onTippzeile={() => setTippzeile(true)} />
             </div>
           )}

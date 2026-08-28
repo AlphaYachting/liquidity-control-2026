@@ -1,13 +1,11 @@
 import React from 'react';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import { KATEGORIE_TEXT } from '@/lib/sprint/buchungsfelder';
+import { kuerzeTitel } from '@/lib/zeit/projektTitel';
 
-// Der Projektname ist hier Bestätigung, nicht Information — deshalb leise und einzeilig.
-export default function ProjektKopf({ kunde, titel, kategorie, aufgabe }) {
-  // Kürzung des Projekttitels um den Kundennamen bleibt wie gehabt.
-  const kurz = kunde && titel?.toLowerCase().startsWith(kunde.toLowerCase())
-    ? titel.slice(kunde.length).replace(/^[\s—·-]+/, '')
-    : titel;
+// Kunde und Projekt in einer Zeile — das Kürzel bleibt der Pille und der Trefferliste.
+export default function ProjektKopf({ kunde, titel, kategorie, aufgabe, children }) {
+  const kurz = kuerzeTitel(kunde, titel);
   const voll = [kunde, kurz].filter(Boolean).join(' · ');
 
   return (
@@ -21,6 +19,7 @@ export default function ProjektKopf({ kunde, titel, kategorie, aufgabe }) {
           {KATEGORIE_TEXT[kategorie] || kategorie}
         </p>
       )}
+      {children}
       {aufgabe && (
         <p
           className="text-[12.5px] mt-1 pl-2 truncate"

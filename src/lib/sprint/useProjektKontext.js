@@ -15,6 +15,10 @@ export function useProjektKontext(projectId) {
       ]);
       const summen = summenAntwort?.data || {};
       const kategorie = project.abrechnungsmodell || 'sprint';
+      // Der Kundenname gehört zum Kopf jeder Erfassung — er wird hier mitgeladen.
+      const client = project.client_id
+        ? await base44.entities.Client.get(project.client_id).catch(() => null)
+        : null;
 
       let budget = null;
       if (kategorie === 'sprint' && summen.sprint_id) {
@@ -33,7 +37,7 @@ export function useProjektKontext(projectId) {
         budget = { label: 'Bisher gebucht', gebucht: summen.gebucht_gesamt || 0, gesamt: 0 };
       }
 
-      return { project, kategorie, budget, summen };
+      return { project, client, kategorie, budget, summen };
     },
   });
 }

@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Play } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { base44 } from '@/api/base44Client';
-import { RITTLER, todayIso } from '@/components/sprint/sprintConfig';
+import { todayIso } from '@/components/sprint/sprintConfig';
 import { bucheZeit, stundenAus } from '@/lib/sprint/useTimer';
 import { parseEingabe } from '@/lib/zeit/eingabeParser';
 import { findeLuecke, fensterZuIso } from '@/lib/zeit/luecke';
 import { useProjektSuche } from '@/lib/zeit/useProjektSuche';
-import { letzteTaetigkeit, merkeTaetigkeit } from '@/lib/zeit/taetigkeit';
+import { merkeTaetigkeit } from '@/lib/zeit/taetigkeit';
 import TaetigkeitWahl from './TaetigkeitWahl';
+import HauptKnopf from './HauptKnopf';
+import FussVerweise from './FussVerweise';
 import TrefferListe from './TrefferListe';
 import VorschauSatz from './VorschauSatz';
 import SchreibweiseHilfe from './SchreibweiseHilfe';
@@ -21,7 +22,8 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
   const [aktiv, setAktiv] = useState(0);
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState(false);
-  const [taetigkeit, setTaetigkeit] = useState(letzteTaetigkeit());
+  // Vorbelegt ist immer Umsetzung — Beratung und Vertrieb werden bewusst gewählt.
+  const [taetigkeit, setTaetigkeit] = useState('umsetzung');
   const [listeOffen, setListeOffen] = useState(true);
   const { suche, clients } = useProjektSuche(email);
 
@@ -95,7 +97,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
   };
 
   return (
-    <div className="p-5">
+    <div className="px-4 pt-[14px] pb-4">
       <Input
         autoFocus
         placeholder="ami 2,5 Wireframes überarbeitet"
@@ -120,29 +122,17 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
         />
       )}
 
-      <div className="flex gap-2 mt-3">
-        <button
-          type="button"
-          disabled={busy || !bereit}
-          onClick={buchen}
-          className="flex-1 h-11 rounded text-white text-sm font-bold uppercase tracking-wide disabled:opacity-60"
-          style={{ backgroundColor: RITTLER.pink }}
-        >
-          Buchen
-        </button>
-        {onStart && (
-        <button
-          type="button"
-          disabled={busy || !projekt}
-          onClick={timerStarten}
-          title="Timer starten"
-          className="h-11 px-4 rounded border-[1.5px] text-sm font-bold uppercase disabled:opacity-60 flex items-center gap-1.5"
-          style={{ borderColor: RITTLER.black, color: RITTLER.black }}
-        >
-          <Play className="w-4 h-4" /> Timer
-        </button>
-        )}
-      </div>
+      <HauptKnopf
+        disabled={busy || !bereit}
+        grund={!projekt ? 'Es fehlt noch das Projekt.' : 'Es fehlt noch die Dauer.'}
+        onClick={buchen}
+      >
+        Buchen
+      </HauptKnopf>
+
+      {onStart && (
+        <FussVerweise rechts={projekt ? { text: 'stattdessen Timer starten', onClick: timerStarten } : null} />
+      )}
 
       <SchnellProjektDialog
         open={dialog}

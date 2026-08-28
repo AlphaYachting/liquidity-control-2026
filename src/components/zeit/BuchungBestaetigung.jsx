@@ -4,6 +4,8 @@ import { RITTLER, STATUS_COLORS, fmtEUR, fmtDate } from '@/components/sprint/spr
 import { useProjektKontext } from '@/lib/sprint/useProjektKontext';
 import { loescheZeit } from '@/lib/sprint/useTimer';
 import { dauerText } from '@/lib/zeit/tagesAuswertung';
+import HauptKnopf from './HauptKnopf';
+import FussVerweise from './FussVerweise';
 
 // Bestätigung im Fenster statt Toast — mit der Möglichkeit, die Buchung zurückzunehmen.
 export default function BuchungBestaetigung({ info, onFertig, onRueckgaengig }) {
@@ -23,7 +25,7 @@ export default function BuchungBestaetigung({ info, onFertig, onRueckgaengig }) 
   };
 
   return (
-    <div className="p-5">
+    <div className="px-4 pt-[14px] pb-4">
       <div className="flex items-center gap-2">
         <span
           className="w-7 h-7 rounded-full flex items-center justify-center"
@@ -62,27 +64,13 @@ export default function BuchungBestaetigung({ info, onFertig, onRueckgaengig }) 
         </p>
       )}
 
-      <div className="flex gap-2 mt-4">
-        {!weg && info.eintragId && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={rueckgaengig}
-            className="h-11 px-4 rounded border-[1.5px] text-sm font-bold uppercase disabled:opacity-60"
-            style={{ borderColor: RITTLER.black, color: RITTLER.black }}
-          >
-            Rückgängig
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onFertig}
-          className="flex-1 h-11 rounded text-white text-sm font-bold uppercase tracking-wide"
-          style={{ backgroundColor: RITTLER.pink }}
-        >
-          {info.offenerTag ? 'Zum offenen Tag' : 'Fertig'}
-        </button>
-      </div>
+      <HauptKnopf onClick={onFertig}>
+        {info.offenerTag ? 'Zum offenen Tag' : 'Fertig'}
+      </HauptKnopf>
+
+      <FussVerweise
+        rechts={!weg && info.eintragId && !busy ? { text: 'Rückgängig', onClick: rueckgaengig } : null}
+      />
     </div>
   );
 }

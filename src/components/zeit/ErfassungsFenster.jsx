@@ -1,9 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
-import { RITTLER } from '@/components/sprint/sprintConfig';
+import FensterKopf from './FensterKopf';
 
 // Das Blatt selbst: Überschrift, Schließkreuz, Escape, Fokusfalle, Rückgabe des Fokus.
-export default function ErfassungsFenster({ onClose, children }) {
+export default function ErfassungsFenster({ onClose, titel = 'Zeit erfassen', children }) {
   const blatt = useRef(null);
   const ausloeser = useRef(typeof document !== 'undefined' ? document.activeElement : null);
 
@@ -38,18 +37,11 @@ export default function ErfassungsFenster({ onClose, children }) {
         ref={blatt}
         role="dialog"
         aria-modal="true"
-        aria-label="Zeit erfassen"
+        aria-label={titel}
         onClick={(e) => e.stopPropagation()}
-        className="absolute left-[14px] right-[14px] bottom-0 bg-white rounded-t-xl sm:left-auto sm:bottom-24 sm:right-6 sm:w-[344px] sm:rounded-lg shadow-xl max-h-[85vh] overflow-y-auto"
+        className="absolute left-[14px] right-[14px] bottom-0 bg-white rounded-t-xl sm:left-auto sm:bottom-24 sm:right-6 sm:w-[380px] sm:rounded-lg shadow-xl max-h-[85vh] overflow-y-auto"
       >
-        <div className="flex items-center justify-between px-[14px] pt-[14px]">
-          <p className="text-[11px] font-bold uppercase tracking-[2px]" style={{ color: RITTLER.textSecondary }}>
-            Zeit erfassen
-          </p>
-          <button type="button" onClick={onClose} aria-label="Schließen" className="p-1.5 rounded hover:bg-muted">
-            <X className="w-4 h-4" style={{ color: RITTLER.textSecondary }} />
-          </button>
-        </div>
+        <FensterKopf titel={titel} onClose={onClose} />
         {children}
       </div>
     </div>

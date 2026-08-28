@@ -1,27 +1,27 @@
 import React, { useState } from 'react';
-import { Square, Coffee } from 'lucide-react';
+import { Square } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useProjektKontext } from '@/lib/sprint/useProjektKontext';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
-import { letzteTaetigkeit, TAETIGKEIT_LABEL } from '@/lib/zeit/taetigkeit';
 import { dauerText, uhr } from '@/lib/zeit/tagesAuswertung';
-import KategorieZeile from './KategorieZeile';
-import BudgetZeile from './BudgetZeile';
+import ProjektKopf from '@/components/zeit/ProjektKopf';
+import ZahlenBlock from '@/components/zeit/ZahlenBlock';
+import HauptKnopf from '@/components/zeit/HauptKnopf';
+import FussVerweise from '@/components/zeit/FussVerweise';
 
 const jetztMinute = () => {
   const d = new Date();
   return d.getHours() * 60 + d.getMinutes();
 };
 
-// Laufender Timer: Uhr, Kontext, Pause und Stoppen mit Notiz.
-export default function TimerKarte({ timer, label, schmal, onStop, ueberzogen, elapsedMinutes = 0 }) {
+// Laufender Timer: dieselbe Ordnung wie im Ruhezustand, nur mit Uhr.
+export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzogen, elapsedMinutes = 0 }) {
   const [busy, setBusy] = useState(false);
   const [notiz, setNotiz] = useState('');
   const [korrektur, setKorrektur] = useState('');
   const [pausen, setPausen] = useState([]);
   const [pauseAb, setPauseAb] = useState(null);
   const { data: kontext } = useProjektKontext(timer.project_id);
-  const taetigkeit = letzteTaetigkeit();
 
   const pausenMinuten = pausen.reduce((s, p) => s + (p.bis - p.von), 0);
 
@@ -46,25 +46,21 @@ export default function TimerKarte({ timer, label, schmal, onStop, ueberzogen, e
   };
 
   return (
-    <div className="p-5">
-      <p className="text-[11px] font-bold uppercase tracking-[2px]" style={{ color: RITTLER.textSecondary }}>
-        Läuft
-      </p>
-      <p className="text-[15px] font-bold mt-1" style={{ color: RITTLER.black }}>
-        {[timer.kuerzel, timer.projekt_titel || 'Projekt'].filter(Boolean).join(' · ')}
-      </p>
-      <KategorieZeile kategorie={kontext?.kategorie} />
-      {taetigkeit && (
-        <p className="text-[13px]" style={{ color: RITTLER.textSecondary }}>Tätigkeit: {TAETIGKEIT_LABEL[taetigkeit] || taetigkeit}</p>
-      )}
-      {!schmal && <BudgetZeile budget={kontext?.budget} />}
+    <div className="px-4 pt-[14px] pb-4">
+      <ProjektKopf
+        kunde={kontext?.client?.name}
+        titel={kontext?.project?.title || timer.projekt_titel}
+        kategorie={kontext?.kategorie}
+      />
 
       <p className="text-[40px] font-bold leading-none mt-3 tabular-nums" style={{ color: RITTLER.black }}>
         {label}
       </p>
 
+      <ZahlenBlock kontext={kontext} />
+
       {(pausen.length > 0 || pauseAb !== null) && (
-        <p className="text-xs mt-2" style={{ color: STATUS_COLORS.attention }}>
+        <p className="text-[11.5px] mt-2" style={{ color: STATUS_COLORS.attention }}>
           {pauseAb !== null ? `Pause läuft seit ${uhr(pauseAb)}` : `Pause ${dauerText(pausenMinuten)} — wird abgezogen`}
         </p>
       )}
@@ -94,25 +90,14 @@ export default function TimerKarte({ timer, label, schmal, onStop, ueberzogen, e
         onChange={(e) => setNotiz(e.target.value)}
       />
 
-      <div className="flex gap-2 mt-3">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={stoppen}
-          className="flex-1 h-11 rounded flex items-center justify-center gap-2 text-white text-sm font-bold uppercase tracking-wide disabled:opacity-60"
-          style={{ backgroundColor: RITTLER.pink }}
-        >
-          <Square className="w-4 h-4" /> Stoppen und buchen
-        </button>
-        <button
-          type="button"
-          onClick={pauseUmschalten}
-          className="h-11 px-4 rounded border-[1.5px] text-sm font-bold uppercase flex items-center gap-1.5"
-          style={{ borderColor: RITTLER.black, color: RITTLER.black }}
-        >
-          <Coffee className="w-4 h-4" /> {pauseAb === null ? 'Pause einlegen' : 'Pause beenden'}
-        </button>
-      </div>
+      <HauptKnopf disabled={busy} onClick={stoppen} icon={<Square className="w-4 h-4" />}>
+        Stoppen und buchen
+      </HauptKnopf>
+
+      <FussVerweise
+        links={onWechseln ? { text: 'Projekt wechseln', onClick: onWechseln } : null}
+        rechts={{ text: pauseAb === null ? 'Pause einlegen' : 'Pause beenden', onClick: pauseUmschalten }}
+      />
     </div>
   );
 }

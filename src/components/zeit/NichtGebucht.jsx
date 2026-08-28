@@ -3,6 +3,8 @@ import { AlertTriangle } from 'lucide-react';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { dauerText } from '@/lib/zeit/tagesAuswertung';
 import { useProjektKontext } from '@/lib/sprint/useProjektKontext';
+import HauptKnopf from './HauptKnopf';
+import FussVerweise from './FussVerweise';
 
 // Ein Klick auf Stoppen bleibt nie folgenlos: scheitert die Buchung, sagt das
 // Fenster es ausdrücklich — und der Timer läuft weiter.
@@ -17,11 +19,8 @@ export default function NichtGebucht({ info, onNochmal, onWeiterlaufen }) {
   };
 
   return (
-    <div className="p-5">
-      <div className="flex items-center gap-2">
-        <AlertTriangle className="w-5 h-5" style={{ color: STATUS_COLORS.critical }} />
-        <p className="text-[17px] font-bold" style={{ color: RITTLER.black }}>Nicht gebucht</p>
-      </div>
+    <div className="px-4 pt-[14px] pb-4">
+      <AlertTriangle className="w-5 h-5" style={{ color: STATUS_COLORS.critical }} />
 
       <p className="text-[13px] mt-2" style={{ color: RITTLER.textSecondary }}>
         Die Buchung konnte nicht gespeichert werden. Der Timer läuft weiter — es ist keine Zeit verloren gegangen.
@@ -43,25 +42,9 @@ export default function NichtGebucht({ info, onNochmal, onWeiterlaufen }) {
         <p className="text-[12px] mt-2" style={{ color: RITTLER.textSecondary }}>{info.fehler}</p>
       )}
 
-      <div className="flex gap-2 mt-4">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={nochmal}
-          className="flex-1 h-11 rounded text-white text-sm font-bold uppercase tracking-wide disabled:opacity-60"
-          style={{ backgroundColor: RITTLER.pink }}
-        >
-          Nochmal versuchen
-        </button>
-        <button
-          type="button"
-          onClick={onWeiterlaufen}
-          className="h-11 px-4 rounded border-[1.5px] text-sm font-bold uppercase"
-          style={{ borderColor: RITTLER.black, color: RITTLER.black }}
-        >
-          Weiterlaufen lassen
-        </button>
-      </div>
+      <HauptKnopf disabled={busy} onClick={nochmal}>Nochmal versuchen</HauptKnopf>
+
+      <FussVerweise rechts={{ text: 'Weiterlaufen lassen', onClick: onWeiterlaufen }} />
     </div>
   );
 }
