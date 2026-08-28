@@ -1,0 +1,159 @@
+{
+  "name": "SearchIndexEntry",
+  "type": "object",
+  "properties": {
+    "entry_type": {
+      "type": "string",
+      "enum": [
+        "kunde",
+        "projekt",
+        "auftrag",
+        "angebot",
+        "vertrag",
+        "rechnung",
+        "anweisung",
+        "sprint",
+        "ticket",
+        "zeit",
+        "akte",
+        "seite"
+      ]
+    },
+    "ref_entity": {
+      "type": "string",
+      "description": "Name der Quell-Entity"
+    },
+    "ref_id": {
+      "type": "string",
+      "description": "Id des Quelldatensatzes"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "harter Kundenanker \u2014 leer, wenn keiner belegt ist"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "subtitle": {
+      "type": "string"
+    },
+    "side": {
+      "type": "string",
+      "description": "rechte Spalte, z. B. 8.400 \u20ac"
+    },
+    "side_note": {
+      "type": "string"
+    },
+    "is_due": {
+      "type": "boolean",
+      "default": false
+    },
+    "haystack": {
+      "type": "string",
+      "description": "normalisiertes Suchfeld"
+    },
+    "area": {
+      "type": "string",
+      "enum": [
+        "projects",
+        "sales",
+        "backoffice",
+        "management",
+        "intelligence"
+      ]
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "nur bei zeit/ticket gesetzt"
+    },
+    "route": {
+      "type": "string"
+    },
+    "activity_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "weight": {
+      "type": "number",
+      "default": 10
+    },
+    "card": {
+      "type": "array",
+      "description": "Kennzahlen der Kundenkarte",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "plain",
+              "warn"
+            ],
+            "default": "plain"
+          }
+        }
+      }
+    },
+    "card_team": {
+      "type": "array",
+      "description": "Kundenkarte ohne Betr\u00e4ge \u2014 f\u00fcr Personen ohne Backoffice/Management",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "plain",
+              "warn"
+            ],
+            "default": "plain"
+          }
+        }
+      }
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "entry_type",
+    "title",
+    "haystack",
+    "area",
+    "route"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

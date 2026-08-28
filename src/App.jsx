@@ -78,6 +78,7 @@ import SprintPlanung from '@/pages/sprint/SprintPlanung';
 import SprintSteuerung from '@/pages/sprint/SprintSteuerung';
 import SprintRechnungsuebergabe from '@/pages/sprint/SprintRechnungsuebergabe';
 import MasseverwalterReport from '@/pages/MasseverwalterReport';
+import SystemMaintenance from '@/pages/SystemMaintenance';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -173,6 +174,7 @@ const AuthenticatedApp = () => {
         <Route path="/operational-reset" element={<AdminRoute><OperationalReset /></AdminRoute>} />
         <Route path="/sevdesk-reimport" element={<AdminRoute><SevdeskReimport /></AdminRoute>} />
         <Route path="/audit-trail" element={<AdminRoute><AuditTrail /></AdminRoute>} />
+        <Route path="/system/maintenance" element={<AdminRoute><SystemMaintenance /></AdminRoute>} />
         <Route path="/sprint" element={<SprintHeute />} />
         <Route path="/sprint/uebersicht" element={<SprintUebersicht />} />
         <Route path="/zeiten" element={<Zeiten />} />
