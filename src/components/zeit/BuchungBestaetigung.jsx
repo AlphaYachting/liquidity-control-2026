@@ -53,6 +53,15 @@ export default function BuchungBestaetigung({ info, onFertig, onRueckgaengig }) 
         </div>
       )}
 
+      {!weg && info.offenerTag && (
+        <p
+          className="text-[13px] mt-3 p-2 rounded"
+          style={{ backgroundColor: STATUS_COLORS.attentionSurface, color: STATUS_COLORS.attention }}
+        >
+          {info.offenerTag.slice(8, 10)}.{info.offenerTag.slice(5, 7)}. ist weiterhin offen.
+        </p>
+      )}
+
       <div className="flex gap-2 mt-4">
         {!weg && info.eintragId && (
           <button
@@ -71,7 +80,7 @@ export default function BuchungBestaetigung({ info, onFertig, onRueckgaengig }) 
           className="flex-1 h-11 rounded text-white text-sm font-bold uppercase tracking-wide"
           style={{ backgroundColor: RITTLER.pink }}
         >
-          Fertig
+          {info.offenerTag ? 'Zum offenen Tag' : 'Fertig'}
         </button>
       </div>
     </div>

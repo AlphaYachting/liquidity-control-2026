@@ -5,10 +5,11 @@ import { dauerText } from '@/lib/zeit/tagesAuswertung';
 
 const fmt = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
 
-// Sagt im Klartext, welcher Tag noch offen ist und was das bedeutet.
-export default function OffeneTageHinweis({ offeneTage, aeltester, gewaehlt, onWaehlen }) {
+// Sagt im Klartext, welcher Tag offen ist, was das bedeutet — und führt hinaus.
+export default function OffeneTageHinweis({ offeneTage, aeltester, gewaehlt, laufendesProjekt, onAbschluss }) {
   if (!aeltester) return null;
   const weitere = offeneTage.length - 1;
+  const aufDemTag = gewaehlt === aeltester.tag;
 
   return (
     <div
@@ -25,19 +26,26 @@ export default function OffeneTageHinweis({ offeneTage, aeltester, gewaehlt, onW
             {weitere > 0 ? ` (und ${weitere} weitere${weitere === 1 ? 'r' : ''} Tag${weitere === 1 ? '' : 'e'})` : ''}
           </p>
           <p className="text-sm mt-0.5" style={{ color: RITTLER.black }}>
-            Bis zum Abschluss dieses Tages wird keine neue Zeit gebucht. Der Timer darf weiterlaufen — gemessene Zeit
-            geht nicht verloren.
+            {laufendesProjekt ? (
+              <>
+                Ein Timer läuft auf {laufendesProjekt} — stoppen und buchen geht jederzeit.
+                Nur ein NEUER Timer wartet, bis dieser Tag abgeschlossen ist.
+              </>
+            ) : (
+              <>
+                Ein NEUER Timer lässt sich erst starten, wenn dieser Tag abgeschlossen ist.
+                Ein laufender Timer kann immer gestoppt und gebucht werden.
+              </>
+            )}
           </p>
-          {gewaehlt !== aeltester.tag && (
-            <button
-              type="button"
-              onClick={() => onWaehlen(aeltester.tag)}
-              className="mt-2 text-xs font-bold uppercase underline"
-              style={{ color: STATUS_COLORS.attention }}
-            >
-              Zum offenen Tag
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => onAbschluss(aeltester.tag)}
+            className="mt-2 text-xs font-bold uppercase underline"
+            style={{ color: STATUS_COLORS.attention }}
+          >
+            {aufDemTag ? 'Zum Abschluss' : `${fmt(aeltester.tag)} jetzt abschließen`}
+          </button>
         </div>
       </div>
     </div>

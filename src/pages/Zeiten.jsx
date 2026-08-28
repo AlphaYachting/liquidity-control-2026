@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RITTLER, todayIso } from '@/components/sprint/sprintConfig';
-import { loescheZeit } from '@/lib/sprint/useTimer';
+import { loescheZeit, useTimer } from '@/lib/sprint/useTimer';
 import Erfassungszeile from '@/components/zeit/Erfassungszeile';
 import Wochenstreifen from '@/components/zeit/Wochenstreifen';
 import Tagesstreifen from '@/components/zeit/Tagesstreifen';
@@ -34,7 +34,8 @@ export default function Zeiten() {
   const [bearbeiten, setBearbeiten] = useState(null);
   const [jetzt, setJetzt] = useState(new Date());
   const { toast } = useToast();
-  const { offeneTage, aeltester } = useOffeneTage(email);
+  const { offeneTage, aeltester, darfBuchen } = useOffeneTage(email);
+  const { timer } = useTimer(email);
   const rundungsSettings = useRundungsSettings();
   const gesprungen = useRef(false);
 
@@ -49,6 +50,24 @@ export default function Zeiten() {
     const i = setInterval(() => setJetzt(new Date()), 60000);
     return () => clearInterval(i);
   }, []);
+
+  // Ein Sperrhinweis führt mit Tag und Ziel hierher — die Seite springt dorthin
+  // und rollt zur Abschlussleiste.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const zielTag = params.get('tag');
+    if (!zielTag) return;
+    gesprungen.current = true;
+    setTag(zielTag);
+    if (params.get('abschluss')) {
+      setTimeout(() => document.getElementById('tag-abschluss')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 400);
+    }
+  }, []);
+
+  const zumAbschluss = (zielTag) => {
+    setTag(zielTag);
+    setTimeout(() => document.getElementById('tag-abschluss')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+  };
 
   const tage = useMemo(() => wochentage(tag), [tag]);
 
@@ -116,12 +135,13 @@ export default function Zeiten() {
   const istHeute = tag === todayIso();
   const darfFremdOeffnen = rolle === 'pm' || rolle === 'gf';
 
-  // Neue Zeit nur am ältesten offenen Tag — die Ansicht springt dorthin und sagt warum.
+  // Eine Buchung IN den offenen Tag bleibt immer erlaubt — sonst ließe er sich nie
+  // schließen. Gesperrt ist nur ein anderer Zieltag; der Weg hinaus steht dabei.
   const pruefeTag = (zielTag) => {
-    if (!aeltester || zielTag === aeltester.tag) return true;
-    setTag(aeltester.tag);
+    if (darfBuchen(zielTag)) return true;
+    zumAbschluss(aeltester.tag);
     toast({
-      description: `${aeltester.tag.slice(8, 10)}.${aeltester.tag.slice(5, 7)}. ist noch offen (${aeltester.offenMinuten > 0 ? `${dauerText(aeltester.offenMinuten)} fehlen` : 'nichts erfasst'}) — bis zum Abschluss dieses Tages wird keine neue Zeit gebucht.`,
+      description: `${aeltester.tag.slice(8, 10)}.${aeltester.tag.slice(5, 7)}. ist noch offen (${aeltester.offenMinuten > 0 ? `${dauerText(aeltester.offenMinuten)} fehlen` : 'nichts erfasst'}) — dort buchen und abschließen, dann geht es weiter.`,
     });
     return false;
   };
@@ -185,7 +205,8 @@ export default function Zeiten() {
         offeneTage={offeneTage}
         aeltester={aeltester}
         gewaehlt={tag}
-        onWaehlen={setTag}
+        laufendesProjekt={timer?.projekt_titel || null}
+        onAbschluss={zumAbschluss}
       />
 
       <Wochenstreifen
@@ -251,6 +272,7 @@ export default function Zeiten() {
         onGeaendert={refresh}
       />
 
+      <div id="tag-abschluss">
       <TagAbschliessen
         auswertung={auswertung}
         abschluss={abschluss}
@@ -260,6 +282,7 @@ export default function Zeiten() {
         darfFremdOeffnen={darfFremdOeffnen}
         onSaved={refresh}
       />
+      </div>
 
       <WocheBestaetigen
         tage={tage}

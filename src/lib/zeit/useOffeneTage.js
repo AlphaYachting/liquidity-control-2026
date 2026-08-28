@@ -19,5 +19,12 @@ export function useOffeneTage(email) {
   });
 
   const offeneTage = data || [];
-  return { offeneTage, aeltester: offeneTage[0] || null, gesperrt: offeneTage.length > 0 };
+  const aeltester = offeneTage[0] || null;
+
+  // Grundsatz: Gesperrt wird, was noch nicht begonnen hat. Was läuft, muss immer
+  // beendet werden können. Gesperrt ist daher nur eine Buchung, die NICHT in den
+  // offenen Tag geht — sonst ließe sich der Tag nie schließen.
+  const darfBuchen = (zielTag) => !aeltester || zielTag === aeltester.tag;
+
+  return { offeneTage, aeltester, darfBuchen, gesperrt: offeneTage.length > 0 };
 }

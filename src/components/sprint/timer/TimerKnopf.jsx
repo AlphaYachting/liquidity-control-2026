@@ -15,6 +15,7 @@ import SchnellProjekte from '@/components/zeit/SchnellProjekte';
 import VorauswahlStart from '@/components/zeit/VorauswahlStart';
 import BuchungBestaetigung from '@/components/zeit/BuchungBestaetigung';
 import NichtGebucht from '@/components/zeit/NichtGebucht';
+import SperrHinweis from '@/components/zeit/SperrHinweis';
 
 // Knopf im Sprint-Modul und bei laufendem Timer — die Zeile selbst ist überall mit T erreichbar.
 export default function TimerKnopf() {
@@ -31,6 +32,7 @@ export default function TimerKnopf() {
   const [bestaetigung, setBestaetigung] = useState(null);
   const [nichtGebucht, setNichtGebucht] = useState(null);
   const [letzterStopp, setLetzterStopp] = useState({ note: '', abzugMinuten: 0 });
+  const [sperre, setSperre] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -55,6 +57,7 @@ export default function TimerKnopf() {
     setTippzeile(false);
     setBestaetigung(null);
     setNichtGebucht(null);
+    setSperre(false);
   };
 
   const auffrischen = () => {
@@ -65,22 +68,28 @@ export default function TimerKnopf() {
     qc.invalidateQueries({ queryKey: ['offeneTage'] });
   };
 
+  const zumAbschluss = (zielTag) => {
+    schliessen();
+    navigate(`/zeiten?tag=${zielTag}&abschluss=1`);
+  };
+
+  // Gesperrt wird, was noch nicht begonnen hat: ein NEUER Timer wartet auf den
+  // offenen Tag — ein laufender lässt sich immer beenden.
   const starten = async (project, kuerzel, notiz, opts) => {
+    if (aeltester && !running) {
+      setSperre(true);
+      return { gesperrt: true };
+    }
     const res = await start(project, kuerzel, notiz, opts);
     if (res?.started) setOffen(false);
     return res;
   };
 
   const stoppen = async (note, abzugMinuten) => {
-    // Gemessene Zeit geht nie verloren: bei offenem Tag läuft der Timer weiter statt zu buchen.
-    if (aeltester) {
-      setOffen(false);
-      navigate('/zeiten');
-      toast({
-        description: `${aeltester.tag.slice(8, 10)}.${aeltester.tag.slice(5, 7)}. ist noch offen — der Timer läuft weiter, gebucht wird, sobald der Tag abgeschlossen ist.`,
-      });
-      return;
-    }
+    // Keine Prüfung auf einen offenen Tag: die entstehende Buchung gehört zum
+    // HEUTIGEN Tag, nicht zum offenen Vortag. Die alte Sperre hat nie das
+    // geschützt, was sie zu schützen vorgab — sie hat nur verhindert, dass eine
+    // bereits gemessene Zeit festgehalten wird.
     const res = await stop(note, abzugMinuten);
     // Gescheitert: der Timer läuft weiter, das Fenster sagt es ausdrücklich.
     if (res?.fehler) {
@@ -97,6 +106,7 @@ export default function TimerKnopf() {
         minuten: res.minuten,
         projekt: res.projekt,
         datum: res.datum,
+        offenerTag: aeltester?.tag || null,
       });
     } else {
       setOffen(false);
@@ -145,10 +155,12 @@ export default function TimerKnopf() {
 
       {offen && (
         <ErfassungsFenster onClose={schliessen}>
-          {bestaetigung ? (
+          {sperre ? (
+            <SperrHinweis aeltester={aeltester} onAbschluss={zumAbschluss} onZurueck={() => setSperre(false)} />
+          ) : bestaetigung ? (
             <BuchungBestaetigung
               info={bestaetigung}
-              onFertig={schliessen}
+              onFertig={() => (bestaetigung.offenerTag ? zumAbschluss(bestaetigung.offenerTag) : schliessen())}
               onRueckgaengig={auffrischen}
             />
           ) : nichtGebucht ? (
