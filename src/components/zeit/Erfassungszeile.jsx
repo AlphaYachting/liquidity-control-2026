@@ -53,7 +53,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
       const heute = await base44.entities.TimeEntry.filter({ person_email: email, entry_date: tag }, '-started_at', 50);
       zeiten = findeLuecke(tag, heute, minuten);
     }
-    await bucheZeit({
+    const eintrag = await bucheZeit({
       projectId: projekt.id,
       email,
       durationMinutes: minuten,
@@ -68,7 +68,12 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
     setBusy(false);
     setText('');
     setGewaehlt(null);
-    onBooked?.(stundenAus(minuten), projekt.title);
+    onBooked?.(stundenAus(minuten), projekt.title, {
+      eintragId: eintrag?.id,
+      projectId: projekt.id,
+      minuten,
+      datum: tag,
+    });
   };
 
   const timerStarten = async () => {

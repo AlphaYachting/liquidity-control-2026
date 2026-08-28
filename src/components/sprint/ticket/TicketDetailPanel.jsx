@@ -13,6 +13,7 @@ import TicketChecklist from '@/components/sprint/ticket/TicketChecklist';
 import TicketLinks from '@/components/sprint/ticket/TicketLinks';
 import KommentarStrang from '@/components/sprint/kommentare/KommentarStrang';
 import { schreibeSystemEintrag } from '@/lib/sprint/systemComment';
+import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
 import { ROLES, TICKET_STATUSES, TICKET_STATUS_LABELS, STATE_LABELS } from '@/components/sprint/sprintConfig';
 
 const STATES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
@@ -39,6 +40,11 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
       return rows.reduce((s, r) => s + (r.hours || 0), 0);
     },
   });
+
+  useMeldeZeitKontext(
+    { project_id: ticket?.project_id, ticket_id: ticket?.id, quelle: 'aufgabe' },
+    Boolean(open && ticket?.id),
+  );
 
   if (!ticket) return null;
 

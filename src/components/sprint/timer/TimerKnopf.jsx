@@ -6,11 +6,14 @@ import { useAuth } from '@/lib/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { useTimer } from '@/lib/sprint/useTimer';
 import { useOffeneTage } from '@/lib/zeit/useOffeneTage';
+import { useZeitKontext } from '@/lib/sprint/ZeitKontext';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import TimerKarte from './TimerKarte';
 import Erfassungszeile from '@/components/zeit/Erfassungszeile';
 import ErfassungsFenster from '@/components/zeit/ErfassungsFenster';
 import SchnellProjekte from '@/components/zeit/SchnellProjekte';
+import VorauswahlStart from '@/components/zeit/VorauswahlStart';
+import BuchungBestaetigung from '@/components/zeit/BuchungBestaetigung';
 
 // Knopf im Sprint-Modul und bei laufendem Timer — die Zeile selbst ist überall mit T erreichbar.
 export default function TimerKnopf() {
@@ -20,9 +23,11 @@ export default function TimerKnopf() {
   const email = user?.email;
   const { timer, running, label, start, stop } = useTimer(email);
   const { aeltester } = useOffeneTage(email);
+  const kontext = useZeitKontext();
   const navigate = useNavigate();
   const [offen, setOffen] = useState(false);
   const [tippzeile, setTippzeile] = useState(false);
+  const [bestaetigung, setBestaetigung] = useState(null);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -42,6 +47,16 @@ export default function TimerKnopf() {
 
   if (!email) return null;
 
+  const schliessen = () => { setOffen(false); setTippzeile(false); setBestaetigung(null); };
+
+  const auffrischen = () => {
+    qc.invalidateQueries({ queryKey: ['sprintHeute'] });
+    qc.invalidateQueries({ queryKey: ['projektKontext'] });
+    qc.invalidateQueries({ queryKey: ['zeitProjektSuche'] });
+    qc.invalidateQueries({ queryKey: ['ticketHours'] });
+    qc.invalidateQueries({ queryKey: ['offeneTage'] });
+  };
+
   const starten = async (project, kuerzel, notiz, opts) => {
     const res = await start(project, kuerzel, notiz, opts);
     if (res?.started) setOffen(false);
@@ -59,25 +74,37 @@ export default function TimerKnopf() {
       return;
     }
     const res = await stop(note, abzugMinuten);
-    setOffen(false);
-    qc.invalidateQueries({ queryKey: ['sprintHeute'] });
-    qc.invalidateQueries({ queryKey: ['projektKontext'] });
-    qc.invalidateQueries({ queryKey: ['offeneTage'] });
-    if (res) toast({ description: `${res.hours} h auf ${res.projekt || 'Projekt'} gebucht.` });
+    auffrischen();
+    // Die Bestätigung bleibt im Fenster stehen — sie verdeckt die Pille nicht.
+    if (res) {
+      setBestaetigung({
+        eintragId: res.eintragId,
+        projectId: res.projectId,
+        minuten: res.minuten,
+        projekt: res.projekt,
+        datum: res.datum,
+      });
+    } else {
+      setOffen(false);
+    }
   };
 
-  const gebucht = (stunden, titel) => {
+  const gebucht = (stunden, titel, info) => {
+    auffrischen();
+    if (info?.eintragId) {
+      setTippzeile(false);
+      setBestaetigung({ ...info, projekt: titel });
+      return;
+    }
     setOffen(false);
-    qc.invalidateQueries({ queryKey: ['sprintHeute'] });
-    qc.invalidateQueries({ queryKey: ['projektKontext'] });
-    qc.invalidateQueries({ queryKey: ['zeitProjektSuche'] });
-    qc.invalidateQueries({ queryKey: ['offeneTage'] });
     toast({ description: `${stunden} h auf ${titel} gebucht.` });
   };
 
+  const hatKontext = !!kontext.project_id && kontext.quelle !== 'keiner';
+
   return (
     <>
-      {(imSprintModul || running) && (
+      {(imSprintModul || running || hatKontext) && (
         <button
           type="button"
           onClick={() => setOffen(true)}
@@ -103,11 +130,24 @@ export default function TimerKnopf() {
       )}
 
       {offen && (
-        <ErfassungsFenster onClose={() => { setOffen(false); setTippzeile(false); }}>
-          {running ? (
+        <ErfassungsFenster onClose={schliessen}>
+          {bestaetigung ? (
+            <BuchungBestaetigung
+              info={bestaetigung}
+              onFertig={schliessen}
+              onRueckgaengig={auffrischen}
+            />
+          ) : running ? (
             <TimerKarte timer={timer} label={label} schmal={!imSprintModul} onStop={stoppen} />
           ) : tippzeile ? (
             <Erfassungszeile email={email} onStart={starten} onBooked={gebucht} />
+          ) : hatKontext ? (
+            <VorauswahlStart
+              kontext={kontext}
+              onStart={starten}
+              onSuche={() => setTippzeile(true)}
+              onNachtragen={() => setTippzeile(true)}
+            />
           ) : (
             <div className="p-5">
               <SchnellProjekte email={email} onStart={starten} onTippzeile={() => setTippzeile(true)} />

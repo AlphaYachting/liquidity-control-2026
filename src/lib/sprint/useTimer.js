@@ -175,7 +175,7 @@ export function useTimer(email) {
     }
     const minuten = Math.max(0, minutenSeit(aktuell.gestartet_am) - (Number(abzugMinuten) || 0));
     const ende = new Date().toISOString();
-    await bucheZeit({
+    const eintrag = await bucheZeit({
       projectId: aktuell.project_id,
       email,
       durationMinutes: minuten,
@@ -189,7 +189,15 @@ export function useTimer(email) {
     await base44.entities.LaufendeZeitbuchung.delete(aktuell.id);
     cacheWrite(null);
     await refresh();
-    return { hours: stundenAus(minuten), minuten, projekt: aktuell.projekt_titel };
+    return {
+      hours: stundenAus(minuten),
+      minuten,
+      projekt: aktuell.projekt_titel,
+      eintragId: eintrag?.id,
+      projectId: aktuell.project_id,
+      ticketId: aktuell.ticket_id,
+      datum: tagVon(aktuell.gestartet_am),
+    };
   }, [email, refresh]);
 
   // Je Person läuft genau ein Timer — ein zweiter Start braucht die ausdrückliche Bestätigung.

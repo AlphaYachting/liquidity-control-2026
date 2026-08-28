@@ -17,6 +17,7 @@ import { BrainCircuit } from 'lucide-react';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import useKundenaktProjektId from '@/hooks/useKundenaktProjektId';
+import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
 export default function SprintDetail() {
@@ -54,6 +55,8 @@ export default function SprintDetail() {
     title: data?.project?.title,
     fallbackId: data?.sprint?.project_id,
   });
+
+  useMeldeZeitKontext({ project_id: data?.sprint?.project_id, quelle: 'sprint' });
 
   if (isLoading || !data) {
     return (

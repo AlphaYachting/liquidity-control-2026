@@ -20,6 +20,7 @@ import { performFreigabe } from '@/lib/sprint/freigabe';
 import { STATE_LABELS, RITTLER, STATUS_COLORS, fmtEUR, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { computeFeedbackDeadline } from '@/lib/sprint/deadlines';
 import { sprintStatus } from '@/lib/sprint/status';
+import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
 
 const PHASES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
 const WORK_PHASES = ['input', 'produktion', 'pruefung'];
@@ -53,6 +54,8 @@ export default function SprintMilestoneDetail() {
   });
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['milestoneDetail', milestoneId] });
+
+  useMeldeZeitKontext({ project_id: data?.sprint?.project_id, quelle: 'sprint' });
 
   if (isLoading || !data) {
     return (
