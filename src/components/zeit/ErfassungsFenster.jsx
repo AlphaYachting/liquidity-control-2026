@@ -40,9 +40,9 @@ export default function ErfassungsFenster({ onClose, children }) {
         aria-modal="true"
         aria-label="Zeit erfassen"
         onClick={(e) => e.stopPropagation()}
-        className="absolute left-0 right-0 bottom-0 bg-white rounded-t-xl sm:left-auto sm:bottom-24 sm:right-6 sm:w-[420px] sm:rounded-lg shadow-xl max-h-[85vh] overflow-y-auto"
+        className="absolute left-[14px] right-[14px] bottom-0 bg-white rounded-t-xl sm:left-auto sm:bottom-24 sm:right-6 sm:w-[344px] sm:rounded-lg shadow-xl max-h-[85vh] overflow-y-auto"
       >
-        <div className="flex items-center justify-between px-5 pt-4">
+        <div className="flex items-center justify-between px-[14px] pt-[14px]">
           <p className="text-[11px] font-bold uppercase tracking-[2px]" style={{ color: RITTLER.textSecondary }}>
             Zeit erfassen
           </p>

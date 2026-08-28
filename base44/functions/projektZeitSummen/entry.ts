@@ -38,11 +38,28 @@ export default async function (req) {
       skip += limit;
     }
 
+    // Nächste überzogene Zwischenfrist des laufenden Sprints — trägt die einzige Warnzeile.
+    let frist = null;
+    if (laufend) {
+      const heute = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const milestones = await base44.asServiceRole.entities.Milestone.filter({ sprint_id: laufend.id }, 'order', 50);
+      for (const m of milestones) {
+        if (m.released) continue;
+        const datum = m.feedback_deadline || m.planned_freeze || m.planned_handover;
+        if (!datum || datum >= heute) continue;
+        const tage = Math.round((new Date(`${heute}T00:00:00`) - new Date(`${datum}T00:00:00`)) / 86400000);
+        if (!frist || tage > frist.tage) frist = { name: m.title, tage };
+      }
+    }
+
     const r2 = (v) => Math.round(v * 100) / 100;
     return Response.json({
       sprint_id: laufend?.id || null,
       sprint_titel: laufend?.title || null,
       sprint_target_hours: laufend?.target_hours || 0,
+      sprint_start_date: laufend?.start_date || null,
+      sprint_delivery_date: laufend?.delivery_date || null,
+      frist,
       gebucht_sprint: r2(sprintSumme),
       gebucht_monat: r2(monat),
       gebucht_gesamt: r2(gesamt),
