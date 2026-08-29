@@ -138,7 +138,9 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
       setWunsch('');
       setTimeout(() => variantenRef.current?.scrollIntoView({ block: 'nearest' }), 0);
     } catch (e) {
-      setFehler(`Entwurf fehlgeschlagen — ${e?.message || 'unbekannter Grund'}. Der bisherige Text bleibt erhalten.`);
+      // Der Grund steht in der Antwort des Servers, nicht in der Statusmeldung.
+      const grund = e?.response?.data?.error || e?.data?.error || e?.message || 'unbekannter Grund';
+      setFehler(`Entwurf fehlgeschlagen — ${grund}`);
     }
     setBusy(false);
   };

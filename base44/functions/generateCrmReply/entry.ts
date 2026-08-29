@@ -79,9 +79,14 @@ export default async function (req: Request): Promise<Response> {
       senderMail = deal?.contact_email || '';
     }
 
+    // Ohne belegten Verlauf tragen die Stichworte den Entwurf.
+    if (!conversation && String(params.stichworte || '').trim()) {
+      conversation = `[STICHWORTE DER PERSON]\n${String(params.stichworte).slice(0, 4000)}`;
+    }
+
     if (!conversation) {
       return Response.json(
-        { error: 'Kein Anfragetext vorhanden — bitte die Anfrage am Deal erfassen.' },
+        { error: 'Kein Anfragetext vorhanden — bitte die Anfrage am Deal erfassen oder Stichworte angeben.' },
         { status: 400 },
       );
     }
