@@ -86,7 +86,7 @@ export default function ProposalHandoffButton({ deal, onDone, forceNew = false, 
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button size="sm" variant={forceNew ? 'outline' : 'default'} className="gap-1.5" onClick={handoff} disabled={working}>
+      <Button size="sm" variant="outline" className="gap-1.5 w-full" onClick={handoff} disabled={working}>
         {working ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Presentation className="w-3.5 h-3.5" />}
         {working ? 'Wird angelegt…' : (label || 'Ins Angebots-Studio')}
       </Button>

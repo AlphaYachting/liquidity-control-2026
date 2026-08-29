@@ -30,7 +30,9 @@ export default function DealDetailHeader({ deal, onEdit, onClose, onReopen, onDe
           {deal.company_name && (
             <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
               <Building2 className="w-3.5 h-3.5" /> {deal.company_name}
-              {deal.contact_name && <span>· {deal.contact_name}</span>}
+              {deal.contact_name
+                && deal.contact_name.trim().toLowerCase() !== deal.company_name.trim().toLowerCase()
+                && <span>· {deal.contact_name}</span>}
             </p>
           )}
           <div className="flex flex-wrap items-center gap-1.5 mt-2.5">

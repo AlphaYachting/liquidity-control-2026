@@ -2,20 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Building2, Mail, Phone, User, Linkedin, FileText, CalendarClock, StickyNote, History } from 'lucide-react';
-import CollapsibleSection from '@/components/crm/CollapsibleSection';
 import DealCommunicationCard from '@/components/crm/DealCommunicationCard';
-import ActivityTimeline from '@/components/crm/ActivityTimeline';
-import ActivityComposer from '@/components/crm/ActivityComposer';
+import DealVerlauf from '@/components/crm/DealVerlauf';
 import AppointmentSection from '@/components/crm/AppointmentSection';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import WonLostDialog from '@/components/crm/WonLostDialog';
 import UebergabeblattSection from '@/components/crm/handover/UebergabeblattSection';
 import CustomerContextCard from '@/components/crm/CustomerContextCard';
-import DealInquiryCard from '@/components/crm/DealInquiryCard';
 import CompanyMasterDataCard from '@/components/crm/CompanyMasterDataCard';
 import DealProposalCard from '@/components/crm/DealProposalCard';
-import DealEmailThreadCard from '@/components/crm/DealEmailThreadCard';
 import DealDetailHeader from '@/components/crm/DealDetailHeader';
 import { PIPELINES, STAGE_LABELS } from '@/components/crm/stages';
 
@@ -123,16 +118,6 @@ export default function CrmDealDetail() {
         <div className="lg:col-span-2 space-y-3">
           <DealProposalCard deal={deal} activities={activities} onChanged={refreshAll} />
 
-          <CollapsibleSection icon={FileText} title="Anfrage" defaultOpen hint={deal.description ? null : 'noch leer'}>
-            <DealInquiryCard deal={deal} onChanged={refreshAll} />
-          </CollapsibleSection>
-
-          {deal.email_thread_id && (
-            <CollapsibleSection icon={Mail} title="E-Mail-Verlauf">
-              <DealEmailThreadCard deal={deal} />
-            </CollapsibleSection>
-          )}
-
           <DealCommunicationCard
             deal={deal}
             activities={activities}
@@ -141,40 +126,11 @@ export default function CrmDealDetail() {
             onChanged={refreshAll}
           />
 
-          <CollapsibleSection icon={StickyNote} title="Notiz erfassen" hint="Notiz, Anruf, E-Mail, Termin" defaultOpen>
-            <ActivityComposer dealId={deal.id} onAdded={refreshAll} />
-          </CollapsibleSection>
-
-          <CollapsibleSection icon={History} title="Aktivitäten-Verlauf" hint={`${activities.length} Einträge`} defaultOpen>
-            <ActivityTimeline activities={activities} onChanged={refreshAll} />
-          </CollapsibleSection>
+          <DealVerlauf dealId={deal.id} activities={activities} onChanged={refreshAll} />
         </div>
 
         {/* Facts */}
         <div className="space-y-4">
-          <div className="border rounded-xl bg-card p-4 space-y-2.5">
-            <h3 className="text-sm font-semibold">Kontakt</h3>
-            {deal.company_name && <p className="text-sm flex items-center gap-2"><Building2 className="w-3.5 h-3.5 text-muted-foreground" /> {deal.company_name}</p>}
-            {deal.contact_name && (
-              <p className="text-sm flex items-center gap-2">
-                <User className="w-3.5 h-3.5 text-muted-foreground" /> {deal.contact_name}
-                {deal.contact_position && <span className="text-xs text-muted-foreground">· {deal.contact_position}</span>}
-              </p>
-            )}
-            {deal.contact_linkedin_url && (
-              <a href={deal.contact_linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm flex items-center gap-2 text-primary hover:underline">
-                <Linkedin className="w-3.5 h-3.5" /> LinkedIn-Profil
-              </a>
-            )}
-            {deal.contact_email && (
-              <a href={`mailto:${deal.contact_email}`} className="text-sm flex items-center gap-2 text-primary hover:underline">
-                <Mail className="w-3.5 h-3.5" /> {deal.contact_email}
-              </a>
-            )}
-            {deal.contact_phone && <p className="text-sm flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-muted-foreground" /> {deal.contact_phone}</p>}
-            {deal.contact_background && <p className="text-xs text-muted-foreground whitespace-pre-wrap pt-1 border-t mt-2">{deal.contact_background}</p>}
-          </div>
-
           <CompanyMasterDataCard deal={deal} onChanged={refreshAll} />
 
           <div className="border rounded-xl bg-card p-4">

@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Mic, MicOff } from 'lucide-react';
 
-export default function ActivityComposer({ dealId, onAdded }) {
+export default function ActivityComposer({ dealId, onAdded, bare = false }) {
   const [type, setType] = useState('note');
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
@@ -74,7 +74,7 @@ export default function ActivityComposer({ dealId, onAdded }) {
   };
 
   return (
-    <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
+    <div className={bare ? 'space-y-2' : 'border rounded-lg p-3 bg-muted/30 space-y-2'}>
       <div className="flex gap-2">
         <Select value={type} onValueChange={setType}>
           <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>

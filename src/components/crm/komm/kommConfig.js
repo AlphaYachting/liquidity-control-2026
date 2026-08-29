@@ -1,16 +1,25 @@
-import { MessageSquare, CalendarClock, Mail, BellRing, HelpCircle, XCircle } from 'lucide-react';
-
 // Feste Reihenfolge der Absichten — die Vorauswahl hebt hervor, sie sortiert nicht um.
+// Kurze Beschriftungen ohne Symbole: die Feldüberschrift trägt die Bedeutung.
 export const ABSICHTEN = [
-  { key: 'antwort', label: 'Antwort auf die Anfrage', icon: MessageSquare },
-  { key: 'terminvorschlag', label: 'Terminvorschlag', icon: CalendarClock },
-  { key: 'angebot', label: 'Angebot übermitteln', icon: Mail },
-  { key: 'nachfassen', label: 'Nachfassen', icon: BellRing },
-  { key: 'rueckfrage', label: 'Rückfrage', icon: HelpCircle },
-  { key: 'absage', label: 'Absage', icon: XCircle },
+  { key: 'antwort', label: 'Antwort' },
+  { key: 'terminvorschlag', label: 'Termin' },
+  { key: 'angebot', label: 'Angebot' },
+  { key: 'nachfassen', label: 'Nachfassen' },
+  { key: 'rueckfrage', label: 'Rückfrage' },
+  { key: 'absage', label: 'Absage' },
 ];
 
 export const ABSICHT_LABEL = ABSICHTEN.reduce((acc, a) => ({ ...acc, [a.key]: a.label }), {});
+
+// Langtitel für Verlaufseintrag und Sendedialog.
+export const ABSICHT_TITEL = {
+  antwort: 'Antwort auf die Anfrage',
+  terminvorschlag: 'Terminvorschlag',
+  angebot: 'Angebots-E-Mail',
+  nachfassen: 'Nachfass-E-Mail',
+  rueckfrage: 'Rückfrage',
+  absage: 'Absage',
+};
 
 export const eurLabel = (n) => `${Math.round(Number(n) || 0).toLocaleString('de-AT')} €`;
 

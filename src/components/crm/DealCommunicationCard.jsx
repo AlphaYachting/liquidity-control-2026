@@ -17,7 +17,9 @@ import VariantenWahl from '@/components/crm/komm/VariantenWahl';
 import EntwurfFelder from '@/components/crm/komm/EntwurfFelder';
 import AenderungsWunsch from '@/components/crm/komm/AenderungsWunsch';
 import SendenDialog from '@/components/crm/komm/SendenDialog';
-import { ABSICHT_LABEL, sendeFolgen, slotLabel, FORMAT_LABEL, dateLabel } from '@/components/crm/komm/kommConfig';
+import AnfrageZeile from '@/components/crm/komm/AnfrageZeile';
+import { Input } from '@/components/ui/input';
+import { ABSICHT_TITEL, sendeFolgen, slotLabel, FORMAT_LABEL, dateLabel } from '@/components/crm/komm/kommConfig';
 
 const LEER = { slots: ['', '', ''], format: 'video', stichworte: '', pdf_link: true, schwerpunkt: '', punkte: [''], grund: '' };
 const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
@@ -40,6 +42,7 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
   const [fehler, setFehler] = useState(null);
   const [dialog, setDialog] = useState(false);
   const [sending, setSending] = useState(false);
+  const [adrEntwurf, setAdrEntwurf] = useState('');
   const variantenRef = useRef(null);
 
   const setFeld = (k, v) => setFelder((prev) => ({ ...prev, [k]: v }));
@@ -72,11 +75,27 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
     setIntent(prefill.intent);
   }, [prefill?.intent, prefill?.nonce]);
 
-  const gesperrt = hatAngebot ? {} : { angebot: 'Es ist noch kein Angebot verknüpft.', nachfassen: 'Es ist noch kein Angebot verknüpft.' };
+  // Nicht mögliche Absichten erscheinen gar nicht — ein Satz erklärt, wann sie kommen.
+  const ausgeblendet = !hatAngebot ? ['angebot', 'nachfassen'] : (!angebotGesendetAm ? ['nachfassen'] : []);
+  const absichtHinweis = !hatAngebot
+    ? '„Angebot“ und „Nachfassen“ erscheinen, sobald ein Angebot verknüpft ist.'
+    : (!angebotGesendetAm ? '„Nachfassen“ erscheint, sobald ein Angebot übermittelt wurde.' : null);
+
+  useEffect(() => {
+    if (ausgeblendet.includes(intent)) setIntent('antwort');
+  }, [ausgeblendet.join(','), intent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const adresseUebernehmen = async () => {
+    const wert = adrEntwurf.trim();
+    if (!wert) return;
+    await base44.entities.CrmDeal.update(deal.id, { contact_email: wert });
+    setTo(wert);
+    setAdrEntwurf('');
+    onChanged?.();
+  };
 
   const slotsGefuellt = felder.slots.filter(Boolean);
   const sperrGrund = (() => {
-    if (!to) return 'Keine E-Mail-Adresse am Kontakt hinterlegt.';
     if (intent === 'terminvorschlag' && slotsGefuellt.length === 0) return 'Mindestens ein Termin nötig — es werden keine Termine erfunden.';
     if (intent === 'rueckfrage' && felder.punkte.filter((p) => p.trim()).length === 0) return 'Mindestens ein offener Punkt nötig.';
     if (intent === 'absage' && !felder.grund.trim()) return 'Ohne Grund keine Absage.';
@@ -151,7 +170,7 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
       await base44.entities.CrmActivity.create({
         deal_id: deal.id, activity_type: 'email', channel: 'email', direction: 'ausgehend',
         intent,
-        title: `${ABSICHT_LABEL[intent]} an ${to} — ${subject}`,
+        title: `${ABSICHT_TITEL[intent]} an ${to} — ${subject}`,
         content: text, body: text, activity_date: new Date().toISOString(),
       });
       await markDealContacted(deal.id);
@@ -218,9 +237,32 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
         />
       )}
 
+      <AnfrageZeile deal={deal} onChanged={onChanged} />
+
       <div className="p-4">
-        <AbsichtWahl value={intent} onChange={setIntent} gesperrt={gesperrt} />
-        <QuellenZeile hatThread={Boolean(deal.email_thread_id)} name={deal.contact_name} />
+        <AbsichtWahl value={intent} onChange={setIntent} ausgeblendet={ausgeblendet} hinweis={absichtHinweis} />
+        <QuellenZeile
+          hatThread={Boolean(deal.email_thread_id)}
+          name={deal.contact_name}
+          threadId={deal.email_thread_id}
+        />
+
+        {!to && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <Input
+              value={adrEntwurf}
+              onChange={(e) => setAdrEntwurf(e.target.value)}
+              placeholder="E-Mail-Adresse des Kontakts"
+              className="h-8 w-64 text-sm"
+            />
+            <Button size="sm" variant="outline" onClick={adresseUebernehmen} disabled={!adrEntwurf.trim()}>
+              Adresse übernehmen
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Ohne Adresse lässt sich ein Entwurf erzeugen, aber nicht senden.
+            </span>
+          </div>
+        )}
 
         <AbsichtFelder
           intent={intent}
@@ -260,7 +302,12 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
 
             <AenderungsWunsch value={wunsch} onChange={setWunsch} onSubmit={() => erzeugen(wunsch)} disabled={busy} />
 
-            <div className="mt-3.5 pt-3.5 border-t border-border flex justify-end gap-2">
+            <div className="mt-3.5 pt-3.5 border-t border-border flex items-center justify-end gap-2">
+              {!to && (
+                <span className="mr-auto text-xs text-muted-foreground">
+                  Keine E-Mail-Adresse am Kontakt — oben ergänzen.
+                </span>
+              )}
               <Button variant="ghost" onClick={() => { setVarianten(null); setBody(''); setSubject(''); }}>Verwerfen</Button>
               <Button
                 onClick={oeffnen}
