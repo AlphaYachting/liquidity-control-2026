@@ -109,19 +109,14 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      // Nur außerhalb eines Rahmens selbst weiterleiten — in der Vorschau wird die
-      // Weiterleitung geblockt und es bliebe ein weißer Bildschirm zurück.
-      const imRahmen = window.self !== window.top;
-      if (!imRahmen && sessionStorage.getItem('login_redirect_done') !== '1') {
-        sessionStorage.setItem('login_redirect_done', '1');
-        navigateToLogin();
-      }
+      // Nie von selbst weiterleiten: das war die Ursache der Endlosschleife
+      // (Laden → Weiterleitung → weißer Bildschirm). Die Person entscheidet.
       return (
         <div className="fixed inset-0 flex items-center justify-center bg-background p-6">
           <div className="text-center max-w-sm">
             <p className="font-semibold">Anmeldung erforderlich</p>
-            <p className="mt-2 text-sm text-muted-foreground">Die Anmeldung konnte nicht abgeschlossen werden. Bitte erneut anmelden.</p>
-            <button onClick={() => { sessionStorage.removeItem('login_redirect_done'); navigateToLogin(); }} className="mt-4 px-4 py-2 rounded bg-primary text-primary-foreground text-sm">Zur Anmeldung</button>
+            <p className="mt-2 text-sm text-muted-foreground">Bitte einmal anmelden, dann geht es weiter.</p>
+            <button onClick={navigateToLogin} className="mt-4 px-4 py-2 rounded bg-primary text-primary-foreground text-sm">Zur Anmeldung</button>
           </div>
         </div>
       );
