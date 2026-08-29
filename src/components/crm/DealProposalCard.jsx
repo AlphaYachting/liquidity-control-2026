@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Presentation, ExternalLink, FileText, Mail, BellRing } from 'lucide-react';
-import OfferEmailDialog from '@/components/crm/OfferEmailDialog';
+import { Presentation, ExternalLink, FileText } from 'lucide-react';
 import DealQuoteCard from '@/components/crm/DealQuoteCard';
 import ProposalHandoffButton from '@/components/crm/ProposalHandoffButton';
 
@@ -18,11 +17,9 @@ const STATUS_META = {
   error: { label: 'Fehler', color: 'bg-red-100 text-red-700' },
 };
 
-// Zeigt am Deal das verknüpfte Angebot aus dem Angebots-Studio
-// inkl. E-Mail-Versand (2 Varianten) und Nachfassen bei ausbleibender Antwort.
+// Zeigt am Deal das verknüpfte Angebot aus dem Angebots-Studio.
+// Übermittelt und nachgefasst wird ausschließlich über die Kommunikationskarte.
 export default function DealProposalCard({ deal, activities, onChanged }) {
-  const [emailMode, setEmailMode] = useState(null); // 'offer' | 'followup'
-
   const { data: proposal } = useQuery({
     queryKey: ['crm-deal-proposal', deal.proposal_id],
     queryFn: () => base44.entities.CrmProposal.get(deal.proposal_id),
@@ -32,13 +29,12 @@ export default function DealProposalCard({ deal, activities, onChanged }) {
   if (!deal.proposal_id && deal.quote_id) return <DealQuoteCard deal={deal} onChanged={onChanged} />;
   if (!deal.proposal_id) return null;
 
-  const emailActivities = (activities || []).filter(
-    (a) => a.activity_type === 'email' && (a.title || '').startsWith('Angebots-E-Mail')
-  );
-  const followupActivities = (activities || []).filter(
-    (a) => a.activity_type === 'email' && (a.title || '').startsWith('Nachfass-E-Mail')
-  );
-  const lastOffer = emailActivities[0]; // Timeline ist neueste zuerst sortiert
+  // Der Zustand kommt aus der Absicht, der Titelvergleich bleibt nur Rückfallebene für Altdaten.
+  const istAngebot = (a) => a.intent === 'angebot' || String(a.title || '').startsWith('Angebots-E-Mail');
+  const istNachfassen = (a) => a.intent === 'nachfassen' || String(a.title || '').startsWith('Nachfass-E-Mail');
+  const mails = (activities || []).filter((a) => a.activity_type === 'email');
+  const lastOffer = mails.find(istAngebot);
+  const followups = mails.filter(istNachfassen);
   const st = proposal ? STATUS_META[proposal.status] || STATUS_META.input : null;
 
   return (
@@ -51,7 +47,7 @@ export default function DealProposalCard({ deal, activities, onChanged }) {
             <p className="text-[11px] text-muted-foreground">
               Angebots-Studio
               {lastOffer && <> · Angebot übermittelt am {new Date(lastOffer.activity_date).toLocaleDateString('de-AT')}</>}
-              {followupActivities.length > 0 && <> · {followupActivities.length}× nachgefasst</>}
+              {followups.length > 0 && <> · {followups.length}× nachgefasst</>}
             </p>
           </div>
         </div>
@@ -71,28 +67,8 @@ export default function DealProposalCard({ deal, activities, onChanged }) {
             </a>
           </Button>
         )}
-        <Button size="sm" className="gap-1.5" onClick={() => setEmailMode('offer')} disabled={!proposal}>
-          <Mail className="w-3.5 h-3.5" /> {lastOffer ? 'Angebots-E-Mail erneut' : 'Angebots-E-Mail an Kunden'}
-        </Button>
-        {lastOffer && (
-          <Button size="sm" variant="outline" className="gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50" onClick={() => setEmailMode('followup')}>
-            <BellRing className="w-3.5 h-3.5" /> Nachfassen
-          </Button>
-        )}
         <ProposalHandoffButton deal={deal} onDone={onChanged} forceNew label="Weiteres Angebot anlegen" />
       </div>
-
-      {proposal && (
-        <OfferEmailDialog
-          open={Boolean(emailMode)}
-          onOpenChange={(o) => { if (!o) setEmailMode(null); }}
-          mode={emailMode || 'offer'}
-          deal={deal}
-          proposal={proposal}
-          lastOfferDate={lastOffer?.activity_date}
-          onSent={() => { setEmailMode(null); onChanged?.(); }}
-        />
-      )}
     </div>
   );
 }

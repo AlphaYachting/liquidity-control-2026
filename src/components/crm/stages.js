@@ -5,6 +5,7 @@ export const PIPELINES = {
     stages: [
       { key: 'new_lead', label: 'Neuer Lead', color: 'bg-blue-100 text-blue-700' },
       { key: 'contacted', label: 'Kontaktiert', color: 'bg-sky-100 text-sky-700' },
+      { key: 'meeting_scheduled', label: 'Termin vorgeschlagen', color: 'bg-indigo-100 text-indigo-700' },
       { key: 'meeting_confirmed', label: 'Termin bestätigt', color: 'bg-purple-100 text-purple-700' },
       { key: 'proposal_sent', label: 'Angebot übermittelt', color: 'bg-amber-100 text-amber-700' },
       { key: 'negotiation', label: 'Verhandlung', color: 'bg-orange-100 text-orange-700' },
@@ -25,7 +26,7 @@ export const PIPELINES = {
 };
 
 export const STAGE_LABELS = {
-  new_lead: 'Neuer Lead', contacted: 'Kontaktiert',
+  new_lead: 'Neuer Lead', contacted: 'Kontaktiert', meeting_scheduled: 'Termin vorgeschlagen',
   meeting_confirmed: 'Termin bestätigt', proposal_sent: 'Angebot übermittelt', negotiation: 'Verhandlung',
   won: 'Gewonnen ✓', lost: 'Verloren',
   inquiry_received: 'Anfrage eingegangen', evaluated: 'Bewertet', estimated: 'Angebot / Aufwand geschätzt',

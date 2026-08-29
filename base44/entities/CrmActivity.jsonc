@@ -46,6 +46,10 @@
       ],
       "description": "Richtung der Kommunikation"
     },
+    "intent": {
+      "type": "string",
+      "description": "Absicht der gesendeten Nachricht: antwort, terminvorschlag, angebot, nachfassen, rueckfrage, absage"
+    },
     "body": {
       "type": "string",
       "description": "Gesendeter Text der Nachricht"

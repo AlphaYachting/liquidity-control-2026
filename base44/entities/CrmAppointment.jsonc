@@ -33,6 +33,10 @@
       ],
       "default": "proposed"
     },
+    "proposal_group_id": {
+      "type": "string",
+      "description": "Alle Termine EINES Terminvorschlags per E-Mail tragen dieselbe Id"
+    },
     "confirmation_source": {
       "type": "string",
       "enum": [

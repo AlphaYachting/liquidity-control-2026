@@ -1,114 +1,213 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { emailDbGet } from '../../shared/emailDb.ts';
 
-// Erzeugt einen Antwort-ENTWURF auf eine eingegangene Anfrage.
-// Grundlage ist ausschließlich der Text des eingegangenen Verlaufs — kein Versand.
-// intent: 'terminvorschlag' (weitere später ergänzbar).
+// Erzeugt zwei Antwort-ENTWÜRFE (kompakt / ausführlich) für eine Absicht am Deal.
+// Grundlage ist ausschließlich belegter Text: E-Mail-Verlauf oder Anfrage + Verlaufseinträge.
+// Kein Versand, keine erfundenen Termine, Preise oder Zusagen.
+const INTENTS = ['antwort', 'terminvorschlag', 'angebot', 'nachfassen', 'rueckfrage', 'absage'];
+
+const cleanText = (raw: string) =>
+  String(raw || '')
+    .split('\n')
+    .filter((l: string) => !/^\s*([-_*]\s*){3,}\s*$/.test(l))
+    .map((l: string) =>
+      l
+        .replace(/^#{1,6}\s+/, '')
+        .replace(/^\s*[•*–]\s+/, '- ')
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/\*(.+?)\*/g, '$1')
+        .replace(/`(.+?)`/g, '$1')
+        .trimEnd(),
+    )
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+const eur = (n: number) => `${Math.round(Number(n) || 0).toLocaleString('de-AT')} €`;
+
 export default async function (req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { threadId, intent = 'terminvorschlag', params = {} } = await req.json();
-    if (!threadId) return Response.json({ error: 'threadId erforderlich' }, { status: 400 });
-    if (intent !== 'terminvorschlag') {
-      return Response.json({ error: `Unbekannter Antworttyp: ${intent}` }, { status: 400 });
+    const body = await req.json();
+    const { threadId = '', dealId = '', intent = 'antwort', params = {}, feedback = '', previous_a = '', previous_b = '' } = body;
+    if (!dealId) return Response.json({ error: 'dealId erforderlich' }, { status: 400 });
+    if (!INTENTS.includes(intent)) return Response.json({ error: `Unbekannte Absicht: ${intent}` }, { status: 400 });
+
+    // ---- Quelle des Entwurfs ---------------------------------------------
+    let source = 'deal';
+    let subject = '';
+    let senderName = '';
+    let senderMail = '';
+    let conversation = '';
+
+    if (threadId) {
+      const detail = await emailDbGet('thread', { id: threadId, msgs: 10, full: 1 }).catch(() => null);
+      const messages = (detail?.messages || []).filter(
+        (m: any) => !String(m.from || '').toLowerCase().includes('microsoftexchange'),
+      );
+      const inbound = messages.filter((m: any) => m.direction === 'in');
+      const picked = (inbound.length ? inbound : messages).slice(0, 4);
+      if (picked.length > 0) {
+        source = 'thread';
+        subject = detail?.thread?.subject || '';
+        senderName = picked[0]?.from_name || '';
+        senderMail = picked[0]?.from || '';
+        conversation = picked
+          .map((m: any) => `[${m.direction === 'in' ? 'KUNDE' : 'WIR'}] ${m.from_name || m.from}:\n${String(m.text || m.preview || '').slice(0, 3000)}`)
+          .join('\n\n---\n\n');
+      }
     }
 
+    const deal = await base44.entities.CrmDeal.get(dealId).catch(() => null);
+
+    if (!conversation) {
+      const acts = await base44.entities.CrmActivity.filter({ deal_id: dealId }, '-activity_date', 30).catch(() => []);
+      const relevant = (acts || [])
+        .filter((a: any) => ['note', 'call', 'email', 'meeting'].includes(a.activity_type))
+        .slice(0, 10);
+      const parts: string[] = [];
+      if (deal?.description) parts.push(`[ANFRAGE]\n${String(deal.description).slice(0, 4000)}`);
+      relevant.forEach((a: any) => {
+        const text = String(a.content || a.body || '').slice(0, 1500);
+        parts.push(`[VERLAUF ${new Date(a.activity_date || a.created_date).toLocaleDateString('de-AT')}] ${a.title || ''}\n${text}`);
+      });
+      conversation = parts.join('\n\n---\n\n').trim();
+      senderName = deal?.contact_name || '';
+      senderMail = deal?.contact_email || '';
+    }
+
+    if (!conversation) {
+      return Response.json(
+        { error: 'Kein Anfragetext vorhanden — bitte die Anfrage am Deal erfassen.' },
+        { status: 400 },
+      );
+    }
+
+    // ---- Aufgabe je Absicht ----------------------------------------------
     const slots = (params.slots || []).map((s: string) => String(s || '').trim()).filter(Boolean);
-    if (slots.length === 0) {
-      return Response.json({ error: 'Bitte Terminslots angeben — es werden keine Termine erfunden.' }, { status: 400 });
+    const angebot = params.angebot || {};
+    const positionen = angebot.positionen || [];
+    let task = '';
+
+    if (intent === 'terminvorschlag') {
+      if (slots.length === 0) {
+        return Response.json({ error: 'Mindestens ein Termin nötig — es werden keine Termine erfunden.' }, { status: 400 });
+      }
+      const formatLabels: Record<string, string> = { vor_ort: 'vor Ort', telefon: 'telefonisch', video: 'per Videocall' };
+      const formatLabel = formatLabels[params.format] || '';
+      task = `AUFGABE: Auf die Anfrage antworten und Termine vorschlagen.
+AUFBAU: Anrede / Dank und Aufgreifen des Anliegens (2-3 Sätze) / EIN Satz Überleitung zum Termin${formatLabel ? ` mit Nennung des Formats (${formatLabel})` : ''} / die Termine, je Termin EINE Zeile "- <Termin>", wortgleich / Bitte um kurze Rückmeldung und Angebot einer Alternative / Gruß.
+DIE TERMINE (wortgleich, ausschließlich diese):
+${slots.map((s) => `- ${s}`).join('\n')}
+GRENZE: keine weiteren Zeitangaben, keine Dauer erfinden.`;
+    } else if (intent === 'antwort') {
+      task = `AUFGABE: Auf die Anfrage inhaltlich antworten, ohne etwas zuzusagen.
+AUFBAU: Anrede / Dank und Aufgreifen des Anliegens / was wir dazu sagen können, ohne Zusage / EIN konkreter nächster Schritt / Gruß.
+GRENZE: keine Termine, keine Preise.
+${params.stichworte ? `STICHWORTE (inhaltlich einarbeiten, nicht anhängen):\n${params.stichworte}` : ''}`;
+    } else if (intent === 'angebot') {
+      if (angebot.hat_pdf) {
+        task = `AUFGABE: Anschreiben zur Übermittlung des Angebots "${angebot.titel || ''}".
+AUFBAU: kurz auf die Anfrage eingehen / den Nutzen in EINEM Satz / Hinweis, dass das vollständige Angebot ${params.pdf_link ? 'verlinkt ist' : 'beiliegt'} / Einladung zum nächsten Schritt / Gruß.
+GRENZE: KEINE Detailpreise im Text.`;
+      } else {
+        if (positionen.length === 0) {
+          return Response.json(
+            { error: 'Das Angebot enthält keine freigegebenen Positionen — bitte zuerst im Angebots-Studio fertigstellen.' },
+            { status: 400 },
+          );
+        }
+        task = `AUFGABE: Die E-Mail trägt das Angebot "${angebot.titel || ''}" selbst.
+AUFBAU: Bezug (1 Satz) / "Leistungen:" — je Position "Leistung - Ergebnis - Preis netto", höchstens zwei Zeilen je Position / "Nicht enthalten:" 1-3 Zeilen / "Summe:" netto, 20 % USt., brutto / Gültigkeit, exakt der Satz "Dieses Angebot gilt bis ${angebot.gueltig_bis || ''}." / EIN Satz Verweis auf die AGB / EIN konkreter nächster Schritt / Gruß.
+GRENZE: ausschließlich diese Positionen und Preise. Keine Position ergänzen, keinen Preis runden, keinen Rabatt.
+FREIGEGEBENE POSITIONEN (einzige Quelle):
+${JSON.stringify({ positionen, summe_netto: angebot.summe_netto, nicht_enthalten: angebot.nicht_enthalten || [] }, null, 2)}`;
+      }
+    } else if (intent === 'nachfassen') {
+      task = `AUFGABE: Freundlich nachfassen zum Angebot "${angebot.titel || ''}"${angebot.gesendet_am ? `, übermittelt am ${angebot.gesendet_am}` : ''}${params.tage_seit_versand ? ` (vor ${params.tage_seit_versand} Tagen)` : ''}.
+AUFBAU: Anrede / Bezug auf das Angebot mit Datum / Nachfrage nach dem Stand, ausdrücklich ohne Druck / Angebot, offene Fragen in einem kurzen Gespräch zu klären / EIN Satz, der ein "derzeit nicht die Priorität" ausdrücklich zulässt / Gruß.
+GRENZE: keine Preisänderung, kein Rabatt, keine Frist, keine zweite Erinnerung im selben Text. Die Tagesanzahl wird genannt, nicht vorgeworfen.
+${params.schwerpunkt ? `SCHWERPUNKT: ${params.schwerpunkt}` : ''}`;
+    } else if (intent === 'rueckfrage') {
+      const punkte = (params.punkte || []).map((p: string) => String(p || '').trim()).filter(Boolean);
+      if (punkte.length === 0) return Response.json({ error: 'Mindestens ein offener Punkt nötig.' }, { status: 400 });
+      task = `AUFGABE: Offene Punkte erfragen.
+AUFBAU: Anrede / Dank / EIN Satz, warum es diese Angaben für eine belastbare Aussage braucht / die Punkte als Aufzählung, je Punkt eine Zeile "- <Punkt>" / Angebot, das auch telefonisch zu klären / Gruß.
+GRENZE: nur diese Punkte, keine zusätzlichen Fragen.
+DIE PUNKTE:
+${punkte.map((p) => `- ${p}`).join('\n')}`;
+    } else if (intent === 'absage') {
+      const grund = String(params.grund || '').trim();
+      if (!grund) return Response.json({ error: 'Ohne Grund keine Absage.' }, { status: 400 });
+      task = `AUFGABE: Die Anfrage absagen.
+AUFBAU: Anrede / Dank für die Anfrage und das Vertrauen / die Absage klar im ersten Drittel, mit dem sachlichen Grund / optional ein Hinweis auf einen späteren Zeitpunkt / Gruß.
+GRENZE: keine Schuldzuweisung, keine Kritik am Kunden, kein Bedauern über mehrere Sätze. Der Grund wird höflich formuliert, aber nicht verschleiert.
+DER GRUND: ${grund}`;
     }
 
-    const detail = await emailDbGet('thread', { id: threadId, msgs: 10, full: 1 });
-    const subject = detail?.thread?.subject || '';
-    const messages = (detail?.messages || []).filter(
-      (m: any) => !String(m.from || '').toLowerCase().includes('microsoftexchange'),
-    );
-    const inbound = messages.filter((m: any) => m.direction === 'in');
-    const source = (inbound.length ? inbound : messages).slice(0, 4);
-    if (source.length === 0) {
-      return Response.json({ error: 'Der Verlauf enthält keine lesbare Anfrage.' }, { status: 400 });
-    }
+    const preisFrei = intent === 'angebot';
+    const signatur = user.full_name || 'Rittler & Co';
 
-    const senderName = source[0]?.from_name || '';
-    const senderMail = source[0]?.from || '';
-    const conversation = source
-      .map((m: any) => `[${m.direction === 'in' ? 'KUNDE' : 'WIR'}] ${m.from_name || m.from}:\n${String(m.text || m.preview || '').slice(0, 3000)}`)
-      .join('\n\n---\n\n');
+    const prompt = `Du schreibst als ${signatur} von der Digitalagentur Rittler & Co (Österreich) eine E-Mail an ${senderName || deal?.contact_name || 'den Kunden'}${deal?.company_name ? ` von ${deal.company_name}` : ''}.
 
-    const formatLabels: Record<string, string> = {
-      vor_ort: 'vor Ort', telefon: 'telefonisch', video: 'per Videocall',
-    };
-    const formatLabel = formatLabels[params.format] || '';
+TONALITÄT (gilt immer):
+- Deutsch, per Sie. Herzlich und wertschätzend, aber knapp.
+- Keine Werbesprache, keine Superlative, keine Floskeln ("Bezug nehmend auf", "hiermit").
+- Der erste inhaltliche Absatz greift das KONKRETE Anliegen in eigenen Worten auf — ein Satz, der zeigt, dass gelesen wurde.
+- Kein Absatz länger als drei Zeilen. Reiner Fließtext: kein Markdown, keine Sternchen, keine Rauten, keine Trennlinien, keine Emojis.
+- Aufzählungen ausschließlich mit "- " am Zeilenanfang.
+- Absätze werden mit echten Zeilenumbrüchen getrennt: zwischen zwei Absätzen genau eine Leerzeile, Anrede und Grußzeilen je auf eigener Zeile. Niemals alles in einer einzigen Zeile.
+${preisFrei ? '' : '- VERBOTEN: Preise, Aufwandsschätzungen, Liefertermine, Rabatte, Zusagen zu Leistungen.\n'}- VERBOTEN: erfundene Termine, erfundene Personen, Platzhalter wie [Name].
+- Schluss immer drei eigene Zeilen: "Beste Grüße" / ${signatur} / "Rittler & Co".
 
-    const res = await base44.integrations.Core.InvokeLLM({
-      prompt: `Du schreibst als Mitarbeiter der Digitalagentur Rittler & Co (Österreich) eine Antwort-E-Mail auf Deutsch, per Sie — herzlich, wertschätzend und sprachlich elegant, dabei professionell und ohne Floskeln-Überladung.
+${task}
 
-AUFGABE: Auf die unten stehende Anfrage antworten und einen Termin vorschlagen.
-Regeln:
-- Bedanke dich zu Beginn kurz und aufrichtig für die Anfrage bzw. das entgegengebrachte Interesse.
-- Greife das KONKRETE Anliegen aus der Anfrage in eigenen Worten auf (mindestens ein Satz, der zeigt, dass die Anfrage aufmerksam gelesen wurde). Erfinde nichts, was nicht in der Anfrage steht.
-- Sprich die Person mit ihrem Namen an, sofern er erkennbar ist${senderName ? ` (Absender: ${senderName})` : ''}.
-- Formuliere abwechslungsreich und natürlich — keine steifen Standardsätze wie "Bezug nehmend auf" oder "hiermit".
-- Biete GENAU diese Termine an, wortgleich in Datum und Uhrzeit, als Aufzählung:
-${slots.map((s) => `  - ${s}`).join('\n')}
-${formatLabel ? `- Format des Termins: ${formatLabel} — erwähne das in der Überleitung zum Termin (z.B. "gerne ${formatLabel}").` : ''}
-- Bitte freundlich um kurze Rückmeldung, welcher Termin am besten passt, und biete an, bei Bedarf Alternativen zu finden.
-- Schließe mit einem positiven Satz, der Vorfreude auf das Gespräch ausdrückt.
-- KEINE Preise, keine Aufwandsschätzungen, keine Zusagen zu Leistungen.
+ZWEI VARIANTEN, gleicher Inhalt, unterschiedliche Länge und Haltung:
+- variant_a: kompakt und direkt, ca. 90-130 Wörter
+- variant_b: ausführlicher und beratend, ca. 170-230 Wörter
+Beide sagen dasselbe zu und nennen dieselben Termine, Preise und Punkte.
+${feedback ? `
+ÜBERARBEITUNG — verbindlicher Änderungswunsch: "${feedback}"
+Formulierung, Ton und Betonung ändern sich. Die harten Angaben (Termine, Preise, Positionen) bleiben unverändert.
+BISHERIGE VARIANTE A:
+"""
+${previous_a}
+"""
+BISHERIGE VARIANTE B:
+"""
+${previous_b}
+"""` : ''}
 
-AUFBAU (exakt einhalten, jeder Block durch EINE Leerzeile getrennt):
-1. Anrede, z.B. "Guten Tag Frau Muster," — eigene Zeile.
-2. Ein kurzer Absatz (2–3 Sätze): Dank für die Anfrage und das Aufgreifen des Anliegens.
-3. Ein kurzer Satz, der zum Termin überleitet, z.B. "Sehr gerne nehmen wir uns Zeit für ein persönliches Gespräch — folgende Termine kann ich Ihnen anbieten:".
-4. Die Termine — jeder Termin in EINER eigenen Zeile, beginnend mit "- ", sonst nichts.
-5. Ein kurzer Absatz (1–2 Sätze): Bitte um Rückmeldung und Vorfreude auf das Gespräch.
-6. "Beste Grüße" — eigene Zeile.
-7. ${user.full_name || 'Rittler & Co'} — eigene Zeile, darunter "Rittler & Co" — eigene Zeile.
+BETREFF DES VERLAUFS: ${subject || '—'}
 
-FORMAT: reiner Fließtext. Keine Sternchen, keine Rauten, keine Trennlinien, kein Markdown, keine Überschriften, keine Emojis. Kein Absatz länger als 3 Zeilen. Keine doppelten Leerzeilen.
-
-BETREFF DER ANFRAGE: ${subject || '—'}
-
-ANFRAGE (Originaltext):
+BELEGTER TEXT (einzige inhaltliche Quelle):
 """
 ${conversation}
-"""`,
+"""`;
+
+    const res = await base44.integrations.Core.InvokeLLM({
+      prompt,
       response_json_schema: {
         type: 'object',
         properties: {
-          subject: { type: 'string', description: 'Betreffzeile der Antwort' },
-          body: { type: 'string', description: 'Vollständiger E-Mail-Text' },
+          subject: { type: 'string', description: 'Betreffzeile' },
+          variant_a: { type: 'string', description: 'kompakte Variante' },
+          variant_b: { type: 'string', description: 'ausführliche Variante' },
         },
-        required: ['subject', 'body'],
+        required: ['subject', 'variant_a', 'variant_b'],
       },
     });
 
-    // Sicherheitsnetz: Markdown-Reste entfernen, Aufzählungen vereinheitlichen,
-    // Leerzeilen normalisieren — der Kunde bekommt sauberen Fließtext.
-    const cleanBody = String(res.body || '')
-      .split('\n')
-      .filter((l: string) => !/^\s*([-_*]\s*){3,}\s*$/.test(l))
-      .map((l: string) =>
-        l
-          .replace(/^#{1,6}\s+/, '')
-          .replace(/^\s*[•*–]\s+/, '- ')
-          .replace(/\*\*(.+?)\*\*/g, '$1')
-          .replace(/\*(.+?)\*/g, '$1')
-          .replace(/`(.+?)`/g, '$1')
-          .trimEnd(),
-      )
-      .join('\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-
     return Response.json({
-      subject: String(res.subject || '').replace(/[*#`]/g, '').trim() || (subject ? `Re: ${subject}` : 'Terminvorschlag'),
-      body: cleanBody,
+      subject: String(res.subject || '').replace(/[*#`]/g, '').trim() || (subject ? `Re: ${subject}` : 'Ihre Anfrage'),
+      variant_a: cleanText(res.variant_a),
+      variant_b: cleanText(res.variant_b),
       recipient: senderMail,
       thread_subject: subject,
+      source,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

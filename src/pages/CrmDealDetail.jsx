@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Building2, Mail, Phone, User, Linkedin, FileText, CalendarClock, StickyNote, History } from 'lucide-react';
 import CollapsibleSection from '@/components/crm/CollapsibleSection';
-import ReplyComposer from '@/components/crm/emails/ReplyComposer';
+import DealCommunicationCard from '@/components/crm/DealCommunicationCard';
 import ActivityTimeline from '@/components/crm/ActivityTimeline';
 import ActivityComposer from '@/components/crm/ActivityComposer';
 import AppointmentSection from '@/components/crm/AppointmentSection';
@@ -25,6 +25,8 @@ export default function CrmDealDetail() {
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [closeMode, setCloseMode] = useState(null);
+  // Sprung aus dem Terminbereich in die Kommunikationskarte
+  const [prefill, setPrefill] = useState(null);
 
   const { data: deal, isLoading } = useQuery({
     queryKey: ['crm-deal', dealId],
@@ -126,22 +128,18 @@ export default function CrmDealDetail() {
           </CollapsibleSection>
 
           {deal.email_thread_id && (
-            <>
-              <CollapsibleSection icon={Mail} title="E-Mail-Verlauf">
-                <DealEmailThreadCard deal={deal} />
-              </CollapsibleSection>
-
-              <CollapsibleSection icon={CalendarClock} title="Antwort erstellen" hint="Terminvorschlag">
-                <ReplyComposer
-                  bare
-                  threadId={deal.email_thread_id}
-                  dealId={deal.id}
-                  recipient={deal.contact_email || ''}
-                  onSent={refreshAll}
-                />
-              </CollapsibleSection>
-            </>
+            <CollapsibleSection icon={Mail} title="E-Mail-Verlauf">
+              <DealEmailThreadCard deal={deal} />
+            </CollapsibleSection>
           )}
+
+          <DealCommunicationCard
+            deal={deal}
+            activities={activities}
+            appointments={appointments}
+            prefill={prefill}
+            onChanged={refreshAll}
+          />
 
           <CollapsibleSection icon={StickyNote} title="Notiz erfassen" hint="Notiz, Anruf, E-Mail, Termin" defaultOpen>
             <ActivityComposer dealId={deal.id} onAdded={refreshAll} />
@@ -180,7 +178,12 @@ export default function CrmDealDetail() {
           <CompanyMasterDataCard deal={deal} onChanged={refreshAll} />
 
           <div className="border rounded-xl bg-card p-4">
-            <AppointmentSection deal={deal} appointments={appointments} onChanged={refreshAll} />
+            <AppointmentSection
+              deal={deal}
+              appointments={appointments}
+              onChanged={refreshAll}
+              onTerminVorschlagen={() => setPrefill({ intent: 'terminvorschlag', nonce: Date.now() })}
+            />
           </div>
 
           {deal.pipeline === 'existing_customer' && (

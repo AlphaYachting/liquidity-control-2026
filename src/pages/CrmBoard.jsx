@@ -10,6 +10,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import DealCard from '@/components/crm/DealCard';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import { PIPELINES, eur, isClosedStage } from '@/components/crm/stages';
+import { angebotStille } from '@/lib/crm/angebotStille';
 import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
 
@@ -26,10 +27,17 @@ export default function CrmBoard() {
     queryKey: ['crm-deals'],
     queryFn: () => base44.entities.CrmDeal.list('-updated_date', 500),
   });
+  // Aktivitäten nur für den Stille-Hinweis auf der Karte
+  const { data: allActivities = [] } = useQuery({
+    queryKey: ['crm-activities-all'],
+    queryFn: () => base44.entities.CrmActivity.list('-activity_date', 1000),
+  });
   const { data: inboxItems = [] } = useQuery({
     queryKey: ['crm-inbox-count'],
     queryFn: () => base44.entities.CrmInboxItem.filter({ status: 'new' }, '-created_date', 100),
   });
+
+  const stilleTage = (deal) => angebotStille(deal, allActivities.filter((a) => a.deal_id === deal.id))?.tage || 0;
 
   const config = PIPELINES[pipeline];
   const pipelineDeals = deals.filter(d => d.pipeline === pipeline);
@@ -162,7 +170,7 @@ export default function CrmBoard() {
                           <Draggable key={deal.id} draggableId={deal.id} index={idx} disableInteractiveElementBlocking>
                             {(dragProvided) => (
                               <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} {...dragProvided.dragHandleProps}>
-                                <DealCard deal={deal} onClick={() => openDeal(deal.id)} />
+                                <DealCard deal={deal} onClick={() => openDeal(deal.id)} stilleTage={stilleTage(deal)} />
                               </div>
                             )}
                           </Draggable>

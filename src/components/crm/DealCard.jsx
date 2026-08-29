@@ -3,7 +3,7 @@ import { differenceInDays, parseISO } from 'date-fns';
 import { Building2, CalendarClock } from 'lucide-react';
 import { SOURCE_LABELS, eur } from '@/components/crm/stages';
 
-export default function DealCard({ deal, onClick }) {
+export default function DealCard({ deal, onClick, stilleTage }) {
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const ageDays = deal.created_date ? differenceInDays(today, parseISO(deal.created_date)) : 0;
@@ -36,6 +36,11 @@ export default function DealCard({ deal, onClick }) {
         <span className="text-[11px] text-muted-foreground">{SOURCE_LABELS[deal.source] || deal.source}</span>
         <span className="text-[11px] text-muted-foreground">{ageDays} Tage</span>
       </div>
+      {stilleTage > 0 && (
+        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-status-critical-surface text-status-critical">
+          {stilleTage} Tage ohne Antwort
+        </span>
+      )}
       {deal.next_step && (
         <p className={`text-[11px] flex items-center gap-1 rounded-md px-1.5 py-1 ${
           nextOverdue ? 'bg-red-50 text-red-700 font-medium' : 'bg-muted text-muted-foreground'

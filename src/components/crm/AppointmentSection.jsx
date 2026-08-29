@@ -16,7 +16,7 @@ const STATUS_LABEL = {
   cancelled: 'Abgesagt', completed: 'Stattgefunden ✓',
 };
 
-export default function AppointmentSection({ deal, appointments, onChanged }) {
+export default function AppointmentSection({ deal, appointments, onChanged, onTerminVorschlagen }) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [when, setWhen] = useState('');
@@ -48,6 +48,13 @@ export default function AppointmentSection({ deal, appointments, onChanged }) {
       ...(status === 'confirmed' ? { confirmed_at: new Date().toISOString(), confirmation_source: 'manual' } : {}),
     });
     await logActivity(status === 'confirmed' ? 'Termin bestätigt' : 'Termin abgesagt', appt.title || 'Termin');
+    // Ein bestätigter Termin schließt die übrigen Vorschläge desselben Versands
+    if (status === 'confirmed' && appt.proposal_group_id) {
+      const gruppe = (appointments || []).filter(
+        (a) => a.proposal_group_id === appt.proposal_group_id && a.id !== appt.id && a.status === 'proposed',
+      );
+      for (const a of gruppe) await base44.entities.CrmAppointment.update(a.id, { status: 'cancelled' });
+    }
     if (status === 'confirmed' && deal.stage === 'meeting_scheduled') {
       await base44.entities.CrmDeal.update(deal.id, { stage: 'meeting_confirmed' });
     }
@@ -58,10 +65,15 @@ export default function AppointmentSection({ deal, appointments, onChanged }) {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Termine</h3>
-        <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => setAdding(!adding)}>
+        <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onTerminVorschlagen?.()}>
           <CalendarPlus className="w-3 h-3" /> Termin
         </Button>
       </div>
+      {!adding && (
+        <button type="button" onClick={() => setAdding(true)} className="text-[11px] text-muted-foreground hover:text-foreground underline">
+          Termin ohne E-Mail eintragen
+        </button>
+      )}
       {adding && (
         <div className="border rounded-lg p-2.5 bg-muted/30 space-y-2">
           <Input className="h-8 text-sm" placeholder="Titel (z.B. Erstgespräch)" value={title} onChange={e => setTitle(e.target.value)} />
