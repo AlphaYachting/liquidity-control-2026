@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import FehlerGrenze from '@/components/FehlerGrenze';
 
 import AppLayout from '@/components/layout/AppLayout';
 import AdminRoute from '@/components/layout/AdminRoute';
@@ -108,11 +109,12 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      // Schutz gegen Endlos-Weiterleitung: nur einmal je Sitzung zum Login schicken
-      if (sessionStorage.getItem('login_redirect_done') !== '1') {
+      // Nur außerhalb eines Rahmens selbst weiterleiten — in der Vorschau wird die
+      // Weiterleitung geblockt und es bliebe ein weißer Bildschirm zurück.
+      const imRahmen = window.self !== window.top;
+      if (!imRahmen && sessionStorage.getItem('login_redirect_done') !== '1') {
         sessionStorage.setItem('login_redirect_done', '1');
         navigateToLogin();
-        return null;
       }
       return (
         <div className="fixed inset-0 flex items-center justify-center bg-background p-6">
@@ -124,6 +126,16 @@ const AuthenticatedApp = () => {
         </div>
       );
     }
+    // Jeder andere Fehler wird benannt, statt einen leeren Bildschirm zu hinterlassen.
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-background p-6">
+        <div className="text-center max-w-sm">
+          <p className="font-semibold">Die App konnte nicht geladen werden</p>
+          <p className="mt-2 text-sm text-muted-foreground">{authError.message || 'Unbekannter Fehler'}</p>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 rounded bg-primary text-primary-foreground text-sm">Neu laden</button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -211,7 +223,9 @@ function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <AuthenticatedApp />
+          <FehlerGrenze>
+            <AuthenticatedApp />
+          </FehlerGrenze>
         </Router>
         <Toaster />
       </QueryClientProvider>
