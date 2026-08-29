@@ -13,6 +13,7 @@ import Erfassungszeile from '@/components/zeit/Erfassungszeile';
 import ErfassungsFenster from '@/components/zeit/ErfassungsFenster';
 import SchnellProjekte from '@/components/zeit/SchnellProjekte';
 import VorauswahlStart from '@/components/zeit/VorauswahlStart';
+import ProjektWechsel from '@/components/zeit/ProjektWechsel';
 import BuchungBestaetigung from '@/components/zeit/BuchungBestaetigung';
 import NichtGebucht from '@/components/zeit/NichtGebucht';
 import SperrHinweis from '@/components/zeit/SperrHinweis';
@@ -25,9 +26,12 @@ export default function TimerKnopf() {
   const email = user?.email;
   const { timer, running, label, start, stop, ueberzogen, elapsedMinutes } = useTimer(email);
   const { aeltester } = useOffeneTage(email);
-  const kontext = useZeitKontext();
+  const ortKontext = useZeitKontext();
   const navigate = useNavigate();
   const [offen, setOffen] = useState(false);
+  // null = die Vorwahl der Seite gilt. Kein Effekt setzt diesen Zustand.
+  const [gewaehlt, setGewaehlt] = useState(null);
+  const [wechsel, setWechsel] = useState(false);
   const [tippzeile, setTippzeile] = useState(false);
   const [bestaetigung, setBestaetigung] = useState(null);
   const [nichtGebucht, setNichtGebucht] = useState(null);
@@ -44,6 +48,8 @@ export default function TimerKnopf() {
       const el = e.target;
       if (el?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el?.tagName)) return;
       e.preventDefault();
+      setGewaehlt(null);
+      setWechsel(false);
       setOffen(true);
     };
     window.addEventListener('keydown', onKey);
@@ -52,8 +58,25 @@ export default function TimerKnopf() {
 
   if (!email) return null;
 
+  // Aufgabe und Sprint stammen aus dem Ort — sie wandern nicht in ein anderes Projekt mit.
+  const ausOrt = !gewaehlt && !!ortKontext.project_id;
+  const kontext = {
+    project_id: gewaehlt?.id || ortKontext.project_id || null,
+    ticket_id: ausOrt ? ortKontext.ticket_id : null,
+    sprint_id: ausOrt ? ortKontext.sprint_id || null : null,
+    quelle: ausOrt ? ortKontext.quelle : 'wahl',
+  };
+
+  const oeffnen = () => {
+    setGewaehlt(null);
+    setWechsel(false);
+    setOffen(true);
+  };
+
   const schliessen = () => {
     setOffen(false);
+    setGewaehlt(null);
+    setWechsel(false);
     setTippzeile(false);
     setBestaetigung(null);
     setNichtGebucht(null);
@@ -131,6 +154,7 @@ export default function TimerKnopf() {
     : bestaetigung ? 'Gebucht'
     : nichtGebucht ? 'Nicht gebucht'
     : tippzeile ? 'Zeit nachtragen'
+    : wechsel ? 'Projekt wechseln'
     : running ? 'Läuft'
     : 'Zeit erfassen';
 
@@ -139,7 +163,7 @@ export default function TimerKnopf() {
       {(imSprintModul || running || hatKontext) && (
         <button
           type="button"
-          onClick={() => setOffen(true)}
+          onClick={oeffnen}
           aria-label={running ? 'Laufenden Timer öffnen' : 'Zeit erfassen'}
           className={
             running
@@ -196,11 +220,20 @@ export default function TimerKnopf() {
               ueberzogen={ueberzogen}
               elapsedMinutes={elapsedMinutes}
             />
+          ) : wechsel && hatKontext ? (
+            <ProjektWechsel
+              email={email}
+              onWaehlen={(p) => { setGewaehlt(p); setWechsel(false); }}
+              onZurueck={() => setWechsel(false)}
+            />
           ) : hatKontext ? (
             <VorauswahlStart
               kontext={kontext}
+              ortProjektId={ortKontext.project_id}
+              ausOrt={ausOrt}
               onStart={starten}
-              onSuche={() => setTippzeile(true)}
+              onSuche={() => setWechsel(true)}
+              onZurueckZumOrt={() => setGewaehlt(null)}
               onNachtragen={() => setTippzeile(true)}
             />
           ) : (
