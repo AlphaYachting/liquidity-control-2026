@@ -215,16 +215,20 @@ const AuthenticatedApp = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClientInstance}>
-        <Router>
-          <FehlerGrenze>
-            <AuthenticatedApp />
-          </FehlerGrenze>
-        </Router>
-        <Toaster />
-      </QueryClientProvider>
-    </AuthProvider>
+    /* Fehlergrenze ganz außen — auch ein Fehler in Anmeldung, Datenschicht
+       oder Navigation hinterlässt so keine weiße Seite. */
+    <FehlerGrenze>
+      <AuthProvider>
+        <QueryClientProvider client={queryClientInstance}>
+          <Router>
+            <FehlerGrenze>
+              <AuthenticatedApp />
+            </FehlerGrenze>
+          </Router>
+          <Toaster />
+        </QueryClientProvider>
+      </AuthProvider>
+    </FehlerGrenze>
   )
 }
 

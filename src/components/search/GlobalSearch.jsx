@@ -27,7 +27,8 @@ export default function GlobalSearch() {
   // Index einmal laden: vorhandener Stand sofort, Auffrischung im Hintergrund.
   useEffect(() => {
     if (!user?.email) return;
-    ladeIndex(user.email, setZeilen).then(setZeilen);
+    const setzen = (z) => setZeilen(Array.isArray(z) ? z : []);
+    ladeIndex(user.email, setzen).then(setzen).catch(() => setZeilen([]));
     setZuletzt(zuletztGeoeffnet());
   }, [user?.email]);
 
