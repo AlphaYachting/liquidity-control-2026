@@ -9,3 +9,9 @@ export const queryClientInstance = new QueryClient({
 		},
 	},
 });
+
+// Bei jedem Neuladen im Entwicklungsmodus alle Abfragen samt Zeitgeber leeren,
+// damit sich keine alten Aktualisierungsschleifen ansammeln.
+if (import.meta.hot) {
+	import.meta.hot.dispose(() => queryClientInstance.clear());
+}
