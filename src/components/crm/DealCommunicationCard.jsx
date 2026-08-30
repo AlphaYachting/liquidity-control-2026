@@ -150,7 +150,12 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
       const grund =
         e?.response?.data?.error || e?.data?.error || e?.response?.data?.detail || e?.message ||
         (() => { try { return JSON.stringify(e?.response?.data || e); } catch { return ''; } })();
-      setFehler(`Entwurf fehlgeschlagen${status ? ` (${status})` : ''} — ${grund || 'kein Grund übermittelt'}`);
+      const veraltet = /Unbekannter Antworttyp|Unbekannte Absicht/i.test(String(grund));
+      setFehler(
+        veraltet
+          ? 'Diese Seite arbeitet noch gegen einen älteren Serverstand, der diese Absicht nicht kennt. Bitte die Seite einmal vollständig neu laden (Strg+Shift+R bzw. ⌘+Shift+R) und erneut versuchen.'
+          : `Entwurf fehlgeschlagen${status ? ` (${status})` : ''} — ${grund || 'kein Grund übermittelt'}`,
+      );
       console.error('generateCrmReply', e);
     }
     setBusy(false);
@@ -257,7 +262,7 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
       <AnfrageZeile deal={deal} onChanged={onChanged} />
 
       <div className="p-4">
-        <AbsichtWahl value={intent} onChange={setIntent} ausgeblendet={ausgeblendet} hinweis={absichtHinweis} />
+        <AbsichtWahl value={intent} onChange={setIntent} ausgeblendet={ausgeblendet} />
         <QuellenZeile
           hatThread={Boolean(deal.email_thread_id)}
           name={deal.contact_name}
