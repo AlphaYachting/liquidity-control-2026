@@ -106,10 +106,32 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
     return null;
   })();
 
+  // Ältere Serverstände kennen „Nachfrage zum Angebot“ noch nicht. Dann wird
+  // dieselbe Absicht als Nachfassen mit ausdrücklichem Feedback-Auftrag gestellt.
+  const ersatzAufruf = (feedbackText) =>
+    base44.functions.invoke('generateCrmReply', {
+      threadId: deal.email_thread_id || '',
+      dealId: deal.id,
+      intent: 'nachfassen',
+      feedback: feedbackText,
+      previous_a: feedbackText ? varianten?.a || '' : '',
+      previous_b: feedbackText ? varianten?.b || '' : '',
+      params: {
+        schwerpunkt: [
+          'Ausdrücklich um Feedback zum übermittelten Angebot bitten: ob es passt, was noch fehlt, wo es Fragen gibt.',
+          'Das ursprüngliche Anliegen aus dem belegten Text wörtlich aufgreifen — kein Serienbrief, keine Floskeln.',
+          felder.ergaenzung ? `Zusätzlich ansprechen: ${felder.ergaenzung}` : '',
+          felder.persoenlich ? `Persönlicher Bezug, natürlich eingebaut: ${felder.persoenlich}` : '',
+        ].filter(Boolean).join(' '),
+        tage_seit_versand: angebotTage,
+        angebot: angebot ? { ...angebot, gesendet_am: angebotGesendetAm ? dateLabel(angebotGesendetAm) : '' } : null,
+      },
+    });
+
   const erzeugen = async (feedbackText = '') => {
     setBusy(true); setFehler(null);
     try {
-      const res = await base44.functions.invoke('generateCrmReply', {
+      let res = await base44.functions.invoke('generateCrmReply', {
         threadId: deal.email_thread_id || '',
         dealId: deal.id,
         intent,
@@ -129,9 +151,17 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
           tage_seit_versand: angebotTage,
           angebot: angebot ? { ...angebot, gesendet_am: angebotGesendetAm ? dateLabel(angebotGesendetAm) : '' } : null,
         },
+      }).catch(async (err) => {
+        const meldung = String(err?.response?.data?.error || err?.data?.error || err?.message || '');
+        if (intent === 'angebot_nachfrage' && /Unbekannt/i.test(meldung)) return ersatzAufruf(feedbackText);
+        throw err;
       });
       // Je nach Aufrufweg liegt die Antwort in res.data oder direkt in res.
-      const d = res?.data ?? res ?? {};
+      let d = res?.data ?? res ?? {};
+      if (d.error && intent === 'angebot_nachfrage' && /Unbekannt/i.test(String(d.error))) {
+        const ers = await ersatzAufruf(feedbackText);
+        d = ers?.data ?? ers ?? {};
+      }
       if (d.error) throw new Error(d.error);
       const a = toPlainText(d.variant_a || '');
       const b = toPlainText(d.variant_b || '');
