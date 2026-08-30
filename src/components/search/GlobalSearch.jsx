@@ -40,10 +40,11 @@ export default function GlobalSearch() {
   useEffect(() => {
     if (!user?.email) return;
     let gilt = true;
+    const controller = new AbortController();
     const setzen = (z) => { if (gilt && lebt.current) setZeilen(Array.isArray(z) ? z : []); };
-    ladeIndex(user.email, setzen).then(setzen).catch(() => setzen([]));
+    ladeIndex(user.email, setzen, controller.signal).then(setzen).catch(() => setzen([]));
     setZuletzt(zuletztGeoeffnet());
-    return () => { gilt = false; };
+    return () => { gilt = false; controller.abort(); };
   }, [user?.email]);
 
   // ⌘K / Strg+K öffnet und markiert den Inhalt.

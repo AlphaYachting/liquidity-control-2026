@@ -59,25 +59,25 @@ function einpflegen(alt, neu, entfernt) {
 }
 
 // Liefert sofort den vorhandenen Stand und frischt im Hintergrund auf.
-export async function ladeIndex(email, onFrisch) {
+export async function ladeIndex(email, onFrisch, signal) {
   const version = Number(localStorage.getItem(`am.search.version.${email}`)) || 0;
   const cache = version ? await lesen(schluessel(email, version)) : null;
 
   const holen = async (since) => {
-    const res = await base44.functions.invoke('getSearchIndex', since ? { since } : {});
+    const res = await base44.functions.invoke('getSearchIndex', since ? { since } : {}, { signal });
     return res.data;
   };
 
   if (cache?.zeilen?.length) {
     holen(cache.stand).then(async (d) => {
-      if (!d || d.error) return;
+      if (!d || d.error || signal?.aborted) return;
       const zeilen = d.version === version
         ? einpflegen(cache.zeilen, d.zeilen, d.entfernt)
         : (await holen(null)).zeilen;
       const stand = d.stand;
       localStorage.setItem(`am.search.version.${email}`, String(d.version));
       await schreiben(schluessel(email, d.version), { zeilen, stand });
-      onFrisch?.(zeilen);
+      if (!signal?.aborted) onFrisch?.(zeilen);
     }).catch(() => {});
     return cache.zeilen;
   }
