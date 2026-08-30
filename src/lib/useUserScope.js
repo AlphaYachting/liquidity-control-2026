@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -23,10 +24,18 @@ export function useUserScope() {
   // Ohne gepflegtes Profil: Admins sehen alles, alle anderen nur ihre eigenen
   // Projekte (Abgleich über den vollen Namen des Kontos).
   const seesAll = profile ? profile.data_scope === 'all' : user?.role === 'admin';
-  const aliases = profile?.pm_aliases?.length ? profile.pm_aliases : [user?.full_name].filter(Boolean);
-  const workAreas = profile?.work_areas?.length
-    ? profile.work_areas
-    : (user?.role === 'admin' ? ['projects', 'sales', 'backoffice', 'management'] : ['projects']);
+  // Beide Listen bleiben zwischen Renders identisch — sonst feuern Effekte,
+  // die davon abhängen, endlos (weißer Bildschirm).
+  const aliases = useMemo(
+    () => (profile?.pm_aliases?.length ? profile.pm_aliases : [user?.full_name].filter(Boolean)),
+    [profile?.pm_aliases, user?.full_name],
+  );
+  const workAreas = useMemo(
+    () => (profile?.work_areas?.length
+      ? profile.work_areas
+      : (user?.role === 'admin' ? ['projects', 'sales', 'backoffice', 'management'] : ['projects'])),
+    [profile?.work_areas, user?.role],
+  );
 
   const normalizedAliases = aliases.map(norm).filter((a) => a.length >= 3);
 

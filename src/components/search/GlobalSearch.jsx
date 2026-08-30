@@ -82,9 +82,10 @@ export default function GlobalSearch() {
   }, [alleGruppen, offen, eingabe, zuletzt]);
 
   // Zweite Stufe: 300 ms nach dem letzten Anschlag, laufende Abfrage abbrechen.
+  const darfTief = seesAll || workAreas.includes('sales');
   useEffect(() => {
-    setTief([]);
-    if (!eingabe || !(seesAll || workAreas.includes('sales'))) return;
+    setTief((t) => (t.length ? [] : t));
+    if (!eingabe || !darfTief) return;
     abbruch.current?.abort();
     const controller = new AbortController();
     abbruch.current = controller;
@@ -99,7 +100,7 @@ export default function GlobalSearch() {
       if (!controller.signal.aborted) setTiefLaeuft(false);
     }, 300);
     return () => { clearTimeout(t); controller.abort(); setTiefLaeuft(false); };
-  }, [eingabe, seesAll, workAreas]);
+  }, [eingabe, darfTief]);
 
   const oeffnen = (zeile) => {
     merkeGeoeffnet(zeile);
