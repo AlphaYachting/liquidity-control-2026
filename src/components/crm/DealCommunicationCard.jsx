@@ -131,7 +131,9 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
   const erzeugen = async (feedbackText = '') => {
     setBusy(true); setFehler(null);
     try {
-      let res = await base44.functions.invoke('generateCrmReply', {
+      // Die Nachfrage zum Angebot wird immer über den Weg gestellt, den jeder
+      // Serverstand kennt — inhaltlich identisch, nur ohne neue Absicht.
+      let res = intent === 'angebot_nachfrage' ? await ersatzAufruf(feedbackText) : await base44.functions.invoke('generateCrmReply', {
         threadId: deal.email_thread_id || '',
         dealId: deal.id,
         intent,
@@ -151,18 +153,9 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
           tage_seit_versand: angebotTage,
           angebot: angebot ? { ...angebot, gesendet_am: angebotGesendetAm ? dateLabel(angebotGesendetAm) : '' } : null,
         },
-      }).catch(async (err) => {
-        // Scheitert der Aufruf, wird die Nachfrage über den Weg gestellt,
-        // den auch ein älterer Serverstand kennt.
-        if (intent === 'angebot_nachfrage') return ersatzAufruf(feedbackText);
-        throw err;
       });
       // Je nach Aufrufweg liegt die Antwort in res.data oder direkt in res.
-      let d = res?.data ?? res ?? {};
-      if (d.error && intent === 'angebot_nachfrage') {
-        const ers = await ersatzAufruf(feedbackText);
-        d = ers?.data ?? ers ?? {};
-      }
+      const d = res?.data ?? res ?? {};
       if (d.error) throw new Error(d.error);
       const a = toPlainText(d.variant_a || '');
       const b = toPlainText(d.variant_b || '');
