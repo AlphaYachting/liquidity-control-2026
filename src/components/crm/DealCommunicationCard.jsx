@@ -130,17 +130,20 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
           angebot: angebot ? { ...angebot, gesendet_am: angebotGesendetAm ? dateLabel(angebotGesendetAm) : '' } : null,
         },
       });
-      if (res.data?.error) throw new Error(res.data.error);
-      const a = toPlainText(res.data.variant_a || '');
-      const b = toPlainText(res.data.variant_b || '');
+      // Je nach Aufrufweg liegt die Antwort in res.data oder direkt in res.
+      const d = res?.data ?? res ?? {};
+      if (d.error) throw new Error(d.error);
+      const a = toPlainText(d.variant_a || '');
+      const b = toPlainText(d.variant_b || '');
+      if (!a && !b) throw new Error('Die Antwort kam ohne Text zurück — bitte erneut versuchen.');
       setVarianten({ a, b });
       setLetztesFeedback(feedbackText);
-      setSubject(res.data.subject || '');
+      setSubject(d.subject || '');
       setGewaehlt('a');
       setBody(a);
-      if (!to && res.data.recipient) setTo(res.data.recipient);
+      if (!to && d.recipient) setTo(d.recipient);
       setWunsch('');
-      setTimeout(() => variantenRef.current?.scrollIntoView({ block: 'nearest' }), 0);
+      setTimeout(() => variantenRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
     } catch (e) {
       // Der Grund steht in der Antwort des Servers, nicht in der Statusmeldung.
       const grund = e?.response?.data?.error || e?.data?.error || e?.message || 'unbekannter Grund';
