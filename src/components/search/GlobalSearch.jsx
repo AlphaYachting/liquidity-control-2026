@@ -15,6 +15,8 @@ export default function GlobalSearch() {
   const navigate = useNavigate();
   const feld = useRef(null);
   const abbruch = useRef(null);
+  const lebt = useRef(true);
+  const blurTimer = useRef(null);
   const [zeilen, setZeilen] = useState([]);
   const [eingabe, setEingabe] = useState('');
   const [aktiv, setAktiv] = useState(false);
@@ -24,12 +26,24 @@ export default function GlobalSearch() {
   const [tiefLaeuft, setTiefLaeuft] = useState(false);
   const [zuletzt, setZuletzt] = useState([]);
 
+  // Beim Verlassen dürfen keine Nachläufer mehr in die Anzeige schreiben.
+  useEffect(() => {
+    lebt.current = true;
+    return () => {
+      lebt.current = false;
+      clearTimeout(blurTimer.current);
+      abbruch.current?.abort();
+    };
+  }, []);
+
   // Index einmal laden: vorhandener Stand sofort, Auffrischung im Hintergrund.
   useEffect(() => {
     if (!user?.email) return;
-    const setzen = (z) => setZeilen(Array.isArray(z) ? z : []);
-    ladeIndex(user.email, setzen).then(setzen).catch(() => setZeilen([]));
+    let gilt = true;
+    const setzen = (z) => { if (gilt && lebt.current) setZeilen(Array.isArray(z) ? z : []); };
+    ladeIndex(user.email, setzen).then(setzen).catch(() => setzen([]));
     setZuletzt(zuletztGeoeffnet());
+    return () => { gilt = false; };
   }, [user?.email]);
 
   // ⌘K / Strg+K öffnet und markiert den Inhalt.
@@ -138,7 +152,10 @@ export default function GlobalSearch() {
           value={eingabe}
           onChange={(e) => { setEingabe(e.target.value); setMarkiert(0); setOffen({}); }}
           onFocus={() => setAktiv(true)}
-          onBlur={() => setTimeout(() => setAktiv(false), 120)}
+          onBlur={() => {
+            clearTimeout(blurTimer.current);
+            blurTimer.current = setTimeout(() => { if (lebt.current) setAktiv(false); }, 120);
+          }}
           onKeyDown={tasten}
           placeholder="Kunde, Projekt, Beleg, Ticket …"
           className="flex-1 bg-transparent outline-none text-[13.5px]"
