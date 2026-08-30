@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { emailDbGet } from '../../shared/emailDb.ts';
+import { cleanMailText as cleanText } from '../../shared/mailText.ts';
 
 // Eigener Vertrag für den KI-Assistenten am Deal. generateCrmReply bleibt unberührt.
 // Antwort immer: { subject, variant_a, variant_b, body, kontext_verwendet[] }
@@ -7,23 +8,6 @@ import { emailDbGet } from '../../shared/emailDb.ts';
 const INTENTS = ['antwort', 'termin', 'angebot', 'besprechung', 'absage'];
 
 const FORMAT: Record<string, string> = { vor_ort: 'vor Ort', telefon: 'telefonisch', video: 'per Videocall' };
-
-const cleanText = (raw: string) =>
-  String(raw || '')
-    .split('\n')
-    .filter((l: string) => !/^\s*([-_*]\s*){3,}\s*$/.test(l))
-    .map((l: string) =>
-      l
-        .replace(/^#{1,6}\s+/, '')
-        .replace(/^\s*[•*–]\s+/, '- ')
-        .replace(/\*\*(.+?)\*\*/g, '$1')
-        .replace(/\*(.+?)\*/g, '$1')
-        .replace(/`(.+?)`/g, '$1')
-        .trimEnd(),
-    )
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
 
 const dLabel = (d: any) => new Date(d).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const slotLabel = (iso: string) => {

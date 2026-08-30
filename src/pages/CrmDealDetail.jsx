@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import DealVerlauf from '@/components/crm/DealVerlauf';
+import KiAssistent from '@/components/crm/KiAssistent';
 import CollapsibleSection from '@/components/crm/CollapsibleSection';
 import DealInquiryCard from '@/components/crm/DealInquiryCard';
 import DealEmailThreadCard from '@/components/crm/DealEmailThreadCard';
@@ -127,6 +128,13 @@ export default function CrmDealDetail() {
           >
             <DealInquiryCard deal={deal} onChanged={refreshAll} />
           </CollapsibleSection>
+
+          <KiAssistent
+            deal={deal}
+            activities={activities}
+            appointments={appointments}
+            onChanged={refreshAll}
+          />
 
           {deal.email_thread_id && (
             <CollapsibleSection icon={Mail} title="E-Mail-Verlauf">
