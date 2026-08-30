@@ -152,13 +152,14 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
           angebot: angebot ? { ...angebot, gesendet_am: angebotGesendetAm ? dateLabel(angebotGesendetAm) : '' } : null,
         },
       }).catch(async (err) => {
-        const meldung = String(err?.response?.data?.error || err?.data?.error || err?.message || '');
-        if (intent === 'angebot_nachfrage' && /Unbekannt/i.test(meldung)) return ersatzAufruf(feedbackText);
+        // Scheitert der Aufruf, wird die Nachfrage über den Weg gestellt,
+        // den auch ein älterer Serverstand kennt.
+        if (intent === 'angebot_nachfrage') return ersatzAufruf(feedbackText);
         throw err;
       });
       // Je nach Aufrufweg liegt die Antwort in res.data oder direkt in res.
       let d = res?.data ?? res ?? {};
-      if (d.error && intent === 'angebot_nachfrage' && /Unbekannt/i.test(String(d.error))) {
+      if (d.error && intent === 'angebot_nachfrage') {
         const ers = await ersatzAufruf(feedbackText);
         d = ers?.data ?? ers ?? {};
       }
