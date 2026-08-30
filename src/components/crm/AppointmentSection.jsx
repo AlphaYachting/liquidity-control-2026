@@ -16,7 +16,7 @@ const STATUS_LABEL = {
   cancelled: 'Abgesagt', completed: 'Stattgefunden ✓',
 };
 
-export default function AppointmentSection({ deal, appointments, onChanged, onTerminVorschlagen }) {
+export default function AppointmentSection({ deal, appointments, onChanged }) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [when, setWhen] = useState('');
@@ -65,15 +65,10 @@ export default function AppointmentSection({ deal, appointments, onChanged, onTe
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Termine</h3>
-        <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onTerminVorschlagen?.()}>
+        <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => setAdding((v) => !v)}>
           <CalendarPlus className="w-3 h-3" /> Termin
         </Button>
       </div>
-      {!adding && (
-        <button type="button" onClick={() => setAdding(true)} className="text-[11px] text-muted-foreground hover:text-foreground underline">
-          Termin ohne E-Mail eintragen
-        </button>
-      )}
       {adding && (
         <div className="border rounded-lg p-2.5 bg-muted/30 space-y-2">
           <Input className="h-8 text-sm" placeholder="Titel (z.B. Erstgespräch)" value={title} onChange={e => setTitle(e.target.value)} />

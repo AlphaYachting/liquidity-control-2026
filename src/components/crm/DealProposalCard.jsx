@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Presentation, ExternalLink, FileText } from 'lucide-react';
+import { Presentation, ExternalLink, FileText, Mail, Clock } from 'lucide-react';
+import OfferEmailDialog from '@/components/crm/OfferEmailDialog';
 import DealQuoteCard from '@/components/crm/DealQuoteCard';
 import ProposalHandoffButton from '@/components/crm/ProposalHandoffButton';
 
@@ -17,9 +18,9 @@ const STATUS_META = {
   error: { label: 'Fehler', color: 'bg-red-100 text-red-700' },
 };
 
-// Zeigt am Deal das verknüpfte Angebot aus dem Angebots-Studio.
-// Übermittelt und nachgefasst wird ausschließlich über die Kommunikationskarte.
+// Zeigt am Deal das verknüpfte Angebot aus dem Angebots-Studio — inklusive Versandweg.
 export default function DealProposalCard({ deal, activities, onChanged }) {
+  const [mailIntent, setMailIntent] = React.useState(null);
   const { data: proposal } = useQuery({
     queryKey: ['crm-deal-proposal', deal.proposal_id],
     queryFn: () => base44.entities.CrmProposal.get(deal.proposal_id),
@@ -67,8 +68,28 @@ export default function DealProposalCard({ deal, activities, onChanged }) {
             </a>
           </Button>
         )}
+        {!lastOffer ? (
+          <Button size="sm" className="gap-1.5" onClick={() => setMailIntent('angebot')}>
+            <Mail className="w-3.5 h-3.5" /> Angebots-E-Mail an Kunden
+          </Button>
+        ) : (
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setMailIntent('nachfassen')}>
+            <Clock className="w-3.5 h-3.5" /> Nachfassen
+          </Button>
+        )}
         <ProposalHandoffButton deal={deal} onDone={onChanged} forceNew label="Weiteres Angebot anlegen" />
       </div>
+
+      {mailIntent && (
+        <OfferEmailDialog
+          open
+          onOpenChange={(o) => { if (!o) setMailIntent(null); }}
+          deal={deal}
+          proposal={proposal}
+          intent={mailIntent}
+          onSent={onChanged}
+        />
+      )}
     </div>
   );
 }

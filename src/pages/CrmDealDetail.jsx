@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import DealCommunicationCard from '@/components/crm/DealCommunicationCard';
 import DealVerlauf from '@/components/crm/DealVerlauf';
+import CollapsibleSection from '@/components/crm/CollapsibleSection';
+import DealInquiryCard from '@/components/crm/DealInquiryCard';
+import DealEmailThreadCard from '@/components/crm/DealEmailThreadCard';
+import { FileText, Mail } from 'lucide-react';
 import AppointmentSection from '@/components/crm/AppointmentSection';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import WonLostDialog from '@/components/crm/WonLostDialog';
@@ -20,8 +23,6 @@ export default function CrmDealDetail() {
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [closeMode, setCloseMode] = useState(null);
-  // Sprung aus dem Terminbereich in die Kommunikationskarte
-  const [prefill, setPrefill] = useState(null);
 
   const { data: deal, isLoading } = useQuery({
     queryKey: ['crm-deal', dealId],
@@ -118,13 +119,20 @@ export default function CrmDealDetail() {
         <div className="lg:col-span-2 space-y-3">
           <DealProposalCard deal={deal} activities={activities} onChanged={refreshAll} />
 
-          <DealCommunicationCard
-            deal={deal}
-            activities={activities}
-            appointments={appointments}
-            prefill={prefill}
-            onChanged={refreshAll}
-          />
+          <CollapsibleSection
+            icon={FileText}
+            title="Anfrage"
+            defaultOpen
+            hint={deal.description ? null : 'noch leer'}
+          >
+            <DealInquiryCard deal={deal} onChanged={refreshAll} />
+          </CollapsibleSection>
+
+          {deal.email_thread_id && (
+            <CollapsibleSection icon={Mail} title="E-Mail-Verlauf">
+              <DealEmailThreadCard deal={deal} />
+            </CollapsibleSection>
+          )}
 
           <DealVerlauf dealId={deal.id} activities={activities} onChanged={refreshAll} />
         </div>
@@ -138,7 +146,6 @@ export default function CrmDealDetail() {
               deal={deal}
               appointments={appointments}
               onChanged={refreshAll}
-              onTerminVorschlagen={() => setPrefill({ intent: 'terminvorschlag', nonce: Date.now() })}
             />
           </div>
 

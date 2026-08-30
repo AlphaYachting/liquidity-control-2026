@@ -221,6 +221,8 @@ ${conversation}
       subject: String(res.subject || '').replace(/[*#`]/g, '').trim() || (subject ? `Re: ${subject}` : 'Ihre Anfrage'),
       variant_a: cleanText(res.variant_a),
       variant_b: cleanText(res.variant_b),
+      // Ältere Aufrufer (E-Mail-Zentrale) lesen body — bleibt erhalten, solange es gelesen wird.
+      body: cleanText(res.variant_a),
       recipient: senderMail,
       thread_subject: subject,
       source,

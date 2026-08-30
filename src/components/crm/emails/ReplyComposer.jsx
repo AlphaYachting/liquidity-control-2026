@@ -48,10 +48,13 @@ export default function ReplyComposer({ threadId, dealId, recipient, onSent, onA
       const res = await base44.functions.invoke('generateCrmReply', {
         threadId, intent, params: { slots: filled, format },
       });
-      if (res.data?.error) throw new Error(res.data.error);
-      setSubject(res.data.subject || '');
-      setBody(toPlainText(res.data.body || ''));
-      if (!to) setTo(res.data.recipient || '');
+      const d = res?.data ?? res ?? {};
+      if (d.error) throw new Error(d.error);
+      const text = toPlainText(d.body || d.variant_a || '');
+      if (!text) throw new Error('Der Entwurf kam leer zurück — bitte erneut versuchen.');
+      setSubject(d.subject || '');
+      setBody(text);
+      if (!to) setTo(d.recipient || '');
     } catch (e) {
       setError('Entwurf fehlgeschlagen: ' + (e?.message || ''));
     }
