@@ -1,9 +1,11 @@
 import React from 'react';
 import { ABSICHTEN } from './assistentConfig';
 
+const NUR_MIT_ANGEBOT = ['angebot', 'nachfassen', 'besprechung'];
+
 // Geschlossene Schaltergruppe, eine Zeile, zieht sich auf ihren Inhalt.
-export default function AbsichtGruppe({ value, onChange, hatAngebot }) {
-  const sichtbar = ABSICHTEN.filter((a) => hatAngebot || !['angebot', 'besprechung'].includes(a.key));
+export default function AbsichtGruppe({ value, onChange, angebotVorhanden }) {
+  const sichtbar = ABSICHTEN.filter((a) => angebotVorhanden || !NUR_MIT_ANGEBOT.includes(a.key));
 
   return (
     <div className="flex items-center gap-2">
@@ -24,9 +26,9 @@ export default function AbsichtGruppe({ value, onChange, hatAngebot }) {
           </button>
         ))}
       </div>
-      {!hatAngebot && (
+      {!angebotVorhanden && (
         <span className="text-xs text-muted-foreground">
-          „Angebot" und „Besprechung" erscheinen, sobald ein Angebot verknüpft ist.
+          Angebotsbezogene Absichten erscheinen, sobald ein Angebot verknüpft oder übermittelt ist.
         </span>
       )}
     </div>

@@ -41,16 +41,18 @@ export default function KiAssistent({ deal, activities = [], appointments = [], 
   const [sending, setSending] = useState(false);
 
   const setFeld = (k, v) => setFelder((prev) => ({ ...prev, [k]: v }));
-  const hatAngebot = Boolean(deal.proposal_id || deal.quote_id);
   const stand = useMemo(() => angebotStand(deal, activities, appointments), [deal, activities, appointments]);
+  // Eine Größe für Kopf und Schaltergruppe — auch außerhalb der App verschickte Angebote zählen.
+  const angebotVorhanden = Boolean(deal.proposal_id || deal.quote_id) || Boolean(stand);
   const letzteGesendet = useMemo(
     () => (activities || []).find((a) => a.activity_type === 'email' && a.direction !== 'eingehend'),
     [activities],
   );
 
+  // Zuerst nachfragen, Termine erst wenn Interesse besteht.
   const vorschlag = stand
-    ? { label: 'Besprechung vorschlagen', intent: 'besprechung', pink: stand.tage >= 7 }
-    : hatAngebot
+    ? { label: 'Nachfassen', intent: 'nachfassen', pink: stand.tage >= 7 }
+    : angebotVorhanden
       ? { label: 'Angebot übermitteln', intent: 'angebot', pink: false }
       : { label: 'Antwort entwerfen', intent: 'antwort', pink: false };
 
@@ -64,6 +66,8 @@ export default function KiAssistent({ deal, activities = [], appointments = [], 
     if (intent === 'absage' && !felder.grund.trim()) return 'Ohne Grund keine Absage.';
     if (intent === 'angebot' && angebot && !angebot.hat_pdf && angebot.anzahl_positionen === 0)
       return 'Das Angebot enthält noch keine freigegebenen Positionen.';
+    if (intent === 'nachfassen' && !stand?.gesendet_am)
+      return 'Kein Übermittlungsdatum bekannt — bitte oben das Versanddatum des Angebots nachtragen.';
     return null;
   })();
 
@@ -104,21 +108,47 @@ export default function KiAssistent({ deal, activities = [], appointments = [], 
     setBusy(false);
   };
 
+  // Der Entwurf im Textfeld IST der Mailtext — er wird auf dem Weg nach draußen nicht umgeschrieben.
   const mailText = () => {
     const link = intent === 'angebot' && angebot?.hat_pdf && felder.pdf_link && angebot.pdf_url
       ? `\n\nDas vollständige Angebot finden Sie hier: ${angebot.pdf_url}`
       : '';
-    return toPlainText(body) + link;
+    return body + link;
   };
 
   const oeffnenImProgramm = async () => {
     const text = mailText();
-    if (text.length > 1800) {
+    // RFC 6068 verlangt CRLF — mit bloßem %0A verhalten sich die Programme unterschiedlich.
+    const fuerMail = text.replace(/\r?\n/g, '\r\n');
+    const kopf = `mailto:${to}?subject=${encodeURIComponent(subject)}`;
+    const url = `${kopf}&body=${encodeURIComponent(fuerMail)}`;
+    if (url.length > 1900) {
+      // Eine halbe Mail ist schlimmer als gar keine.
       await copyFormatted(text).catch(() => {});
-      toast({ description: 'Der Text ist für das Mailprogramm zu lang und liegt zusätzlich in der Zwischenablage.' });
+      toast({ description: 'Der Text ist zu lang für das Mailprogramm. Er liegt formatiert in der Zwischenablage — bitte im Mailfenster einfügen.' });
+      window.location.href = kopf;
+    } else {
+      window.location.href = url;
     }
-    window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`, '_self');
     setDialog(true);
+  };
+
+  const kopieren = async () => {
+    await copyFormatted(mailText()).catch(() => {});
+    toast({ description: 'Formatiert kopiert — im Mailfenster einfügen.' });
+    setDialog(true);
+  };
+
+  // Versanddatum eines außerhalb der App verschickten Angebots nachtragen.
+  const versandNachtragen = async (tag) => {
+    await base44.entities.CrmActivity.create({
+      deal_id: deal.id, activity_type: 'email', channel: 'email', direction: 'ausgehend',
+      intent: 'angebot',
+      title: 'Angebot übermittelt (nachgetragen)',
+      activity_date: new Date(`${tag}T09:00:00`).toISOString(),
+    });
+    toast({ description: 'Versanddatum nachgetragen.' });
+    onChanged?.();
   };
 
   const bestaetigen = async () => {
@@ -153,6 +183,8 @@ export default function KiAssistent({ deal, activities = [], appointments = [], 
         if (intent === 'besprechung') {
           await base44.entities.CrmDeal.update(deal.id, { next_step_date: addDays(7) });
         }
+      } else if (intent === 'nachfassen') {
+        await base44.entities.CrmDeal.update(deal.id, { next_step: 'Erneut nachfassen', next_step_date: addDays(7) });
       } else if (intent === 'angebot') {
         await base44.entities.CrmDeal.update(deal.id, {
           stage: deal.pipeline === 'new_business' ? 'proposal_sent' : 'estimated',
@@ -189,7 +221,7 @@ export default function KiAssistent({ deal, activities = [], appointments = [], 
 
       {offen && (
         <div className="border-t border-border p-4">
-          <AbsichtGruppe value={intent} onChange={setIntent} hatAngebot={hatAngebot} />
+          <AbsichtGruppe value={intent} onChange={setIntent} angebotVorhanden={angebotVorhanden} />
           <QuellenChip deal={deal} to={to} setTo={setTo} onChanged={onChanged} />
 
           <AssistentFelder
@@ -200,6 +232,7 @@ export default function KiAssistent({ deal, activities = [], appointments = [], 
             gesendetAm={stand?.gesendet_am}
             tage={stand?.tage}
             disabled={busy}
+            onVersandNachtragen={versandNachtragen}
           />
 
           {fehler && <p className="mt-3.5 text-xs text-destructive" title={fehler}>{fehler}</p>}
@@ -231,6 +264,7 @@ export default function KiAssistent({ deal, activities = [], appointments = [], 
               busy={busy}
               onVerwerfen={() => { setVarianten(null); setBody(''); setSubject(''); }}
               onOeffnen={oeffnenImProgramm}
+              onKopieren={kopieren}
             />
           )}
         </div>

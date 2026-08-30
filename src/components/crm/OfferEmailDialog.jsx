@@ -74,7 +74,7 @@ export default function OfferEmailDialog({ open, onOpenChange, deal, proposal, i
           next_step: 'Nachfassen, wenn keine Antwort', next_step_date: addDays(7),
         });
       } else {
-        await base44.entities.CrmDeal.update(deal.id, { next_step_date: addDays(7) });
+        await base44.entities.CrmDeal.update(deal.id, { next_step: 'Erneut nachfassen', next_step_date: addDays(7) });
       }
       window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`, '_self');
       onOpenChange(false);

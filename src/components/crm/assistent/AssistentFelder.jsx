@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import ReplySlotFields from '@/components/crm/emails/ReplySlotFields';
 import { betragLabel, dateLabel } from './assistentConfig';
 
@@ -10,20 +11,46 @@ const Titel = ({ children }) => (
   <p className="text-[11.5px] font-medium text-muted-foreground mb-1.5">{children}</p>
 );
 
-const AngebotsZeile = ({ angebot, gesendetAm, tage }) => (
-  <div className="border border-border rounded-lg bg-muted/40 px-3.5 py-3">
-    <p className="text-[13px] font-semibold truncate">{angebot?.titel || 'Angebot'}</p>
-    <p className="text-xs text-muted-foreground tabular-nums">
-      {betragLabel(angebot?.summe_netto)}
-      {gesendetAm
-        ? ` · übermittelt am ${dateLabel(gesendetAm)}${tage != null ? ` · vor ${tage} Tagen` : ''}`
-        : ` · ${angebot?.hat_pdf ? 'PDF liegt vor' : 'kein PDF — Preise stehen in der Mail'}`}
-    </p>
-  </div>
-);
+// Zeile zum verknüpften Angebot. Fehlt das Versanddatum, wird es hier nachgetragen —
+// danach stimmen Kopf, Stille-Erkennung und Pipeline-Etikett.
+function AngebotsZeile({ angebot, gesendetAm, tage, mitVersand, onNachtragen }) {
+  const [tag, setTag] = useState('');
+  return (
+    <div className="border border-border rounded-lg bg-muted/40 px-3.5 py-3">
+      <p className="text-[13px] font-semibold truncate">{angebot?.titel || 'Angebot'}</p>
+      <p className="text-xs text-muted-foreground tabular-nums">
+        {betragLabel(angebot?.summe_netto)}
+        {gesendetAm
+          ? ` · übermittelt am ${dateLabel(gesendetAm)}${tage != null ? ` · vor ${tage} Tagen` : ''}`
+          : mitVersand
+            ? ''
+            : ` · ${angebot?.hat_pdf ? 'PDF liegt vor' : 'kein PDF — Preise stehen in der Mail'}`}
+      </p>
+      {mitVersand && !gesendetAm && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Übermittelt am</span>
+          <Input type="date" value={tag} onChange={(e) => setTag(e.target.value)} className="h-8 w-40 text-sm" />
+          <Button size="sm" variant="outline" disabled={!tag} onClick={() => onNachtragen(tag)}>
+            Datum übernehmen
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Felder der gewählten Absicht — höchstens ein optionales Feld sichtbar.
-export default function AssistentFelder({ intent, felder, setFeld, angebot, gesendetAm, tage, disabled }) {
+export default function AssistentFelder({ intent, felder, setFeld, angebot, gesendetAm, tage, disabled, onVersandNachtragen }) {
+  const slotFelder = (
+    <ReplySlotFields
+      slots={felder.slots}
+      onSlotChange={(i, v) => setFeld('slots', felder.slots.map((s, idx) => (idx === i ? v : s)))}
+      format={felder.format}
+      onFormatChange={(v) => setFeld('format', v)}
+      disabled={disabled}
+    />
+  );
+
   return (
     <div className="mt-4">
       {intent === 'antwort' && (
@@ -43,13 +70,7 @@ export default function AssistentFelder({ intent, felder, setFeld, angebot, gese
       {intent === 'termin' && (
         <>
           <Titel>Termine — genannt wird nur, was hier steht</Titel>
-          <ReplySlotFields
-            slots={felder.slots}
-            onSlotChange={(i, v) => setFeld('slots', felder.slots.map((s, idx) => (idx === i ? v : s)))}
-            format={felder.format}
-            onFormatChange={(v) => setFeld('format', v)}
-            disabled={disabled}
-          />
+          {slotFelder}
         </>
       )}
 
@@ -66,20 +87,22 @@ export default function AssistentFelder({ intent, felder, setFeld, angebot, gese
         </>
       )}
 
-      {intent === 'besprechung' && (
+      {(intent === 'nachfassen' || intent === 'besprechung') && (
         <>
           <Titel>Angebot</Titel>
-          <AngebotsZeile angebot={angebot} gesendetAm={gesendetAm} tage={tage} />
-          <div className="mt-3">
-            <Titel>Termine — genannt wird nur, was hier steht</Titel>
-            <ReplySlotFields
-              slots={felder.slots}
-              onSlotChange={(i, v) => setFeld('slots', felder.slots.map((s, idx) => (idx === i ? v : s)))}
-              format={felder.format}
-              onFormatChange={(v) => setFeld('format', v)}
-              disabled={disabled}
-            />
-          </div>
+          <AngebotsZeile
+            angebot={angebot}
+            gesendetAm={gesendetAm}
+            tage={tage}
+            mitVersand
+            onNachtragen={onVersandNachtragen}
+          />
+          {intent === 'besprechung' && (
+            <div className="mt-3">
+              <Titel>Termine — genannt wird nur, was hier steht</Titel>
+              {slotFelder}
+            </div>
+          )}
           <div className="mt-3">
             <Titel>Worauf besonders eingehen? — optional</Titel>
             <Textarea

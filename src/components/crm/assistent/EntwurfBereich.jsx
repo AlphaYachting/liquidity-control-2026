@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Send } from 'lucide-react';
+import { Copy, Loader2, RefreshCw, Send } from 'lucide-react';
 import VoiceFeedbackInput from '@/components/crm/emails/VoiceFeedbackInput';
 
 const TITEL = { a: 'Variante A — kompakt und direkt', b: 'Variante B — ausführlich und beratend' };
@@ -12,7 +12,7 @@ const TITEL = { a: 'Variante A — kompakt und direkt', b: 'Variante B — ausf�
 export default function EntwurfBereich({
   varianten, gewaehlt, onWaehlen, kontext, letztesFeedback,
   to, setTo, subject, setSubject, body, setBody,
-  wunsch, setWunsch, onNeu, busy, onVerwerfen, onOeffnen,
+  wunsch, setWunsch, onNeu, busy, onVerwerfen, onOeffnen, onKopieren,
 }) {
   return (
     <div className="mt-4">
@@ -73,11 +73,19 @@ export default function EntwurfBereich({
         )}
       </div>
 
-      <div className="mt-3.5 pt-3.5 border-t border-border flex items-center justify-end gap-2">
-        <Button variant="ghost" onClick={onVerwerfen}>Verwerfen</Button>
-        <Button onClick={onOeffnen} disabled={!to || !subject || !body} className="bg-primary text-primary-foreground gap-2">
-          <Send className="w-[15px] h-[15px]" /> Im E-Mail-Programm öffnen
-        </Button>
+      <div className="mt-3.5 pt-3.5 border-t border-border">
+        <div className="flex items-center justify-end gap-2 flex-wrap">
+          <Button variant="ghost" onClick={onVerwerfen}>Verwerfen</Button>
+          <Button variant="outline" onClick={onKopieren} disabled={!body} className="gap-2">
+            <Copy className="w-[15px] h-[15px]" /> Formatiert kopieren
+          </Button>
+          <Button onClick={onOeffnen} disabled={!to || !subject || !body} className="bg-primary text-primary-foreground gap-2">
+            <Send className="w-[15px] h-[15px]" /> Im E-Mail-Programm öffnen
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground text-right">
+          Kommt die Mail unformatiert an: „Formatiert kopieren" und im Mailfenster einfügen.
+        </p>
       </div>
     </div>
   );
