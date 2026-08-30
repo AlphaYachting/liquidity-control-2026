@@ -4,7 +4,7 @@ import { emailDbGet } from '../../shared/emailDb.ts';
 // Erzeugt zwei Antwort-ENTWÜRFE (kompakt / ausführlich) für eine Absicht am Deal.
 // Grundlage ist ausschließlich belegter Text: E-Mail-Verlauf oder Anfrage + Verlaufseinträge.
 // Kein Versand, keine erfundenen Termine, Preise oder Zusagen.
-const INTENTS = ['antwort', 'terminvorschlag', 'angebot', 'nachfassen', 'rueckfrage', 'absage'];
+const INTENTS = ['antwort', 'terminvorschlag', 'angebot', 'nachfassen', 'angebot_nachfrage', 'rueckfrage', 'absage'];
 
 const cleanText = (raw: string) =>
   String(raw || '')
@@ -136,6 +136,13 @@ ${JSON.stringify({ positionen, summe_netto: angebot.summe_netto, nicht_enthalten
 AUFBAU: Anrede / Bezug auf das Angebot mit Datum / Nachfrage nach dem Stand, ausdrücklich ohne Druck / Angebot, offene Fragen in einem kurzen Gespräch zu klären / EIN Satz, der ein "derzeit nicht die Priorität" ausdrücklich zulässt / Gruß.
 GRENZE: keine Preisänderung, kein Rabatt, keine Frist, keine zweite Erinnerung im selben Text. Die Tagesanzahl wird genannt, nicht vorgeworfen.
 ${params.schwerpunkt ? `SCHWERPUNKT: ${params.schwerpunkt}` : ''}`;
+    } else if (intent === 'angebot_nachfrage') {
+      task = `AUFGABE: Persönlich beim Kunden nachfragen, wie es um das übermittelte Angebot "${angebot.titel || ''}" steht${angebot.gesendet_am ? `, übermittelt am ${angebot.gesendet_am}` : ''}${params.tage_seit_versand ? ` (vor ${params.tage_seit_versand} Tagen)` : ''}.
+AUFBAU: Anrede mit Namen / EIN Satz, der das ursprüngliche Anliegen aus dem belegten Text WÖRTLICH aufgreift (konkretes Vorhaben, keine allgemeine Formel) / Bezug auf das Angebot mit Datum / die eigentliche Nachfrage: ob das Angebot passt, was noch fehlt, wo es Fragen gibt${params.ergaenzung ? ' / die Ergänzung inhaltlich eingearbeitet' : ''} / Angebot, offene Punkte in einem kurzen Gespräch zu klären / Gruß.
+GRENZE: keine Preisänderung, kein Rabatt, keine Frist, kein Druck, keine Mahnsprache. Nichts erfinden, was nicht im belegten Text steht.
+UNVERWECHSELBARKEIT: Der Text darf nicht wie ein Serienbrief klingen. Mindestens eine Formulierung stammt erkennbar aus dem konkreten Vorhaben des Kunden. Keine Floskeln wie "wir wollten nur kurz nachfragen".
+${params.persoenlich ? `PERSÖNLICHER BEZUG (natürlich einbauen, nicht anhängen): ${params.persoenlich}` : ''}
+${params.ergaenzung ? `ERGÄNZUNG DER PERSON (inhaltlich einarbeiten): ${params.ergaenzung}` : ''}`;
     } else if (intent === 'rueckfrage') {
       const punkte = (params.punkte || []).map((p: string) => String(p || '').trim()).filter(Boolean);
       if (punkte.length === 0) return Response.json({ error: 'Mindestens ein offener Punkt nötig.' }, { status: 400 });

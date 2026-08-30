@@ -75,6 +75,38 @@ export default function AbsichtFelder({ intent, felder, setFeld, angebot, angebo
         </>
       )}
 
+      {intent === 'angebot_nachfrage' && (
+        <>
+          <FeldTitel>Bezug</FeldTitel>
+          <AngebotsZeile angebot={angebot} gesendetAm={angebotGesendetAm} tage={angebotTage} />
+          <div className="mt-3">
+            <FeldTitel>Was möchten Sie zusätzlich ansprechen? (optional)</FeldTitel>
+            <Textarea
+              rows={2}
+              disabled={disabled}
+              value={felder.ergaenzung}
+              onChange={(e) => setFeld('ergaenzung', e.target.value)}
+              placeholder="z. B. offene Frage zum Umfang, Hinweis auf freie Kapazität im Oktober"
+              className="text-[13px] resize-y"
+            />
+          </div>
+          <div className="mt-3">
+            <FeldTitel>Persönlicher Bezug — macht die Mail unverwechselbar (optional)</FeldTitel>
+            <Input
+              value={felder.persoenlich}
+              disabled={disabled}
+              onChange={(e) => setFeld('persoenlich', e.target.value)}
+              placeholder="z. B. Sie waren letzte Woche auf der Messe in Wien"
+              className="h-9 text-[13px]"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-2.5">
+            Grundlage ist die ursprüngliche Anfrage aus dem E-Mail-Verlauf — die Nachfrage greift sie
+            wörtlich auf, statt einen Standardtext zu senden.
+          </p>
+        </>
+      )}
+
       {intent === 'rueckfrage' && (
         <>
           <FeldTitel>Offene Punkte</FeldTitel>

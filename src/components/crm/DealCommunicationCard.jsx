@@ -21,7 +21,7 @@ import AnfrageZeile from '@/components/crm/komm/AnfrageZeile';
 import { Input } from '@/components/ui/input';
 import { ABSICHT_TITEL, sendeFolgen, slotLabel, FORMAT_LABEL, dateLabel } from '@/components/crm/komm/kommConfig';
 
-const LEER = { slots: ['', '', ''], format: 'video', stichworte: '', pdf_link: true, schwerpunkt: '', punkte: [''], grund: '' };
+const LEER = { slots: ['', '', ''], format: 'video', stichworte: '', pdf_link: true, schwerpunkt: '', punkte: [''], grund: '', ergaenzung: '', persoenlich: '' };
 const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
 // EINE Karte für die gesamte Kundenkommunikation am Deal — immer sichtbar,
@@ -76,10 +76,12 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
   }, [prefill?.intent, prefill?.nonce]);
 
   // Nicht mögliche Absichten erscheinen gar nicht — ein Satz erklärt, wann sie kommen.
-  const ausgeblendet = !hatAngebot ? ['angebot', 'nachfassen'] : (!angebotGesendetAm ? ['nachfassen'] : []);
+  const ausgeblendet = !hatAngebot
+    ? ['angebot', 'nachfassen', 'angebot_nachfrage']
+    : (!angebotGesendetAm ? ['nachfassen', 'angebot_nachfrage'] : []);
   const absichtHinweis = !hatAngebot
-    ? '„Angebot“ und „Nachfassen“ erscheinen, sobald ein Angebot verknüpft ist.'
-    : (!angebotGesendetAm ? '„Nachfassen“ erscheint, sobald ein Angebot übermittelt wurde.' : null);
+    ? '„Angebot“, „Nachfassen“ und „Nachfrage zum Angebot“ erscheinen, sobald ein Angebot verknüpft ist.'
+    : (!angebotGesendetAm ? '„Nachfassen“ und „Nachfrage zum Angebot“ erscheinen, sobald ein Angebot übermittelt wurde.' : null);
 
   useEffect(() => {
     if (ausgeblendet.includes(intent)) setIntent('antwort');
@@ -121,6 +123,8 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
           punkte: felder.punkte.filter((p) => p.trim()),
           grund: felder.grund,
           schwerpunkt: felder.schwerpunkt,
+          ergaenzung: felder.ergaenzung,
+          persoenlich: felder.persoenlich,
           pdf_link: felder.pdf_link,
           tage_seit_versand: angebotTage,
           angebot: angebot ? { ...angebot, gesendet_am: angebotGesendetAm ? dateLabel(angebotGesendetAm) : '' } : null,
@@ -200,6 +204,10 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
         });
       } else if (intent === 'nachfassen') {
         await base44.entities.CrmDeal.update(deal.id, { next_step_date: addDays(7) });
+      } else if (intent === 'angebot_nachfrage') {
+        await base44.entities.CrmDeal.update(deal.id, {
+          next_step: 'Antwort auf die Nachfrage zum Angebot abwarten', next_step_date: addDays(5),
+        });
       } else if (intent === 'absage') {
         await base44.entities.CrmDeal.update(deal.id, { stage: config.lostStage, lost_reason: felder.grund });
       }

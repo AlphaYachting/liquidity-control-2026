@@ -5,6 +5,7 @@ export const ABSICHTEN = [
   { key: 'terminvorschlag', label: 'Termin' },
   { key: 'angebot', label: 'Angebot' },
   { key: 'nachfassen', label: 'Nachfassen' },
+  { key: 'angebot_nachfrage', label: 'Nachfrage zum Angebot' },
   { key: 'rueckfrage', label: 'Rückfrage' },
   { key: 'absage', label: 'Absage' },
 ];
@@ -17,6 +18,7 @@ export const ABSICHT_TITEL = {
   terminvorschlag: 'Terminvorschlag',
   angebot: 'Angebots-E-Mail',
   nachfassen: 'Nachfass-E-Mail',
+  angebot_nachfrage: 'Nachfrage zum Angebot',
   rueckfrage: 'Rückfrage',
   absage: 'Absage',
 };
@@ -44,6 +46,7 @@ export function sendeFolgen(intent, ctx = {}) {
     return ['Phase → Angebot übermittelt', 'Wiedervorlage in 7 Tagen', eintrag];
   }
   if (intent === 'nachfassen') return ['Wiedervorlage in 7 Tagen', eintrag];
+  if (intent === 'angebot_nachfrage') return ['Wiedervorlage in 5 Tagen', eintrag];
   if (intent === 'absage') return ['Phase → verloren', 'Grund wird festgehalten', eintrag];
   return [eintrag];
 }
