@@ -145,9 +145,13 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
       setWunsch('');
       setTimeout(() => variantenRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
     } catch (e) {
-      // Der Grund steht in der Antwort des Servers, nicht in der Statusmeldung.
-      const grund = e?.response?.data?.error || e?.data?.error || e?.message || 'unbekannter Grund';
-      setFehler(`Entwurf fehlgeschlagen — ${grund}`);
+      // Der Grund steht meist in der Antwort des Servers, nicht in der Statusmeldung.
+      const status = e?.response?.status || e?.status || '';
+      const grund =
+        e?.response?.data?.error || e?.data?.error || e?.response?.data?.detail || e?.message ||
+        (() => { try { return JSON.stringify(e?.response?.data || e); } catch { return ''; } })();
+      setFehler(`Entwurf fehlgeschlagen${status ? ` (${status})` : ''} — ${grund || 'kein Grund übermittelt'}`);
+      console.error('generateCrmReply', e);
     }
     setBusy(false);
   };
@@ -301,7 +305,11 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
           </span>
         </div>
 
-        {fehler && <p className="text-xs text-destructive mt-2">{fehler}</p>}
+        {fehler && (
+          <p className="text-[12.5px] text-destructive mt-2.5 border border-destructive/30 bg-destructive/5 rounded-md px-3 py-2 whitespace-pre-wrap break-words">
+            {fehler}
+          </p>
+        )}
 
         {varianten && (
           <div ref={variantenRef}>
