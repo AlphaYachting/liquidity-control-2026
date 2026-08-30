@@ -34,7 +34,11 @@ export default async function (req: Request): Promise<Response> {
     const body = await req.json();
     const { threadId = '', dealId = '', intent = 'antwort', params = {}, feedback = '', previous_a = '', previous_b = '' } = body;
     if (!dealId) return Response.json({ error: 'dealId erforderlich' }, { status: 400 });
-    if (!INTENTS.includes(intent)) return Response.json({ error: `Unbekannte Absicht: ${intent}` }, { status: 400 });
+    // Alt-Bezeichnungen aus früheren Fassungen bleiben gültig, damit ein noch
+    // geladener älterer Stand der Oberfläche keinen Fehler auslöst.
+    const ALIAS: Record<string, string> = { rückfrage: 'rueckfrage', frage: 'rueckfrage', nachfrage: 'angebot_nachfrage' };
+    const absicht = ALIAS[String(intent).toLowerCase()] || String(intent);
+    if (!INTENTS.includes(absicht)) return Response.json({ error: `Unbekannte Absicht: ${intent}` }, { status: 400 });
 
     // ---- Quelle des Entwurfs ---------------------------------------------
     let source = 'deal';
@@ -97,7 +101,7 @@ export default async function (req: Request): Promise<Response> {
     const positionen = angebot.positionen || [];
     let task = '';
 
-    if (intent === 'terminvorschlag') {
+    if (absicht === 'terminvorschlag') {
       if (slots.length === 0) {
         return Response.json({ error: 'Mindestens ein Termin nötig — es werden keine Termine erfunden.' }, { status: 400 });
       }
@@ -108,12 +112,12 @@ AUFBAU: Anrede / Dank und Aufgreifen des Anliegens (2-3 Sätze) / EIN Satz Über
 DIE TERMINE (wortgleich, ausschließlich diese):
 ${slots.map((s) => `- ${s}`).join('\n')}
 GRENZE: keine weiteren Zeitangaben, keine Dauer erfinden.`;
-    } else if (intent === 'antwort') {
+    } else if (absicht === 'antwort') {
       task = `AUFGABE: Auf die Anfrage inhaltlich antworten, ohne etwas zuzusagen.
 AUFBAU: Anrede / Dank und Aufgreifen des Anliegens / was wir dazu sagen können, ohne Zusage / EIN konkreter nächster Schritt / Gruß.
 GRENZE: keine Termine, keine Preise.
 ${params.stichworte ? `STICHWORTE (inhaltlich einarbeiten, nicht anhängen):\n${params.stichworte}` : ''}`;
-    } else if (intent === 'angebot') {
+    } else if (absicht === 'angebot') {
       if (angebot.hat_pdf) {
         task = `AUFGABE: Anschreiben zur Übermittlung des Angebots "${angebot.titel || ''}".
 AUFBAU: kurz auf die Anfrage eingehen / den Nutzen in EINEM Satz / Hinweis, dass das vollständige Angebot ${params.pdf_link ? 'verlinkt ist' : 'beiliegt'} / Einladung zum nächsten Schritt / Gruß.
@@ -131,19 +135,19 @@ GRENZE: ausschließlich diese Positionen und Preise. Keine Position ergänzen, k
 FREIGEGEBENE POSITIONEN (einzige Quelle):
 ${JSON.stringify({ positionen, summe_netto: angebot.summe_netto, nicht_enthalten: angebot.nicht_enthalten || [] }, null, 2)}`;
       }
-    } else if (intent === 'nachfassen') {
+    } else if (absicht === 'nachfassen') {
       task = `AUFGABE: Freundlich nachfassen zum Angebot "${angebot.titel || ''}"${angebot.gesendet_am ? `, übermittelt am ${angebot.gesendet_am}` : ''}${params.tage_seit_versand ? ` (vor ${params.tage_seit_versand} Tagen)` : ''}.
 AUFBAU: Anrede / Bezug auf das Angebot mit Datum / Nachfrage nach dem Stand, ausdrücklich ohne Druck / Angebot, offene Fragen in einem kurzen Gespräch zu klären / EIN Satz, der ein "derzeit nicht die Priorität" ausdrücklich zulässt / Gruß.
 GRENZE: keine Preisänderung, kein Rabatt, keine Frist, keine zweite Erinnerung im selben Text. Die Tagesanzahl wird genannt, nicht vorgeworfen.
 ${params.schwerpunkt ? `SCHWERPUNKT: ${params.schwerpunkt}` : ''}`;
-    } else if (intent === 'angebot_nachfrage') {
+    } else if (absicht === 'angebot_nachfrage') {
       task = `AUFGABE: Persönlich beim Kunden nachfragen, wie es um das übermittelte Angebot "${angebot.titel || ''}" steht${angebot.gesendet_am ? `, übermittelt am ${angebot.gesendet_am}` : ''}${params.tage_seit_versand ? ` (vor ${params.tage_seit_versand} Tagen)` : ''}.
 AUFBAU: Anrede mit Namen / EIN Satz, der das ursprüngliche Anliegen aus dem belegten Text WÖRTLICH aufgreift (konkretes Vorhaben, keine allgemeine Formel) / Bezug auf das Angebot mit Datum / die eigentliche Nachfrage: ob das Angebot passt, was noch fehlt, wo es Fragen gibt${params.ergaenzung ? ' / die Ergänzung inhaltlich eingearbeitet' : ''} / Angebot, offene Punkte in einem kurzen Gespräch zu klären / Gruß.
 GRENZE: keine Preisänderung, kein Rabatt, keine Frist, kein Druck, keine Mahnsprache. Nichts erfinden, was nicht im belegten Text steht.
 UNVERWECHSELBARKEIT: Der Text darf nicht wie ein Serienbrief klingen. Mindestens eine Formulierung stammt erkennbar aus dem konkreten Vorhaben des Kunden. Keine Floskeln wie "wir wollten nur kurz nachfragen".
 ${params.persoenlich ? `PERSÖNLICHER BEZUG (natürlich einbauen, nicht anhängen): ${params.persoenlich}` : ''}
 ${params.ergaenzung ? `ERGÄNZUNG DER PERSON (inhaltlich einarbeiten): ${params.ergaenzung}` : ''}`;
-    } else if (intent === 'rueckfrage') {
+    } else if (absicht === 'rueckfrage') {
       const punkte = (params.punkte || []).map((p: string) => String(p || '').trim()).filter(Boolean);
       if (punkte.length === 0) return Response.json({ error: 'Mindestens ein offener Punkt nötig.' }, { status: 400 });
       task = `AUFGABE: Offene Punkte erfragen.
@@ -151,7 +155,7 @@ AUFBAU: Anrede / Dank / EIN Satz, warum es diese Angaben für eine belastbare Au
 GRENZE: nur diese Punkte, keine zusätzlichen Fragen.
 DIE PUNKTE:
 ${punkte.map((p) => `- ${p}`).join('\n')}`;
-    } else if (intent === 'absage') {
+    } else if (absicht === 'absage') {
       const grund = String(params.grund || '').trim();
       if (!grund) return Response.json({ error: 'Ohne Grund keine Absage.' }, { status: 400 });
       task = `AUFGABE: Die Anfrage absagen.
@@ -160,7 +164,7 @@ GRENZE: keine Schuldzuweisung, keine Kritik am Kunden, kein Bedauern über mehre
 DER GRUND: ${grund}`;
     }
 
-    const preisFrei = intent === 'angebot';
+    const preisFrei = absicht === 'angebot';
     const signatur = user.full_name || 'Rittler & Co';
 
     const prompt = `Du schreibst als ${signatur} von der Digitalagentur Rittler & Co (Österreich) eine E-Mail an ${senderName || deal?.contact_name || 'den Kunden'}${deal?.company_name ? ` von ${deal.company_name}` : ''}.
