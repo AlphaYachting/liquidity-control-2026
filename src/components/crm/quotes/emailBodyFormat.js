@@ -41,8 +41,8 @@ export function toPlainText(body) {
     .split('\n')
     .filter((line) => !/^\s*([-_*]\s*){3,}\s*$/.test(line)) // ---- / *** Trennlinien
     .map((line) => {
-      if (isHeading(line)) return stripInline(stripHeadingMarks(line)).toUpperCase();
-      if (isBullet(line)) return '– ' + stripInline(stripBulletMarks(line));
+      if (isHeading(line)) return stripInline(stripHeadingMarks(line));
+      if (isBullet(line)) return '- ' + stripInline(stripBulletMarks(line));
       return stripInline(line);
     })
     .join('\n')

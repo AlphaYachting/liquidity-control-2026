@@ -7,7 +7,7 @@ const istAngebotsmail = (a) =>
 
 // Rückfallebene für Altdaten: vor dem Feld intent trug nur der Titel die Absicht.
 const istAltAngebotsmail = (a) =>
-  a.activity_type === 'email' && String(a.title || '').startsWith('Angebots-E-Mail');
+  a.activity_type === 'email' && /^(Angebots-E-Mail|E-Mail-Angebot)/.test(a.title || '');
 
 // Lage des Angebots für den Kopf des Assistenten — liefert immer Auskunft,
 // sobald ein Angebot übermittelt wurde, und kennzeichnet Stille ab 7 Tagen.

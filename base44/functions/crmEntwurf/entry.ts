@@ -5,7 +5,7 @@ import { cleanMailText as cleanText } from '../../shared/mailText.ts';
 // Eigener Vertrag für den KI-Assistenten am Deal. generateCrmReply bleibt unberührt.
 // Antwort immer: { subject, variant_a, variant_b, body, kontext_verwendet[] }
 // oder { error } mit HTTP 200 — nie leer, nie still.
-const INTENTS = ['antwort', 'termin', 'angebot', 'besprechung', 'absage'];
+const INTENTS = ['antwort', 'termin', 'angebot', 'nachfassen', 'besprechung', 'absage'];
 
 const FORMAT: Record<string, string> = { vor_ort: 'vor Ort', telefon: 'telefonisch', video: 'per Videocall' };
 
@@ -119,8 +119,8 @@ ${params.stichworte ? `STICHWORTE (inhaltlich einarbeiten, nicht anhängen):\n${
       if (slots.length === 0) return Response.json({ error: 'Mindestens ein Termin nötig — es werden keine Termine erfunden.' });
       task = `AUFGABE: Termine für ein Gespräch vorschlagen.
 AUFBAU: Anrede / Aufgreifen des Anliegens (1-2 Sätze) / Überleitung zum Gespräch${formatLabel ? ` mit Nennung des Formats (${formatLabel})` : ''} / die Termine, je Termin EINE Zeile "- <Termin>", wortgleich / Bitte um kurze Rückmeldung / Gruß.
-DIE TERMINE (ausschließlich diese, wortgleich):
-${slots.map((s: string) => `- ${s}`).join('\n')}
+DIE TERMINE (ausschließlich diese, wortgleich, mit Leerzeile zwischen den Punkten):
+${slots.map((s: string) => `- ${s}`).join('\n\n')}
 GRENZE: keine weiteren Zeitangaben, keine Dauer erfinden, kein Angebotsbezug.`;
     } else if (absicht === 'angebot') {
       if (!angebot) return Response.json({ error: 'Kein Angebot am Deal verknüpft.' });
@@ -135,6 +135,21 @@ AUFBAU: Bezug (1 Satz) / "Leistungen:" — je Position "Leistung - Ergebnis - Pr
 GRENZE: ausschließlich diese Positionen und Preise, keine Ergänzung, kein Rabatt.
 FREIGEGEBENE POSITIONEN (einzige Quelle):
 ${JSON.stringify({ positionen: angebot.positionen, summe_netto: angebot.summe_netto }, null, 2)}`;
+    } else if (absicht === 'nachfassen') {
+      if (!angebot) return Response.json({ error: 'Kein Angebot am Deal verknüpft.' });
+      if (!gesendetAm)
+        return Response.json({ error: 'Kein Übermittlungsdatum bekannt — bitte das Versanddatum des Angebots nachtragen.' });
+      betreff = `Unser Angebot „${angebot.titel}" — kurze Nachfrage`;
+      task = `AUFGABE: Kurze, freundliche Nachfrage zum Stand des übermittelten Angebots "${angebot.titel}". KEINE Termine.
+AUFBAU, streng in dieser Reihenfolge:
+1. Anrede.
+2. EIN Satz, der das ursprüngliche Anliegen des Kunden in SEINEN Worten aufgreift.
+3. Bezug auf das Angebot: Titel und Übermittlungsdatum ${dLabel(gesendetAm)} — ohne Preiswiederholung.
+4. Die Nachfrage selbst, sachlich und ohne Druck: wie der Stand ist, ob Fragen offen sind, verbunden mit dem Angebot, offene Punkte kurz zu klären.
+${params.schwerpunkt ? `5. Diesen Schwerpunkt eingearbeitet, nicht angehängt: ${params.schwerpunkt}` : ''}
+6. EIN Satz, der ein "derzeit nicht die Priorität" ausdrücklich zulässt.
+7. Gruß.
+GRENZE: keine Terminvorschläge, kein Rabatt, keine Frist, keine Ablaufdrohung, keine Wiederholung der Positionsliste. Endet mit einer offenen Frage.`;
     } else if (absicht === 'besprechung') {
       if (!angebot) return Response.json({ error: 'Kein Angebot am Deal verknüpft.' });
       if (slots.length === 0) return Response.json({ error: 'Mindestens ein Termin nötig — es werden keine Termine erfunden.' });
@@ -149,8 +164,8 @@ ${params.schwerpunkt ? `5. Diesen Schwerpunkt eingearbeitet, nicht angehängt: $
 6. DER VORSCHLAG: ein kurzes Gespräch${formatLabel ? ` ${formatLabel}` : ''}, danach die Termine als Aufzählung, je Termin EINE Zeile "- <Termin>", wortgleich.
 7. EIN Satz, der ein "derzeit nicht die Priorität" ausdrücklich zulässt.
 8. Gruß.
-DIE TERMINE (ausschließlich diese, wortgleich):
-${slots.map((s: string) => `- ${s}`).join('\n')}
+DIE TERMINE (ausschließlich diese, wortgleich, mit Leerzeile zwischen den Punkten):
+${slots.map((s: string) => `- ${s}`).join('\n\n')}
 GRENZE: kein Rabatt, keine Frist, keine Drohung mit Ablauf, keine Wiederholung der Positionsliste. Freundlich bleiben — die Tagesanzahl wird genannt, nicht vorgeworfen.`;
     } else if (absicht === 'absage') {
       const grund = String(params.grund || '').trim();
@@ -169,7 +184,8 @@ DER GRUND: ${grund}`;
 TONALITÄT (gilt immer):
 - Deutsch, per Sie. Herzlich und wertschätzend, aber knapp.
 - Kein Markdown, keine Sternchen, keine Rauten, keine Emojis, keine Trennlinien.
-- Aufzählungen ausschließlich mit "- " am Zeilenanfang. Kein Absatz länger als drei Zeilen.
+- Aufzählungen: jede Position beginnt mit "- " und steht in einer eigenen Zeile. Zwischen zwei Aufzählungspunkten steht eine LEERZEILE. Vor und nach der Aufzählung steht ebenfalls eine Leerzeile.
+- Kein Absatz länger als drei Zeilen.
 - Absätze mit echten Zeilenumbrüchen, zwischen zwei Absätzen genau eine Leerzeile.
 ${preisFrei ? '' : '- VERBOTEN: Preise, Aufwandsschätzungen, Liefertermine, Rabatte, Zusagen zu Leistungen.\n'}- VERBOTEN: erfundene Termine, erfundene Personen, Platzhalter wie [Name].
 - Schluss immer drei eigene Zeilen: "Beste Grüße" / ${signatur} / "Rittler & Co".

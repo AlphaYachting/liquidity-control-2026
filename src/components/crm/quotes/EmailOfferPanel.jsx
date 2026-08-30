@@ -43,6 +43,9 @@ export default function EmailOfferPanel({ quote, onUpdated }) {
         await base44.entities.CrmActivity.create({
           deal_id: deal.id,
           activity_type: 'email',
+          channel: 'email',
+          direction: 'ausgehend',
+          intent: 'angebot',
           title: `E-Mail-Angebot freigegeben — ${quote.title} (${eur(quote.total_net)} netto)`,
           content: body,
           activity_date: new Date().toISOString(),

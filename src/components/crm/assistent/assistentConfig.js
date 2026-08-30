@@ -3,6 +3,7 @@ export const ABSICHTEN = [
   { key: 'antwort', label: 'Antwort' },
   { key: 'termin', label: 'Termin' },
   { key: 'angebot', label: 'Angebot' },
+  { key: 'nachfassen', label: 'Nachfassen' },
   { key: 'besprechung', label: 'Besprechung' },
   { key: 'absage', label: 'Absage' },
 ];
@@ -11,6 +12,7 @@ export const LANGTITEL = {
   antwort: 'Antwort auf die Anfrage',
   termin: 'Terminvorschlag',
   angebot: 'Angebots-E-Mail',
+  nachfassen: 'Nachfass-E-Mail',
   besprechung: 'Besprechung zum Angebot',
   absage: 'Absage',
 };
@@ -39,6 +41,7 @@ export function sendeFolgen(intent, { slotCount = 0 } = {}) {
   if (intent === 'besprechung')
     return [`${slotCount} Termine werden als vorgeschlagen angelegt`, 'Wiedervorlage in 7 Tagen', eintrag];
   if (intent === 'angebot') return ['Phase: Angebot übermittelt', 'Wiedervorlage in 7 Tagen', eintrag];
+  if (intent === 'nachfassen') return ['Wiedervorlage in 7 Tagen', eintrag];
   if (intent === 'absage') return ['Deal wird als verloren geführt', eintrag];
   return [eintrag];
 }
