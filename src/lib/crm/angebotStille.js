@@ -9,6 +9,33 @@ const istAngebotsmail = (a) =>
 const istAltAngebotsmail = (a) =>
   a.activity_type === 'email' && String(a.title || '').startsWith('Angebots-E-Mail');
 
+// Lage des Angebots für den Kopf des Assistenten — liefert immer Auskunft,
+// sobald ein Angebot übermittelt wurde, und kennzeichnet Stille ab 7 Tagen.
+export function angebotStand(deal, activities = [], appointments = []) {
+  if (!deal) return null;
+  const kandidaten = (activities || []).filter((a) => istAngebotsmail(a) || istAltAngebotsmail(a));
+  if (kandidaten.length === 0) return null;
+
+  const gesendet = kandidaten
+    .map((a) => ({ a, t: new Date(a.activity_date || a.created_date).getTime() }))
+    .sort((x, y) => y.t - x.t)[0];
+  if (!gesendet?.t) return null;
+
+  const tage = Math.floor((Date.now() - gesendet.t) / 86400000);
+  const eingehendDanach = (activities || []).some(
+    (a) => a.direction === 'eingehend' && new Date(a.activity_date || a.created_date).getTime() > gesendet.t,
+  );
+  const bestaetigt = (appointments || []).some((t) => t.status === 'confirmed');
+
+  return {
+    tage,
+    gesendet_am: gesendet.a.activity_date || gesendet.a.created_date,
+    titel: String(gesendet.a.title || '').replace(/^.*?— /, ''),
+    summe: deal.value_net || 0,
+    still: tage >= 7 && !eingehendDanach && !bestaetigt,
+  };
+}
+
 export function angebotStille(deal, activities = [], appointments = []) {
   if (!deal || !STAGES.includes(deal.stage)) return null;
 
