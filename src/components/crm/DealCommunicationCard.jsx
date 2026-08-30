@@ -106,34 +106,10 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
     return null;
   })();
 
-  // Ältere Serverstände kennen „Nachfrage zum Angebot“ noch nicht. Dann wird
-  // dieselbe Absicht als Nachfassen mit ausdrücklichem Feedback-Auftrag gestellt.
-  const ersatzAufruf = (feedbackText) =>
-    base44.functions.invoke('generateCrmReply', {
-      threadId: deal.email_thread_id || '',
-      dealId: deal.id,
-      intent: 'nachfassen',
-      feedback: feedbackText,
-      previous_a: feedbackText ? varianten?.a || '' : '',
-      previous_b: feedbackText ? varianten?.b || '' : '',
-      params: {
-        schwerpunkt: [
-          'Ausdrücklich um Feedback zum übermittelten Angebot bitten: ob es passt, was noch fehlt, wo es Fragen gibt.',
-          'Das ursprüngliche Anliegen aus dem belegten Text wörtlich aufgreifen — kein Serienbrief, keine Floskeln.',
-          felder.ergaenzung ? `Zusätzlich ansprechen: ${felder.ergaenzung}` : '',
-          felder.persoenlich ? `Persönlicher Bezug, natürlich eingebaut: ${felder.persoenlich}` : '',
-        ].filter(Boolean).join(' '),
-        tage_seit_versand: angebotTage,
-        angebot: angebot ? { ...angebot, gesendet_am: angebotGesendetAm ? dateLabel(angebotGesendetAm) : '' } : null,
-      },
-    });
-
   const erzeugen = async (feedbackText = '') => {
     setBusy(true); setFehler(null);
     try {
-      // Die Nachfrage zum Angebot wird immer über den Weg gestellt, den jeder
-      // Serverstand kennt — inhaltlich identisch, nur ohne neue Absicht.
-      let res = intent === 'angebot_nachfrage' ? await ersatzAufruf(feedbackText) : await base44.functions.invoke('generateCrmReply', {
+      const res = await base44.functions.invoke('generateCrmReply', {
         threadId: deal.email_thread_id || '',
         dealId: deal.id,
         intent,
@@ -177,7 +153,7 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
       const veraltet = /Unbekannter Antworttyp|Unbekannte Absicht/i.test(String(grund));
       setFehler(
         veraltet
-          ? 'Diese Seite arbeitet noch gegen einen älteren Serverstand, der diese Absicht nicht kennt. Bitte die Seite einmal vollständig neu laden (Strg+Shift+R bzw. ⌘+Shift+R) und erneut versuchen.'
+          ? 'Diese Absicht kennt der Server noch nicht — Seite neu laden.'
           : `Entwurf fehlgeschlagen${status ? ` (${status})` : ''} — ${grund || 'kein Grund übermittelt'}`,
       );
       console.error('generateCrmReply', e);
@@ -240,10 +216,6 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
         });
       } else if (intent === 'nachfassen') {
         await base44.entities.CrmDeal.update(deal.id, { next_step_date: addDays(7) });
-      } else if (intent === 'angebot_nachfrage') {
-        await base44.entities.CrmDeal.update(deal.id, {
-          next_step: 'Antwort auf die Nachfrage zum Angebot abwarten', next_step_date: addDays(5),
-        });
       } else if (intent === 'absage') {
         await base44.entities.CrmDeal.update(deal.id, { stage: config.lostStage, lost_reason: felder.grund });
       }
@@ -320,7 +292,11 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
           disabled={busy}
         />
 
-        <div className="mt-3.5 flex items-center gap-2">
+        {fehler && (
+          <p className="mt-3.5 text-xs text-destructive truncate" title={fehler}>{fehler}</p>
+        )}
+
+        <div className="mt-2 flex items-center gap-2">
           <Button
             onClick={() => erzeugen()}
             disabled={busy || Boolean(sperrGrund)}
@@ -333,12 +309,6 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
             {sperrGrund || 'Zwei Varianten, danach frei bearbeitbar.'}
           </span>
         </div>
-
-        {fehler && (
-          <p className="text-[12.5px] text-destructive mt-2.5 border border-destructive/30 bg-destructive/5 rounded-md px-3 py-2 whitespace-pre-wrap break-words">
-            {fehler}
-          </p>
-        )}
 
         {varianten && (
           <div ref={variantenRef}>

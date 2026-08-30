@@ -21,7 +21,7 @@ export default function VariantenWahl({ varianten, gewaehlt, onWaehlen, feedback
               aktiv ? 'border-primary bg-primary/5' : 'border-input hover:border-primary'
             }`}
           >
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary mb-1.5">
+            <p className="text-[11.5px] font-semibold text-primary mb-1.5">
               {TITEL[k]}{feedback ? ' · überarbeitet' : ''}
             </p>
             {feedback && (

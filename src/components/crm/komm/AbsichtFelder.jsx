@@ -8,14 +8,15 @@ import { Plus } from 'lucide-react';
 import ReplySlotFields from '@/components/crm/emails/ReplySlotFields';
 import FeldTitel from './FeldTitel';
 import AngebotsZeile from './AngebotsZeile';
+import Feinschliff from './Feinschliff';
 
 // Die Felder der gewählten Absicht — nichts klappt auf, die Karte wächst mit dem Vorgang.
 export default function AbsichtFelder({ intent, felder, setFeld, angebot, angebotGesendetAm, angebotTage, disabled }) {
   return (
-    <div className="mt-4 pt-4 border-t border-dashed border-border">
+    <div className="mt-4 pt-4">
       {intent === 'terminvorschlag' && (
         <>
-          <FeldTitel>Terminvorschläge — es werden nur Termine genannt, die hier stehen</FeldTitel>
+          <FeldTitel>Termine — genannt wird nur, was hier steht</FeldTitel>
           <ReplySlotFields
             slots={felder.slots}
             onSlotChange={(i, v) => setFeld('slots', felder.slots.map((s, idx) => (idx === i ? v : s)))}
@@ -28,7 +29,7 @@ export default function AbsichtFelder({ intent, felder, setFeld, angebot, angebo
 
       {intent === 'antwort' && (
         <>
-          <FeldTitel>Worauf soll die Antwort eingehen? (optional)</FeldTitel>
+          <FeldTitel>Worauf soll die Antwort eingehen? — optional</FeldTitel>
           <Textarea
             rows={2}
             disabled={disabled}
@@ -37,6 +38,18 @@ export default function AbsichtFelder({ intent, felder, setFeld, angebot, angebo
             placeholder="z. B. Umsetzung bis Jahresende ist machbar, Konfigurator als zweite Ausbaustufe"
             className="text-[13px] resize-y"
           />
+          <Feinschliff gefuellt={felder.persoenlich}>
+            <div className="mt-3">
+              <FeldTitel>Persönlicher Bezug — optional</FeldTitel>
+              <Input
+                value={felder.persoenlich}
+                disabled={disabled}
+                onChange={(e) => setFeld('persoenlich', e.target.value)}
+                placeholder="z. B. Sie waren letzte Woche auf der Messe in Wien"
+                className="h-9 text-[13px]"
+              />
+            </div>
+          </Feinschliff>
         </>
       )}
 
@@ -63,7 +76,7 @@ export default function AbsichtFelder({ intent, felder, setFeld, angebot, angebo
           <FeldTitel>Bezug</FeldTitel>
           <AngebotsZeile angebot={angebot} gesendetAm={angebotGesendetAm} tage={angebotTage} />
           <div className="mt-3">
-            <FeldTitel>Worauf besonders eingehen? (optional)</FeldTitel>
+            <FeldTitel>Worauf besonders eingehen? — optional</FeldTitel>
             <Textarea
               rows={2}
               disabled={disabled}
@@ -72,38 +85,18 @@ export default function AbsichtFelder({ intent, felder, setFeld, angebot, angebo
               className="text-[13px] resize-y"
             />
           </div>
-        </>
-      )}
-
-      {intent === 'angebot_nachfrage' && (
-        <>
-          {angebot ? (
-            <>
-              <FeldTitel>Bezug</FeldTitel>
-              <AngebotsZeile angebot={angebot} gesendetAm={angebotGesendetAm} tage={angebotTage} />
-            </>
-          ) : null}
-          <div className="mt-3">
-            <FeldTitel>Zusätzlich ansprechen (optional)</FeldTitel>
-            <Textarea
-              rows={2}
-              disabled={disabled}
-              value={felder.ergaenzung}
-              onChange={(e) => setFeld('ergaenzung', e.target.value)}
-              placeholder="z. B. offene Frage zum Umfang, freie Kapazität im Oktober"
-              className="text-[13px] resize-y"
-            />
-          </div>
-          <div className="mt-3">
-            <FeldTitel>Persönlicher Bezug (optional)</FeldTitel>
-            <Input
-              value={felder.persoenlich}
-              disabled={disabled}
-              onChange={(e) => setFeld('persoenlich', e.target.value)}
-              placeholder="z. B. Sie waren letzte Woche auf der Messe in Wien"
-              className="h-9 text-[13px]"
-            />
-          </div>
+          <Feinschliff gefuellt={felder.persoenlich}>
+            <div className="mt-3">
+              <FeldTitel>Persönlicher Bezug — optional</FeldTitel>
+              <Input
+                value={felder.persoenlich}
+                disabled={disabled}
+                onChange={(e) => setFeld('persoenlich', e.target.value)}
+                placeholder="z. B. Sie waren letzte Woche auf der Messe in Wien"
+                className="h-9 text-[13px]"
+              />
+            </div>
+          </Feinschliff>
         </>
       )}
 
@@ -138,7 +131,7 @@ export default function AbsichtFelder({ intent, felder, setFeld, angebot, angebo
 
       {intent === 'absage' && (
         <>
-          <FeldTitel>Grund (wird höflich umformuliert)</FeldTitel>
+          <FeldTitel>Grund — wird höflich umformuliert</FeldTitel>
           <Input
             value={felder.grund}
             disabled={disabled}

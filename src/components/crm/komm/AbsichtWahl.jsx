@@ -9,15 +9,18 @@ export default function AbsichtWahl({ value, onChange, ausgeblendet = [], hinwei
   return (
     <div>
       <FeldTitel>Was soll geschehen?</FeldTitel>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex flex-wrap border border-input rounded-lg overflow-hidden">
+      <div className="flex items-center gap-2">
+        <div
+          className="inline-flex w-fit max-w-full border border-input rounded-lg overflow-hidden overflow-x-auto"
+          style={{ scrollbarWidth: 'none' }}
+        >
           {sichtbar.map(({ key, label }, i) => (
             <button
               key={key}
               type="button"
               onClick={() => onChange(key)}
-              className={`h-[30px] px-3.5 text-[12.5px] border-0 transition-colors duration-[120ms] ${
-                i < sichtbar.length - 1 ? 'border-r border-input' : ''
+              className={`h-[30px] px-3.5 text-[12.5px] whitespace-nowrap transition-colors duration-[120ms] ${
+                i > 0 ? 'border-l border-input' : ''
               } ${
                 value === key
                   ? 'bg-foreground text-background font-semibold'

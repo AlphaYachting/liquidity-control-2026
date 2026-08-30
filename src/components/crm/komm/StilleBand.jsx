@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { eurLabel, dateLabel } from './kommConfig';
+import { betragLabel, dateLabel } from './kommConfig';
 
 // Hinweis auf Stille nach der Angebotsübermittlung — nicht schließbar, ohne Animation.
 export default function StilleBand({ stille, wiedervorlage, onNachfassen }) {
@@ -12,7 +12,7 @@ export default function StilleBand({ stille, wiedervorlage, onNachfassen }) {
           Seit <span className="font-semibold">{stille.tage} Tagen</span> keine Rückmeldung auf das Angebot.
         </p>
         <p className="text-xs text-muted-foreground">
-          „{stille.titel}" · {eurLabel(stille.summe)} netto · übermittelt am {dateLabel(stille.gesendet_am)}.
+          „{stille.titel}" · {betragLabel(stille.summe)} · übermittelt am {dateLabel(stille.gesendet_am)}.
           {wiedervorlage ? ` Wiedervorlage war der ${dateLabel(wiedervorlage)}.` : ''}
         </p>
       </div>

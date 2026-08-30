@@ -5,7 +5,6 @@ export const ABSICHTEN = [
   { key: 'terminvorschlag', label: 'Termin' },
   { key: 'angebot', label: 'Angebot' },
   { key: 'nachfassen', label: 'Nachfassen' },
-  { key: 'angebot_nachfrage', label: 'Nachfrage zum Angebot' },
   { key: 'rueckfrage', label: 'Rückfrage' },
   { key: 'absage', label: 'Absage' },
 ];
@@ -24,6 +23,12 @@ export const ABSICHT_TITEL = {
 };
 
 export const eurLabel = (n) => `${Math.round(Number(n) || 0).toLocaleString('de-AT')} €`;
+
+// Kein Betrag von null: fehlt die Summe, wird das benannt statt beziffert.
+export const betragLabel = (n) => {
+  const wert = Math.round(Number(n) || 0);
+  return wert > 0 ? `${wert.toLocaleString('de-AT')} € netto` : 'Betrag noch nicht erfasst';
+};
 
 export const dateLabel = (d) =>
   d ? new Date(d).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
@@ -46,7 +51,6 @@ export function sendeFolgen(intent, ctx = {}) {
     return ['Phase → Angebot übermittelt', 'Wiedervorlage in 7 Tagen', eintrag];
   }
   if (intent === 'nachfassen') return ['Wiedervorlage in 7 Tagen', eintrag];
-  if (intent === 'angebot_nachfrage') return ['Wiedervorlage in 5 Tagen', eintrag];
   if (intent === 'absage') return ['Phase → verloren', 'Grund wird festgehalten', eintrag];
   return [eintrag];
 }
