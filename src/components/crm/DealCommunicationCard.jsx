@@ -76,12 +76,12 @@ export default function DealCommunicationCard({ deal, activities = [], appointme
   }, [prefill?.intent, prefill?.nonce]);
 
   // Nicht mögliche Absichten erscheinen gar nicht — ein Satz erklärt, wann sie kommen.
-  const ausgeblendet = !hatAngebot
-    ? ['angebot', 'nachfassen', 'angebot_nachfrage']
-    : (!angebotGesendetAm ? ['nachfassen', 'angebot_nachfrage'] : []);
+  // „Nachfrage zum Angebot“ steht immer bereit — sie braucht nur den Verlauf,
+  // nicht zwingend ein im System verknüpftes Angebot.
+  const ausgeblendet = !hatAngebot ? ['angebot', 'nachfassen'] : (!angebotGesendetAm ? ['nachfassen'] : []);
   const absichtHinweis = !hatAngebot
-    ? '„Angebot“, „Nachfassen“ und „Nachfrage zum Angebot“ erscheinen, sobald ein Angebot verknüpft ist.'
-    : (!angebotGesendetAm ? '„Nachfassen“ und „Nachfrage zum Angebot“ erscheinen, sobald ein Angebot übermittelt wurde.' : null);
+    ? '„Angebot“ und „Nachfassen“ erscheinen, sobald ein Angebot verknüpft ist.'
+    : (!angebotGesendetAm ? '„Nachfassen“ erscheint, sobald ein Angebot übermittelt wurde.' : null);
 
   useEffect(() => {
     if (ausgeblendet.includes(intent)) setIntent('antwort');

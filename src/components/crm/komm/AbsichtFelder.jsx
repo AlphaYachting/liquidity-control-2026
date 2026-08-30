@@ -77,8 +77,12 @@ export default function AbsichtFelder({ intent, felder, setFeld, angebot, angebo
 
       {intent === 'angebot_nachfrage' && (
         <>
-          <FeldTitel>Bezug</FeldTitel>
-          <AngebotsZeile angebot={angebot} gesendetAm={angebotGesendetAm} tage={angebotTage} />
+          {angebot ? (
+            <>
+              <FeldTitel>Bezug</FeldTitel>
+              <AngebotsZeile angebot={angebot} gesendetAm={angebotGesendetAm} tage={angebotTage} />
+            </>
+          ) : null}
           <div className="mt-3">
             <FeldTitel>Was möchten Sie zusätzlich ansprechen? (optional)</FeldTitel>
             <Textarea
