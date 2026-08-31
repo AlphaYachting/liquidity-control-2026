@@ -49,30 +49,41 @@ Deno.serve(async (req) => {
 
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-    // Fetch only AB (Auftragsbestätigungen)
-    const abData = await sevdeskGet(`/Order?orderType=AB&limit=${batchSize}&offset=${offset}&embed=contact&orderBy=orderDate&orderDirection=desc`, apiKey);
+    let orders = [];
+    let hasMore = false;
+    const gezielt = selectedIds && selectedIds.length > 0;
 
-    let orders = abData.objects || [];
-    const hasMore = orders.length === batchSize;
+    if (gezielt) {
+      // Gezielter Import: jede gewählte Auftragsbestätigung direkt holen.
+      // Vorher wurde nur die erste Seite (batchSize) durchsucht — ältere
+      // Aufträge wurden dadurch nie angelegt.
+      for (const id of selectedIds) {
+        const one = await sevdeskGet(`/Order/${id}?embed=contact`, apiKey);
+        const obj = (one.objects || [])[0];
+        if (obj) orders.push(obj);
+      }
+    } else {
+      const abData = await sevdeskGet(`/Order?orderType=AB&limit=${batchSize}&offset=${offset}&embed=contact&orderBy=orderDate&orderDirection=desc`, apiKey);
+      orders = abData.objects || [];
+      hasMore = orders.length === batchSize;
+    }
 
     // YEAR GUARD: Nur erlaubte Jahre importieren (Standard: 2025+2026)
     // Einzeljahr-Filter hat Vorrang, ansonsten allowedYears-Liste anwenden
-    if (year) {
-      orders = orders.filter(o => {
-        const d = o.orderDate || o.deliveryDate || '';
-        return d.startsWith(String(year));
-      });
-    } else {
-      orders = orders.filter(o => {
-        const d = o.orderDate || o.deliveryDate || '';
-        return allowedYears.some(y => d.startsWith(String(y)));
-      });
-    }
-
-    // Filter by selected IDs
-    if (selectedIds && selectedIds.length > 0) {
-      const idSet = new Set(selectedIds.map(String));
-      orders = orders.filter(o => idSet.has(String(o.id)));
+    // Der Jahres-Schutz gilt nur für den Massen-Sync. Wer einen Auftrag
+    // gezielt auswählt, bekommt genau diesen — unabhängig vom Jahr.
+    if (!gezielt) {
+      if (year) {
+        orders = orders.filter(o => {
+          const d = o.orderDate || o.deliveryDate || '';
+          return d.startsWith(String(year));
+        });
+      } else {
+        orders = orders.filter(o => {
+          const d = o.orderDate || o.deliveryDate || '';
+          return allowedYears.some(y => d.startsWith(String(y)));
+        });
+      }
     }
 
     console.log(`sevDesk Aufträge offset=${offset}: ${orders.length} gefunden`);
