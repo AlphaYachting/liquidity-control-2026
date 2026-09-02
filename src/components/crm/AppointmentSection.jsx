@@ -83,7 +83,7 @@ export default function AppointmentSection({ deal, appointments, onChanged }) {
         <div key={a.id} className="border rounded-lg p-2.5 space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-medium truncate">{a.title || 'Termin'}</p>
-            <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${STATUS_BADGE[a.status]}`}>
+            <span className={`text-[11px] px-1.5 py-0.5 rounded-sm font-medium shrink-0 ${STATUS_BADGE[a.status]}`}>
               {STATUS_LABEL[a.status]}
             </span>
           </div>

@@ -16,7 +16,7 @@ export default function DealDetailHeader({ deal, onEdit, onClose, onReopen, onDe
   const won = isWonStage(deal.stage);
 
   return (
-    <div className="border rounded-xl bg-card overflow-hidden">
+    <div className="border border-border rounded-lg bg-card overflow-hidden">
       <div className="px-4 pt-3">
         <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 h-7 px-2 text-xs text-muted-foreground" asChild>
           <Link to="/crm"><ArrowLeft className="w-3.5 h-3.5" /> Zurück zur Pipeline</Link>
@@ -51,7 +51,7 @@ export default function DealDetailHeader({ deal, onEdit, onClose, onReopen, onDe
         {/* Wert */}
         {deal.value_net > 0 && (
           <div className="lg:text-right lg:px-4 lg:border-l shrink-0">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Auftragswert netto</p>
+            <p className="text-xs text-muted-foreground">Auftragswert netto</p>
             <p className="text-xl font-bold tabular-nums">{eur(deal.value_net)}</p>
             <p className="text-[11px] text-muted-foreground">{deal.probability_percent}% Wahrscheinlichkeit</p>
           </div>
@@ -69,7 +69,7 @@ export default function DealDetailHeader({ deal, onEdit, onClose, onReopen, onDe
           ) : (
             <>
               <div>
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Phase</p>
+                <p className="text-xs text-muted-foreground mb-1">Phase</p>
                 <Select value={deal.stage} onValueChange={onStageChange}>
                   <SelectTrigger className="h-9 w-full text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>

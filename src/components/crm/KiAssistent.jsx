@@ -241,7 +241,7 @@ export default function KiAssistent({ deal, activities = [], appointments = [], 
             <Button
               onClick={() => erzeugen()}
               disabled={busy || Boolean(sperrGrund)}
-              className="bg-foreground text-background gap-2"
+              className="gap-2"
             >
               {busy ? <Loader2 className="w-[15px] h-[15px] animate-spin" /> : <Sparkles className="w-[15px] h-[15px]" />}
               {busy ? 'Entwürfe entstehen …' : varianten ? 'Neu erzeugen' : 'Entwurf erzeugen'}

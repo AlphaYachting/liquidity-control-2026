@@ -20,7 +20,7 @@ export default function QuellenChip({ deal, to, setTo, onChanged }) {
   return (
     <div className="mt-3 space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="bg-muted rounded-full px-2.5 py-1 text-[11.5px] text-muted-foreground">
+        <span className="bg-muted rounded-sm px-2.5 py-1 text-xs text-muted-foreground">
           {deal.email_thread_id
             ? `Quelle für den Entwurf: E-Mail-Verlauf mit ${deal.contact_name || 'dem Kontakt'}`
             : 'Kein E-Mail-Verlauf — Quelle: Anfragetext und Verlaufseinträge'}

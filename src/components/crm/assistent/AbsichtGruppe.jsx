@@ -10,7 +10,7 @@ export default function AbsichtGruppe({ value, onChange, angebotVorhanden }) {
   return (
     <div className="flex items-center gap-2">
       <div
-        className="inline-flex w-fit max-w-full border border-input rounded-lg overflow-hidden overflow-x-auto"
+        className="inline-flex w-fit max-w-full border border-input rounded-sm overflow-hidden overflow-x-auto"
         style={{ scrollbarWidth: 'none' }}
       >
         {sichtbar.map(({ key, label }, i) => (

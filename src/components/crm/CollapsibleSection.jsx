@@ -7,7 +7,7 @@ export default function CollapsibleSection({ icon: Icon, title, hint, defaultOpe
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="border rounded-xl bg-card overflow-hidden">
+    <div className="border border-border rounded-lg bg-card overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2.5">
         <button
           type="button"

@@ -146,10 +146,10 @@ export default function CrmDealDetail() {
         </div>
 
         {/* Facts */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <CompanyMasterDataCard deal={deal} onChanged={refreshAll} />
 
-          <div className="border rounded-xl bg-card p-4">
+          <div className="border border-border rounded-lg bg-card p-4">
             <AppointmentSection
               deal={deal}
               appointments={appointments}

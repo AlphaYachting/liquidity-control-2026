@@ -40,10 +40,10 @@ export default function CompanyMasterDataCard({ deal, onChanged }) {
   const hatMehr = summary.length > ersteZeile.length;
 
   return (
-    <div className="border rounded-xl bg-card p-4 space-y-2.5">
+    <div className="border border-border rounded-lg bg-card p-4 space-y-2.5">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Kontakt &amp; Stammdaten</h3>
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${badge.cls}`}>{badge.label}</span>
+        <span className={`text-[11px] px-2 py-0.5 rounded-sm font-medium ${badge.cls}`}>{badge.label}</span>
       </div>
 
       {deal.company_name && (
@@ -73,7 +73,7 @@ export default function CompanyMasterDataCard({ deal, onChanged }) {
       )}
 
       <div className="border-t pt-2.5 mt-2.5">
-        <p className="text-[9.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground mb-1.5">Stammdaten</p>
+        <p className="text-xs font-semibold text-muted-foreground mb-1.5">Stammdaten</p>
         {stammzeile ? (
           <p className="text-xs text-muted-foreground">{stammzeile}</p>
         ) : (
