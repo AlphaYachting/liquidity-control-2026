@@ -22,21 +22,18 @@ async function sevdeskGet(path, apiKey) {
 }
 
 // Sucht SevUser-ID anhand eines Namens (Vorname oder Nachname reicht)
+// sevDesk verlangt zwingend eine Kontaktperson — ohne sie bricht der
+// Rechnungsentwurf mit einem Datenbankfehler ab. Deshalb wird hier immer
+// ein SevUser geliefert: passender Name, sonst der erste verfügbare.
 async function findSevUserId(name, apiKey) {
-  if (!name) return null;
-  try {
-    const firstName = name.trim().split(' ')[0];
-    const resp = await sevdeskGet(`/SevUser?limit=25`, apiKey);
-    const users = resp.objects || [];
-    // Suche nach Vorname-Match (case-insensitive)
-    const match = users.find(u => {
-      const full = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
-      return full.includes(firstName.toLowerCase());
-    });
-    return match ? String(match.id) : (users[0] ? String(users[0].id) : null);
-  } catch {
-    return null;
-  }
+  const resp = await sevdeskGet(`/SevUser?limit=100`, apiKey);
+  const users = resp.objects || [];
+  if (users.length === 0) return null;
+  const firstName = (name || '').trim().split(' ')[0].toLowerCase();
+  const match = firstName
+    ? users.find(u => `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase().includes(firstName))
+    : null;
+  return String((match || users[0]).id);
 }
 
 // sevDesk invoiceType mapping
@@ -103,6 +100,11 @@ Deno.serve(async (req) => {
     // 4. Kontaktperson (SevUser) dynamisch nach PM-Name suchen
     const pmName = instr.requested_by_pm || '';
     const contactPersonId = await findSevUserId(pmName, apiKey);
+    if (!contactPersonId) {
+      return Response.json({
+        error: 'In sevDesk wurde kein Benutzer als Kontaktperson gefunden. Bitte in sevDesk prüfen, ob der API-Schlüssel Zugriff auf die Benutzerliste hat.',
+      }, { status: 422 });
+    }
 
     // 5. Texte aufbauen
     const invoiceTypeLabel = INVOICE_TYPE_HEADER[instr.invoice_type] || 'Teilrechnung';
@@ -133,7 +135,7 @@ Deno.serve(async (req) => {
       objectName: 'Invoice',
       mapAll: true,
       contact: { id: sevdeskContactId, objectName: 'Contact' },
-      ...(contactPersonId ? { contactPerson: { id: contactPersonId, objectName: 'SevUser' } } : {}),
+      contactPerson: { id: contactPersonId, objectName: 'SevUser' },
       invoiceDate: todayForSevdesk,
       header: headerText,
       headText: headText,
