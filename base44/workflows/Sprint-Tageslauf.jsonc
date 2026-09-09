@@ -1,0 +1,44 @@
+{
+  "name": "Sprint-Tageslauf",
+  "description": "L\u00e4uft werktags um 07:00 (Europe/Vienna) und f\u00fchrt sieben Schritte aus: Sprint-Status fortschreiben, Vorwarnung A2, Fristmeldung A3, stillschweigende Freigabe, Meldung auslaufender Sprints A5, Warnsignale W1\u2013W4 erzeugen, erledigte Signale aufl\u00f6sen. Mehrfachl\u00e4ufe am selben Tag erzeugen keine doppelten Datens\u00e4tze. Der Job schreibt nie invoiced_at und erzeugt keine Rechnungen.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 5 * * 1-5",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "sprint_tageslauf",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "sprintTageslauf",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "sprintTageslauf"
+  }
+}

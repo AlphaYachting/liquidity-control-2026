@@ -1,0 +1,47 @@
+{
+  "name": "Eingang: E-Mails auswerten & Lead-Verdacht erkennen",
+  "description": "Ein Lauf f\u00fcr den gesamten Eingang: wertet neue E-Mail-Threads aus (Kategorie, Status, Eskalation, Kundenzuordnung) und stuft sie als Gesch\u00e4ftsanfrage ein. Ein Lead entsteht automatisch nur aus einer Website-Formular-Anfrage; alles andere landet im CRM-Posteingang.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 30,
+      "interval_unit": "minutes",
+      "interval_anchor": "2026-07-27T16:49:18.413000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "eingang_e_mails_auswerten_lead_verdacht_erkennen",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "analyseEingang",
+            "args": {
+              "days": 3,
+              "max_llm": 10
+            }
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "analyseEingang"
+  }
+}

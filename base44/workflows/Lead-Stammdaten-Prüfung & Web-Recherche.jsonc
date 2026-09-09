@@ -1,0 +1,37 @@
+{
+  "name": "Lead-Stammdaten-Pr\u00fcfung & Web-Recherche",
+  "description": "Pr\u00fcft nach Anlage eines Leads die Stammdaten-Vollst\u00e4ndigkeit; fehlende Firmendaten werden anhand der E-Mail-Domain im Internet recherchiert und am Deal erg\u00e4nzt.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "entity",
+      "events": [
+        "create"
+      ],
+      "entity_name": "CrmDeal"
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "lead_stammdaten_pr_fung_web_recherche",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "enrichCrmLead",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "enrichCrmLead"
+  }
+}

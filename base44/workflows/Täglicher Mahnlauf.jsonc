@@ -1,0 +1,44 @@
+{
+  "name": "T\u00e4glicher Mahnlauf",
+  "description": "Pr\u00fcft t\u00e4glich alle offenen sevDesk-Rechnungen gegen das Erstversanddatum und erstellt Mahnungs-Entw\u00fcrfe (14 Tage: Zahlungserinnerung, 21 Tage: 1. Mahnung, 28 Tage: 2. Mahnung).",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 4 * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "t_glicher_mahnlauf",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "runDunningCheck",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "runDunningCheck"
+  }
+}

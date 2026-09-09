@@ -1,0 +1,44 @@
+{
+  "name": "Projektintelligence Wochenvorschau (Donnerstag)",
+  "description": "Erstellt jeden Donnerstag fr\u00fch die proaktive Wochenvorschau f\u00fcr die kommende Woche: erwartete Zahlungseing\u00e4nge, geplante Abrechnungen, Quick-Wins, Nachfass-Liste und Budget-Risiken.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 4 * * 4",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "projektintelligence_wochenvorschau_donnerstag",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "generateWeeklyIntelligenceReport",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "generateWeeklyIntelligenceReport"
+  }
+}

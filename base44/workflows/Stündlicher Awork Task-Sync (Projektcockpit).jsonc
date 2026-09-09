@@ -1,0 +1,44 @@
+{
+  "name": "St\u00fcndlicher Awork Task-Sync (Projektcockpit)",
+  "description": "Synchronisiert st\u00fcndlich die Awork-Aufgaben der am l\u00e4ngsten nicht aktualisierten aktiven Cockpit-Projekte (2 pro Lauf), damit alle Projektdaten t\u00e4glich frisch sind.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 1,
+      "interval_unit": "hours",
+      "interval_anchor": "2026-07-25T09:12:03.101000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "st_ndlicher_awork_task_sync_projektcockpit",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "syncAworkAllProjectTasks",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "syncAworkAllProjectTasks"
+  }
+}

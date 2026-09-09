@@ -1,0 +1,49 @@
+{
+  "name": "E-Mail-Verzeichnis aktualisieren",
+  "description": "Schreibt das laufende Postfach-Fenster mit und holt die Historie St\u00fcck f\u00fcr St\u00fcck nach.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 15,
+      "interval_unit": "minutes",
+      "interval_anchor": "2026-08-05T07:59:16.638000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "e_mail_verzeichnis_aktualisieren",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "syncEmailThreadIndex",
+            "args": {
+              "mode": "both",
+              "page_size": 100,
+              "detail_limit": 12,
+              "backfill_pages": 1
+            }
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "syncEmailThreadIndex"
+  }
+}
