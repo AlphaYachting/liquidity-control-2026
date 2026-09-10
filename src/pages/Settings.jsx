@@ -5,6 +5,7 @@ import { Settings as SettingsIcon, Shield, Clock, Users, Inbox } from 'lucide-re
 import TeamScopeSettings from '@/components/settings/TeamScopeSettings';
 import TeamRosterSettings from '@/components/settings/TeamRosterSettings';
 import InboxScanSettings from '@/components/settings/InboxScanSettings';
+import InboxBlockedSenders from '@/components/settings/InboxBlockedSenders';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -47,8 +48,9 @@ export default function Settings() {
           <TeamScopeSettings />
         </TabsContent>
 
-        <TabsContent value="inbox" className="mt-4">
+        <TabsContent value="inbox" className="mt-4 space-y-4">
           <InboxScanSettings />
+          <InboxBlockedSenders />
         </TabsContent>
 
         <TabsContent value="audit" className="mt-4">

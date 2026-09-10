@@ -16,6 +16,7 @@ import InboxAssignDealDialog from '@/components/crm/InboxAssignDealDialog';
 import { descriptionFromThread } from '@/components/crm/support/threadDescription';
 import { useToast } from '@/components/ui/use-toast';
 import { findDuplicateDeal, CLOSED_STAGES } from '../../base44/shared/crmDuplicate.js';
+import { isBlockedSender } from '@/lib/crm/blockedSenders';
 
 export default function CrmInbox() {
   const navigate = useNavigate();
@@ -48,8 +49,14 @@ export default function CrmInbox() {
     queryFn: () => base44.entities.CrmInboxItem.filter({ status: 'new', decision: 'offen' }, '-created_date', 100),
   });
 
+  // Vertrauliche Absender (Einstellungen → Posteingangs-Filter) bleiben unsichtbar
+  const { data: blockedRules = [] } = useQuery({
+    queryKey: ['inbox-blocked-senders'],
+    queryFn: () => base44.entities.InboxBlockedSender.list('-created_date', 200),
+  });
+
   // Eine gemeinsame Liste, streng nach Datum — neueste zuerst
-  const items = [...rawItems].sort(
+  const items = [...rawItems].filter((i) => !isBlockedSender(i.sender_email, blockedRules)).sort(
     (a, b) => new Date(b.received_at || b.created_date) - new Date(a.received_at || a.created_date),
   );
 
