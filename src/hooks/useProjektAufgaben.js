@@ -50,13 +50,18 @@ function mapZusage(e) {
   };
 }
 
-function berechneKennzahlen(alle, rohdaten) {
+function berechneKennzahlen(alle, rohdaten, projekt) {
   const heute = new Date().toISOString().slice(0, 10);
   const offene = alle.filter(a => !a.ist_erledigt);
   const erledigt = alle.length - offene.length;
 
-  const geplant = alle.reduce((s, a) => s + a.geplante_minuten, 0);
-  const gebucht = alle.reduce((s, a) => s + a.gebuchte_minuten, 0);
+  // Zeitbudget ist das Budget des PROJEKTS in awork — nicht die Summe der
+  // geplanten Aufgabenzeiten. Nur wenn im Projekt kein Budget hinterlegt ist,
+  // dienen die Aufgabenplanwerte als Notbehelf.
+  const budgetProjekt = Number(projekt?.time_budget_minutes) || 0;
+  const gebuchtProjekt = Number(projekt?.tracked_duration_minutes) || 0;
+  const geplant = budgetProjekt > 0 ? budgetProjekt : alle.reduce((s, a) => s + a.geplante_minuten, 0);
+  const gebucht = gebuchtProjekt > 0 ? gebuchtProjekt : alle.reduce((s, a) => s + a.gebuchte_minuten, 0);
 
   let naechste_frist = null;
   let ueberfaellig_anzahl = 0;
@@ -89,6 +94,7 @@ function berechneKennzahlen(alle, rohdaten) {
     budget_verbraucht_prozent: geplant > 0 ? Math.round((gebucht / geplant) * 100) : null,
     geplante_minuten: geplant,
     gebuchte_minuten: gebucht,
+    budget_quelle: budgetProjekt > 0 ? 'projekt' : 'aufgaben',
     naechste_frist,
     ueberfaellig_anzahl,
     letzte_aktivitaet,
@@ -103,6 +109,13 @@ export default function useProjektAufgaben({ projectId, aworkProjectId }) {
   const { data: rohdaten = [], isLoading, isError } = useQuery({
     queryKey: ['projektAufgaben', aworkProjectId || null],
     queryFn: () => base44.entities.AworkTaskSnapshot.filter({ awork_project_id: aworkProjectId }),
+    enabled: !!aworkProjectId,
+  });
+
+  // Projektkopf aus awork — trägt das echte Zeitbudget des Projekts
+  const { data: projektSnapshots = [] } = useQuery({
+    queryKey: ['projektSnapshot', aworkProjectId || null],
+    queryFn: () => base44.entities.AworkProjectSnapshot.filter({ awork_project_id: aworkProjectId }, '-last_synced_at', 1),
     enabled: !!aworkProjectId,
   });
 
@@ -126,10 +139,10 @@ export default function useProjektAufgaben({ projectId, aworkProjectId }) {
     const alle = [...rohdaten.map(mapAworkTask), ...zusagen];
     return {
       aufgaben: alle.filter(a => !a.ist_erledigt),
-      kennzahlen: berechneKennzahlen(alle, rohdaten),
+      kennzahlen: berechneKennzahlen(alle, rohdaten, projektSnapshots[0]),
       quelle: 'awork',
       isLoading,
       isError,
     };
-  }, [aworkProjectId, projectId, rohdaten, zusagenRoh, isLoading, isError]);
+  }, [aworkProjectId, projectId, rohdaten, zusagenRoh, projektSnapshots, isLoading, isError]);
 }
