@@ -7,7 +7,7 @@ import {
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
   CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale,
   KanbanSquare, Inbox, History, Presentation, Mail, Sun, Siren,
-  Rocket, CalendarRange, Gauge, Layers
+  Rocket, CalendarRange, Gauge, Layers, LifeBuoy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
@@ -26,6 +26,7 @@ const navSections = [
       { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban },
       { path: '/next-month-forecast', label: 'Abrechnungsforecast', icon: CalendarCheck },
       { path: '/invoice-ready', label: 'Abrechnungsanweisungen', icon: CheckSquare },
+      { path: '/support-billing', label: 'Support-Abrechnung', icon: LifeBuoy },
       { path: '/customer-risk', label: 'Kundenrisiko', icon: Users },
       { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock },
       { path: '/escalation-alerts', label: 'Eskalations-Alerts', icon: AlertTriangle },

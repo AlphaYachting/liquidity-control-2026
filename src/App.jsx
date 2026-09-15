@@ -24,6 +24,7 @@ import ImportCenter from '@/pages/ImportCenter';
 import Settings from '@/pages/Settings';
 import ProjectDetail from '@/pages/ProjectDetail';
 import InvoiceReady from '@/pages/InvoiceReady';
+import SupportBilling from '@/pages/SupportBilling';
 import ConfirmedOrders from '@/pages/ConfirmedOrders';
 import ConfirmedOrderDetail from '@/pages/ConfirmedOrderDetail';
 import InvoiceMatchingReview from '@/pages/InvoiceMatchingReview';
@@ -145,6 +146,7 @@ const AuthenticatedApp = () => {
         <Route path="/invoice-matching" element={<AdminRoute><InvoiceMatchingReview /></AdminRoute>} />
         <Route path="/next-month-forecast" element={<NextMonthForecast />} />
         <Route path="/invoice-ready" element={<InvoiceReady />} />
+        <Route path="/support-billing" element={<SupportBilling />} />
         <Route path="/online-marketing" element={<OnlineMarketing />} />
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/hosting" element={<Hosting />} />
