@@ -3,13 +3,15 @@ import { ChevronDown, ChevronRight, ExternalLink, FilePlus2 } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import SupportInvoiceDialog from '@/components/support/SupportInvoiceDialog';
+import SupportTaskLine from '@/components/support/SupportTaskLine';
 
-const std = (min) => Math.round((min / 60) * 100) / 100;
 const halb = (min) => Math.max(0.5, Math.ceil((Number(min) || 0) / 30) / 2);
 
 export default function SupportBillingRow({ row, onDone }) {
-  const [offen, setOffen] = useState(false);
+  const [offen, setOffen] = useState(true);
   const [dialog, setDialog] = useState(false);
+  // Ein einzelnes Ticket abrechnen: dieselbe Maske, nur mit diesem einen Vorgang
+  const [einzelTask, setEinzelTask] = useState(null);
 
   return (
     <div className="border rounded-lg bg-card">
@@ -48,25 +50,29 @@ export default function SupportBillingRow({ row, onDone }) {
         </div>
 
         <Button size="sm" variant="outline" onClick={() => setDialog(true)}>
-          <FilePlus2 className="w-3.5 h-3.5" /> Rechnung anlegen
+          <FilePlus2 className="w-3.5 h-3.5" /> Sammelrechnung
         </Button>
       </div>
 
       {offen && (
-        <div className="border-t px-4 py-3 space-y-1.5">
+        <div className="border-t px-4 py-3 space-y-2">
           {row.tasks.map(t => (
-            <div key={t.awork_task_id} className="flex items-center justify-between text-xs gap-3">
-              <span className="truncate flex-1">{t.task_title}</span>
-              <span className="text-muted-foreground flex-shrink-0">
-                {t.assignee_name} · letzte Buchung {t.last_entry_date || '—'} · gebucht {std(t.open_minutes).toFixed(2)} h · verrechnet {halb(t.open_minutes).toFixed(1)} h
-              </span>
-            </div>
+            <SupportTaskLine key={t.awork_task_id} task={t} onInvoice={setEinzelTask} />
           ))}
         </div>
       )}
 
       {dialog && (
         <SupportInvoiceDialog row={row} open={dialog} onOpenChange={setDialog} onDone={onDone} />
+      )}
+
+      {einzelTask && (
+        <SupportInvoiceDialog
+          row={{ ...row, tasks: [einzelTask] }}
+          open={true}
+          onOpenChange={(o) => { if (!o) setEinzelTask(null); }}
+          onDone={onDone}
+        />
       )}
     </div>
   );

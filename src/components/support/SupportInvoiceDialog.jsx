@@ -38,7 +38,9 @@ export default function SupportInvoiceDialog({ row, open, onOpenChange, onDone }
         invoice_type: 'partial_invoice',
         status: 'ready_for_backoffice',
         instruction_amount_net: netto,
-        invoice_reason: `Supportleistungen ${row.project_name} — ${positionen.length} Anfragen, ${stunden.toFixed(1)} h`,
+        invoice_reason: positionen.length === 1
+          ? `Supportleistung: ${positionen[0].name} (${stunden.toFixed(1)} h)`
+          : `Supportleistungen ${row.project_name} — ${positionen.length} Anfragen, ${stunden.toFixed(1)} h`,
         internal_note: `Support-Abrechnung aus awork (Status „In Verrechnung") — ${positionen.length} Positionen à ${rate} €/h, halbstundengenau`,
         source_snapshot_json: JSON.stringify({
           support_task_ids: positionen.map(p => p.awork_task_id),
