@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, ExternalLink, FilePlus2, UserPlus } from 'lucide-react';
+import { ChevronDown, ChevronRight, FilePlus2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import SupportInvoiceDialog from '@/components/support/SupportInvoiceDialog';
 import SupportTaskLine from '@/components/support/SupportTaskLine';
 import CustomerAssignDialog from '@/components/support/CustomerAssignDialog';
+import SupportInstructionBadge from '@/components/support/SupportInstructionBadge';
 
 const halb = (min) => Math.max(0.5, Math.ceil((Number(min) || 0) / 30) / 2);
 
@@ -37,18 +38,7 @@ export default function SupportBillingRow({ row, onDone }) {
               <Badge className="bg-red-100 text-red-700">Rechnung noch zu erstellen</Badge>
             )}
             {row.instructions.map(i => (
-              <span key={i.id} className="flex items-center gap-1">
-                <Badge className={i.live_status?.status_code === '1000' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'}>
-                  {i.live_status
-                    ? `${i.live_status.invoice_number || 'Entwurf'} — ${i.live_status.status_label}`
-                    : 'Anweisung ohne sevDesk-Rechnung'}
-                </Badge>
-                {i.sevdesk_invoice_url && (
-                  <a href={i.sevdesk_invoice_url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                )}
-              </span>
+              <SupportInstructionBadge key={i.id} instruction={i} onDone={onDone} />
             ))}
           </div>
         </div>
