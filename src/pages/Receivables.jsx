@@ -15,7 +15,11 @@ import { Badge } from '@/components/ui/badge';
 
 export default function Receivables() {
   const [filters, setFilters] = useState({});
+  const [alleAnzeigen, setAlleAnzeigen] = useState(false);
   const navigate = useNavigate();
+
+  // Standard: nur Forderungen mit Rechnungsdatum ab 24.07.2026
+  const STICHTAG = '2026-07-24';
 
   // Live-Forderungen direkt aus sevDesk (offen + teilbezahlt)
   const { data: liveData, isLoading } = useQuery({
@@ -52,6 +56,7 @@ export default function Receivables() {
   }));
 
   const filtered = enriched.filter(r => {
+    if (!alleAnzeigen && (!r.invoice_date || r.invoice_date < STICHTAG)) return false;
     if (filters.status && r.payment_status !== filters.status) return false;
     if (filters.aging && r.aging_bucket !== filters.aging) return false;
     return true;
@@ -95,15 +100,23 @@ export default function Receivables() {
     <div className="space-y-6">
       <PageHeader
         title="Offene Forderungen / Mahnwesen"
-        subtitle={`${filtered.length} offene Rechnungen — live aus sevDesk`}
+        subtitle={`${filtered.length} offene Rechnungen — live aus sevDesk${alleAnzeigen ? '' : ', ab 24.07.2026'}`}
         icon={AlertTriangle}
         actions={
-          <button
-            onClick={() => navigate('/payment-consistency')}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
-          >
-            <ShieldCheck className="w-3.5 h-3.5" /> Konsistenzprüfung
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setAlleAnzeigen(a => !a)}
+              className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+            >
+              {alleAnzeigen ? 'Nur ab 24.07.2026' : 'Alle Forderungen anzeigen'}
+            </button>
+            <button
+              onClick={() => navigate('/payment-consistency')}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" /> Konsistenzprüfung
+            </button>
+          </div>
         }
       />
 
