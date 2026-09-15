@@ -46,7 +46,9 @@ export default function SupportInvoiceDialog({ row, open, onOpenChange, onDone }
         source_snapshot_json: JSON.stringify({
           support_task_ids: positionen.map(p => p.awork_task_id),
           sevdesk_contact_id: row.sevdesk_contact_id || null,
-          invoice_header: 'Verrechnung Supportauftrag',
+          invoice_header: positionen.length === 1
+            ? `Verrechnung Supportauftrag: ${positionen[0].name}`
+            : `Verrechnung Supportauftrag: ${positionen.map(p => p.name).join(', ')}`,
           hourly_rate: Number(rate),
           hours: stunden,
           invoice_positions: positionen,
