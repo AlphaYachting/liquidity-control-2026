@@ -36,6 +36,13 @@ async function findSevUserId(name, apiKey) {
   return String((match || users[0]).id);
 }
 
+// Snapshot der Anweisung — kommt je nach Datenquelle als Text oder bereits als Objekt
+function leseSnapshot(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw;
+  try { return JSON.parse(raw); } catch (_e) { return null; }
+}
+
 // sevDesk invoiceType mapping
 const INVOICE_TYPE_MAP = {
   advance_invoice: 'AN',
@@ -82,12 +89,11 @@ Deno.serve(async (req) => {
       if (order?.sevdesk_order_id) sevdeskOrderId = order.sevdesk_order_id;
     }
 
+    const snapshot = leseSnapshot(instr.source_snapshot_json);
+
     // 2b. Direkt zugewiesener sevDesk-Kunde (z. B. Support-Anfragen ohne Projekt)
-    if (!sevdeskContactId) {
-      try {
-        const snapContact = instr.source_snapshot_json ? JSON.parse(instr.source_snapshot_json)?.sevdesk_contact_id : null;
-        if (snapContact) sevdeskContactId = String(snapContact);
-      } catch (_e) { /* weiter mit Namenssuche */ }
+    if (!sevdeskContactId && snapshot?.sevdesk_contact_id) {
+      sevdeskContactId = String(snapshot.sevdesk_contact_id);
     }
 
     // 3. Fallback: Kontakt per Name suchen
@@ -122,8 +128,6 @@ Deno.serve(async (req) => {
     const additionalPct = instr.additional_billing_percent > 0 ? ` (${Math.round(instr.additional_billing_percent)}%)` : '';
 
     // Support-Rechnungen tragen eine eigene Betreff- und Anschreibensformel
-    let snapshot = null;
-    try { snapshot = instr.source_snapshot_json ? JSON.parse(instr.source_snapshot_json) : null; } catch (_e) { snapshot = null; }
     const istSupport = Boolean(snapshot?.invoice_header || (snapshot?.support_task_ids || []).length);
 
     // Header: "Verrechnung Supportauftrag" bzw. "Teilrechnung: Projektname (20%)"
@@ -237,6 +241,8 @@ Deno.serve(async (req) => {
       sevdesk_invoice_id: sevdeskInvoiceId,
       sevdesk_url: sevdeskUrl,
       contact_person_id: contactPersonId,
+      header_used: headerText,
+      positions_count: invoicePosSave.length,
       message: `Rechnungsentwurf erfolgreich in sevDesk angelegt (ID: ${sevdeskInvoiceId})`
     });
 
