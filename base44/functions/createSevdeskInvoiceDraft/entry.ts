@@ -121,8 +121,15 @@ Deno.serve(async (req) => {
     const amountNet = instr.instruction_amount_net ?? 0;
     const additionalPct = instr.additional_billing_percent > 0 ? ` (${Math.round(instr.additional_billing_percent)}%)` : '';
 
-    // Header: "Teilrechnung: Projektname (20%)"
-    const headerText = `${invoiceTypeLabel}${projectLabel ? ': ' + projectLabel : ''}${additionalPct}`;
+    // Support-Rechnungen tragen eine eigene Betreff- und Anschreibensformel
+    let snapshot = null;
+    try { snapshot = instr.source_snapshot_json ? JSON.parse(instr.source_snapshot_json) : null; } catch (_e) { snapshot = null; }
+    const istSupport = Boolean(snapshot?.invoice_header || (snapshot?.support_task_ids || []).length);
+
+    // Header: "Verrechnung Supportauftrag" bzw. "Teilrechnung: Projektname (20%)"
+    const headerText = istSupport
+      ? (snapshot?.invoice_header || 'Verrechnung Supportauftrag')
+      : `${invoiceTypeLabel}${projectLabel ? ': ' + projectLabel : ''}${additionalPct}`;
 
     // Positionstext: Abrechnungsgrund oder Fallback
     const positionText = instr.invoice_reason || `${invoiceTypeLabel} gemäß Auftragsbestätigung${additionalPct}.`;
@@ -132,7 +139,9 @@ Deno.serve(async (req) => {
       || `Bei Fragen zu dieser Rechnung stehen wir Ihnen gerne zur Verfügung.`;
 
     // Kopfzeile
-    const headText = `Sehr geehrte Damen und Herren,\n\nbeiliegend erhalten Sie unsere ${invoiceTypeLabel}${projectLabel ? ' für das Projekt „' + projectLabel + '"' : ''}${additionalPct}.`;
+    const headText = istSupport
+      ? `Sehr geehrte Damen und Herren,\n\nbeiliegend erhalten Sie die Verrechnung Ihrer Supportaufgabe.`
+      : `Sehr geehrte Damen und Herren,\n\nbeiliegend erhalten Sie unsere ${invoiceTypeLabel}${projectLabel ? ' für das Projekt „' + projectLabel + '"' : ''}${additionalPct}.`;
 
     // 6. Datum (Zahlungsziel 14 Tage)
     const todayDate = new Date().toISOString().split('T')[0];
@@ -160,13 +169,7 @@ Deno.serve(async (req) => {
     };
 
     // Einzelpositionen (z. B. je Support-Anfrage) aus dem Snapshot der Anweisung
-    let extraPositions = [];
-    try {
-      const snap = instr.source_snapshot_json ? JSON.parse(instr.source_snapshot_json) : null;
-      extraPositions = Array.isArray(snap?.invoice_positions) ? snap.invoice_positions : [];
-    } catch (_e) {
-      extraPositions = [];
-    }
+    const extraPositions = Array.isArray(snapshot?.invoice_positions) ? snapshot.invoice_positions : [];
 
     // Einheit „Stunde" in sevDesk suchen, sonst Standardeinheit
     let hourUnityId = '1';

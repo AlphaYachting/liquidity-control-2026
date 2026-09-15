@@ -19,7 +19,7 @@ export default function SupportInvoiceDialog({ row, open, onOpenChange, onDone }
   const positionen = gewaehlt.map(t => ({
     awork_task_id: t.awork_task_id,
     name: t.task_title,
-    text: `Supportanfrage · erledigt ${t.last_entry_date || '—'}${t.assignee_name ? ` · ${t.assignee_name}` : ''}`,
+    text: `Supportauftrag · geleistet am ${t.last_entry_date ? new Date(t.last_entry_date).toLocaleDateString('de-AT') : '—'}${t.assignee_name ? ` · ${t.assignee_name}` : ''}`,
     quantity: halbeStunden(t.open_minutes),
     price: Number(rate || 0),
   }));
@@ -40,12 +40,13 @@ export default function SupportInvoiceDialog({ row, open, onOpenChange, onDone }
         status: 'ready_for_backoffice',
         instruction_amount_net: netto,
         invoice_reason: positionen.length === 1
-          ? `Supportleistung: ${positionen[0].name} (${stunden.toFixed(1)} h)`
-          : `Supportleistungen ${row.project_name} — ${positionen.length} Anfragen, ${stunden.toFixed(1)} h`,
+          ? `Verrechnung Supportauftrag: ${positionen[0].name} (${stunden.toFixed(1)} h)`
+          : `Verrechnung Supportauftrag — ${positionen.length} Anfragen, ${stunden.toFixed(1)} h`,
         internal_note: `Support-Abrechnung aus awork (Status „In Verrechnung") — ${positionen.length} Positionen à ${rate} €/h, halbstundengenau`,
         source_snapshot_json: JSON.stringify({
           support_task_ids: positionen.map(p => p.awork_task_id),
           sevdesk_contact_id: row.sevdesk_contact_id || null,
+          invoice_header: 'Verrechnung Supportauftrag',
           hourly_rate: Number(rate),
           hours: stunden,
           invoice_positions: positionen,
