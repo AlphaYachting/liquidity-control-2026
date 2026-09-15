@@ -21,14 +21,14 @@ export default function SupportBilling() {
   });
 
   const rows = data?.rows || [];
-  const stunden = Math.round(((data?.total_open_minutes || 0) / 60) * 100) / 100;
+  const stunden = Math.round(((data?.total_billable_minutes || 0) / 60) * 10) / 10;
   const ohneRechnung = rows.filter(r => r.instructions.length === 0).length;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Support-Abrechnung"
-        subtitle="Erledigte Support-Aufgaben aus awork mit offener Zeit ab 24.07.2026 — live gegen sevDesk geprüft"
+        subtitle="Support-Anfragen mit awork-Status „In Verrechnung“ — je Anfrage eine Rechnungsposition, halbstundengenau"
         icon={LifeBuoy}
         actions={
           <div className="flex items-center gap-2">
@@ -62,8 +62,8 @@ export default function SupportBilling() {
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KpiCard title="Projekte mit offener Zeit" value={rows.length} subtitle={`${data.support_projects_checked} Support-Projekte geprüft`} />
-            <KpiCard title="Offene Support-Stunden" value={`${stunden.toFixed(2)} h`} subtitle="erledigte Aufgaben, Zeit noch nicht abgerechnet" variant="warning" />
+            <KpiCard title="Projekte zur Verrechnung" value={rows.length} subtitle={`${data.support_projects_checked} Support-Projekte geprüft`} />
+            <KpiCard title="Zu verrechnende Stunden" value={`${stunden.toFixed(1)} h`} subtitle="halbstundengenau, je Anfrage aufgerundet" variant="warning" />
             <KpiCard title="Rechnung zu erstellen" value={ohneRechnung} subtitle="ohne Abrechnungsanweisung" variant={ohneRechnung > 0 ? 'danger' : 'default'} />
             <KpiCard title="sevDesk-Abgleich" value={data.sevdesk_live ? 'live' : 'inaktiv'} subtitle={`Stand ${new Date(data.checked_at).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' })}`} />
           </div>

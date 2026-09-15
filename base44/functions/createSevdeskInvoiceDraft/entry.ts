@@ -151,9 +151,38 @@ Deno.serve(async (req) => {
       ...(sevdeskOrderId ? { origin: { id: sevdeskOrderId, objectName: 'Order' } } : {}),
     };
 
-    const invoiceResult = await sevdeskPost('/Invoice/Factory/saveInvoice', apiKey, {
-      invoice: invoicePayload,
-      invoicePosSave: [
+    // Einzelpositionen (z. B. je Support-Anfrage) aus dem Snapshot der Anweisung
+    let extraPositions = [];
+    try {
+      const snap = instr.source_snapshot_json ? JSON.parse(instr.source_snapshot_json) : null;
+      extraPositions = Array.isArray(snap?.invoice_positions) ? snap.invoice_positions : [];
+    } catch (_e) {
+      extraPositions = [];
+    }
+
+    // Einheit „Stunde" in sevDesk suchen, sonst Standardeinheit
+    let hourUnityId = '1';
+    if (extraPositions.length > 0) {
+      try {
+        const unities = (await sevdeskGet('/Unity?limit=100', apiKey)).objects || [];
+        const h = unities.find(u => /stunde|hour/i.test(`${u.name || ''} ${u.translationCode || ''}`) || (u.unity || '').toLowerCase() === 'h');
+        if (h?.id) hourUnityId = String(h.id);
+      } catch (_e) { /* Standardeinheit behalten */ }
+    }
+
+    const invoicePosSave = extraPositions.length > 0
+      ? extraPositions.map(p => ({
+          objectName: 'InvoicePos',
+          mapAll: true,
+          part: null,
+          quantity: String(p.quantity ?? 1),
+          price: String(p.price ?? 0),
+          name: String(p.name || 'Supportleistung').slice(0, 200),
+          text: String(p.text || ''),
+          unity: { id: hourUnityId, objectName: 'Unity' },
+          taxRate: String(vatRate),
+        }))
+      : [
         {
           objectName: 'InvoicePos',
           mapAll: true,
@@ -165,7 +194,11 @@ Deno.serve(async (req) => {
           unity: { id: '1', objectName: 'Unity' },
           taxRate: String(vatRate),
         }
-      ],
+      ];
+
+    const invoiceResult = await sevdeskPost('/Invoice/Factory/saveInvoice', apiKey, {
+      invoice: invoicePayload,
+      invoicePosSave,
       invoicePosDelete: null,
       discountSave: null,
       discountDelete: null,

@@ -4,24 +4,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 
-const std = (min) => Math.round((min / 60) * 100) / 100;
+// Verrechnet wird nur in halben Stunden — je Support-Anfrage aufgerundet, Minimum 0,5 h
+const halbeStunden = (min) => Math.max(0.5, Math.ceil((Number(min) || 0) / 30) / 2);
 
 export default function SupportInvoiceDialog({ row, open, onOpenChange, onDone }) {
   const [rate, setRate] = useState(120);
   const [selected, setSelected] = useState(() => row.tasks.map(t => t.awork_task_id));
-  const [grund, setGrund] = useState('');
   const [busy, setBusy] = useState(false);
   const [fehler, setFehler] = useState('');
 
   const gewaehlt = row.tasks.filter(t => selected.includes(t.awork_task_id));
-  const minuten = gewaehlt.reduce((s, t) => s + t.open_minutes, 0);
-  const netto = Math.round(std(minuten) * Number(rate || 0) * 100) / 100;
-
-  const standardGrund = `Supportleistungen ${row.project_name}:\n` +
-    gewaehlt.map(t => `- ${t.task_title} (${std(t.open_minutes).toFixed(2)} h)`).join('\n');
+  const positionen = gewaehlt.map(t => ({
+    awork_task_id: t.awork_task_id,
+    name: t.task_title,
+    text: `Supportanfrage · erledigt ${t.last_entry_date || '—'}${t.assignee_name ? ` · ${t.assignee_name}` : ''}`,
+    quantity: halbeStunden(t.open_minutes),
+    price: Number(rate || 0),
+  }));
+  const stunden = positionen.reduce((s, p) => s + p.quantity, 0);
+  const netto = Math.round(stunden * Number(rate || 0) * 100) / 100;
 
   const anlegen = async () => {
     setBusy(true);
@@ -35,9 +38,14 @@ export default function SupportInvoiceDialog({ row, open, onOpenChange, onDone }
         invoice_type: 'partial_invoice',
         status: 'ready_for_backoffice',
         instruction_amount_net: netto,
-        invoice_reason: (grund || standardGrund).trim(),
-        internal_note: `Support-Abrechnung aus awork — ${gewaehlt.length} Aufgaben, ${std(minuten).toFixed(2)} h à ${rate} €`,
-        source_snapshot_json: JSON.stringify({ support_task_ids: gewaehlt.map(t => t.awork_task_id), hourly_rate: Number(rate), minutes: minuten }),
+        invoice_reason: `Supportleistungen ${row.project_name} — ${positionen.length} Anfragen, ${stunden.toFixed(1)} h`,
+        internal_note: `Support-Abrechnung aus awork (Status „In Verrechnung") — ${positionen.length} Positionen à ${rate} €/h, halbstundengenau`,
+        source_snapshot_json: JSON.stringify({
+          support_task_ids: positionen.map(p => p.awork_task_id),
+          hourly_rate: Number(rate),
+          hours: stunden,
+          invoice_positions: positionen,
+        }),
       });
       const res = await base44.functions.invoke('createSevdeskInvoiceDraft', {
         billing_instruction_id: instr.id,
@@ -55,44 +63,50 @@ export default function SupportInvoiceDialog({ row, open, onOpenChange, onDone }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Rechnung anlegen — {row.customer_name || row.project_name}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="max-h-52 overflow-y-auto space-y-2 border rounded-lg p-3">
+          <p className="text-xs text-muted-foreground">
+            Jede Support-Anfrage geht als eigene Rechnungsposition heraus. Verrechnet wird in halben Stunden,
+            je Anfrage aufgerundet (Minimum 0,5 h).
+          </p>
+
+          <div className="max-h-60 overflow-y-auto border rounded-lg divide-y">
             {row.tasks.map(t => (
-              <label key={t.awork_task_id} className="flex items-start gap-2 text-sm">
+              <label key={t.awork_task_id} className="flex items-center gap-3 text-sm px-3 py-2">
                 <Checkbox
                   checked={selected.includes(t.awork_task_id)}
                   onCheckedChange={(c) => setSelected(s => c ? [...s, t.awork_task_id] : s.filter(x => x !== t.awork_task_id))}
                 />
-                <span className="flex-1">
-                  {t.task_title}
-                  <span className="text-muted-foreground"> · {std(t.open_minutes).toFixed(2)} h</span>
+                <span className="flex-1 truncate">{t.task_title}</span>
+                <span className="text-xs text-muted-foreground flex-shrink-0">
+                  gebucht {(t.open_minutes / 60).toFixed(2)} h
+                </span>
+                <span className="text-xs font-medium flex-shrink-0 w-16 text-right">
+                  {halbeStunden(t.open_minutes).toFixed(1)} h
                 </span>
               </label>
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">Stundensatz netto</Label>
               <Input type="number" value={rate} onChange={(e) => setRate(e.target.value)} />
             </div>
             <div>
+              <Label className="text-xs">Positionen / Stunden</Label>
+              <div className="h-9 flex items-center text-sm">{positionen.length} · {stunden.toFixed(1)} h</div>
+            </div>
+            <div>
               <Label className="text-xs">Rechnungsbetrag netto</Label>
               <div className="h-9 flex items-center font-semibold">
                 {netto.toLocaleString('de-AT', { style: 'currency', currency: 'EUR' })}
-                <span className="ml-2 text-xs font-normal text-muted-foreground">{std(minuten).toFixed(2)} h</span>
               </div>
             </div>
-          </div>
-
-          <div>
-            <Label className="text-xs">Rechnungsgrund / Positionstext</Label>
-            <Textarea rows={5} value={grund || standardGrund} onChange={(e) => setGrund(e.target.value)} />
           </div>
 
           {!row.liquidity_project_id && (

@@ -52,11 +52,14 @@ export default async function (req) {
     const projektById = {};
     supportProjekte.forEach(p => { projektById[p.awork_project_id] = p; });
 
-    // 2. Erledigte Aufgaben dieser Projekte
+    // 2. Aufgaben, die der Mitarbeiter in awork auf „In Verrechnung" gestellt hat
+    //    = Übergabe an die Rechnungslegung. Nur diese sind abzurechnen.
     const aufgaben = await alleSeiten((l, o) =>
-      base44.asServiceRole.entities.AworkTaskSnapshot.filter({ is_done: true }, '-last_activity_at', l, o)
+      base44.asServiceRole.entities.AworkTaskSnapshot.list('-last_activity_at', l, o)
     );
-    const erledigt = aufgaben.filter(t => projektById[t.awork_project_id]);
+    const erledigt = aufgaben.filter(t =>
+      projektById[t.awork_project_id] && /verrechnung|verrechnen/i.test(t.task_status_name || '')
+    );
     const aufgabeById = {};
     erledigt.forEach(t => { aufgabeById[t.awork_task_id] = t; });
 
@@ -113,7 +116,11 @@ export default async function (req) {
       perTask[b.task_id] = eintrag;
     });
 
-    // 7. Nach Projekt gruppieren
+    // 7. Verrechnung nur in halben Stunden — je Aufgabe aufgerundet, Minimum 30 Minuten
+    const aufHalbeStunde = (min) => Math.max(30, Math.ceil((Number(min) || 0) / 30) * 30);
+    Object.values(perTask).forEach(t => { t.billable_minutes = aufHalbeStunde(t.open_minutes); });
+
+    // 8. Nach Projekt gruppieren
     const gruppen = {};
     Object.values(perTask).forEach(t => {
       const p = projektById[t.awork_project_id];
@@ -126,15 +133,17 @@ export default async function (req) {
         liquidity_project_id: lp?.id || null,
         responsible: p?.responsible_user_name || '',
         open_minutes: 0,
+        billable_minutes: 0,
         tasks: [],
         instructions: [],
       };
+      g.billable_minutes += t.billable_minutes;
       g.open_minutes += t.open_minutes;
       g.tasks.push(t);
       gruppen[t.awork_project_id] = g;
     });
 
-    // 8. Rechnungsstand: Anweisungen dieses Projekts + Live-Status aus sevDesk
+    // 9. Rechnungsstand: Anweisungen dieses Projekts + Live-Status aus sevDesk
     const statusCache = {};
     async function liveStatus(sevdeskId) {
       if (!apiKey || !sevdeskId) return null;
@@ -186,6 +195,7 @@ export default async function (req) {
       since,
       rows,
       total_open_minutes: rows.reduce((s, r) => s + r.open_minutes, 0),
+      total_billable_minutes: rows.reduce((s, r) => s + r.billable_minutes, 0),
       sevdesk_live: Boolean(apiKey),
       checked_at: new Date().toISOString(),
     });
