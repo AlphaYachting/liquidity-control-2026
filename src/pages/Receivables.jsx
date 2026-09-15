@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { AlertTriangle, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import KpiCard from '@/components/shared/KpiCard';
 import FilterBar from '@/components/shared/FilterBar';
 import DataTable from '@/components/shared/DataTable';
 import DunningSection from '@/components/receivables/DunningSection';
+import ReceivableActions from '@/components/receivables/ReceivableActions';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { formatCurrency, calcOverdueDays, getAgingBucket, AGING_LABELS } from '@/lib/liquidityUtils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,6 +18,7 @@ export default function Receivables() {
   const [filters, setFilters] = useState({});
   const [alleAnzeigen, setAlleAnzeigen] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Standard: nur Forderungen mit Rechnungsdatum ab 24.07.2026
   const STICHTAG = '2026-07-24';
@@ -42,8 +44,19 @@ export default function Receivables() {
     const level = d.dunning_level || 0;
     const cur = dunningByInvoice[d.sevdesk_invoice_id];
     if (!cur || (sent && !cur.sent) || (sent === cur.sent && level > cur.level)) {
-      dunningByInvoice[d.sevdesk_invoice_id] = { level, label: d.level_label || '', sent };
+      dunningByInvoice[d.sevdesk_invoice_id] = {
+        level, label: d.level_label || '', sent,
+        id: d.id, status: d.status, url: d.sevdesk_reminder_url || '',
+      };
     }
+  });
+
+  // Mahnentwurf freigeben (versenden) oder verwerfen — direkt aus der Liste
+  const decideMutation = useMutation({
+    mutationFn: async ({ id, status }) => status === 'rejected'
+      ? base44.functions.invoke('rejectDunningDraft', { dunning_record_id: id })
+      : base44.functions.invoke('approveDunningDraft', { dunning_record_id: id }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dunningRecords'] }),
   });
 
   const enriched = (liveData?.invoices || []).map(r => ({
@@ -53,6 +66,9 @@ export default function Receivables() {
     dunning_level: dunningByInvoice[r.id]?.level || 0,
     dunning_label: dunningByInvoice[r.id]?.label || '',
     dunning_sent: dunningByInvoice[r.id]?.sent === true,
+    dunning_id: dunningByInvoice[r.id]?.id || '',
+    dunning_status: dunningByInvoice[r.id]?.status || '',
+    dunning_url: dunningByInvoice[r.id]?.url || '',
   }));
 
   const filtered = enriched.filter(r => {
@@ -91,6 +107,17 @@ export default function Receivables() {
         if (!row.dunning_sent) return <Badge className="bg-slate-100 text-slate-600">Entwurf: {row.dunning_label || `Stufe ${v}`}</Badge>;
         return <Badge className={v >= 2 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}>{row.dunning_label || `Stufe ${v}`} versendet</Badge>;
       },
+    },
+    {
+      key: 'id',
+      label: 'Aktion',
+      render: (v, row) => (
+        <ReceivableActions
+          row={row}
+          isPending={decideMutation.isPending}
+          onDecide={(id, status) => decideMutation.mutate({ id, status })}
+        />
+      ),
     },
   ];
 
@@ -141,6 +168,12 @@ export default function Receivables() {
         onChange={(k, v) => setFilters(f => ({ ...f, [k]: v }))}
         onReset={() => setFilters({})}
       />
+
+      {decideMutation.isError && (
+        <p className="text-xs text-red-600">
+          Fehler: {decideMutation.error?.response?.data?.error || decideMutation.error?.message}
+        </p>
+      )}
 
       <DataTable columns={columns} data={filtered} />
     </div>
