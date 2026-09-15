@@ -77,6 +77,7 @@ export default async function (req) {
     );
     const abgerechneteTasks = new Set();
     const anweisungProProjekt = {};
+    const anweisungProKunde = {};
     anweisungen.forEach(a => {
       let snap = null;
       try { snap = a.source_snapshot_json ? JSON.parse(a.source_snapshot_json) : null; } catch (_e) { snap = null; }
@@ -84,6 +85,8 @@ export default async function (req) {
       if (ids.length > 0 && a.status !== 'cancelled') {
         ids.forEach(id => abgerechneteTasks.add(id));
         (anweisungProProjekt[a.project_id] = anweisungProProjekt[a.project_id] || []).push(a);
+        const kundeKey = (a.customer_name || '').toLowerCase();
+        if (kundeKey) (anweisungProKunde[kundeKey] = anweisungProKunde[kundeKey] || []).push(a);
       }
     });
 
@@ -120,27 +123,54 @@ export default async function (req) {
     const aufHalbeStunde = (min) => Math.max(30, Math.ceil((Number(min) || 0) / 30) * 30);
     Object.values(perTask).forEach(t => { t.billable_minutes = aufHalbeStunde(t.open_minutes); });
 
-    // 8. Nach Projekt gruppieren
+    // 8. Kundenzuweisung je Anfrage (Support-Anfragen haben oft kein Projekt im Cockpit)
+    const zuweisungen = await alleSeiten((l, o) =>
+      base44.asServiceRole.entities.SupportTicketCustomer.list('-updated_date', l, o)
+    );
+    const zuweisungByTask = {};
+    zuweisungen.forEach(z => { if (!zuweisungByTask[z.awork_task_id]) zuweisungByTask[z.awork_task_id] = z; });
+
+    // Vorschlag aus dem Aufgabentitel: "SCHWERTNER - Probleme Onlineshop" -> SCHWERTNER
+    function kundeAusTitel(titel) {
+      const m = String(titel || '').match(/^\s*([^\-–|/]{2,40}?)\s*[-–|]\s+\S/);
+      return m ? m[1].trim() : '';
+    }
+
+    // 9. Nach Kunde gruppieren — ein Kunde = eine Rechnung mit je einer Zeile pro Anfrage
     const gruppen = {};
     Object.values(perTask).forEach(t => {
       const p = projektById[t.awork_project_id];
       const lp = liqByAwork[t.awork_project_id] || null;
-      const g = gruppen[t.awork_project_id] || {
-        awork_project_id: t.awork_project_id,
+      const z = zuweisungByTask[t.awork_task_id] || null;
+
+      t.project_name = p?.name || '';
+      t.suggested_customer = kundeAusTitel(t.task_title);
+      t.assigned_customer = z?.customer_name || '';
+      t.sevdesk_contact_id = z?.sevdesk_contact_id || '';
+
+      const kunde = z?.customer_name || lp?.customer || '';
+      const key = kunde ? `kunde:${kunde.toLowerCase()}` : `offen:${t.awork_project_id}`;
+
+      const g = gruppen[key] || {
+        group_key: key,
+        assigned: Boolean(kunde),
+        customer_name: kunde,
+        sevdesk_contact_id: z?.sevdesk_contact_id || '',
+        liquidity_project_id: z?.liquidity_project_id || lp?.id || null,
         project_name: p?.name || '',
         project_type: p?.project_type || '',
-        customer_name: lp?.customer || p?.company_name || '',
-        liquidity_project_id: lp?.id || null,
+        awork_project_id: t.awork_project_id,
         responsible: p?.responsible_user_name || '',
         open_minutes: 0,
         billable_minutes: 0,
         tasks: [],
         instructions: [],
       };
+      if (!g.sevdesk_contact_id && z?.sevdesk_contact_id) g.sevdesk_contact_id = z.sevdesk_contact_id;
       g.billable_minutes += t.billable_minutes;
       g.open_minutes += t.open_minutes;
       g.tasks.push(t);
-      gruppen[t.awork_project_id] = g;
+      gruppen[key] = g;
     });
 
     // 9. Rechnungsstand: Anweisungen dieses Projekts + Live-Status aus sevDesk
@@ -173,7 +203,9 @@ export default async function (req) {
     }
 
     for (const g of Object.values(gruppen)) {
-      const liste = anweisungProProjekt[g.liquidity_project_id] || [];
+      const liste = g.customer_name
+        ? (anweisungProKunde[g.customer_name.toLowerCase()] || [])
+        : (anweisungProProjekt[g.liquidity_project_id] || []);
       for (const a of liste) {
         const live = await liveStatus(a.sevdesk_invoice_id);
         g.instructions.push({

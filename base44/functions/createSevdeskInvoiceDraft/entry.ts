@@ -82,6 +82,14 @@ Deno.serve(async (req) => {
       if (order?.sevdesk_order_id) sevdeskOrderId = order.sevdesk_order_id;
     }
 
+    // 2b. Direkt zugewiesener sevDesk-Kunde (z. B. Support-Anfragen ohne Projekt)
+    if (!sevdeskContactId) {
+      try {
+        const snapContact = instr.source_snapshot_json ? JSON.parse(instr.source_snapshot_json)?.sevdesk_contact_id : null;
+        if (snapContact) sevdeskContactId = String(snapContact);
+      } catch (_e) { /* weiter mit Namenssuche */ }
+    }
+
     // 3. Fallback: Kontakt per Name suchen
     if (!sevdeskContactId && instr.customer_name) {
       const searchName = encodeURIComponent(instr.customer_name.substring(0, 40));

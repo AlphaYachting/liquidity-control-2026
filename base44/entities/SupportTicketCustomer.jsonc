@@ -1,0 +1,35 @@
+{
+  "name": "SupportTicketCustomer",
+  "type": "object",
+  "properties": {
+    "awork_task_id": {
+      "type": "string",
+      "description": "Support-Aufgabe in awork, die dem Kunden zugewiesen wurde"
+    },
+    "customer_name": {
+      "type": "string",
+      "description": "Kunde, an den diese Support-Anfrage verrechnet wird"
+    },
+    "sevdesk_contact_id": {
+      "type": "string",
+      "description": "sevDesk-Kunde f\u00fcr die Rechnung"
+    },
+    "liquidity_project_id": {
+      "type": "string",
+      "description": "Optional: Projekt im Cockpit \u2014 Support-Anfragen brauchen keines"
+    },
+    "assigned_by": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "awork_task_id",
+    "customer_name"
+  ],
+  "rls": {
+    "create": null,
+    "read": null,
+    "update": null,
+    "delete": null
+  }
+}
