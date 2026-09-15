@@ -40,6 +40,10 @@ export default async function (req) {
 
     const apiKey = secrets.get('SEVDESK_API_KEY');
 
+    // Stichtag: Insolvenzeröffnung 24.07.2026 — nur Buchungen ab diesem Tag
+    const body = await req.json().catch(() => ({}));
+    const since = body?.since === null ? null : (body?.since || '2026-07-24');
+
     // 1. awork Support-/Wartungsprojekte
     const projekte = await alleSeiten((l, o) =>
       base44.asServiceRole.entities.AworkProjectSnapshot.list('-last_synced_at', l, o)
@@ -60,7 +64,9 @@ export default async function (req) {
     const buchungen = await alleSeiten((l, o) =>
       base44.asServiceRole.entities.AworkTimeEntry.filter({ is_billed: false, is_billable: true }, '-entry_date', l, o)
     );
-    const offeneBuchungen = buchungen.filter(b => b.task_id && aufgabeById[b.task_id]);
+    const offeneBuchungen = buchungen.filter(b =>
+      b.task_id && aufgabeById[b.task_id] && (!since || (b.entry_date || '') >= since)
+    );
 
     // 4. Bereits über dieses Modul abgerechnete Aufgaben ausschließen
     const anweisungen = await alleSeiten((l, o) =>
@@ -177,6 +183,7 @@ export default async function (req) {
     return Response.json({
       success: true,
       support_projects_checked: supportProjekte.length,
+      since,
       rows,
       total_open_minutes: rows.reduce((s, r) => s + r.open_minutes, 0),
       sevdesk_live: Boolean(apiKey),
