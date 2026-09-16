@@ -167,14 +167,14 @@ ${params.schwerpunkt ? `5. Diesen Schwerpunkt eingearbeitet, nicht angehängt: $
 7. Gruß.
 GRENZE: keine Terminvorschläge, kein Rabatt, keine Frist, keine Ablaufdrohung, keine Wiederholung der Positionsliste. Endet mit einer offenen Frage.`;
     } else if (absicht === 'besprechung') {
-      if (!angebot) return Response.json({ error: 'Kein Angebot am Deal verknüpft.' });
       if (slots.length === 0) return Response.json({ error: 'Mindestens ein Termin nötig — es werden keine Termine erfunden.' });
-      betreff = `Unser Angebot „${angebot.titel}" — kurzes Gespräch?`;
-      task = `AUFGABE: Eine Besprechung zum übermittelten Angebot "${angebot.titel}" vorschlagen.
+      const bezug = angebot ? `Angebot "${angebot.titel}"` : 'bisherigen Austausch';
+      betreff = angebot ? `Unser Angebot „${angebot.titel}" — kurzes Gespräch?` : (threadSubject ? `Re: ${threadSubject}` : 'Kurzes Gespräch?');
+      task = `AUFGABE: Eine Besprechung zum ${bezug} vorschlagen.
 AUFBAU, streng in dieser Reihenfolge:
 1. Anrede.
 2. DER BOGEN: EIN Satz, der das ursprüngliche Anliegen des Kunden in SEINEN Worten aufgreift — woran ihm gelegen war, nicht "wir haben Ihnen ein Angebot geschickt".
-3. Bezug zum Angebot: Titel${gesendetAm ? ` und Übermittlungsdatum ${dLabel(gesendetAm)}` : ''}, in einem Halbsatz, worauf es zugeschnitten ist. KEINE Preiswiederholung.
+3. ${angebot ? `Bezug zum Angebot: Titel${gesendetAm ? ` und Übermittlungsdatum ${dLabel(gesendetAm)}` : ''}, in einem Halbsatz, worauf es zugeschnitten ist. KEINE Preiswiederholung.` : 'Bezug auf den letzten Austausch — nur was belegt im Verlauf steht. Kein Angebot erwähnen.'}
 4. Die Zeitspanne sachlich benennen${tage != null ? ` ("seither sind ${tage} Tage vergangen")` : ''}, ohne Vorwurf, mit der Deutung, dass offene Fragen sich schriftlich schlecht klären lassen.
 ${params.schwerpunkt ? `5. Diesen Schwerpunkt eingearbeitet, nicht angehängt: ${params.schwerpunkt}` : ''}
 6. DER VORSCHLAG: ein kurzes Gespräch${formatLabel ? ` ${formatLabel}` : ''}, danach die Termine als Aufzählung, je Termin EINE Zeile "- <Termin>", wortgleich.

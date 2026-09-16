@@ -3,7 +3,7 @@ import { ABSICHTEN } from './assistentConfig';
 
 // Nachfassen bleibt immer erreichbar — das Versanddatum eines außerhalb
 // der App verschickten Angebots wird im Feld darunter nachgetragen.
-const NUR_MIT_ANGEBOT = ['angebot', 'besprechung'];
+const NUR_MIT_ANGEBOT = ['angebot'];
 
 // Geschlossene Schaltergruppe, eine Zeile, zieht sich auf ihren Inhalt.
 export default function AbsichtGruppe({ value, onChange, angebotVorhanden }) {
