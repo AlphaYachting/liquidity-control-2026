@@ -135,12 +135,14 @@ AUFBAU: Bezug (1 Satz) / "Leistungen:" — je Position "Leistung - Ergebnis - Pr
 GRENZE: ausschließlich diese Positionen und Preise, keine Ergänzung, kein Rabatt.
 FREIGEGEBENE POSITIONEN (einzige Quelle):
 ${JSON.stringify({ positionen: angebot.positionen, summe_netto: angebot.summe_netto }, null, 2)}`;
-    } else if (absicht === 'nachfassen' && !angebot) {
-      // Kein Angebot vorhanden — nachgefasst wird auf Basis der letzten Kommunikation.
-      if (!conversation)
+    } else if (absicht === 'nachfassen' && (!angebot || !gesendetAm)) {
+      // Kein Angebot oder kein Übermittlungsdatum — nachgefasst wird auf Basis der letzten Kommunikation.
+      if (!conversation && !angebot)
         return Response.json({ error: 'Kein Angebot und kein Verlauf vorhanden — bitte die Anfrage oder ein Gespräch am Deal erfassen.' });
-      betreff = threadSubject ? `Re: ${threadSubject}` : 'Kurze Nachfrage';
-      task = `AUFGABE: Kurze, freundliche Nachfrage zum Stand der Sache — ohne Angebotsbezug, denn es liegt kein Angebot vor. KEINE Termine.
+      betreff = angebot
+        ? `Unser Angebot „${angebot.titel}" — kurze Nachfrage`
+        : (threadSubject ? `Re: ${threadSubject}` : 'Kurze Nachfrage');
+      task = `AUFGABE: Kurze, freundliche Nachfrage zum Stand der Sache${angebot ? ` — Bezug: das Angebot "${angebot.titel}", OHNE Datum und OHNE Preise` : ' — ohne Angebotsbezug, denn es liegt kein Angebot vor'}. KEINE Termine.
 AUFBAU, streng in dieser Reihenfolge:
 1. Anrede.
 2. EIN Satz, der das zuletzt Besprochene aus dem Verlauf in den Worten des Kunden aufgreift.
@@ -149,7 +151,7 @@ AUFBAU, streng in dieser Reihenfolge:
 ${params.schwerpunkt ? `5. Diesen Schwerpunkt eingearbeitet, nicht angehängt: ${params.schwerpunkt}` : ''}
 6. EIN Satz, der ein "derzeit nicht die Priorität" ausdrücklich zulässt.
 7. Gruß.
-GRENZE: kein Angebot erwähnen, keine Preise, keine Terminvorschläge, keine Frist. Nichts erfinden, was nicht im Verlauf steht. Endet mit einer offenen Frage.`;
+GRENZE: ${angebot ? 'nur der Angebotstitel, kein Übermittlungsdatum, keine Positionsliste' : 'kein Angebot erwähnen'}, keine Preise, keine Terminvorschläge, keine Frist. Nichts erfinden, was nicht im Verlauf steht. Endet mit einer offenen Frage.`;
     } else if (absicht === 'nachfassen') {
       if (!gesendetAm)
         return Response.json({ error: 'Kein Übermittlungsdatum bekannt — bitte das Versanddatum des Angebots nachtragen.' });
