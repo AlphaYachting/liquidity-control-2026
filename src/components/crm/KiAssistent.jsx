@@ -66,7 +66,7 @@ export default function KiAssistent({ deal, activities = [], appointments = [], 
     if (intent === 'absage' && !felder.grund.trim()) return 'Ohne Grund keine Absage.';
     if (intent === 'angebot' && angebot && !angebot.hat_pdf && angebot.anzahl_positionen === 0)
       return 'Das Angebot enthält noch keine freigegebenen Positionen.';
-    if (intent === 'nachfassen' && !stand?.gesendet_am)
+    if (intent === 'nachfassen' && angebotVorhanden && !stand?.gesendet_am)
       return 'Kein Übermittlungsdatum bekannt — bitte oben das Versanddatum des Angebots nachtragen.';
     return null;
   })();
