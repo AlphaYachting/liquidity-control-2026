@@ -1,5 +1,5 @@
 import React from 'react';
-import { FilePlus2, UserPlus } from 'lucide-react';
+import { FilePlus2, UserPlus, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const std = (min) => Math.round((min / 60) * 100) / 100;
@@ -15,6 +15,15 @@ export default function SupportTaskLine({ task, kundeZugewiesen, onInvoice, onAs
           {task.assignee_name || '—'} · letzte Buchung {task.last_entry_date || '—'} · gebucht {std(task.open_minutes).toFixed(2)} h · verrechnet {halb(task.open_minutes).toFixed(1)} h
         </p>
       </div>
+      <a
+        href={`https://app.awork.com/projects/${task.awork_project_id}/tasks/${task.awork_task_id}`}
+        target="_blank"
+        rel="noreferrer"
+        title="Ticket in awork öffnen"
+        className="flex-shrink-0 text-muted-foreground hover:text-foreground"
+      >
+        <ExternalLink className="w-3.5 h-3.5" />
+      </a>
       <Button size="sm" variant="ghost" className="flex-shrink-0" onClick={() => onAssign(task)}>
         <UserPlus className="w-3.5 h-3.5" /> Kunde
       </Button>
