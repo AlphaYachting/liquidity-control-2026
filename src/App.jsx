@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -56,29 +57,29 @@ import CrmProposalDetail from '@/pages/CrmProposalDetail';
 import CrmQuoteDetail from '@/pages/CrmQuoteDetail';
 import AuditTrail from '@/pages/AuditTrail';
 import RestructuringLayout from '@/components/restructuring/RestructuringLayout';
-import RestructuringCockpit from '@/pages/RestructuringCockpit';
-import Restructuring13Week from '@/pages/Restructuring13Week';
-import RestructuringPlan from '@/pages/RestructuringPlan';
-import RestructuringSollIst from '@/pages/RestructuringSollIst';
-import RestructuringFortfuehrung from '@/pages/RestructuringFortfuehrung';
-import RestructuringForecast from '@/pages/RestructuringForecast';
-import RestructuringAging from '@/pages/RestructuringAging';
-import RestructuringBacklog from '@/pages/RestructuringBacklog';
-import RestructuringWip from '@/pages/RestructuringWip';
-import RestructuringCoverage from '@/pages/RestructuringCoverage';
-import RestructuringSetup from '@/pages/RestructuringSetup';
-import SprintHeute from '@/pages/sprint/SprintHeute';
-import SprintUebersicht from '@/pages/sprint/SprintUebersicht';
-import SprintProjekte from '@/pages/sprint/SprintProjekte';
-import SprintIntelligence from '@/pages/sprint/SprintIntelligence';
+const RestructuringCockpit = lazy(() => import('@/pages/RestructuringCockpit'));
+const Restructuring13Week = lazy(() => import('@/pages/Restructuring13Week'));
+const RestructuringPlan = lazy(() => import('@/pages/RestructuringPlan'));
+const RestructuringSollIst = lazy(() => import('@/pages/RestructuringSollIst'));
+const RestructuringFortfuehrung = lazy(() => import('@/pages/RestructuringFortfuehrung'));
+const RestructuringForecast = lazy(() => import('@/pages/RestructuringForecast'));
+const RestructuringAging = lazy(() => import('@/pages/RestructuringAging'));
+const RestructuringBacklog = lazy(() => import('@/pages/RestructuringBacklog'));
+const RestructuringWip = lazy(() => import('@/pages/RestructuringWip'));
+const RestructuringCoverage = lazy(() => import('@/pages/RestructuringCoverage'));
+const RestructuringSetup = lazy(() => import('@/pages/RestructuringSetup'));
+const SprintHeute = lazy(() => import('@/pages/sprint/SprintHeute'));
+const SprintUebersicht = lazy(() => import('@/pages/sprint/SprintUebersicht'));
+const SprintProjekte = lazy(() => import('@/pages/sprint/SprintProjekte'));
+const SprintIntelligence = lazy(() => import('@/pages/sprint/SprintIntelligence'));
 import Zeiten from '@/pages/Zeiten';
-import SprintModulKatalog from '@/pages/sprint/SprintModulKatalog';
-import SprintAssistent from '@/pages/sprint/SprintAssistent';
-import SprintDetail from '@/pages/sprint/SprintDetail';
-import SprintMilestoneDetail from '@/pages/sprint/SprintMilestoneDetail';
-import SprintPlanung from '@/pages/sprint/SprintPlanung';
-import SprintSteuerung from '@/pages/sprint/SprintSteuerung';
-import SprintRechnungsuebergabe from '@/pages/sprint/SprintRechnungsuebergabe';
+const SprintModulKatalog = lazy(() => import('@/pages/sprint/SprintModulKatalog'));
+const SprintAssistent = lazy(() => import('@/pages/sprint/SprintAssistent'));
+const SprintDetail = lazy(() => import('@/pages/sprint/SprintDetail'));
+const SprintMilestoneDetail = lazy(() => import('@/pages/sprint/SprintMilestoneDetail'));
+const SprintPlanung = lazy(() => import('@/pages/sprint/SprintPlanung'));
+const SprintSteuerung = lazy(() => import('@/pages/sprint/SprintSteuerung'));
+const SprintRechnungsuebergabe = lazy(() => import('@/pages/sprint/SprintRechnungsuebergabe'));
 import MasseverwalterReport from '@/pages/MasseverwalterReport';
 import SystemMaintenance from '@/pages/SystemMaintenance';
 
@@ -135,6 +136,7 @@ const AuthenticatedApp = () => {
   }
 
   return (
+    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Ansicht wird geladen...</div>}>
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<MyDay />} />
@@ -212,6 +214,7 @@ const AuthenticatedApp = () => {
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
+    </Suspense>
   );
 };
 
