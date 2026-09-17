@@ -7,7 +7,7 @@ import {
   ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
   CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale,
   KanbanSquare, Inbox, History, Presentation, Mail, Sun, Siren,
-  Rocket, CalendarRange, Gauge, Layers, LifeBuoy
+  Rocket, CalendarRange, Gauge, Layers, LifeBuoy, Sparkles, SlidersHorizontal, Timer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
@@ -47,17 +47,17 @@ const navSections = [
     items: [
       { path: '/sprint/uebersicht', label: 'Übersicht', icon: Gauge },
       { path: '/sprint', label: 'Heute', icon: Rocket },
-      { path: '/zeiten', label: 'Zeiten', icon: Clock },
+      { path: '/zeiten', label: 'Zeiten', icon: Timer },
       { path: '/sprint/projekte', label: 'Projekte', icon: Layers },
       { path: '/sprint/intelligence', label: 'Projekt-Intelligence', icon: BrainCircuit },
       { path: '/sprint/planung', label: 'Planung', icon: CalendarRange },
-      { path: '/sprint/steuerung', label: 'Steuerung', icon: Gauge },
+      { path: '/sprint/steuerung', label: 'Steuerung', icon: SlidersHorizontal },
     ],
   },
   {
     title: 'Cashflow',
     items: [
-      { path: '/cashflow-advisor', label: 'Projektintelligence', icon: BrainCircuit },
+      { path: '/cashflow-advisor', label: 'KI-Analyse Cockpit', icon: Sparkles },
       { path: '/weekly-cashflow', label: 'Wöchentl. Cashflow', icon: CalendarDays },
       { path: '/variance-analysis', label: 'Abweichungsanalyse', icon: BarChart2 },
       { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
@@ -110,7 +110,10 @@ export default function Sidebar() {
     if (path === '/') return location.pathname === '/';
     if (path === '/sprint') return location.pathname === '/sprint';
     if (path === '/sprint/projekte') return /^\/sprint\/(projekte|katalog|neu|sprints|milestones)/.test(location.pathname);
-    return location.pathname.startsWith(path);
+    // Angebote und Deal-Details haben keinen eigenen Punkt — sie gehören zur Pipeline
+    if (path === '/crm') return location.pathname === '/crm'
+      || location.pathname.startsWith('/crm/deals') || location.pathname.startsWith('/crm/quotes');
+    return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   const renderNavLink = (item) => {
@@ -130,30 +133,31 @@ export default function Sidebar() {
         to={item.path}
         onClick={() => setMobileOpen(false)}
         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
           ${active
-            ? 'bg-sidebar-accent text-sidebar-foreground font-bold border-l-[3px] border-l-primary'
-            : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent'
+            ? 'bg-sidebar-accent text-sidebar-foreground font-semibold shadow-[inset_3px_0_0_hsl(var(--primary))]'
+            : 'text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent'
           }
           ${collapsed ? 'justify-center' : ''}`}
         title={collapsed ? item.label : undefined}
       >
-        <Icon className="w-4 h-4 flex-shrink-0" />
+        <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-sidebar-foreground' : 'text-muted-foreground'}`} />
         {!collapsed && <span className="truncate flex-1">{item.label}</span>}
         {(badgeCount > 0 || alertCount > 0) && (
           collapsed ? (
-            <span className={`absolute ml-6 -mt-4 w-2 h-2 rounded-full ${alertCount > 0 || badgeOverdue ? 'bg-red-600' : 'bg-amber-500'}`} />
+            <span className={`absolute ml-6 -mt-4 w-2 h-2 rounded-full ${alertCount > 0 || badgeOverdue ? 'bg-status-critical' : 'bg-foreground'}`} />
           ) : (
             <span className="flex-shrink-0 flex items-center gap-1">
               {badgeCount > 0 && (
                 <span
-                  className={`min-w-[20px] h-5 px-1.5 rounded-full text-white text-[11px] font-semibold flex items-center justify-center ${badgeOverdue ? 'bg-red-600' : 'bg-amber-500'}`}
+                  className={`min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold flex items-center justify-center ${badgeOverdue ? 'bg-status-critical text-white' : 'bg-foreground text-background'}`}
                   title={badgeOverdue ? `${crmInbox.overdue} überfällig (älter als 48 Stunden)` : undefined}
                 >
                   {badgeCount}
                 </span>
               )}
               {alertCount > 0 && (
-                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[11px] font-semibold flex items-center justify-center" title="Kunden-Eskalationen">
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-status-critical text-white text-[11px] font-semibold flex items-center justify-center" title="Kunden-Eskalationen">
                   {alertCount}
                 </span>
               )}
@@ -169,7 +173,7 @@ export default function Sidebar() {
       {collapsed ? (
         <div className="h-px bg-sidebar-border/60 mx-2" />
       ) : (
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           {title}
         </p>
       )}
@@ -186,7 +190,7 @@ export default function Sidebar() {
             </div>
             <div>
               <h1 className="text-sm font-semibold text-sidebar-foreground">Rittler & Co</h1>
-              <p className="text-xs text-sidebar-foreground/50">Agency Manager</p>
+              <p className="text-xs text-muted-foreground">Agency Manager</p>
             </div>
           </div>
         )}
@@ -226,7 +230,7 @@ export default function Sidebar() {
 
       {!collapsed && (
         <div className="p-4 border-t border-sidebar-border">
-          <p className="text-xs text-sidebar-foreground/40">v1.0 · Planungsjahr 2026</p>
+          <p className="text-xs text-muted-foreground">v1.0 · Planungsjahr 2026</p>
         </div>
       )}
     </div>
