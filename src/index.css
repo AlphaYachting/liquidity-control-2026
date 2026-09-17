@@ -8,6 +8,7 @@
   :root {
     --font-inter: 'Inter', sans-serif;
     --background: 0 0% 100%;
+    --canvas: 0 0% 97%;
     --foreground: 0 0% 18%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 18%;
@@ -23,8 +24,8 @@
     --accent-foreground: 0 0% 18%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 88%;
-    --input: 0 0% 88%;
+    --border: 0 0% 90%;
+    --input: 0 0% 83%;
     --ring: 344 100% 61%;
     --chart-1: 221 83% 53%;
     --chart-2: 142 71% 45%;
@@ -40,6 +41,8 @@
     --status-done: 149 60% 55%;
     --status-done-text: 154 60% 30%;
     --status-done-surface: 149 60% 95%;
+    --status-info: 208 49% 36%;
+    --status-info-surface: 210 47% 94%;
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;

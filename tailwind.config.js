@@ -7,13 +7,25 @@ module.exports = {
   		fontFamily: {
   			inter: ['var(--font-inter)']
   		},
+  		fontSize: {
+  			page: ['24px', { lineHeight: '30px', fontWeight: '800', letterSpacing: '-0.02em' }],
+  			kpi: ['24px', { lineHeight: '30px', fontWeight: '700', letterSpacing: '-0.01em' }],
+  			object: ['17px', { lineHeight: '24px', fontWeight: '500' }],
+  			value: ['15px', { lineHeight: '22px', fontWeight: '600' }],
+  			body: ['14px', { lineHeight: '21px' }],
+  			meta: ['13px', { lineHeight: '19px' }],
+  			label: ['12px', { lineHeight: '16px', fontWeight: '500', letterSpacing: '0.04em' }],
+  			section: ['11px', { lineHeight: '16px', fontWeight: '600', letterSpacing: '0.14em' }]
+  		},
   		borderRadius: {
+  			xl: 'var(--radius)',
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
   			background: 'hsl(var(--background))',
+  			canvas: 'hsl(var(--canvas))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
   				DEFAULT: 'hsl(var(--card))',
@@ -49,6 +61,8 @@ module.exports = {
   				'attention-surface': 'hsl(var(--status-attention-surface))',
   				critical: 'hsl(var(--status-critical))',
   				'critical-surface': 'hsl(var(--status-critical-surface))',
+  				info: 'hsl(var(--status-info))',
+  				'info-surface': 'hsl(var(--status-info-surface))',
   				done: 'hsl(var(--status-done))',
   				'done-text': 'hsl(var(--status-done-text))',
   				'done-surface': 'hsl(var(--status-done-surface))'

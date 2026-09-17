@@ -10,7 +10,7 @@ export default function AppLayout() {
     <ZeitKontextProvider>
       <div className="flex min-h-screen">
         <Sidebar />
-        <main className="flex-1 min-w-0 overflow-auto bg-background">
+        <main className="flex-1 min-w-0 overflow-auto bg-canvas">
           <Kopfleiste />
           {/* Freiraum unten in Höhe der Pille, damit sie keine Bedienelemente verdeckt */}
           <div className="p-4 md:p-6 lg:p-8 pb-28 md:pb-28 lg:pb-28 max-w-[1600px] mx-auto">
