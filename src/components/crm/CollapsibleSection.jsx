@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { Box, BoxKopf, BoxInhalt } from '@/components/shared/Box';
 
 // Einklappbarer Abschnitt — gibt allen Bereichen der Deal-Seite die gleiche Hülle,
 // damit lange Inhalte (Anfrage, E-Mail-Verlauf, Antwort) die Seite nicht überfluten.
@@ -7,21 +7,17 @@ export default function CollapsibleSection({ icon: Icon, title, hint, defaultOpe
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="border border-border rounded-lg bg-card overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-2.5">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-2 min-w-0 flex-1 text-left"
-        >
-          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? '' : '-rotate-90'}`} />
-          {Icon && <Icon className="w-4 h-4 text-primary shrink-0" />}
-          <span className="text-sm font-semibold truncate">{title}</span>
-          {hint && <span className="text-xs text-muted-foreground truncate">· {hint}</span>}
-        </button>
-        {open && action}
-      </div>
-      {open && <div className="px-4 pb-4">{children}</div>}
-    </div>
+    <Box className="overflow-hidden">
+      <BoxKopf
+        titel={title}
+        symbol={Icon}
+        hinweis={hint}
+        aktion={open ? action : null}
+        einklappbar
+        offen={open}
+        onToggle={() => setOpen((o) => !o)}
+      />
+      {open && <BoxInhalt>{children}</BoxInhalt>}
+    </Box>
   );
 }
