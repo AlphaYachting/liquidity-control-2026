@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { PenLine, ArrowLeft, MailQuestion, AlertTriangle } from 'lucide-react';
+import { PenLine, KanbanSquare, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import PageHeader from '@/components/shared/PageHeader';
+import Seitenkopf from '@/components/shared/Seitenkopf';
+import { Box } from '@/components/shared/Box';
 import InboxItemCard from '@/components/crm/InboxItemCard';
+import InboxFilterZeile from '@/components/crm/InboxFilterZeile';
 import SupportTicketDialog from '@/components/crm/support/SupportTicketDialog';
 import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
 import DealFormDialog from '@/components/crm/DealFormDialog';
@@ -31,6 +33,9 @@ export default function CrmInbox() {
   const { toast } = useToast();
   const [backchannelWarning, setBackchannelWarning] = useState(null);
   const [threadText, setThreadText] = useState('');
+  const [filter, setFilter] = useState('alle');
+  const [neuesteZuerst, setNeuesteZuerst] = useState(true);
+  const [offenId, setOffenId] = useState(null);
 
   // Fehlt der Anfragetext, den echten E-Mail-Verlauf nachladen — die Beschreibung
   // des Deals darf nie ein bloßes „Anfrage" sein.
@@ -55,10 +60,30 @@ export default function CrmInbox() {
     queryFn: () => base44.entities.InboxBlockedSender.list('-created_date', 200),
   });
 
-  // Eine gemeinsame Liste, streng nach Datum — neueste zuerst
-  const items = [...rawItems].filter((i) => !isBlockedSender(i.sender_email, blockedRules)).sort(
-    (a, b) => new Date(b.received_at || b.created_date) - new Date(a.received_at || a.created_date),
-  );
+  // Eine gemeinsame Liste, streng nach Datum
+  const zeit = (i) => new Date(i.received_at || i.created_date).getTime();
+  const items = [...rawItems]
+    .filter((i) => !isBlockedSender(i.sender_email, blockedRules))
+    .sort((a, b) => (neuesteZuerst ? zeit(b) - zeit(a) : zeit(a) - zeit(b)));
+
+  const aktionVon = (i) => i.suggested_action || (i.track === 'support' ? 'supportticket' : 'anfrage');
+  const passt = (i, f) => {
+    const act = aktionVon(i);
+    if (f === 'neu') return act === 'anfrage' && !i.is_known_customer;
+    if (f === 'bestand') return act === 'anfrage' && i.is_known_customer;
+    if (f === 'support') return act === 'supportticket';
+    return true;
+  };
+  const zahlen = {
+    alle: items.length,
+    neu: items.filter((i) => passt(i, 'neu')).length,
+    bestand: items.filter((i) => passt(i, 'bestand')).length,
+    support: items.filter((i) => passt(i, 'support')).length,
+  };
+  const gefilterte = items.filter((i) => passt(i, filter));
+  const offeneId = (gefilterte.find((i) => i.id === offenId) || gefilterte[0])?.id;
+
+  const overdue = items.filter((i) => Date.now() - zeit(i) >= 2 * 86400000).length;
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['crm-inbox'] });
@@ -137,60 +162,72 @@ export default function CrmInbox() {
   };
 
   return (
-    <div className="space-y-4 max-w-6xl">
-      <PageHeader
-        title="CRM — Posteingang"
-        subtitle="Alle triage-relevanten Anfragen in einer Liste — die KI schlägt vor, entschieden wird hier"
-        actions={
-          <div className="flex gap-2">
-            <Button variant="outline" className="gap-2" asChild>
-              <Link to="/crm"><ArrowLeft className="w-4 h-4" /> Zur Pipeline</Link>
+    <div className="max-w-[1200px] space-y-4">
+      <Seitenkopf
+        bereich="CRM"
+        titel="Posteingang"
+        kontext={`${items.length} Anfragen zu entscheiden${overdue > 0 ? ` · ${overdue} davon länger als 2 Tage unbeantwortet` : ''}`}
+        aktionen={
+          <>
+            <Button variant="outline" asChild>
+              <Link to="/crm"><KanbanSquare /> Pipeline</Link>
             </Button>
-            <Button className="gap-2" onClick={() => setCaptureOpen(true)}>
-              <PenLine className="w-4 h-4" /> Manuell erfassen
+            <Button onClick={() => setCaptureOpen(true)}>
+              <PenLine /> Manuell erfassen
             </Button>
-          </div>
+          </>
         }
       />
 
       {backchannelWarning && (
-        <div className="border border-amber-200 bg-amber-50 rounded-xl px-4 py-3 text-xs text-amber-800 flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+        <div className="rounded-lg bg-status-attention-surface px-4 py-3 text-meta text-foreground flex gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-status-attention" />
           <p className="flex-1">
             {backchannelWarning.mode === 'attach'
               ? <>Die Anfrage „{backchannelWarning.subject}" wurde dem Deal zugeordnet, aber der Thread konnte in der E-Mail-Zentrale nicht als zugeordnet markiert werden — er bleibt dort in „Braucht Antwort" stehen.</>
               : <>Der Lead zu „{backchannelWarning.subject}" wurde angelegt, aber der Thread konnte in der E-Mail-Zentrale nicht als übernommen markiert werden — er bleibt dort in „Braucht Antwort" stehen.</>}{' '}
             <Link to={`/crm/deals/${backchannelWarning.dealId}`} className="font-semibold underline">Deal öffnen</Link>
           </p>
-          <button onClick={() => setBackchannelWarning(null)} className="text-amber-700 font-semibold shrink-0">Ausblenden</button>
+          <button onClick={() => setBackchannelWarning(null)} className="font-semibold underline shrink-0">Ausblenden</button>
         </div>
       )}
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground py-10 text-center">Posteingang lädt…</p>
-      ) : items.length === 0 ? (
-        <div className="text-center py-16 border rounded-xl bg-card">
-          <div className="inline-flex p-3 rounded-2xl bg-muted mb-3">
-            <MailQuestion className="w-6 h-6 text-muted-foreground" />
-          </div>
-          <p className="text-sm font-medium">Keine neuen Anfragen</p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-            Sobald die Postfach-Anbindung aktiv ist, landen Anfragen der Telefon-KI und E-Mail-Leads automatisch hier.
-          </p>
-        </div>
+        <p className="text-meta text-muted-foreground py-10 text-center">Posteingang lädt…</p>
       ) : (
-        <div className="space-y-3 max-w-3xl">
-          {items.map((item) => (
-            <InboxItemCard
-              key={item.id}
-              item={item}
-              onConvert={handleConvert}
-              onAssign={setAssignItem}
-              onSupportTicket={setSupportItem}
-              onChanged={refresh}
-            />
-          ))}
-        </div>
+        <>
+          <InboxFilterZeile
+            filter={filter}
+            onFilter={setFilter}
+            zahlen={zahlen}
+            neuesteZuerst={neuesteZuerst}
+            onSortierung={() => setNeuesteZuerst((v) => !v)}
+          />
+
+          {gefilterte.length === 0 ? (
+            <Box className="py-16 text-center">
+              <p className="text-body text-foreground">Keine offenen Anfragen</p>
+              <p className="text-meta text-muted-foreground mt-1 max-w-sm mx-auto">
+                Sobald die Postfach-Anbindung aktiv ist, landen Anfragen der Telefon-KI und E-Mail-Leads automatisch hier.
+              </p>
+            </Box>
+          ) : (
+            <div className="bg-card border rounded-lg overflow-hidden divide-y">
+              {gefilterte.map((item) => (
+                <InboxItemCard
+                  key={item.id}
+                  item={item}
+                  offen={item.id === offeneId}
+                  onOeffnen={() => setOffenId(item.id)}
+                  onConvert={handleConvert}
+                  onAssign={setAssignItem}
+                  onSupportTicket={setSupportItem}
+                  onChanged={refresh}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <InboxCaptureDialog open={captureOpen} onOpenChange={setCaptureOpen} onSaved={refresh} />
