@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { sprintZuordnung } from '../../shared/projektTyp.js';
 
 // Stehende Übersicht der Projektintelligenz: Stillstand, Budget-Risiko,
 // Abrechnungslücke und ungepflegte Planwerte.
@@ -25,6 +26,13 @@ export default async function (req) {
     );
     const snapshots = await svc.entities.AworkProjectSnapshot.list('-created_date', 3000);
     const snapshotNachId = new Map(snapshots.map(s => [s.awork_project_id, s]));
+
+    // Projekttyp je Zeile — dieselbe Zuordnung wie im Handlungsbedarf.
+    const [sprintProjekte, clients] = await Promise.all([
+      svc.entities.Project.list('-created_date', 2000),
+      svc.entities.Client.list('-created_date', 1000),
+    ]);
+    const { typNachLiq } = sprintZuordnung({ liqProjekte: projekte, sprintProjekte, clients });
 
     // Geld kommt aus den echten Belegen, nicht aus den Excel-Altfeldern des Projekts.
     // Gezählt wird nur, was in sevDesk festgeschrieben und nicht storniert ist;
@@ -102,6 +110,7 @@ export default async function (req) {
         customer: p.customer || '',
         project_name: p.project_name || '',
         project_manager: p.project_manager || '',
+        projekt_typ: typNachLiq[p.id] || null,
         letzte_buchung: letzte,
         tage_seit_buchung: tage,
         auftrag_netto: gesamt,

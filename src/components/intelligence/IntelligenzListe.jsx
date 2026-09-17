@@ -1,50 +1,72 @@
-import React from 'react';
-import { BrainCircuit } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Box, BoxKopf } from '@/components/shared/Box';
+import Abschnittstitel from '@/components/shared/Abschnittstitel';
+import Listenzeile from '@/components/shared/Listenzeile';
+import TypPill from '@/components/sprint/TypPill';
+import { schweregradZuTon } from '@/lib/designTon';
 
-// Eine der stehenden Listen der Projekt-Intelligence — Kopf mit Zähler, Tabelle, Knopf je Zeile.
-export default function IntelligenzListe({ title, hint, columns, rows, onOpen, compact }) {
-  return (
-    <section className="rounded-xl border bg-card">
-      <div className="px-4 py-3 border-b flex items-baseline gap-2">
-        <h2 className={`font-semibold uppercase tracking-wide ${compact ? 'text-xs' : 'text-sm'}`}>{title}</h2>
-        <span className="text-xs text-muted-foreground">({rows.length})</span>
-        {hint && <span className="text-xs text-muted-foreground ml-2">{hint}</span>}
-      </div>
-      {rows.length === 0 ? (
-        <p className="px-4 py-4 text-sm text-muted-foreground">Keine Einträge.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-muted-foreground border-b">
-                {columns.map(c => (
-                  <th key={c.label} className={`px-4 py-2 font-medium ${c.align === 'right' ? 'text-right' : 'text-left'}`}>
-                    {c.label}
-                  </th>
-                ))}
-                <th className="px-4 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(r => (
-                <tr key={r.project_id} className="border-b last:border-0 hover:bg-muted/50">
-                  {columns.map(c => (
-                    <td key={c.label} className={`px-4 py-2 ${c.align === 'right' ? 'text-right tabular-nums' : ''}`}>
-                      {c.get(r)}
-                    </td>
-                  ))}
-                  <td className="px-4 py-2 text-right">
-                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onOpen(r)}>
-                      <BrainCircuit className="w-3.5 h-3.5 mr-1" /> Intelligenz
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+const ERST = 5;
+
+// Eine Handlungsliste der Projekt-Intelligence in der Zeilenform der Projekte-Übersicht.
+export default function IntelligenzListe({ id, title, hint, rows = [], onOpen, zeile, ton, eingebettet }) {
+  const [alle, setAlle] = useState(false);
+  const sichtbar = alle ? rows : rows.slice(0, ERST);
+
+  const zeilen = (
+    <div className="divide-y">
+      {sichtbar.map((r) => (
+        <Listenzeile
+          key={r.project_id}
+          typ={r.projekt_typ ? <TypPill project={r.projekt_typ} /> : <span />}
+          titel={r.customer || '—'}
+          {...zeile(r)}
+          wertTon={ton || schweregradZuTon(r.schweregrad)}
+          aktion={<Button variant="outline" size="sm" onClick={() => onOpen(r)}>Öffnen</Button>}
+        />
+      ))}
+      {!alle && rows.length > ERST && (
+        <div className="px-4 py-2">
+          <Button variant="ghost" size="sm" onClick={() => setAlle(true)}>
+            {rows.length - ERST} weitere anzeigen
+          </Button>
         </div>
       )}
-    </section>
+    </div>
   );
+
+  if (eingebettet) {
+    if (!rows.length) return null;
+    return (
+      <div className="space-y-2">
+        <Abschnittstitel>{title}</Abschnittstitel>
+        <div className="border rounded-lg">{zeilen}</div>
+      </div>
+    );
+  }
+
+  if (!rows.length) {
+    return (
+      <div id={id}>
+        <Box>
+          <BoxKopf symbol={CheckDone} titel={title} hinweis="nichts offen" offen={false} />
+        </Box>
+      </div>
+    );
+  }
+
+  return (
+    <div id={id}>
+      <Box>
+        <BoxKopf titel={title} zaehler={rows.length} hinweis={hint} />
+        {zeilen}
+      </Box>
+    </div>
+  );
+}
+
+// Häkchen im Ton „erledigt" — der einzige farbige Punkt einer leeren Liste.
+function CheckDone(props) {
+  return <Check {...props} className="w-4 h-4 text-status-done shrink-0" />;
 }

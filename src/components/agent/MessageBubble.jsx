@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, Zap, CheckCircle2, AlertCircle, Loader2, ChevronRight, Clock, Mail } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { markdownKomponenten } from '@/components/shared/markdownKomponenten';
 
 const FunctionDisplay = ({ toolCall }) => {
   const [expanded, setExpanded] = useState(false);
@@ -93,9 +94,10 @@ function MessageBubble({ message }) {
               <p className="text-sm leading-relaxed">{message.content}</p>
             ) : (
               <ReactMarkdown
-                className="text-sm prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                className="text-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
                 remarkPlugins={[remarkGfm]}
                 components={{
+                  ...markdownKomponenten,
                   code: ({ inline, className, children, ...props }) => {
                     const match = /language-(\w+)/.exec(className || '');
                     return !inline && match ? (

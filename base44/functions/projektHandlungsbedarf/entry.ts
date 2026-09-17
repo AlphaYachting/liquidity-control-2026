@@ -1,11 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { sprintZuordnung } from '../../shared/projektTyp.js';
 
 // Handlungsorientierte Projektintelligenz: wo muss jemand etwas TUN.
 // Kein Geldfokus — Feedback einfordern, Zusagen einhalten, Projekte am Leben halten.
 // Schreibt nichts.
 const TAG = 86400000;
 
-const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const tageSeit = (d) => (d ? Math.floor((Date.now() - new Date(d).getTime()) / TAG) : null);
 
 export default async function (req) {
@@ -33,33 +33,7 @@ export default async function (req) {
       }
     }
 
-    const kundeNachClientId = {};
-    for (const c of clients) kundeNachClientId[c.id] = c.name || '';
-
-    // Sprint-Projekt auf Liquiditätsprojekt abbilden: erst über den Kunden,
-    // bei mehreren Projekten desselben Kunden über die grösste Wortüberlappung im Titel.
-    const woerter = (s) => (s || '').toLowerCase().split(/[^a-zäöüß0-9]+/).filter(w => w.length > 3);
-    const liqNachSprintProjekt = {};
-    for (const sp of sprintProjekte) {
-      const kunde = norm(kundeNachClientId[sp.client_id]);
-      if (!kunde) continue;
-      const kandidaten = liqProjekte.filter(lp => {
-        const lpKunde = norm(lp.customer);
-        return lpKunde && (lpKunde.includes(kunde) || kunde.includes(lpKunde));
-      });
-      if (!kandidaten.length) continue;
-      let treffer = kandidaten[0];
-      if (kandidaten.length > 1) {
-        const spWorte = woerter(sp.title);
-        let best = -1;
-        for (const k of kandidaten) {
-          const kWorte = woerter(k.project_name);
-          const score = spWorte.filter(w => kWorte.includes(w)).length;
-          if (score > best) { best = score; treffer = k; }
-        }
-      }
-      liqNachSprintProjekt[sp.id] = treffer.id;
-    }
+    const { liqNachSprintProjekt, typNachLiq } = sprintZuordnung({ liqProjekte, sprintProjekte, clients });
 
     // Aufgaben, die auf jemand anderen warten
     const wartendNachProjekt = {};
@@ -109,6 +83,7 @@ export default async function (req) {
         customer: p.customer || '',
         project_name: p.project_name || '',
         project_manager: p.project_manager || '',
+        projekt_typ: typNachLiq[p.id] || null,
       };
 
       const wartend = (wartendNachProjekt[p.id] || []).sort((a, b) => (b.tage || 0) - (a.tage || 0));
