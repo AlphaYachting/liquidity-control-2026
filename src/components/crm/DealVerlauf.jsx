@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { History } from 'lucide-react';
+import { Box, BoxKopf } from '@/components/shared/Box';
 import ActivityComposer from '@/components/crm/ActivityComposer';
 import ActivityTimeline from '@/components/crm/ActivityTimeline';
 
@@ -26,15 +27,17 @@ export default function DealVerlauf({ dealId, activities = [], onChanged }) {
   );
 
   return (
-    <div className="border border-border rounded-lg bg-card">
-      <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-        <History className="w-4 h-4 text-primary" />
-        <span className="text-sm font-semibold">Verlauf</span>
-        <div className="ml-auto inline-flex border border-input rounded-sm overflow-hidden">
-          <span className="border-r border-input inline-flex">{knopf('gespraeche', 'Nur Gespräche')}</span>
-          {knopf('alles', 'Alles')}
-        </div>
-      </div>
+    <Box>
+      <BoxKopf
+        symbol={History}
+        titel="Verlauf"
+        aktion={
+          <div className="inline-flex border border-input rounded-sm overflow-hidden">
+            <span className="border-r border-input inline-flex">{knopf('gespraeche', 'Nur Gespräche')}</span>
+            {knopf('alles', 'Alles')}
+          </div>
+        }
+      />
 
       <div className="p-4">
         <div className="border-b border-border pb-4 mb-4">
@@ -53,6 +56,6 @@ export default function DealVerlauf({ dealId, activities = [], onChanged }) {
           </button>
         )}
       </div>
-    </div>
+    </Box>
   );
 }

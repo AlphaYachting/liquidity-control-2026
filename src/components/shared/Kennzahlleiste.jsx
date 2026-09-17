@@ -18,7 +18,7 @@ export default function Kennzahlleiste({ werte = [] }) {
             className={cn(ZELLE, (w.ton === 'attention' || w.ton === 'critical') && TON_STREIFEN[w.ton])}
           >
             <p className="text-label uppercase text-muted-foreground truncate">{w.label}</p>
-            <p className="text-kpi text-foreground tabular-nums">{w.wert}</p>
+            <div className={cn('tabular-nums', w.klein ? 'text-value text-muted-foreground mt-1.5' : 'text-kpi text-foreground')}>{w.wert}</div>
             {w.hinweis && (
               <p className={cn('text-meta truncate', w.ton === 'done' ? 'text-status-done-text' : 'text-muted-foreground')}>
                 {w.hinweis}

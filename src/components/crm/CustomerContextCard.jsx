@@ -1,7 +1,8 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Landmark } from 'lucide-react';
+import { Landmark, AlertTriangle } from 'lucide-react';
+import { Box, BoxKopf, BoxInhalt } from '@/components/shared/Box';
 import { eur } from '@/components/crm/stages';
 
 // Bestandskunden-Kontext: laufende Projekte + offene Forderungen aus vorhandenen Daten
@@ -25,38 +26,41 @@ export default function CustomerContextCard({ customerName }) {
     i.payment_status === 'overdue' || (i.due_date && new Date(i.due_date) < new Date())).length;
 
   return (
-    <div className="border rounded-xl bg-card p-4 space-y-2">
-      <h3 className="text-sm font-semibold flex items-center gap-1.5">
-        <Landmark className="w-3.5 h-3.5 text-primary" /> Kunden-Kontext
-      </h3>
-      <div className="text-xs space-y-1.5">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Aktive Projekte</span>
-          <span className="font-semibold">{projects.length}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Offene Forderungen</span>
-          <span className={`font-semibold ${openSum > 0 ? 'text-amber-600' : ''}`}>{eur(openSum)}</span>
-        </div>
-        {overdueCount > 0 && (
+    <Box>
+      <BoxKopf symbol={Landmark} titel="Kunden-Kontext" />
+      <BoxInhalt>
+        <div className="space-y-1.5">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Davon überfällig</span>
-            <span className="font-semibold text-red-600">{overdueCount} Rechnung(en)</span>
+            <span className="text-body text-muted-foreground">Aktive Projekte</span>
+            <span className="text-value tabular-nums">{projects.length}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-body text-muted-foreground">Offene Forderungen</span>
+            <span className="text-value tabular-nums text-foreground">{eur(openSum)}</span>
+          </div>
+          {overdueCount > 0 && (
+            <div className="flex justify-between">
+              <span className="text-body text-muted-foreground">Davon überfällig</span>
+              <span className="text-value tabular-nums text-status-critical">{overdueCount} Rechnung(en)</span>
+            </div>
+          )}
+        </div>
+
+        {projects.length > 0 && (
+          <div className="pt-2 border-t space-y-1">
+            {projects.slice(0, 4).map(p => (
+              <p key={p.id} className="text-meta text-muted-foreground truncate">• {p.project_name}</p>
+            ))}
           </div>
         )}
-      </div>
-      {projects.length > 0 && (
-        <div className="pt-2 border-t space-y-1">
-          {projects.slice(0, 4).map(p => (
-            <p key={p.id} className="text-xs text-muted-foreground truncate">• {p.project_name}</p>
-          ))}
-        </div>
-      )}
-      {overdueCount > 0 && (
-        <p className="text-[11px] rounded-md bg-red-50 text-red-700 px-2 py-1.5 font-medium">
-          ⚠️ Vor neuem Angebot: offene Forderungen ansprechen
-        </p>
-      )}
-    </div>
+
+        {overdueCount > 0 && (
+          <div className="rounded-lg bg-status-attention-surface px-3 py-2.5 text-meta text-foreground flex gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-status-attention" />
+            <span>Vor neuem Angebot: offene Forderungen ansprechen</span>
+          </div>
+        )}
+      </BoxInhalt>
+    </Box>
   );
 }

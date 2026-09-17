@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -7,7 +7,7 @@ import { toPlainText, copyFormatted } from '@/components/crm/quotes/emailBodyFor
 import { markDealContacted } from '@/components/crm/dealContact';
 import { markThreadAnswered } from '@/components/crm/emails/markThreadAnswered';
 import { PIPELINES } from '@/components/crm/stages';
-import { angebotStand } from '@/lib/crm/angebotStille';
+import { kiVorschlag } from '@/lib/crm/kiVorschlag';
 import AssistentKopf from '@/components/crm/assistent/AssistentKopf';
 import AbsichtGruppe from '@/components/crm/assistent/AbsichtGruppe';
 import QuellenChip from '@/components/crm/assistent/QuellenChip';
@@ -21,7 +21,8 @@ const LEER = { slots: ['', '', ''], format: 'video', stichworte: '', schwerpunkt
 const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
 // KI-Assistent für Kunden-E-Mails am Deal — im Ruhezustand eine Zeile.
-export default function KiAssistent({ deal, activities = [], appointments = [], onChanged }) {
+export default function KiAssistent({ deal, activities = [], appointments = [], onChanged, startIntent, startSignal }) {
+  const kopfRef = useRef(null);
   const { toast } = useToast();
   const { data: angebot } = useAngebot(deal);
   const [offen, setOffen] = useState(false);
@@ -41,22 +42,25 @@ export default function KiAssistent({ deal, activities = [], appointments = [], 
   const [sending, setSending] = useState(false);
 
   const setFeld = (k, v) => setFelder((prev) => ({ ...prev, [k]: v }));
-  const stand = useMemo(() => angebotStand(deal, activities, appointments), [deal, activities, appointments]);
+  const v = useMemo(() => kiVorschlag(deal, activities, appointments), [deal, activities, appointments]);
+  const stand = v.stand;
   // Eine Größe für Kopf und Schaltergruppe — auch außerhalb der App verschickte Angebote zählen.
-  const angebotVorhanden = Boolean(deal.proposal_id || deal.quote_id) || Boolean(stand);
+  const angebotVorhanden = v.angebotVorhanden;
   const letzteGesendet = useMemo(
     () => (activities || []).find((a) => a.activity_type === 'email' && a.direction !== 'eingehend'),
     [activities],
   );
 
-  // Zuerst nachfragen, Termine erst wenn Interesse besteht.
-  const vorschlag = stand
-    ? { label: 'Nachfassen', intent: 'nachfassen', pink: stand.tage >= 7 }
-    : angebotVorhanden
-      ? { label: 'Angebot übermitteln', intent: 'angebot', pink: false }
-      : { label: 'Antwort entwerfen', intent: 'antwort', pink: false };
+  const vorschlag = { label: v.button, intent: v.intent, pink: false };
 
   const oeffnenMit = (naechste) => { setIntent(naechste); setOffen(true); };
+
+  // Von außen geöffnet — etwa aus dem „Nächsten Schritt".
+  useEffect(() => {
+    if (!startSignal) return;
+    oeffnenMit(startIntent);
+    kopfRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [startSignal]); // eslint-disable-line react-hooks/exhaustive-deps
   const zuklappen = () => { setOffen(false); setVarianten(null); setBody(''); setSubject(''); setFehler(null); };
 
   const slotsGefuellt = felder.slots.filter(Boolean);
@@ -206,7 +210,7 @@ export default function KiAssistent({ deal, activities = [], appointments = [], 
   };
 
   return (
-    <div className="border border-border rounded-lg bg-card">
+    <div ref={kopfRef} className="bg-card border rounded-lg">
       <AssistentKopf
         offen={offen}
         onToggle={() => (offen ? zuklappen() : setOffen(true))}

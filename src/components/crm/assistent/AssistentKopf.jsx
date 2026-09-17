@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronRight, Sparkles } from 'lucide-react';
 import { dateLabel } from './assistentConfig';
 
-// Eine Zeile im Ruhezustand: Pfeil, Versalzeile, Lage, vorgeschlagene Handlung.
+// Eine Zeile im Ruhezustand: Pfeil, Titel, Lage, vorgeschlagene Handlung.
 export default function AssistentKopf({ offen, onToggle, stand, letzteGesendet, kontaktName, vorschlag, onVorschlag }) {
   const lage = offen ? (
     <>E-Mail an {kontaktName || 'den Kontakt'} entwerfen</>
@@ -23,19 +23,14 @@ export default function AssistentKopf({ offen, onToggle, stand, letzteGesendet, 
         <ChevronRight
           className={`w-[14px] h-[14px] text-muted-foreground shrink-0 transition-transform ${offen ? 'rotate-90' : ''}`}
         />
-        <Sparkles className="w-4 h-4 text-primary shrink-0" />
-        <span className="text-sm font-semibold flex-none">KI-Assistent</span>
-        <span className="text-xs text-muted-foreground truncate">· {lage}</span>
+        <Sparkles className="w-4 h-4 text-muted-foreground shrink-0" />
+        <span className="text-value flex-none">KI-Assistent</span>
+        <span className="text-meta text-muted-foreground truncate">· {lage}</span>
       </button>
       {offen ? (
         <Button size="sm" variant="ghost" className="ml-auto" onClick={onToggle}>Schließen</Button>
       ) : (
-        <Button
-          size="sm"
-          variant={vorschlag.pink ? 'default' : 'outline'}
-          className={`ml-auto shrink-0 ${vorschlag.pink ? 'bg-primary text-primary-foreground' : ''}`}
-          onClick={onVorschlag}
-        >
+        <Button size="sm" variant="outline" className="ml-auto shrink-0" onClick={onVorschlag}>
           {vorschlag.label}
         </Button>
       )}

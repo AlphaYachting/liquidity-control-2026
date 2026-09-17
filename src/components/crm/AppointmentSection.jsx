@@ -3,17 +3,14 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CalendarPlus, Check, X } from 'lucide-react';
+import StatusEtikett from '@/components/shared/StatusEtikett';
 
-const STATUS_BADGE = {
-  proposed: 'bg-amber-100 text-amber-700',
-  confirmed: 'bg-emerald-100 text-emerald-700',
-  declined: 'bg-red-100 text-red-700',
-  cancelled: 'bg-muted text-muted-foreground',
-  completed: 'bg-emerald-100 text-emerald-700',
-};
-const STATUS_LABEL = {
-  proposed: 'Vorgeschlagen', confirmed: 'Bestätigt ✓', declined: 'Abgelehnt',
-  cancelled: 'Abgesagt', completed: 'Stattgefunden ✓',
+const STATUS_META = {
+  proposed: { ton: 'info', text: 'Vorgeschlagen' },
+  confirmed: { ton: 'done', text: 'Bestätigt' },
+  declined: { ton: 'neutral', text: 'Abgelehnt' },
+  cancelled: { ton: 'neutral', text: 'Abgesagt' },
+  completed: { ton: 'done', text: 'Stattgefunden' },
 };
 
 export default function AppointmentSection({ deal, appointments, onChanged }) {
@@ -64,9 +61,9 @@ export default function AppointmentSection({ deal, appointments, onChanged }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Termine</h3>
-        <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => setAdding((v) => !v)}>
-          <CalendarPlus className="w-3 h-3" /> Termin
+        <h3 className="text-value">Termine</h3>
+        <Button size="sm" variant="outline" onClick={() => setAdding((v) => !v)}>
+          <CalendarPlus /> Termin
         </Button>
       </div>
       {adding && (
@@ -77,28 +74,26 @@ export default function AppointmentSection({ deal, appointments, onChanged }) {
         </div>
       )}
       {(!appointments || appointments.length === 0) && !adding && (
-        <p className="text-xs text-muted-foreground">Keine Termine.</p>
+        <p className="text-meta text-muted-foreground">Keine Termine.</p>
       )}
       {appointments?.map(a => (
         <div key={a.id} className="border rounded-lg p-2.5 space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium truncate">{a.title || 'Termin'}</p>
-            <span className={`text-[11px] px-1.5 py-0.5 rounded-sm font-medium shrink-0 ${STATUS_BADGE[a.status]}`}>
-              {STATUS_LABEL[a.status]}
-            </span>
+            <p className="text-body font-medium truncate">{a.title || 'Termin'}</p>
+            <StatusEtikett ton={(STATUS_META[a.status] || STATUS_META.proposed).ton}>
+              {(STATUS_META[a.status] || STATUS_META.proposed).text}
+            </StatusEtikett>
           </div>
           <p className="text-xs text-muted-foreground">
             {new Date(a.scheduled_at).toLocaleString('de-AT', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </p>
           {a.status === 'proposed' && (
             <div className="flex gap-1.5">
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1 flex-1 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                onClick={() => setStatus(a, 'confirmed')}>
-                <Check className="w-3 h-3" /> Bestätigt
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => setStatus(a, 'confirmed')}>
+                <Check /> Bestätigt
               </Button>
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1 flex-1 text-red-600 border-red-200 hover:bg-red-50"
-                onClick={() => setStatus(a, 'cancelled')}>
-                <X className="w-3 h-3" /> Abgesagt
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => setStatus(a, 'cancelled')}>
+                <X /> Abgesagt
               </Button>
             </div>
           )}
