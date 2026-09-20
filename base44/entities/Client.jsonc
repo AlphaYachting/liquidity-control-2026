@@ -16,6 +16,23 @@
       "type": "string",
       "format": "email"
     },
+    "street": {
+      "type": "string",
+      "description": "Stra\u00dfe und Hausnummer der Rechnungsadresse"
+    },
+    "zip": {
+      "type": "string",
+      "description": "Postleitzahl"
+    },
+    "city": {
+      "type": "string",
+      "description": "Ort"
+    },
+    "country_code": {
+      "type": "string",
+      "default": "AT",
+      "description": "L\u00e4ndercode, z. B. AT oder DE"
+    },
     "agb_version": {
       "type": "string",
       "description": "AGB-Fassung, der der Kunde zugestimmt hat \u2014 tr\u00e4gt die stillschweigende Freigabe"

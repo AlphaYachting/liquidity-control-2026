@@ -38,6 +38,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
   const [client, setClient] = useState(null);
   const [manualRows, setManualRows] = useState([{ name: '', amount: '', module_choice: '' }]);
   const [moduleChoices, setModuleChoices] = useState({});
+  const [belegFehler, setBelegFehler] = useState(null);
   const kunde = deal.linked_customer_name || deal.company_name || '';
 
   const { data, isLoading } = useQuery({
@@ -87,8 +88,9 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
       // Verlauf und Anfragetext als Projektkontext mitgeben
       const transcript = deal.email_thread_id ? await threadTranscript(deal.email_thread_id).catch(() => '') : '';
       const contextText = [deal.description, transcript].filter(Boolean).join('\n\n---\n\n');
-      const { wizardState } = await commitHandover({
-        deal, kunde: client.name, clientId: client.id, positions, total,
+      const { wizardState, sevdeskFehler } = await commitHandover({
+        deal, kunde: client.name, clientId: client.id, sevdeskContactId: client.sevdesk_contact_id,
+        positions, total,
         advancePercent: advancePercent,
         projectType: typ,
         pm,
@@ -109,6 +111,11 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
           : `Auftrag angelegt · ${eur(total)} · Anzahlung ${advancePercent} % (${eur(advanceAmount)}) · PM ${pm || '—'} — ${ab.reason}`,
         activity_date: now,
       });
+      if (sevdeskFehler) {
+        // Auftrag steht, der Beleg fehlt — das wird benannt statt stillschweigend übergangen
+        setBelegFehler({ text: sevdeskFehler, wizardState });
+        return;
+      }
       onDone?.();
       // Projekt entsteht im bestehenden Anlage-Wizard, vorbefüllt aus dem Angebot
       navigate('/sprint/neu', { state: wizardState });
@@ -201,6 +208,18 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
               </>
             )}
           </div>
+
+          {belegFehler && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 space-y-2">
+              <p className="text-xs text-amber-800">
+                Auftrag und Kunde stehen, aber in sevDesk entstand kein Beleg: {belegFehler.text}.
+                Angebot und Auftragsbestätigung bitte in sevDesk prüfen.
+              </p>
+              <Button size="sm" className="h-8 text-xs" onClick={() => { onDone?.(); navigate('/sprint/neu', { state: belegFehler.wizardState }); }}>
+                Weiter zum Projekt anlegen
+              </Button>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 border-t pt-3">
             <Button variant="outline" onClick={onCancel}>Abbrechen</Button>

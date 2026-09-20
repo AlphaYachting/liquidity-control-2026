@@ -27,7 +27,7 @@ export function matchModules(positions, modules) {
 
 // Der Kunde wird im Übergabeblatt ausdrücklich gewählt oder angelegt —
 // hier wird nie mehr geraten und kein Stummel-Client erzeugt.
-export async function commitHandover({ deal, kunde, clientId, positions, total, advancePercent, projectType, pm, abRequired, modules, contextText }) {
+export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, positions, total, advancePercent, projectType, pm, abRequired, modules, contextText }) {
   if (!clientId) throw new Error('Kein verknüpfter Kunde übergeben');
   const today = new Date().toISOString().split('T')[0];
 
@@ -42,6 +42,7 @@ export async function commitHandover({ deal, kunde, clientId, positions, total, 
     status: 'confirmed',
     source_type: 'manual',
     responsible_project_manager: pm,
+    sevdesk_contact_id: sevdeskContactId || '',
     notes: `Projekttyp: ${projectType}`,
   });
 
@@ -56,8 +57,38 @@ export async function commitHandover({ deal, kunde, clientId, positions, total, 
     })));
   }
 
+  // Beleg in sevDesk: Angebot anlegen, daraus die Auftragsbestätigung erzeugen
+  let sevdeskFehler = '';
+  const belegPositionen = positions.length > 0
+    ? positions.map((p) => ({ name: p.name, amount: p.amount, quantity: 1 }))
+    : [{ name: deal.title, amount: total, quantity: 1 }];
+  const res = await base44.functions.invoke('createSevdeskAngebotUndAb', {
+    sevdesk_contact_id: sevdeskContactId,
+    header: `Angebot ${deal.title}`,
+    positions: belegPositionen,
+  }).catch((e) => ({ data: { success: false, error: e?.message || 'sevDesk nicht erreichbar' } }));
+  const beleg = res?.data || {};
+  if (beleg.success) {
+    await base44.entities.ConfirmedOrder.update(order.id, {
+      sevdesk_quote_id: beleg.quote_id || '',
+      sevdesk_quote_number: beleg.quote_number || '',
+      sevdesk_order_id: beleg.order_id || '',
+      sevdesk_order_url: beleg.order_url || '',
+      order_number: beleg.order_number || '',
+    });
+  } else {
+    sevdeskFehler = beleg.error || 'Angebot/Auftragsbestätigung konnte in sevDesk nicht angelegt werden';
+    if (beleg.quote_id) {
+      await base44.entities.ConfirmedOrder.update(order.id, {
+        sevdesk_quote_id: beleg.quote_id,
+        sevdesk_quote_number: beleg.quote_number || '',
+      });
+    }
+  }
+
   return {
     order,
+    sevdeskFehler,
     wizardState: {
       seed: {
         client_id: clientId,

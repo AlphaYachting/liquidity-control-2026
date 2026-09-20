@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Check, Link2, Plus, Search } from 'lucide-react';
+import AdressFelder from '@/components/crm/handover/AdressFelder';
+import { adresseAufteilen, adresseVollstaendig } from '@/lib/crm/adresse';
 
 // Pflichtschritt vor der Freigabe: der Kunde wird ausdrücklich gewählt oder angelegt.
 // Gültig ist er erst mit verknüpfter sevDesk-Kontakt-ID.
@@ -17,6 +19,8 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
   const [linkMode, setLinkMode] = useState(false);
   const [manualHint, setManualHint] = useState(null);
   const [manualId, setManualId] = useState('');
+  // Rechnungsadresse: Vorschlag aus dem Deal, im Blatt sichtbar bestätigt
+  const [adresse, setAdresse] = useState(() => adresseAufteilen(deal?.company_address));
 
   useEffect(() => {
     const q = query.trim();
@@ -45,16 +49,38 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
     contact_person: deal?.contact_name || '',
     contact_email: deal?.contact_email || 'unbekannt@example.com',
     agb_version: 'offen',
+    street: adresse.street || '',
+    zip: adresse.zip || '',
+    city: adresse.city || '',
+    country_code: adresse.country_code || 'AT',
   });
 
-  const chooseClient = (c) => { onClient(c); setLinkMode(!c.sevdesk_contact_id); };
+  // Adresse aus sevDesk gewinnt, sonst gilt das, was im Blatt steht
+  const adresseAusKontakt = (contact) => (contact.street || contact.city
+    ? { street: contact.street || '', zip: contact.zip || '', city: contact.city || '', country_code: contact.country_code || 'AT' }
+    : { street: adresse.street || '', zip: adresse.zip || '', city: adresse.city || '', country_code: adresse.country_code || 'AT' });
+
+  const chooseClient = (c) => {
+    onClient(c);
+    if (c.street || c.city) setAdresse({ street: c.street || '', zip: c.zip || '', city: c.city || '', country_code: c.country_code || 'AT' });
+    setLinkMode(!c.sevdesk_contact_id);
+  };
 
   // (a) bestehender Client, dem noch die sevDesk-Verknüpfung fehlt
   const linkContact = (contact) => run(`link-${contact.sevdesk_contact_id}`, async () => {
     const id = contact.sevdesk_contact_id;
-    const updated = await base44.entities.Client.update(client.id, { sevdesk_contact_id: id });
-    onClient({ ...client, ...updated, sevdesk_contact_id: id });
+    const felder = adresseAusKontakt(contact);
+    const updated = await base44.entities.Client.update(client.id, { sevdesk_contact_id: id, ...felder });
+    setAdresse(felder);
+    onClient({ ...client, ...updated, sevdesk_contact_id: id, ...felder });
     setLinkMode(false);
+  });
+
+  // Adresse eines bereits verknüpften Kunden nachtragen
+  const adresseSpeichern = () => run('adresse', async () => {
+    const felder = { street: adresse.street || '', zip: adresse.zip || '', city: adresse.city || '', country_code: adresse.country_code || 'AT' };
+    const updated = await base44.entities.Client.update(client.id, felder);
+    onClient({ ...client, ...updated, ...felder });
   });
 
   // Ausgang nicht verfügbar: Kontakt-ID von Hand nachtragen
@@ -70,9 +96,11 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
 
   // (b) sevDesk-Kontakt ohne Client → Client anlegen und ID übernehmen
   const createFromContact = (contact) => run(`create-${contact.sevdesk_contact_id}`, async () => {
+    const felder = adresseAusKontakt(contact);
     const created = await base44.entities.Client.create({
-      name: contact.name, ...clientFields(), sevdesk_contact_id: contact.sevdesk_contact_id,
+      name: contact.name, ...clientFields(), ...felder, sevdesk_contact_id: contact.sevdesk_contact_id,
     });
+    setAdresse(felder);
     onClient(created);
     setLinkMode(false);
   });
@@ -82,7 +110,12 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
     const name = query.trim();
     if (!name) throw new Error('Kundenname fehlt');
     const res = await base44.functions.invoke('createSevdeskContact', {
-      name, contact_email: deal?.contact_email || '',
+      name,
+      contact_email: deal?.contact_email || '',
+      street: adresse.street || '',
+      zip: adresse.zip || '',
+      city: adresse.city || '',
+      country_code: adresse.country_code || 'AT',
     });
     const contactId = res?.data?.sevdesk_contact_id;
     if (!contactId) {
@@ -104,13 +137,28 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
       </div>
 
       {linkedClient && !linkMode ? (
-        <div className="flex items-center justify-between gap-3 rounded-md bg-emerald-100 px-3 py-2">
-          <span className="text-sm text-emerald-700 flex items-center gap-2">
-            <Check className="w-4 h-4" /> {linkedClient.name} · sevDesk {linkedClient.sevdesk_contact_id}
-          </span>
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { onClient(null); setLinkMode(false); }}>
-            Ändern
-          </Button>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3 rounded-md bg-emerald-100 px-3 py-2">
+            <span className="text-sm text-emerald-700 flex items-center gap-2">
+              <Check className="w-4 h-4" /> {linkedClient.name} · sevDesk {linkedClient.sevdesk_contact_id}
+            </span>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { onClient(null); setLinkMode(false); }}>
+              Ändern
+            </Button>
+          </div>
+          {adresseVollstaendig(linkedClient) ? (
+            <p className="text-xs text-muted-foreground">
+              Rechnungsadresse: {linkedClient.street}, {linkedClient.zip} {linkedClient.city} ({linkedClient.country_code || 'AT'})
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-amber-700">Rechnungsadresse fehlt — bitte ergänzen.</p>
+              <AdressFelder werte={adresse} onChange={setAdresse} />
+              <Button size="sm" variant="outline" className="h-8 text-xs" disabled={Boolean(busy)} onClick={adresseSpeichern}>
+                {busy === 'adresse' ? 'Speichert…' : 'Adresse speichern'}
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <>
@@ -125,6 +173,11 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-3 text-muted-foreground" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)} className="h-9 pl-8" placeholder="z. B. Timber-Moves" />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Rechnungsadresse</p>
+            <AdressFelder werte={adresse} onChange={setAdresse} />
           </div>
 
           {loading && <p className="text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Kunden und sevDesk werden durchsucht…</p>}

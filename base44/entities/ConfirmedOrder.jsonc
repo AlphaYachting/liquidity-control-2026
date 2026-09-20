@@ -87,7 +87,19 @@
     },
     "sevdesk_order_id": {
       "type": "string",
-      "description": "sevDesk interne Auftrags-ID"
+      "description": "sevDesk interne Auftrags-ID (Auftragsbest\u00e4tigung)"
+    },
+    "sevdesk_order_url": {
+      "type": "string",
+      "description": "Direktlink zur Auftragsbest\u00e4tigung in sevDesk"
+    },
+    "sevdesk_quote_id": {
+      "type": "string",
+      "description": "sevDesk-ID des vorgelagerten Angebots"
+    },
+    "sevdesk_quote_number": {
+      "type": "string",
+      "description": "Angebotsnummer in sevDesk"
     },
     "sevdesk_contact_id": {
       "type": "string",
