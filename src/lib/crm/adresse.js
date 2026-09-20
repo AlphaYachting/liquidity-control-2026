@@ -6,11 +6,12 @@ export function adresseAufteilen(text) {
   const teile = roh.split(',').map((t) => t.trim()).filter(Boolean);
   const plzZeile = teile.find((t) => /^\d{4,5}\s+\S/.test(t)) || '';
   const treffer = plzZeile.match(/^(\d{4,5})\s+(.+)$/);
+  const land = teile.find((t) => /^[A-Z]{2}$/.test(t)) || '';
   return {
-    street: teile.find((t) => t !== plzZeile) || '',
+    street: teile.find((t) => t !== plzZeile && t !== land) || '',
     zip: treffer ? treffer[1] : '',
     city: treffer ? treffer[2] : '',
-    country_code: 'AT',
+    country_code: land || 'AT',
   };
 }
 

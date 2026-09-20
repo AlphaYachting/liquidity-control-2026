@@ -126,7 +126,9 @@ Bekannte Daten zum Lead:
 Finde heraus (nur belegbare Fakten, keine Vermutungen):
 1. Offizieller Firmenname
 2. Website-URL
-3. Firmenadresse (Straße, PLZ, Ort, Land)
+3. Rechnungsfähige Firmenadresse, in EINZELFELDER getrennt: street (Straße + Hausnummer), zip (PLZ), city (Ort), country_code (zweistellig, z. B. AT oder DE).
+   Reihenfolge der Quellen: (a) Signatur oder Text der Anfrage oben, (b) Impressum/Kontaktseite der Firmen-Website bzw. der E-Mail-Domain, (c) Firmenbuch-/Verzeichniseinträge zum Firmennamen.
+   Nur eine echte Postadresse, keine Postfächer, keine erfundenen Hausnummern — im Zweifel die Felder leer lassen.
 4. Branche/Tätigkeitsfeld
 5. Firmengröße (Mitarbeiteranzahl, falls auffindbar)
 6. Zentrale Telefonnummer
@@ -140,7 +142,10 @@ Wenn du das Unternehmen nicht eindeutig identifizieren kannst, setze found=false
           found: { type: 'boolean' },
           company_name: { type: 'string' },
           website: { type: 'string' },
-          address: { type: 'string' },
+          street: { type: 'string' },
+          zip: { type: 'string' },
+          city: { type: 'string' },
+          country_code: { type: 'string' },
           industry: { type: 'string' },
           company_size: { type: 'string' },
           phone: { type: 'string' },
@@ -175,7 +180,16 @@ Wenn du das Unternehmen nicht eindeutig identifizieren kannst, setze found=false
     const filled = [];
     if (!deal.company_name && result.company_name) { updates.company_name = result.company_name; filled.push(`Firma: ${result.company_name}`); }
     if (!deal.company_website && result.website) { updates.company_website = result.website; filled.push(`Website: ${result.website}`); }
-    if (!deal.company_address && result.address) { updates.company_address = result.address; filled.push(`Adresse: ${result.address}`); }
+    // Einzeilige Adresse in fester Form, damit die Kundenanlage sie verlässlich zerlegt
+    const adresseZeile = [
+      result.street,
+      [result.zip, result.city].filter(Boolean).join(' '),
+      (result.country_code || '').toUpperCase(),
+    ].filter(Boolean).join(', ');
+    if (!deal.company_address && result.street && result.city) {
+      updates.company_address = adresseZeile;
+      filled.push(`Adresse: ${adresseZeile}`);
+    }
     if (!deal.company_industry && result.industry) { updates.company_industry = result.industry; filled.push(`Branche: ${result.industry}`); }
     if (!deal.company_size && result.company_size) { updates.company_size = result.company_size; filled.push(`Größe: ${result.company_size}`); }
     if (!deal.contact_phone && result.phone) { updates.contact_phone = result.phone; filled.push(`Telefon: ${result.phone}`); }
