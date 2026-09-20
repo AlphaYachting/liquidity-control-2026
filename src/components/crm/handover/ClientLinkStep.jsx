@@ -19,6 +19,7 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
   const [linkMode, setLinkMode] = useState(false);
   const [manualHint, setManualHint] = useState(null);
   const [manualId, setManualId] = useState('');
+  const [warnungen, setWarnungen] = useState([]);
   // Rechnungsadresse: Vorschlag aus dem Deal, im Blatt sichtbar bestätigt
   const [adresse, setAdresse] = useState(() => adresseAufteilen(deal?.company_address));
 
@@ -109,9 +110,12 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
   const createBoth = () => run('new', async () => {
     const name = query.trim();
     if (!name) throw new Error('Kundenname fehlt');
+    if (!adresse.street || !adresse.zip || !adresse.city) throw new Error('Rechnungsadresse (Straße, PLZ, Ort) ausfüllen — sie wird in sevDesk mitangelegt');
     const res = await base44.functions.invoke('createSevdeskContact', {
       name,
+      contact_person: deal?.contact_name || '',
       contact_email: deal?.contact_email || '',
+      contact_phone: deal?.contact_phone || '',
       street: adresse.street || '',
       zip: adresse.zip || '',
       city: adresse.city || '',
@@ -123,6 +127,7 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
       return;
     }
     const created = await base44.entities.Client.create({ name, ...clientFields(), sevdesk_contact_id: contactId });
+    setWarnungen(res?.data?.warnings || []);
     onClient(created);
     setLinkMode(false);
   });
@@ -146,6 +151,12 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
               Ändern
             </Button>
           </div>
+          {warnungen.length > 0 && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 space-y-1">
+              <p className="text-xs text-amber-800">In sevDesk unvollständig übernommen — bitte dort prüfen:</p>
+              {warnungen.map((w, i) => <p key={i} className="text-xs text-amber-800">• {w}</p>)}
+            </div>
+          )}
           {adresseVollstaendig(linkedClient) ? (
             <p className="text-xs text-muted-foreground">
               Rechnungsadresse: {linkedClient.street}, {linkedClient.zip} {linkedClient.city} ({linkedClient.country_code || 'AT'})
