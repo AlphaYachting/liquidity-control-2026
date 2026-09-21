@@ -29,11 +29,9 @@ export default async function (req) {
     const projekte = await alleSeiten((l, o) =>
       base44.asServiceRole.entities.AworkProjectSnapshot.list('-last_synced_at', l, o)
     );
-    const supportIds = new Set(
-      projekte
-        .filter(p => /wartungsvertrag|support/i.test(p.project_type || '') || /support|wartung|service paket/i.test(p.name || ''))
-        .map(p => p.awork_project_id)
-    );
+    // Jedes Projekt mit offener Zeit zählt — der Aufgabenstatus „In Verrechnung"
+    // entscheidet über die Abrechnung, nicht die Projektart.
+    const supportIds = new Set(projekte.map(p => p.awork_project_id));
 
     const buchungen = await alleSeiten((l, o) =>
       base44.asServiceRole.entities.AworkTimeEntry.filter({ is_billed: false, is_billable: true }, '-entry_date', l, o)

@@ -50,16 +50,15 @@ export default async function (req) {
     );
     const supportProjekte = projekte.filter(istSupportProjekt);
     const projektById = {};
-    supportProjekte.forEach(p => { projektById[p.awork_project_id] = p; });
+    projekte.forEach(p => { projektById[p.awork_project_id] = p; });
 
     // 2. Aufgaben, die der Mitarbeiter in awork auf „In Verrechnung" gestellt hat
-    //    = Übergabe an die Rechnungslegung. Nur diese sind abzurechnen.
+    //    = Übergabe an die Rechnungslegung. Der Status entscheidet, nicht die
+    //    Projektart — auch Aufgaben in Umsetzungsprojekten gehören her.
     const aufgaben = await alleSeiten((l, o) =>
       base44.asServiceRole.entities.AworkTaskSnapshot.list('-last_activity_at', l, o)
     );
-    const erledigt = aufgaben.filter(t =>
-      projektById[t.awork_project_id] && /verrechnung|verrechnen/i.test(t.task_status_name || '')
-    );
+    const erledigt = aufgaben.filter(t => /verrechnung|verrechnen/i.test(t.task_status_name || ''));
     const aufgabeById = {};
     erledigt.forEach(t => { aufgabeById[t.awork_task_id] = t; });
 
