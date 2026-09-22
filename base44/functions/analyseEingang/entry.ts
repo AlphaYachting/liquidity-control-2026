@@ -74,6 +74,16 @@ Deno.serve(async (req) => {
       const dom = String(c.domain || '').toLowerCase().trim().replace(/^www\./, '');
       if (dom && c.customer && !domainIndex.has(dom)) domainIndex.set(dom, c.customer);
     }
+    // Kundenstamm: die Domains der hinterlegten Kontakt- und Rechnungsadressen
+    // sind der verlässlichste Bestandskunden-Beleg.
+    const clients = await db.Client.list('-updated_date', 500);
+    for (const c of clients) {
+      for (const mail of [c.contact_email, c.billing_email]) {
+        const dom = domainOf(mail);
+        if (!dom || isFreemailDomain(dom) || isInternalDomain(dom) || isSystemDomain(dom)) continue;
+        if (c.name && !domainIndex.has(dom)) domainIndex.set(dom, c.name);
+      }
+    }
 
     const note = async (threadId, outcome, reason, extra = {}) => {
       await db.EmailScanLedger.create({
@@ -199,7 +209,9 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
         const matchedCustomer = customers.includes(r.matched_customer) ? r.matched_customer : '';
         let isKnownCustomer = Boolean(indexHit);
         let customerMatch = indexHit ? 'sicher' : 'unbekannt';
-        if (!isKnownCustomer && freemail && matchedCustomer) {
+        // Trifft der Name einen Kunden aus dem Bestand, ist es ein Bestandskunde —
+        // auch wenn die Absenderdomain (noch) nicht im Index steht.
+        if (!isKnownCustomer && matchedCustomer) {
           isKnownCustomer = true;
           customerMatch = 'unsicher';
         }
