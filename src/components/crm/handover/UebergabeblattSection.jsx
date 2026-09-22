@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -57,6 +57,20 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
 
   const studioPositions = useMemo(() => proposalPositions(data?.proposal), [data?.proposal]);
   const manualMode = !isLoading && studioPositions.length === 0;
+
+  // Wurde das externe Angebot schon während der Lead-Bearbeitung angehängt,
+  // stehen seine Positionen hier sofort bereit.
+  useEffect(() => {
+    if (!manualMode || !deal.externes_angebot_json) return;
+    let gespeichert;
+    try { gespeichert = JSON.parse(deal.externes_angebot_json); } catch { return; }
+    const rows = (gespeichert?.positions || []).filter((p) => p?.name).map((p) => ({
+      name: p.name,
+      amount: p.amount ? String(p.amount) : '',
+      module_choice: suggestModuleId(p.name, data?.modules || []) || '',
+    }));
+    if (rows.length) setManualRows(rows);
+  }, [manualMode, deal.externes_angebot_json, data?.modules]); // eslint-disable-line react-hooks/exhaustive-deps
   // von Hand erfasste Zeilen zählen erst, wenn Leistung, Betrag und Katalogmodul stehen
   const manualPositions = useMemo(() => manualRows
     .filter((r) => r.name.trim() && Number(r.amount) > 0 && r.module_choice)

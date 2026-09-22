@@ -12,6 +12,7 @@ import AppointmentSection from '@/components/crm/AppointmentSection';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import WonLostDialog from '@/components/crm/WonLostDialog';
 import UebergabeblattSection from '@/components/crm/handover/UebergabeblattSection';
+import ExternesAngebotLeser from '@/components/crm/handover/ExternesAngebotLeser';
 import CustomerContextCard from '@/components/crm/CustomerContextCard';
 import CompanyMasterDataCard from '@/components/crm/CompanyMasterDataCard';
 import DealProposalCard from '@/components/crm/DealProposalCard';
@@ -161,9 +162,12 @@ export default function CrmDealDetail() {
               <BoxKopf
                 symbol={Presentation}
                 titel="Angebot"
-                hinweis="noch keins verknüpft"
+                hinweis={deal.externes_angebot_url ? 'externes Angebot angehängt' : 'noch keins verknüpft'}
                 aktion={<ProposalHandoffButton deal={deal} onDone={refreshAll} className="" />}
               />
+              <BoxInhalt>
+                <ExternesAngebotLeser key={deal.externes_angebot_url || 'leer'} deal={deal} onSaved={refreshAll} rahmen={false} />
+              </BoxInhalt>
             </Box>
           )}
 

@@ -26,10 +26,14 @@ const SCHEMA = {
 
 // Isoliertes Zusatzmodul: ein extern erstelltes Angebot (PDF) wird angehängt und
 // ausgelesen. Ergebnis füllt nur die Positionszeilen des Übergabeblatts vor.
-export default function ExternesAngebotLeser({ deal, modules = [], onRows }) {
+// Auch schon während der Lead-Bearbeitung nutzbar: dann ohne onRows — das gelesene
+// Angebot bleibt am Deal und wird im Übergabeblatt automatisch übernommen.
+export default function ExternesAngebotLeser({ deal, modules = [], onRows, onSaved, rahmen = true }) {
   const [busy, setBusy] = useState(false);
   const [fehler, setFehler] = useState(null);
-  const [gelesen, setGelesen] = useState(null);
+  const [gelesen, setGelesen] = useState(() => {
+    try { return deal?.externes_angebot_json ? JSON.parse(deal.externes_angebot_json) : null; } catch { return null; }
+  });
   const url = deal?.externes_angebot_url;
 
   const verarbeiten = async (file) => {
@@ -48,7 +52,9 @@ export default function ExternesAngebotLeser({ deal, modules = [], onRows }) {
       await base44.entities.CrmDeal.update(deal.id, {
         externes_angebot_url: file_url,
         externes_angebot_json: JSON.stringify({ ...daten, positions: positionen, file_name: file.name }),
+        ...(!(deal.value_net > 0) && daten?.total_net > 0 ? { value_net: daten.total_net } : {}),
       });
+      onSaved?.();
       onRows?.(positionen.map((p) => ({
         name: p.name,
         amount: p.amount ? String(p.amount) : '',
@@ -62,13 +68,16 @@ export default function ExternesAngebotLeser({ deal, modules = [], onRows }) {
   };
 
   return (
-    <div className="rounded-lg border p-3 space-y-2">
-      <div className="flex items-center gap-2">
-        <FileText className="w-4 h-4 text-muted-foreground" />
-        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Externes Angebot einlesen</p>
-      </div>
+    <div className={rahmen ? 'rounded-lg border p-3 space-y-2' : 'space-y-2'}>
+      {rahmen && (
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-muted-foreground" />
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Externes Angebot einlesen</p>
+        </div>
+      )}
       <p className="text-xs text-muted-foreground">
-        Angebots-PDF aus dem externen Werkzeug anhängen — die Positionen werden gelesen und unten vorbefüllt.
+        Angebots-PDF aus dem externen Werkzeug anhängen — die Positionen werden gelesen und
+        {onRows ? ' unten vorbefüllt.' : ' später im Übergabeblatt automatisch übernommen.'}
       </p>
       <div className="flex items-center gap-2">
         <label>
@@ -94,8 +103,8 @@ export default function ExternesAngebotLeser({ deal, modules = [], onRows }) {
       </div>
       {gelesen && (
         <p className="text-xs text-muted-foreground">
-          {gelesen.positions.length} Position(en) gelesen{gelesen.offer_number ? ` · Angebot ${gelesen.offer_number}` : ''}
-          {gelesen.total_net ? ` · Summe netto ${gelesen.total_net}` : ''} — bitte unten prüfen.
+          {(gelesen.positions || []).length} Position(en) gelesen{gelesen.offer_number ? ` · Angebot ${gelesen.offer_number}` : ''}
+          {gelesen.total_net ? ` · Summe netto ${gelesen.total_net}` : ''}{onRows ? ' — bitte unten prüfen.' : ''}
         </p>
       )}
       {fehler && <p className="text-xs text-destructive">{fehler}</p>}
