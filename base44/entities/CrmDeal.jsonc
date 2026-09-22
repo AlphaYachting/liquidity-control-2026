@@ -172,6 +172,14 @@
     "origin_inbox_item_id": {
       "type": "string",
       "description": "CrmInboxItem, aus dem der Deal \u00fcbernommen wurde"
+    },
+    "externes_angebot_url": {
+      "type": "string",
+      "description": "Angeh\u00e4ngtes, extern erstelltes Angebots-PDF"
+    },
+    "externes_angebot_json": {
+      "type": "string",
+      "description": "Aus dem externen Angebot gelesene Positionen und Summen (JSON)"
     }
   },
   "required": [

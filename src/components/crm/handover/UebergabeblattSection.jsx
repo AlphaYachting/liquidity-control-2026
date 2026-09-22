@@ -15,6 +15,7 @@ import { commitHandover } from '@/lib/crm/handoverCommit';
 import { threadTranscript } from '@/components/crm/support/threadDescription';
 import ClientLinkStep from '@/components/crm/handover/ClientLinkStep';
 import ManualPositionsEditor from '@/components/crm/handover/ManualPositionsEditor';
+import ExternesAngebotLeser from '@/components/crm/handover/ExternesAngebotLeser';
 import PositionModuleSelect, { NO_MODULE } from '@/components/crm/handover/PositionModuleSelect';
 import { suggestModuleId } from '@/lib/crm/handoverCommit';
 
@@ -143,6 +144,14 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
           <p className="text-xs text-muted-foreground">{ab?.reason}</p>
 
           <ClientLinkStep deal={deal} kunde={kunde} client={client} onClient={setClient} />
+
+          {manualMode && (
+            <ExternesAngebotLeser
+              deal={deal}
+              modules={data?.modules || []}
+              onRows={(rows) => setManualRows(rows.length ? rows : [{ name: '', amount: '', module_choice: '' }])}
+            />
+          )}
 
           <div className="rounded-lg border overflow-hidden">
             <div className="px-3 py-2 bg-muted/50 border-b">
