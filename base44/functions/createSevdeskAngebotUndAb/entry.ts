@@ -73,6 +73,22 @@ export default async function (req) {
     const quoteId = String(angebot?.id || '');
     if (!quoteId) return Response.json({ success: false, error: 'sevDesk hat keine Angebots-ID geliefert' });
 
+    // sevDesk übernimmt Anschrift und Positionsbeschreibungen beim Anlegen nicht — gezielt nachtragen
+    if (body.address) {
+      await fetch(`${SEVDESK_BASE}/Order/${quoteId}`, {
+        method: 'PUT', headers, body: JSON.stringify({ address: String(body.address) }),
+      });
+    }
+    const posRes = await fetch(`${SEVDESK_BASE}/Order/${quoteId}/getPositions`, { headers });
+    const savedPos = (await posRes.json())?.objects || [];
+    for (let i = 0; i < savedPos.length; i++) {
+      const text = (positions.find((p) => String(p.name) === savedPos[i].name) || positions[i])?.text;
+      if (!text) continue;
+      await fetch(`${SEVDESK_BASE}/OrderPos/${savedPos[i].id}`, {
+        method: 'PUT', headers, body: JSON.stringify({ text: String(text) }),
+      });
+    }
+
     // Nur Angebot gewünscht (z. B. aus dem E-Mail-Angebot) — keine AB erzeugen
     if (body.nur_angebot) {
       // Status ausdrücklich auf Entwurf setzen — sevDesk setzt sonst eigenständig einen Folgestatus
