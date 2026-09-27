@@ -3,7 +3,8 @@
 // ("An: x@y.at; z@y.at", "To: ...", "Cc: ..."), sonst aus den Gesprächsteilnehmern ableiten.
 
 export const extractRecipients = (m) => {
-  if (m?.to || m?.cc) return { to: m.to || '', cc: m.cc || '' };
+  const join = (v) => (Array.isArray(v) ? v.join(', ') : v || '');
+  if (join(m?.to) || join(m?.cc)) return { to: join(m.to), cc: join(m.cc) };
   const head = String(m?.text || '').split('\n').slice(0, 25);
   const find = (labels) => {
     for (const line of head) {

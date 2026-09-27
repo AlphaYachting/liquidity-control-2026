@@ -12,7 +12,13 @@ const headerTo = (text) => {
   return '';
 };
 
+const liste = (v) => (Array.isArray(v) ? v : String(v || '').split(/[;,]/)).map((a) => String(a).trim()).filter(Boolean);
+
 export function resolveRecipient(firstIn, messages) {
+  // Die E-Mail-DB liefert inzwischen to/cc je Nachricht — das ist der sichere Beleg.
+  const to = liste(firstIn?.to);
+  const cc = liste(firstIn?.cc);
+  if (to.length) return (to.join(', ') + (cc.length ? ` · Cc: ${cc.join(', ')}` : '')).slice(0, 300);
   const fromHeader = headerTo(firstIn?.text);
   if (fromHeader) return fromHeader.slice(0, 300);
   const own = [...new Set(

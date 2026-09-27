@@ -90,6 +90,9 @@ export default function InboxItemCard({ item, offen, onOeffnen, onConvert, onAss
             {[item.sender_name, item.matched_customer_name || domain(item.sender_email), item.sender_phone]
               .filter(Boolean).join(' · ') || 'Unbekannter Absender'}
           </p>
+          {item.recipient && (
+            <p className="text-meta text-muted-foreground truncate">An: {item.recipient}</p>
+          )}
         </div>
 
         <div className="min-w-0">
@@ -127,9 +130,7 @@ export default function InboxItemCard({ item, offen, onOeffnen, onConvert, onAss
               <p className="text-meta text-muted-foreground">
                 An:{' '}
                 {item.recipient || (
-                  <span title="Die E-Mail-Datenbank speichert kein Empfängerfeld. Belegbar ist der Empfänger nur über eine „An:“-Zeile im Text oder eine eigene Antwort im Verlauf — beides fehlt hier.">
-                    nicht hinterlegt
-                  </span>
+                  <span>nicht hinterlegt</span>
                 )}
               </p>
             </div>
