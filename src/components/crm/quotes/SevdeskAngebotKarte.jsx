@@ -33,16 +33,20 @@ export default function SevdeskAngebotKarte({ quote, items, onDone }) {
       sevdesk_quote_id: data.quote_id, sevdesk_quote_number: data.quote_number, sevdesk_quote_url: data.quote_url,
     });
     setSaving(false);
+    setOffen(false);
     onDone?.();
   };
 
-  if (quote.sevdesk_quote_id) {
+  if (quote.sevdesk_quote_id && !offen) {
     return (
       <div className="bg-card border rounded-lg px-4 py-3 flex items-center justify-between gap-3">
         <p className="text-sm">In sevDesk angelegt{quote.sevdesk_quote_number ? ` · ${quote.sevdesk_quote_number}` : ''}</p>
+        <div className="flex gap-2">
+        <Button variant="outline" size="sm" disabled={!positions.length} onClick={() => setOffen(true)}>Erneut anlegen</Button>
         <Button variant="outline" size="sm" asChild>
           <a href={quote.sevdesk_quote_url} target="_blank" rel="noreferrer"><ExternalLink /> In sevDesk öffnen</a>
         </Button>
+        </div>
       </div>
     );
   }
