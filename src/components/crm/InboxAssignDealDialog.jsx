@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Link2 } from 'lucide-react';
 import { attachInboxItemToDeal } from '@/components/crm/inboxDecision';
-import { CLOSED_STAGES } from '../../../base44/shared/crmDuplicate.js';
+import { CLOSED_STAGES } from '@/lib/crm/crmDuplicate';
 
 // Manuelle Zuordnung einer Posteingang-Anfrage zu einem bestehenden Deal —
 // auch wenn die automatische Erkennung keinen Treffer gefunden hat.

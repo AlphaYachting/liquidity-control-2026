@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PIPELINES, SOURCE_LABELS } from '@/components/crm/stages';
-import { findDuplicateDeal, CLOSED_STAGES } from '../../../base44/shared/crmDuplicate.js';
+import { findDuplicateDeal, CLOSED_STAGES } from '@/lib/crm/crmDuplicate';
 import { Link } from 'react-router-dom';
 
 const EMPTY = {

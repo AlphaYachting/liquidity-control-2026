@@ -17,7 +17,7 @@ import { threadIdOf, markThreadAsLead, attachInboxItemToDeal } from '@/component
 import InboxAssignDealDialog from '@/components/crm/InboxAssignDealDialog';
 import { descriptionFromThread } from '@/components/crm/support/threadDescription';
 import { useToast } from '@/components/ui/use-toast';
-import { findDuplicateDeal, CLOSED_STAGES } from '../../base44/shared/crmDuplicate.js';
+import { findDuplicateDeal, CLOSED_STAGES } from '@/lib/crm/crmDuplicate';
 import { isBlockedSender } from '@/lib/crm/blockedSenders';
 
 export default function CrmInbox() {
