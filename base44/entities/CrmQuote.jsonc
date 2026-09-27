@@ -133,6 +133,16 @@
     },
     "notes": {
       "type": "string"
+    },
+    "sevdesk_quote_id": {
+      "type": "string",
+      "description": "In sevDesk angelegtes Angebot"
+    },
+    "sevdesk_quote_number": {
+      "type": "string"
+    },
+    "sevdesk_quote_url": {
+      "type": "string"
     }
   },
   "required": [

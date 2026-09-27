@@ -71,6 +71,16 @@ export default async function (req) {
     const quoteId = String(angebot?.id || '');
     if (!quoteId) return Response.json({ success: false, error: 'sevDesk hat keine Angebots-ID geliefert' });
 
+    // Nur Angebot gewünscht (z. B. aus dem E-Mail-Angebot) — keine AB erzeugen
+    if (body.nur_angebot) {
+      return Response.json({
+        success: true,
+        quote_id: quoteId,
+        quote_number: angebot?.orderNumber || '',
+        quote_url: `https://my.sevdesk.de/#/om/edit/type/AN/id/${quoteId}`,
+      });
+    }
+
     // Auftragsbestätigung aus dem Angebot
     const abRes = await fetch(`${SEVDESK_BASE}/Order/Factory/createContractNoteFromOrder`, {
       method: 'POST', headers,

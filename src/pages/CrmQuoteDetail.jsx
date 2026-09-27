@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Save, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import QuoteItemsEditor from '@/components/crm/quotes/QuoteItemsEditor';
 import EmailOfferPanel from '@/components/crm/quotes/EmailOfferPanel';
+import SevdeskAngebotKarte from '@/components/crm/quotes/SevdeskAngebotKarte';
 import { QUOTE_STATUS, QUOTE_SOURCE, calcTotals } from '@/components/crm/quotes/quoteConfig';
 
 export default function CrmQuoteDetail() {
@@ -137,6 +138,12 @@ export default function CrmQuoteDetail() {
             onChange={items => set('items', items)} />
         </CardContent>
       </Card>
+
+      <SevdeskAngebotKarte
+        quote={quote}
+        items={form.items}
+        onDone={() => { queryClient.invalidateQueries({ queryKey: ['crm-quote', quoteId] }); setForm(null); }}
+      />
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">Interne Notizen</CardTitle></CardHeader>
