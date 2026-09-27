@@ -1,5 +1,5 @@
 import { waitingDaysSince } from '@/components/crm/emails/emailConfig';
-import { computeNeedsReply } from '../../../../base44/shared/emailWorkQueue';
+import { computeNeedsReply } from '@/lib/crm/emailWorkQueue';
 import { collapseAnsweredGroups } from '@/components/crm/emails/emailThreadGrouping';
 
 /**

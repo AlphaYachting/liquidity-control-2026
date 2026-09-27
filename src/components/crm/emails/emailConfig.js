@@ -1,5 +1,5 @@
 // EINE gemeinsame Quelle für Absenderlisten — geteilt mit den Backend-Funktionen.
-import { INTERNAL_DOMAINS, FREEMAIL_DOMAINS, SYSTEM_DOMAINS } from '../../../../base44/shared/senderLists.js';
+import { INTERNAL_DOMAINS, FREEMAIL_DOMAINS, SYSTEM_DOMAINS } from '@/lib/crm/senderLists';
 
 export const EMAIL_CATEGORIES = {
   abnahme_freigabe: { label: 'Abnahme/Freigabe', color: 'bg-emerald-100 text-emerald-700' },
