@@ -75,6 +75,10 @@ export default async function (req) {
 
     // Nur Angebot gewünscht (z. B. aus dem E-Mail-Angebot) — keine AB erzeugen
     if (body.nur_angebot) {
+      // Status ausdrücklich auf Entwurf setzen — sevDesk setzt sonst eigenständig einen Folgestatus
+      await fetch(`${SEVDESK_BASE}/Order/${quoteId}`, {
+        method: 'PUT', headers, body: JSON.stringify({ status: 100 }),
+      });
       return Response.json({
         success: true,
         quote_id: quoteId,
