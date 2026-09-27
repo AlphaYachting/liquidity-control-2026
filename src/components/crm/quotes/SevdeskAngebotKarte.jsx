@@ -14,7 +14,8 @@ export default function SevdeskAngebotKarte({ quote, items, onDone }) {
   const positions = (items || [])
     .filter((i) => i.title && Number(i.total_price || i.unit_price) > 0)
     .map((i) => ({
-      name: [i.title, i.description].filter(Boolean).join('\n'),
+      name: i.title,
+      text: i.description || '',
       quantity: Number(i.quantity) || 1,
       amount: Number(i.unit_price) || Number(i.total_price) || 0,
     }));
@@ -23,6 +24,8 @@ export default function SevdeskAngebotKarte({ quote, items, onDone }) {
     setSaving(true); setFehler('');
     const { data } = await base44.functions.invoke('createSevdeskAngebotUndAb', {
       sevdesk_contact_id: client.sevdesk_contact_id, positions, nur_angebot: true,
+      address: [client.name, client.contact_person, client.street, [client.zip, client.city].filter(Boolean).join(' ')]
+        .filter(Boolean).join('\n'),
       vat_rate: quote.vat_rate ?? 20, header: quote.title || 'Angebot', head_text: quote.intro_text || '',
     });
     if (!data?.success) { setFehler(data?.error || 'Unbekannter Fehler'); setSaving(false); return; }
