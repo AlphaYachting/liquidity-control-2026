@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import DealAuswahlListe from '@/components/crm/DealAuswahlListe';
 import { Loader2, Link2 } from 'lucide-react';
 import { attachInboxItemToDeal } from '@/components/crm/inboxDecision';
 import { CLOSED_STAGES } from '@/lib/crm/crmDuplicate';
@@ -52,18 +52,9 @@ export default function InboxAssignDealDialog({ open, onOpenChange, item, onDone
           </p>
           <div>
             <Label className="text-xs">Bestehender Deal *</Label>
-            <Select value={dealId} onValueChange={setDealId} disabled={busy || isLoading}>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder={isLoading ? 'Deals laden…' : 'Deal wählen'} />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {deals.map(d => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.title}{d.company_name ? ` — ${d.company_name}` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isLoading
+              ? <p className="text-meta text-muted-foreground mt-1">Deals laden…</p>
+              : <div className="mt-1"><DealAuswahlListe deals={deals} value={dealId} onChange={setDealId} disabled={busy} /></div>}
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
           <div className="flex justify-end gap-2">
