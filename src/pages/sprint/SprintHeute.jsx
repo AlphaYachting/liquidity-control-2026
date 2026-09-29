@@ -55,7 +55,8 @@ export default function SprintHeute() {
         ...myTickets.map((t) => t.project_id),
         ...projects.filter((p) => p.pm_email === email).map((p) => p.id),
       ]);
-      return { routinen, focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints, todayEntries };
+      const module = await base44.entities.ModuleTemplate.list('name', 500);
+      return { routinen, focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints, todayEntries, module };
     },
   });
 
@@ -73,7 +74,8 @@ export default function SprintHeute() {
     );
   }
 
-  const { routinen, focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints, todayEntries } = data;
+  const { routinen, focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints, todayEntries, module } = data;
+  const moduleById = Object.fromEntries(module.map((m) => [m.id, m]));
   const sprintProject = Object.fromEntries(sprints.map((s) => [s.id, s.project_id]));
   const projectById = Object.fromEntries(projects.map((p) => [p.id, p]));
   const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
@@ -111,6 +113,7 @@ export default function SprintHeute() {
       projectById={projectById}
       clientById={clientById}
       milestoneById={milestoneById}
+      moduleById={moduleById}
       onStatusChange={handleStatusChange}
     />
   );
@@ -118,6 +121,7 @@ export default function SprintHeute() {
   const listeProps = {
     milestoneById,
     projectById,
+    moduleById,
     onStatusChange: handleStatusChange,
   };
 

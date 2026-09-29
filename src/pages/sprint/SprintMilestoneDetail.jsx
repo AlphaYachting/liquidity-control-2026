@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -72,6 +72,10 @@ export default function SprintMilestoneDetail() {
   }
 
   const { milestone, sprint, tickets, members, settings, siblings, project, client, notifications, feedbacks } = data;
+  // Behälter-Etappen haben keine eigene Seite — direkt zur Projektseite
+  if (project && projectTypeOf(project) !== 'sprint') {
+    return <Navigate to={`/sprint/sprints/${milestone.sprint_id}${window.location.hash}`} replace />;
+  }
   const locked = milestone.state === 'freigegeben';
   const istContainer = projectTypeOf(project) === 'container';
   const istSprint = !!project && projectTypeOf(project) === 'sprint';

@@ -10,7 +10,7 @@ import { fmtEUR } from '@/components/sprint/sprintConfig';
 const h1 = (v) => (v || 0).toLocaleString('de-AT', { maximumFractionDigits: 1 });
 
 // Projekt-Übersicht über den Etappen: Briefing, Zuständigkeit, Plan gegen Ist, Auftrag, aWork-Verlauf
-export default function ProjektUebersicht({ project, client, sprint, timeEntries, onChanged }) {
+export default function ProjektUebersicht({ project, client, sprint, timeEntries, onChanged, zeigeStunden = true }) {
   const { data: order } = useQuery({
     queryKey: ['projectOrder', project?.id],
     enabled: Boolean(project?.id),
@@ -47,7 +47,7 @@ export default function ProjektUebersicht({ project, client, sprint, timeEntries
 
         <ProjektBeschreibung project={project} onSaved={onChanged} />
 
-        <div className="max-w-sm">
+        {zeigeStunden && <div className="max-w-sm">
           <div className="flex items-baseline justify-between text-xs">
             <span className="text-muted-foreground">Stunden</span>
             <span className="font-semibold">{h1(ist)} von {h1(plan)} h</span>
@@ -55,7 +55,7 @@ export default function ProjektUebersicht({ project, client, sprint, timeEntries
           <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
             <div className="h-full rounded-full bg-foreground" style={{ width: `${pct}%` }} />
           </div>
-        </div>
+        </div>}
 
         <AworkVerlaufPanel clientName={client?.name} projectTitle={project.title} />
       </div>

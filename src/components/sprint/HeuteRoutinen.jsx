@@ -3,9 +3,10 @@ import SectionLabel from '@/components/sprint/SectionLabel';
 import HeuteAufgabenZeile from '@/components/sprint/HeuteAufgabenZeile';
 import { STATUS_COLORS, RITTLER } from '@/components/sprint/sprintConfig';
 import { istUeberfaellig, istFaellig } from '@/lib/sprint/faelligkeit';
+import { projectTypeOf } from '@/components/sprint/projectTypes';
 
 // Block „Wiederkehrend“: fällige Routinen über alle Projekte.
-export default function HeuteRoutinen({ tickets, today, projectById, clientById, milestoneById, onStatusChange }) {
+export default function HeuteRoutinen({ tickets, today, projectById, clientById, milestoneById, moduleById = {}, onStatusChange }) {
   const routinen = tickets.filter((t) => t.rhythmus);
   const kunde = (t) => clientById[projectById[t.project_id]?.client_id]?.name || '';
   const offen = routinen
@@ -23,6 +24,8 @@ export default function HeuteRoutinen({ tickets, today, projectById, clientById,
       ticket={t}
       milestone={milestoneById[t.milestone_id]}
       projectLabel={[kunde(t), projectById[t.project_id]?.title].filter(Boolean).join(' · ')}
+      projektTyp={projectTypeOf(projectById[t.project_id])}
+      modulName={moduleById[t.module_template_id]?.name}
       onStatusChange={onStatusChange}
     />
   );

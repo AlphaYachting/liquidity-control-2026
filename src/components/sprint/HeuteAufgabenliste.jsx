@@ -3,6 +3,7 @@ import { Check } from 'lucide-react';
 import HeuteAufgabenZeile from '@/components/sprint/HeuteAufgabenZeile';
 import { RITTLER, STATUS_COLORS, todayIso } from '@/components/sprint/sprintConfig';
 import { istUeberfaellig, istFaellig } from '@/lib/sprint/faelligkeit';
+import { projectTypeOf } from '@/components/sprint/projectTypes';
 
 // U5 — Erledigtes verschwindet nicht und wird nie ausgegraut; es rutscht unter "GESCHAFFT".
 export default function HeuteAufgabenliste({
@@ -11,6 +12,7 @@ export default function HeuteAufgabenliste({
   emptyText = 'Keine Aufgaben.',
   milestoneById = {},
   projectById = {},
+  moduleById = {},
   showProject = false,
   onStatusChange,
 }) {
@@ -34,6 +36,8 @@ export default function HeuteAufgabenliste({
       ticket={t}
       milestone={milestoneById[t.milestone_id]}
       projectLabel={showProject ? projectById[t.project_id]?.title : null}
+      projektTyp={projectById[t.project_id] ? projectTypeOf(projectById[t.project_id]) : 'sprint'}
+      modulName={moduleById[t.module_template_id]?.name}
       onStatusChange={onStatusChange}
     />
   );

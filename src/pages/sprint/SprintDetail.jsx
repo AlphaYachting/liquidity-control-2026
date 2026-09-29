@@ -13,7 +13,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AbrechnungSektion from '@/components/sprint/abrechnung/AbrechnungSektion';
 import { sprintStatus } from '@/lib/sprint/status';
 import { Button } from '@/components/ui/button';
-import { BrainCircuit } from 'lucide-react';
+import { BrainCircuit, Plus } from 'lucide-react';
+import BehaelterKopf from '@/components/sprint/projekt/BehaelterKopf';
+import BehaelterInhalt from '@/components/sprint/projekt/BehaelterInhalt';
+import NeueAufgabeDialog from '@/components/sprint/NeueAufgabeDialog';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import useKundenaktProjektId from '@/hooks/useKundenaktProjektId';
@@ -25,6 +28,7 @@ import ModulHinzufuegenKnopf from '@/components/sprint/ModulHinzufuegenKnopf';
 export default function SprintDetail() {
   const { sprintId } = useParams();
   const [intelligenzOffen, setIntelligenzOffen] = React.useState(false);
+  const [addOpen, setAddOpen] = React.useState(false);
   const [intelligenzModus, setIntelligenzModus] = React.useState('frage');
   const oeffneIntelligenz = (modus) => { setIntelligenzModus(modus); setIntelligenzOffen(true); };
 
@@ -48,7 +52,10 @@ export default function SprintDetail() {
         base44.entities.TimeEntry.filter({ project_id: sprint.project_id }, '-entry_date', 1000),
         base44.entities.FocusDay.filter({ project_id: sprint.project_id, type: 'focus' }, 'day', 500),
       ]);
-      return { sprint, project, client, milestones, tickets, members, timeEntries, focusDays };
+      const vertrag = project?.recurring_contract_id
+        ? await base44.entities.RecurringContract.get(project.recurring_contract_id).catch(() => null)
+        : null;
+      return { sprint, project, client, milestones, tickets, members, timeEntries, focusDays, vertrag };
     },
   });
 
@@ -69,7 +76,8 @@ export default function SprintDetail() {
     );
   }
 
-  const { sprint, project, client, milestones, tickets, members, timeEntries, focusDays } = data;
+  const { sprint, project, client, milestones, tickets, members, timeEntries, focusDays, vertrag } = data;
+  const istSprint = projectTypeOf(project) === 'sprint';
 
   const offenerMilestone = milestones.find((m) => !m.released);
   const status = sprintStatus({ sprint, milestones, tickets, timeEntries, focusDays });
@@ -83,13 +91,17 @@ export default function SprintDetail() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
-      <SprintKopf
-        sprint={sprint}
-        project={project}
-        client={client}
-        milestones={milestones}
-        status={status}
-      />
+      {istSprint ? (
+        <SprintKopf
+          sprint={sprint}
+          project={project}
+          client={client}
+          milestones={milestones}
+          status={status}
+        />
+      ) : (
+        <BehaelterKopf project={project} client={client} tickets={tickets} timeEntries={timeEntries} members={members} vertrag={vertrag} />
+      )}
 
       <Tabs defaultValue="uebersicht">
         <div className="flex items-center justify-between gap-3 border-b border-border">
@@ -104,6 +116,11 @@ export default function SprintDetail() {
             {projectTypeOf(project) === 'container' && me?.email && me.email === project?.pm_email && offenerMilestone && (
               <ModulHinzufuegenKnopf project={project} milestone={offenerMilestone} tickets={tickets} onAdded={refetch} />
             )}
+            {!istSprint && offenerMilestone && (
+              <Button variant="outline" size="sm" className="rounded" onClick={() => setAddOpen(true)}>
+                <Plus className="w-3.5 h-3.5 mr-1" /> Aufgabe hinzufügen
+              </Button>
+            )}
             <Button size="sm" className="shadow-sm shrink-0" onClick={() => oeffneIntelligenz('frage')}>
               <BrainCircuit className="w-4 h-4 mr-1.5" /> Projektintelligenz
             </Button>
@@ -117,8 +134,12 @@ export default function SprintDetail() {
             sprint={sprint}
             timeEntries={timeEntries}
             onChanged={refetch}
+            zeigeStunden={istSprint}
           />
 
+          {!istSprint ? (
+            <BehaelterInhalt project={project} tickets={tickets} members={members} timeEntries={timeEntries} myEmail={me?.email} onRefresh={refetch} />
+          ) : (
           <div className="mt-5">
             <SectionLabel className="mb-2">Etappen</SectionLabel>
             <div className="bg-white rounded-lg border border-border overflow-hidden">
@@ -136,6 +157,7 @@ export default function SprintDetail() {
               )}
             </div>
           </div>
+          )}
         </TabsContent>
 
         <TabsContent value="kundenakt" className="mt-4">
@@ -167,6 +189,18 @@ export default function SprintDetail() {
           )}
         </TabsContent>
       </Tabs>
+
+      {!istSprint && offenerMilestone && (
+        <NeueAufgabeDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          milestone={offenerMilestone}
+          tickets={tickets}
+          members={members}
+          previousMilestone={null}
+          onCreated={refetch}
+        />
+      )}
 
       <ProjectIntelligenceSheet
         open={intelligenzOffen}

@@ -12,6 +12,11 @@ export default function ModulAnsicht({ tickets, matches, members, myEmail, proje
     enabled: ids.length > 0,
     queryFn: () => base44.entities.ModuleTemplate.filter({ id: { $in: ids } }, 'name', 200),
   });
+  // Sprung aus „Heute“: #modul-{id} nach dem Laden der Module anfahren
+  React.useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (hash && module.length) document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [module.length]);
   const istPm = !!myEmail && myEmail === project?.pm_email;
   const weitere = tickets.filter((t) => !t.module_template_id || !module.some((m) => m.id === t.module_template_id));
   const weitereSichtbar = weitere.filter(matches);
@@ -22,8 +27,8 @@ export default function ModulAnsicht({ tickets, matches, members, myEmail, proje
         const eigene = tickets.filter((t) => t.module_template_id === m.id);
         if (!eigene.some(matches)) return null;
         return (
+          <div key={m.id} id={`modul-${m.id}`} className="scroll-mt-4">
           <ModulKarte
-            key={m.id}
             name={m.name}
             tickets={eigene}
             matches={matches}
@@ -34,6 +39,7 @@ export default function ModulAnsicht({ tickets, matches, members, myEmail, proje
             onAssignee={onAssignee}
             onRefresh={onRefresh}
           />
+          </div>
         );
       })}
       {weitereSichtbar.length > 0 && (
