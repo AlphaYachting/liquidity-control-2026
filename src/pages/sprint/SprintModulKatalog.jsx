@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import ModulTemplateEditor from '@/components/sprint/ModulTemplateEditor';
 import AddOnKatalog from '@/components/sprint/AddOnKatalog';
+import OnlineMarketingSeedKnopf from '@/components/sprint/OnlineMarketingSeedKnopf';
 import { fmtEUR } from '@/components/sprint/sprintConfig';
 
 // S7 — Modul-Katalog: ModuleTemplate, TicketTemplate, AddOnBlock
@@ -41,7 +42,10 @@ export default function SprintModulKatalog() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
-      <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Modul-Katalog</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Modul-Katalog</h1>
+        <OnlineMarketingSeedKnopf />
+      </div>
 
       <div className="grid lg:grid-cols-2 gap-5 items-start">
         <div className="bg-white rounded-lg shadow-sm p-5">

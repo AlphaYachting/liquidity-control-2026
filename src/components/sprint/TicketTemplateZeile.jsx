@@ -5,16 +5,26 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowUp, ArrowDown, Trash2, Pencil, Check, X } from 'lucide-react';
 import { ROLES } from '@/components/sprint/sprintConfig';
+import RoutineVorlageFelder, { RHYTHMEN, routineFelderAusForm } from '@/components/sprint/RoutineVorlageFelder';
 
 // Eine Ticketvorlage der Pflichtkette — anzeigen und einzeln bearbeiten
-export default function TicketTemplateZeile({ template, index, letzte, phasen, onMove, onDelete, onChanged }) {
+export default function TicketTemplateZeile({ template, index, letzte, phasen, istContainer = false, onMove, onDelete, onChanged }) {
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState({
     title: template.title || '',
     role: template.role || 'Konzept',
     milestone_state: template.milestone_state || 'produktion',
     target_hours: template.target_hours || '',
+    art: template.art || 'einmalig',
+    rhythmus: template.rhythmus || '',
+    fenster_tage: template.fenster_tage ?? '',
+    optional: !!template.optional,
   });
+  const beschreibung = istContainer
+    ? (template.art === 'routine'
+      ? `Routine · ${RHYTHMEN.find((r) => r.value === template.rhythmus)?.label || 'manuell'} · Fenster ${template.fenster_tage || 0}`
+      : 'Einmalig') + (template.optional ? ' · optional' : '')
+    : phasen.find((p) => p.value === template.milestone_state)?.label || '—';
   const [saving, setSaving] = useState(false);
 
   const speichern = async () => {
@@ -25,6 +35,7 @@ export default function TicketTemplateZeile({ template, index, letzte, phasen, o
       role: form.role,
       milestone_state: form.milestone_state,
       target_hours: Number(form.target_hours) || 0,
+      ...(istContainer ? routineFelderAusForm(form) : {}),
     });
     setSaving(false);
     setEdit(false);
@@ -40,10 +51,12 @@ export default function TicketTemplateZeile({ template, index, letzte, phasen, o
             <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
             <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
           </Select>
-          <Select value={form.milestone_state} onValueChange={(v) => setForm({ ...form, milestone_state: v })}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-            <SelectContent>{phasen.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
-          </Select>
+          {istContainer ? <RoutineVorlageFelder form={form} setForm={setForm} /> : (
+            <Select value={form.milestone_state} onValueChange={(v) => setForm({ ...form, milestone_state: v })}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>{phasen.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
           <Input type="number" className="w-24" placeholder="Soll-h" value={form.target_hours}
             onChange={(e) => setForm({ ...form, target_hours: e.target.value })} />
           <Button size="sm" className="font-bold uppercase" disabled={saving || !form.title.trim()} onClick={speichern}>
@@ -63,7 +76,7 @@ export default function TicketTemplateZeile({ template, index, letzte, phasen, o
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{template.title}</p>
         <p className="text-[11px] text-muted-foreground">
-          {template.role} · {phasen.find((p) => p.value === template.milestone_state)?.label || '—'}
+          {template.role} · {beschreibung}
           {template.target_hours > 0 ? ` · ${template.target_hours} h` : ''}
         </p>
       </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Pencil, Check, X, Trash2 } from 'lucide-react';
 import { fmtEUR } from '@/components/sprint/sprintConfig';
 
@@ -57,6 +58,15 @@ export default function ModulKopfFelder({ module, onChanged, onDeleted }) {
           {module.target_hours ? `${module.target_hours} h Soll` : 'keine Sollstunden'}
           {module.standard_price ? ` · ${fmtEUR(module.standard_price)}` : ''}
         </p>
+        {module.default_arbeitsmodell === 'container' && (
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 cursor-pointer">
+            <Checkbox
+              checked={!!module.vorausgewaehlt}
+              onCheckedChange={async (v) => { await base44.entities.ModuleTemplate.update(module.id, { vorausgewaehlt: !!v }); onChanged(); }}
+            />
+            Bei Projektanlage vorausgewählt
+          </label>
+        )}
       </div>
       <div className="flex shrink-0">
         <Button variant="ghost" size="icon" className="h-7 w-7" title="Modul bearbeiten" onClick={() => setEdit(true)}>
