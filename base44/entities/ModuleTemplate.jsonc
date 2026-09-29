@@ -43,6 +43,11 @@
       "default": false,
       "description": "Phase mit hartem Freeze (z. B. Design)"
     },
+    "vorausgewaehlt": {
+      "type": "boolean",
+      "default": false,
+      "description": "Wird bei der Projektanlage automatisch angehakt"
+    },
     "active": {
       "type": "boolean",
       "default": true

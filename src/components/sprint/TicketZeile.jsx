@@ -3,6 +3,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, ListChecks, Pencil } from 'lu
 import { setzeOffenesTicket } from '@/lib/sprint/offenesTicket';
 import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import FaelligkeitKnopf from '@/components/sprint/FaelligkeitKnopf';
 import TicketStatusElement from '@/components/sprint/TicketStatusElement';
 import PersonenChip from '@/components/sprint/PersonenChip';
 import TicketDetailPanel from '@/components/sprint/ticket/TicketDetailPanel';
@@ -57,6 +58,7 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
             {ticket.blocks_others && (
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" style={{ color: STATUS_COLORS.attention }} title="blockiert andere Aufgaben" />
             )}
+            <FaelligkeitKnopf ticket={ticket} disabled={!editable} />
           </p>
           <div className="flex items-center gap-2 mt-0.5">
             {originLabel && (

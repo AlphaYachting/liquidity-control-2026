@@ -20,6 +20,10 @@
       "type": "string",
       "description": "Aufgabe, aus deren Kontext der Timer gestartet wurde"
     },
+    "module_template_id": {
+      "type": "string",
+      "description": "Leistungsbereich der Buchung"
+    },
     "gestartet_am": {
       "type": "string",
       "format": "date-time"

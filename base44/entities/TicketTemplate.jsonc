@@ -35,12 +35,40 @@
         "kundenfeedback"
       ],
       "default": "produktion",
-      "description": "in welchem Milestone-Zustand dieses Ticket bearbeitet wird"
+      "description": "in welchem Milestone-Zustand dieses Ticket bearbeitet wird \u2014 bei Routinen immer produktion"
     },
     "blocks_others": {
       "type": "boolean",
       "default": false,
       "description": "blockiert andere Aufgaben, wenn es liegen bleibt"
+    },
+    "art": {
+      "type": "string",
+      "enum": [
+        "einmalig",
+        "routine"
+      ],
+      "default": "einmalig"
+    },
+    "rhythmus": {
+      "type": "string",
+      "enum": [
+        "woechentlich",
+        "14taegig",
+        "monatlich",
+        "manuell"
+      ],
+      "description": "nur bei art = routine"
+    },
+    "fenster_tage": {
+      "type": "number",
+      "default": 0,
+      "description": "Arbeitstage nach der F\u00e4lligkeit, in denen die Aufgabe noch nicht als \u00fcberf\u00e4llig gilt"
+    },
+    "optional": {
+      "type": "boolean",
+      "default": false,
+      "description": "bei der Projektanlage nicht vorausgew\u00e4hlt"
     }
   },
   "required": [

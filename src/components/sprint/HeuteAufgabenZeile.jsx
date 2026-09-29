@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import FaelligkeitKnopf from '@/components/sprint/FaelligkeitKnopf';
 import TicketStatusElement from '@/components/sprint/TicketStatusElement';
 import { RITTLER, STATUS_COLORS, STATE_LABELS } from '@/components/sprint/sprintConfig';
 
@@ -20,6 +21,7 @@ export default function HeuteAufgabenZeile({ ticket, milestone, projectLabel, on
       >
         <div className="flex items-center gap-2">
           <span className="text-sm truncate" style={{ color: RITTLER.black, fontWeight: 500 }}>{ticket.title}</span>
+          <FaelligkeitKnopf ticket={ticket} />
           {ticket.origin === 'change_request' && (
             <span
               className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-[2px] shrink-0"

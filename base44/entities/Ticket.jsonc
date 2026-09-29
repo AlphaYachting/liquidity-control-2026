@@ -115,11 +115,42 @@
     "planned_for": {
       "type": "string",
       "format": "date",
-      "description": "f\u00fcr welchen Tag eingeplant"
+      "description": "F\u00e4lligkeit \u2013 an diesem Tag ist die Aufgabe f\u00e4llig"
     },
     "blocks_others": {
       "type": "boolean",
       "default": false
+    },
+    "module_template_id": {
+      "type": "string",
+      "description": "aus welchem Modul die Aufgabe stammt"
+    },
+    "ticket_template_id": {
+      "type": "string",
+      "description": "aus welcher Vorlage"
+    },
+    "rhythmus": {
+      "type": "string",
+      "enum": [
+        "woechentlich",
+        "14taegig",
+        "monatlich",
+        "manuell"
+      ],
+      "description": "leer = keine Routine"
+    },
+    "fenster_tage": {
+      "type": "number",
+      "default": 0
+    },
+    "rhythmus_anker": {
+      "type": "string",
+      "format": "date",
+      "description": "erster Termin der Routine \u2014 bleibt \u00fcber alle Folgetickets gleich"
+    },
+    "vorgaenger_id": {
+      "type": "string",
+      "description": "das erledigte Ticket, aus dem dieses Folgeticket entstand"
     }
   },
   "required": [
