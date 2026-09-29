@@ -29,7 +29,7 @@ export default function PaketAuswahl({ modules, templates, projektTyp, vorhanden
   );
 
   return (
-    <div className="md:sticky md:top-4">
+    <div className="min-[900px]:sticky min-[900px]:top-4">
       {gruppe('Standard', standard)}
       {gruppe('Leistungen', leistungen)}
       {alle ? gruppe('Weitere Module', weitere) : weitere.length > 0 && (

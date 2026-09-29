@@ -28,7 +28,7 @@ export default function SprintModuleHinzufuegen() {
         base44.entities.TicketTemplate.list('order', 2000),
         base44.entities.TeamMember.filter({ active: true }, 'name', 200),
       ]);
-      const milestone = milestones.find((m) => !m.released_at && m.state !== 'freigegeben') || null;
+      const milestone = milestones.find((m) => !m.released) || null;
       const tickets = milestone ? await base44.entities.Ticket.filter({ milestone_id: milestone.id }, 'order', 1000) : [];
       return { me, project, milestone, modules, ticketTemplates, members, tickets };
     },
