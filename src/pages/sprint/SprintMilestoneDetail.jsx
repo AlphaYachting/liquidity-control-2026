@@ -22,6 +22,8 @@ import { STATE_LABELS, RITTLER, STATUS_COLORS, fmtEUR, fmtDate, todayIso } from 
 import { computeFeedbackDeadline } from '@/lib/sprint/deadlines';
 import { sprintStatus } from '@/lib/sprint/status';
 import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
+import { projectTypeOf } from '@/components/sprint/projectTypes';
+import ModulAnsicht from '@/components/sprint/ModulAnsicht';
 
 const PHASES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
 const WORK_PHASES = ['input', 'produktion', 'pruefung'];
@@ -41,7 +43,7 @@ export default function SprintMilestoneDetail() {
       const milestone = await base44.entities.Milestone.get(milestoneId);
       const [sprint, tickets, members, settings, siblings, notifications, feedbacks] = await Promise.all([
         base44.entities.Sprint.get(milestone.sprint_id).catch(() => null),
-        base44.entities.Ticket.filter({ milestone_id: milestoneId }, 'order', 300),
+        base44.entities.Ticket.filter({ milestone_id: milestoneId }, 'order', 1000),
         base44.entities.TeamMember.filter({ active: true }, 'name', 100),
         base44.entities.Setting.filter({ group: 'fristen' }, 'key', 100),
         base44.entities.Milestone.filter({ sprint_id: milestone.sprint_id }, 'order', 50),
@@ -70,6 +72,7 @@ export default function SprintMilestoneDetail() {
 
   const { milestone, sprint, tickets, members, settings, siblings, project, client, notifications, feedbacks } = data;
   const locked = milestone.state === 'freigegeben';
+  const istContainer = projectTypeOf(project) === 'container';
   const showCountdown = milestone.state === 'kundenfeedback' || locked;
 
   // U12/B4 — Zähler und Balken beziehen sich auf ALLE Arbeitsaufgaben der Etappe
@@ -245,6 +248,20 @@ export default function SprintMilestoneDetail() {
             goalLabel="bis zur Übergabe"
           />
           <AufgabenFilter value={filter} onChange={setFilter} counts={counts} />
+          {istContainer ? (
+            <div className="mt-4">
+              <ModulAnsicht
+                tickets={tickets}
+                matches={matchesFilter}
+                members={members}
+                myEmail={myEmail}
+                project={project}
+                onStatus={handleTicketStatus}
+                onAssignee={handleAssignee}
+                onRefresh={refresh}
+              />
+            </div>
+          ) : (
           <div className="mt-4">
             {PHASES.map((phase) => {
               const phaseTickets = tickets.filter((t) => (t.milestone_state || 'produktion') === phase);
@@ -264,6 +281,7 @@ export default function SprintMilestoneDetail() {
               );
             })}
           </div>
+          )}
           {tickets.length === 0 && (
             <p className="text-sm mt-2" style={{ color: RITTLER.textSecondary }}>Keine Aufgaben in diesem Milestone.</p>
           )}
