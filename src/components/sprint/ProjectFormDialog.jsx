@@ -28,6 +28,12 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
     enabled: open,
   });
 
+  const { data: hatTickets = true } = useQuery({
+    queryKey: ['projektHatTickets', project?.id],
+    queryFn: async () => (await base44.entities.Ticket.filter({ project_id: project.id }, '-created_date', 1)).length > 0,
+    enabled: open && !!project?.id,
+  });
+
   useEffect(() => {
     if (!open) return;
     setForm(project ? { ...EMPTY, ...project } : EMPTY);
@@ -38,8 +44,8 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
   if (open && !project?.id) return null;
 
   const originalType = projectTypeOf(project);
-  const sprintSwitchWarning = Boolean(project?.id) && type !== originalType
-    && (type === 'sprint' || originalType === 'sprint');
+  // Wechsel von/zu Sprint nur ohne bestehende Aufgaben
+  const gesperrt = (k) => hatTickets && (originalType === 'sprint' ? k !== 'sprint' : k === 'sprint');
 
   const handleSave = async () => {
     if (!form.client_id || !form.title || !form.pm_email) return;
@@ -58,7 +64,8 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
       rundung_art: form.rundung_art || 'auf',
       rundung_basis: form.rundung_basis || 'tag_projekt',
       mindestbuchung_minuten: Number(form.mindestbuchung_minuten) || 0,
-      stundensatz: type === 'support' ? Number(form.stundensatz) || 0 : undefined,
+      stundensatz: type === 'support' || type === 'regie' ? Number(form.stundensatz) || 0 : undefined,
+      aufwand_art: type === 'support' || type === 'regie' ? type : undefined,
       support_kontingent_stunden: type === 'container' ? Number(form.support_kontingent_stunden) || 0 : undefined,
       recurring_contract_id: type === 'container' ? (form.recurring_contract_id || '') : undefined,
     };
@@ -89,13 +96,13 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {PROJECT_TYPE_ORDER.map((k) => (
-                  <SelectItem key={k} value={k}>{PROJECT_TYPES[k].label}</SelectItem>
+                  <SelectItem key={k} value={k} disabled={gesperrt(k)}>{PROJECT_TYPES[k].label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {sprintSwitchWarning && (
-              <p className="mt-1 text-xs text-status-critical">
-                Achtung: An Sprintprojekten hängen Termine und Etappenbeträge. Eine Umstellung ändert das Verhalten des Projekts.
+            {PROJECT_TYPE_ORDER.some(gesperrt) && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {originalType === 'sprint' ? 'Andere Typen' : 'Sprint'}: Mit bestehenden Aufgaben nicht möglich – bitte ein neues Projekt anlegen.
               </p>
             )}
           </div>

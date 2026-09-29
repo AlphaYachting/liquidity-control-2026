@@ -20,7 +20,7 @@ const zaehler = (e) => {
   }
   if (e.kategorie === 'support') return e.ueber_kontingent ? 'Mehrleistung über Kontingent' : 'im Kontingent';
   if (e.kategorie === 'sprint') return 'im Sprintbudget';
-  if (e.kategorie === 'paket') return 'im Pauschalpaket';
+  if (e.kategorie === 'paket') return e.ueber_kontingent ? 'Mehrleistung über Kontingent' : 'im Kontingent';
   return 'interne Zeit';
 };
 

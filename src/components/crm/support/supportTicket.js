@@ -31,12 +31,14 @@ export async function resolveSupportProject(customerName, options = {}) {
   let project = null;
   if (client) {
     const byClient = await base44.entities.Project.filter({ client_id: client.id });
-    project = byClient.find(p => SUPPORT_MODELS.includes(p.abrechnungsmodell) && p.status !== 'abgeschlossen')
-      || byClient.find(p => SUPPORT_MODELS.includes(p.abrechnungsmodell))
+    // Regie-Aufträge nie als Support-Projekt wiederverwenden
+    const kandidaten = byClient.filter(p => SUPPORT_MODELS.includes(p.abrechnungsmodell) && p.aufwand_art !== 'regie');
+    project = kandidaten.find(p => p.status !== 'abgeschlossen')
+      || kandidaten[0]
       || null;
   }
   if (!project) {
-    project = (await base44.entities.Project.filter({ title: supportTitle(customer) }))[0] || null;
+    project = (await base44.entities.Project.filter({ title: supportTitle(customer) })).find(p => p.aufwand_art !== 'regie') || null;
   }
 
   if (!project) {
@@ -53,6 +55,7 @@ export async function resolveSupportProject(customerName, options = {}) {
       pm_email: pmEmail,
       status: 'aktiv',
       abrechnungsmodell: 'aufwand',
+      aufwand_art: 'support',
       stundensatz: Number(stundensatz) || DEFAULT_SUPPORT_RATE,
     });
   } else if (stundensatz && !project.stundensatz) {

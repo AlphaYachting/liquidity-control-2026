@@ -92,7 +92,7 @@ export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, 
     wizardState: {
       seed: {
         client_id: clientId,
-        type: projectType === 'paket' ? 'sprint' : projectType,
+        type: projectType,
         pm_email: pm,
         title: deal.title,
       },

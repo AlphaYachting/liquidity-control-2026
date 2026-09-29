@@ -31,9 +31,9 @@ export function proposalPositions(proposal) {
 }
 
 // Arbeitsmodell des Katalogs auf die Übergabeblatt-Typen abbilden.
-const MODEL_TO_TYPE = { sprint: 'sprint', support: 'support', container: 'container', intern: 'paket' };
+const MODEL_TO_TYPE = { sprint: 'sprint', support: 'support', container: 'container', intern: 'intern' };
 // Das „größte" Arbeitsmodell gewinnt.
-const TYPE_RANK = { sprint: 4, container: 3, support: 2, paket: 1 };
+const TYPE_RANK = { sprint: 4, container: 3, support: 2, regie: 1, intern: 0 };
 
 function matchesModule(positionName, moduleName) {
   const a = String(positionName || '').toLowerCase().trim();
@@ -59,8 +59,8 @@ export function guessProjectType(proposal, positions, modules = []) {
   const text = (positions || []).map((p) => p.name).join(' ').toLowerCase();
   if (/support|betreuung|wartung/.test(text)) return 'support';
   if (/kontingent|container|laufend|monatlich/.test(text)) return 'container';
-  if (/regie|aufwand|stunden/.test(text)) return 'aufwand';
+  if (/regie|aufwand|stunden/.test(text)) return 'regie';
   // Web- und Print-Regel: abgegrenzte Leistungen mit Liefertermin
   if (/website|web|relaunch|neubau|erweiterung|landingpage|shop|onlineshop|seite|blog|flyer|druck|brosch|visitenkarte|print/.test(text)) return 'sprint';
-  return 'paket';
+  return 'sprint';
 }

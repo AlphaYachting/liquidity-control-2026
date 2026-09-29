@@ -4,6 +4,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PROJECT_TYPES, PROJECT_TYPE_ORDER, projectTypeOf } from '@/components/sprint/projectTypes';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
 
 export const NEW_CLIENT = '__new__';
 
@@ -18,9 +20,17 @@ export function rahmenValid(seed) {
 
 // Schritt 1 — Rahmen für alle Projekttypen. Füllt den Startkeim, aus dem alle
 // weiteren Schritte lesen.
-export default function StepRahmen({ seed, setSeed, clients = [], members = [], projects = [], sprints = [] }) {
+export default function StepRahmen({ seed, setSeed, clients = [], members = [], projects = [] }) {
   const set = (patch) => setSeed((s) => ({ ...s, ...patch }));
   const clientProjects = projects.filter((p) => p.client_id === seed.client_id);
+  const supportId = seed.type === 'support'
+    ? clientProjects.find((p) => projectTypeOf(p) === 'support' && p.status !== 'abgeschlossen')?.id
+    : null;
+  const { data: supportSprints = [] } = useQuery({
+    queryKey: ['supportSprint', supportId],
+    enabled: !!supportId,
+    queryFn: () => base44.entities.Sprint.filter({ project_id: supportId }, '-created_date', 1),
+  });
 
   return (
     <div className="space-y-5 max-w-xl">
@@ -73,7 +83,7 @@ export default function StepRahmen({ seed, setSeed, clients = [], members = [], 
         const vorhanden = clientProjects.find((p) => projectTypeOf(p) === 'support' && p.status !== 'abgeschlossen');
         if (!vorhanden) return null;
         const kunde = clients.find((c) => c.id === seed.client_id)?.name || 'Der Kunde';
-        const sprint = sprints.find((s) => s.project_id === vorhanden.id);
+        const sprint = supportSprints[0];
         return (
           <p className="text-xs text-status-attention">
             {kunde} hat bereits ein Support-Projekt:{' '}

@@ -14,7 +14,7 @@ export default function SchnellProjektDialog({ open, onOpenChange, vorgabe = '',
   const [clientId, setClientId] = useState('');
   const [neuerKunde, setNeuerKunde] = useState({ name: '', email: '' });
   const [titel, setTitel] = useState('Laufende Arbeit');
-  const [modell, setModell] = useState('aufwand');
+  const [modell, setModell] = useState('regie');
   const [stundensatz, setStundensatz] = useState('');
   const [kuerzel, setKuerzel] = useState('');
   const [saving, setSaving] = useState(false);
@@ -33,14 +33,20 @@ export default function SchnellProjektDialog({ open, onOpenChange, vorgabe = '',
     const treffer = clients.find((c) => (c.name || '').toLowerCase().includes(vorgabe.toLowerCase()));
     setClientId(treffer?.id || '');
     setNeuerKunde({ name: treffer ? '' : vorgabe, email: '' });
-    setTitel('Laufende Arbeit');
-    setModell('aufwand');
+    setModell('regie');
     setKuerzel(kuerzelVorschlag(treffer?.name || vorgabe));
   }, [open, vorgabe, clients]);
 
   useEffect(() => { if (open) setStundensatz(standardsatz || ''); }, [open, standardsatz]);
 
   const kundeName = clientId ? clients.find((c) => c.id === clientId)?.name : neuerKunde.name;
+  const nachAufwand = modell !== 'intern';
+
+  // Regie: Auftragstitel ist Pflicht und bleibt leer; Support: „Support — Kunde“
+  useEffect(() => {
+    if (!open) return;
+    setTitel(modell === 'support' ? `Support — ${kundeName || ''}` : modell === 'intern' ? 'Laufende Arbeit' : '');
+  }, [open, modell, kundeName]);
   const bereit = titel && kuerzel.length >= 2 && (clientId || (neuerKunde.name && neuerKunde.email));
 
   const anlegen = async () => {
@@ -60,8 +66,8 @@ export default function SchnellProjektDialog({ open, onOpenChange, vorgabe = '',
       kuerzel: kuerzel.toLowerCase(),
       pm_email: email,
       status: 'aktiv',
-      abrechnungsmodell: modell,
-      ...(modell === 'aufwand' ? { stundensatz: Number(stundensatz) || 0 } : {}),
+      abrechnungsmodell: nachAufwand ? 'aufwand' : 'intern',
+      ...(nachAufwand ? { aufwand_art: modell, stundensatz: Number(stundensatz) || 0 } : {}),
     });
     await ensureContainer(project);
     setSaving(false);
@@ -100,19 +106,19 @@ export default function SchnellProjektDialog({ open, onOpenChange, vorgabe = '',
               />
             </div>
           )}
-          <div><Label>Projekttitel</Label><Input value={titel} onChange={(e) => setTitel(e.target.value)} /></div>
           <div>
-            <Label>Abrechnungsmodell</Label>
+            <Label>Art</Label>
             <Select value={modell} onValueChange={setModell}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="aufwand">Nach Aufwand</SelectItem>
+                <SelectItem value="regie">Regie</SelectItem>
                 <SelectItem value="support">Support</SelectItem>
                 <SelectItem value="intern">Intern</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          {modell === 'aufwand' && (
+          <div><Label>{modell === 'regie' ? 'Auftragstitel' : 'Projekttitel'}</Label><Input value={titel} onChange={(e) => setTitel(e.target.value)} /></div>
+          {nachAufwand && (
             <div>
               <Label>Stundensatz (EUR)</Label>
               <Input type="number" value={stundensatz} onChange={(e) => setStundensatz(e.target.value)} />

@@ -23,10 +23,10 @@ const eur = (v) => new Intl.NumberFormat('de-AT', { style: 'currency', currency:
 
 const PROJEKTTYPEN = [
   { key: 'sprint', label: 'Sprint (fester Liefertermin)' },
-  { key: 'support', label: 'Support (Kontingent)' },
-  { key: 'container', label: 'Container (laufend)' },
-  { key: 'aufwand', label: 'Regie / nach Aufwand' },
-  { key: 'paket', label: 'Paket' },
+  { key: 'container', label: 'Retainer / Container (laufend)' },
+  { key: 'support', label: 'Support (technisch, laufend)' },
+  { key: 'regie', label: 'Regie (nach Aufwand, ohne Angebot)' },
+  { key: 'intern', label: 'Intern' },
 ];
 
 // Übergabeblatt: Angebot → Auftrag. Vor „Freigeben & anlegen" wird nichts gespeichert.
@@ -92,7 +92,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
   const ab = data ? computeAbPflicht({ deal, proposal: data.proposal, hasPreviousOrders: data.hasPreviousOrders }) : null;
   // Ohne AB-Pflicht läuft die Abrechnung auf Regie — dann auch keine Anzahlung
   const regie = ab ? ab.regie === true : false;
-  const typ = projectType || (regie ? 'aufwand' : (data ? guessProjectType(data.proposal, positions, data.modules) : 'paket'));
+  const typ = projectType || (regie ? 'regie' : (data ? guessProjectType(data.proposal, positions, data.modules) : 'sprint'));
   const advancePercent = regie ? 0 : Number(advance) || 0;
   const advanceAmount = Math.round(advancePercent / 100 * total);
 

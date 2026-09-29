@@ -4,7 +4,7 @@ export const KATEGORIE_TEXT = {
   sprint: 'Sprint · zählt gegen das Sprintbudget',
   support: 'Support · zählt gegen das Kontingent',
   aufwand: 'Nach Aufwand · wird fakturiert',
-  paket: 'Paket · Indikator',
+  paket: 'Retainer · zählt gegen das Kontingent',
   intern: 'Intern · nicht abrechenbar',
 };
 
