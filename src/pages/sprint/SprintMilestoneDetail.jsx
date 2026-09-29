@@ -74,6 +74,7 @@ export default function SprintMilestoneDetail() {
   const { milestone, sprint, tickets, members, settings, siblings, project, client, notifications, feedbacks } = data;
   const locked = milestone.state === 'freigegeben';
   const istContainer = projectTypeOf(project) === 'container';
+  const istSprint = !!project && projectTypeOf(project) === 'sprint';
   const showCountdown = milestone.state === 'kundenfeedback' || locked;
 
   // U12/B4 — Zähler und Balken beziehen sich auf ALLE Arbeitsaufgaben der Etappe
@@ -103,6 +104,8 @@ export default function SprintMilestoneDetail() {
     .find((p) => p.count > 0) || null;
 
   const handleStateChange = async (target) => {
+    // Zustandswechsel (Frist, Übergabemail) nur bei echten Sprintprojekten
+    if (!istSprint) return { ok: false, error: 'Nur für Sprintprojekte' };
     const patch = { state: target };
     if (target === 'kundenfeedback' && sprint) {
       const res = computeFeedbackDeadline({
@@ -191,6 +194,7 @@ export default function SprintMilestoneDetail() {
             </div>
           </div>
 
+          {istSprint && (<>
           <div className="mt-5 max-w-xl">
             <Zustandskette state={milestone.state} />
           </div>
@@ -226,6 +230,7 @@ export default function SprintMilestoneDetail() {
               {openBefore.count} {openBefore.count === 1 ? 'Aufgabe' : 'Aufgaben'} aus {STATE_LABELS[openBefore.phase]} offen
             </p>
           )}
+          </>)}
 
           {locked && (
             <div className="mt-4 rounded p-4 text-sm border-l-4" style={{ borderColor: STATUS_COLORS.doneText, backgroundColor: STATUS_COLORS.doneSurface, color: RITTLER.black }}>
@@ -291,7 +296,7 @@ export default function SprintMilestoneDetail() {
           )}
         </div>
 
-        {milestone.state === 'kundenfeedback' && (
+        {istSprint && milestone.state === 'kundenfeedback' && (
           <FreigabePanel
             milestone={milestone}
             tickets={tickets}
@@ -313,7 +318,7 @@ export default function SprintMilestoneDetail() {
         onCreated={refresh}
       />
 
-      {!locked && (
+      {istSprint && !locked && (
         <MilestoneAktionsleiste
           state={milestone.state}
           openBefore={openBefore}

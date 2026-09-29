@@ -39,7 +39,7 @@ export default async function (req: Request): Promise<Response> {
     const manuell = payload.manual === true;
 
     const sr = base44.asServiceRole.entities;
-    const [sprints, milestones, tickets, projects, clients, notifications, feedbacks, timeEntries, signals] =
+    let [sprints, milestones, tickets, projects, clients, notifications, feedbacks, timeEntries, signals] =
       await Promise.all([
         sr.Sprint.list('-created_date', 500),
         sr.Milestone.list('order', 2000),
@@ -51,6 +51,15 @@ export default async function (req: Request): Promise<Response> {
         sr.TimeEntry.list('-entry_date', 5000),
         sr.IntelligenceSignal.filter({ resolved: false }, '-triggered_at', 1000),
       ]);
+
+    // Nur echte Sprintprojekte: Behälter (Container, Support, Intern, Alt) bekommen
+    // weder Fristen noch Vorwarn-/Frist-/Übergabemails noch Freigaben.
+    const istSprintProjekt = (p) => !!p && !p.is_legacy && p.abrechnungsmodell === 'sprint';
+    const projektNachId = Object.fromEntries(projects.map((p) => [p.id, p]));
+    const sprintsAlle = sprints;
+    sprints = sprintsAlle.filter((s) => istSprintProjekt(projektNachId[s.project_id]));
+    const sprintIds = new Set(sprints.map((s) => s.id));
+    milestones = milestones.filter((m) => sprintIds.has(m.sprint_id));
 
     const logKeys = new Set(notifications.filter((n) => n.milestone_id).map((n) => `${n.milestone_id}|${n.type}`));
     const sprintLogKeys = new Set(notifications.filter((n) => n.sprint_id).map((n) => `${n.sprint_id}|${n.type}`));

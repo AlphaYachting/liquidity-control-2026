@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { todayIso } from '@/components/sprint/sprintConfig';
+import { projectTypeOf } from '@/components/sprint/projectTypes';
 
 const WORK_PHASES = ['input', 'produktion', 'pruefung'];
 
@@ -55,6 +56,10 @@ export function freigabeVoraussetzungen({ milestone, tickets = [], notifications
 // S4 — idempotent: läuft die Freigabe doppelt (zwei Klicks, Retry, zwei Tabs),
 // entsteht trotzdem genau eine Approval. Eine Rücknahme gibt es nicht.
 export async function performFreigabe({ milestone, sprint, client, siblings = [], tickets = [], source, approvalType = 'aktiv' }) {
+  // 0. Freigaben gibt es nur bei echten Sprintprojekten — nie bei Behältern.
+  const sp = sprint || await base44.entities.Sprint.get(milestone.sprint_id);
+  const project = sp?.project_id ? await base44.entities.Project.get(sp.project_id) : null;
+  if (!project || projectTypeOf(project) !== 'sprint') return { ok: false, error: 'Nur für Sprintprojekte' };
   // 1. Frischen Stand laden — nicht dem übergebenen Objekt vertrauen.
   const fresh = await base44.entities.Milestone.get(milestone.id);
   if (fresh.state === 'freigegeben') {
