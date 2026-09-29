@@ -133,32 +133,27 @@ export default function SprintDetail() {
         </TabsContent>
 
         <TabsContent value="kundenakt" className="mt-4">
-          <SectionLabel className="mb-2">Kundenakt</SectionLabel>
           <KundenaktTab
             projectId={aktProjektId}
             projectName={project?.title}
             customer={client?.name}
             onFesthalten={() => oeffneIntelligenz('erfassung')}
-            titel="Verlauf"
           />
         </TabsContent>
 
         <TabsContent value="abrechnung" className="mt-4">
-          <SectionLabel className="mb-2">Abrechnung</SectionLabel>
           <AbrechnungSektion project={project} milestones={milestones} tickets={tickets} />
         </TabsContent>
 
         <TabsContent value="kommentare" className="mt-4">
-          <SectionLabel className="mb-2">Kommentare & Notizen</SectionLabel>
           <div className="bg-white rounded-lg border border-border p-4">
             <KommentarStrang projectId={sprint.project_id} />
           </div>
         </TabsContent>
 
         <TabsContent value="kommunikation" className="mt-4">
-          <SectionLabel className="mb-2">Kommunikation</SectionLabel>
           {client?.name ? (
-            <CustomerEmailSection customer={client.name} ohneTitel />
+            <CustomerEmailSection customer={client.name} />
           ) : (
             <div className="bg-white rounded-lg border border-border p-4 text-sm text-muted-foreground">
               Kein Kunde verknüpft — keine E-Mails zuordenbar.
