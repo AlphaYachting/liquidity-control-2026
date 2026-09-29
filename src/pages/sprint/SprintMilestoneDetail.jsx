@@ -24,6 +24,7 @@ import { sprintStatus } from '@/lib/sprint/status';
 import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import ModulAnsicht from '@/components/sprint/ModulAnsicht';
+import ModulHinzufuegenKnopf from '@/components/sprint/ModulHinzufuegenKnopf';
 
 const PHASES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
 const WORK_PHASES = ['input', 'produktion', 'pruefung'];
@@ -250,6 +251,9 @@ export default function SprintMilestoneDetail() {
           <AufgabenFilter value={filter} onChange={setFilter} counts={counts} />
           {istContainer ? (
             <div className="mt-4">
+              {myEmail && myEmail === project?.pm_email && !locked && (
+                <div className="flex justify-end mb-3"><ModulHinzufuegenKnopf milestone={milestone} /></div>
+              )}
               <ModulAnsicht
                 tickets={tickets}
                 matches={matchesFilter}

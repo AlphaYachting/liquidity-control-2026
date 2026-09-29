@@ -75,6 +75,7 @@ const SprintIntelligence = lazy(() => import('@/pages/sprint/SprintIntelligence'
 import Zeiten from '@/pages/Zeiten';
 const SprintModulKatalog = lazy(() => import('@/pages/sprint/SprintModulKatalog'));
 const SprintAssistent = lazy(() => import('@/pages/sprint/SprintAssistent'));
+const SprintModuleHinzufuegen = lazy(() => import('@/pages/sprint/SprintModuleHinzufuegen'));
 const SprintDetail = lazy(() => import('@/pages/sprint/SprintDetail'));
 const SprintMilestoneDetail = lazy(() => import('@/pages/sprint/SprintMilestoneDetail'));
 const SprintPlanung = lazy(() => import('@/pages/sprint/SprintPlanung'));
@@ -194,6 +195,7 @@ const AuthenticatedApp = () => {
         <Route path="/sprint/katalog" element={<SprintModulKatalog />} />
         <Route path="/sprint/neu" element={<SprintAssistent />} />
         <Route path="/sprint/sprints/:sprintId" element={<SprintDetail />} />
+        <Route path="/sprint/sprints/:sprintId/module" element={<SprintModuleHinzufuegen />} />
         <Route path="/sprint/milestones/:milestoneId" element={<SprintMilestoneDetail />} />
         <Route path="/sprint/planung" element={<SprintPlanung />} />
         <Route path="/sprint/steuerung" element={<SprintSteuerung />} />

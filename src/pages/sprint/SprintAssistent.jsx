@@ -10,7 +10,7 @@ import SectionLabel from '@/components/sprint/SectionLabel';
 import StepModule, { milestoneAmount } from '@/components/sprint/assistent/StepModule';
 import StepRahmen, { rahmenValid, NEW_CLIENT } from '@/components/sprint/assistent/StepRahmen';
 import StepTypDetails, { typDetailsValid } from '@/components/sprint/assistent/StepTypDetails';
-import StepContainerModule from '@/components/sprint/assistent/StepContainerModule';
+import ModulPaketEditor from '@/components/sprint/paket/ModulPaketEditor';
 import { PROJECT_TYPES } from '@/components/sprint/projectTypes';
 import { readWizardSeed } from '@/lib/sprint/wizardSeed';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
@@ -265,7 +265,7 @@ export default function SprintAssistent() {
         )}
 
         {!isSprint && step === 3 && (
-          <StepContainerModule
+          <ModulPaketEditor
             modules={modules}
             ticketTemplates={ticketTemplates}
             projektTyp={seed.type}
