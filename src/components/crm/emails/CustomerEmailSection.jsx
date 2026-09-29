@@ -7,7 +7,7 @@ import { EMAIL_CATEGORIES, EMAIL_THREAD_STATUSES, formatMailDate } from '@/compo
 import { useCustomerEmailThreads } from '@/hooks/useCustomerEmailThreads';
 
 // Zeigt die letzten E-Mail-Konversationen eines Kunden im Projekt-Cockpit.
-export default function CustomerEmailSection({ customer }) {
+export default function CustomerEmailSection({ customer, ohneTitel = false }) {
   const { data, isLoading, isError } = useCustomerEmailThreads(customer);
 
   if (!customer) return null;
@@ -16,12 +16,14 @@ export default function CustomerEmailSection({ customer }) {
 
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-1.5">
-          <Mail className="w-3.5 h-3.5 text-primary" /> E-Mail-Kommunikation
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
+      {!ohneTitel && (
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-1.5">
+            <Mail className="w-3.5 h-3.5 text-muted-foreground" /> E-Mail-Kommunikation
+          </CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={`space-y-2 ${ohneTitel ? 'pt-4' : ''}`}>
         {isLoading ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Wird geladen…
