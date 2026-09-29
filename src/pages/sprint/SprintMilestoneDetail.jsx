@@ -17,6 +17,7 @@ import AufgabenFilter from '@/components/sprint/AufgabenFilter';
 import MilestoneAktionsleiste from '@/components/sprint/MilestoneAktionsleiste';
 import FreigabePanel from '@/components/sprint/FreigabePanel';
 import { performFreigabe } from '@/lib/sprint/freigabe';
+import useTicketStatus from '@/hooks/useTicketStatus';
 import { STATE_LABELS, RITTLER, STATUS_COLORS, fmtEUR, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { computeFeedbackDeadline } from '@/lib/sprint/deadlines';
 import { sprintStatus } from '@/lib/sprint/status';
@@ -54,6 +55,7 @@ export default function SprintMilestoneDetail() {
   });
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['milestoneDetail', milestoneId] });
+  const { setStatus: handleTicketStatus, dialog: routineDialog } = useTicketStatus(refresh);
 
   useMeldeZeitKontext({ project_id: data?.sprint?.project_id, quelle: 'sprint' });
 
@@ -144,10 +146,6 @@ export default function SprintMilestoneDetail() {
     return res;
   };
 
-  const handleTicketStatus = async (ticket, status) => {
-    await base44.entities.Ticket.update(ticket.id, { status, last_status_change: new Date().toISOString() });
-    refresh();
-  };
 
   const handleAssignee = async (ticket, email) => {
     await base44.entities.Ticket.update(ticket.id, { assignee_email: email });
@@ -300,6 +298,7 @@ export default function SprintMilestoneDetail() {
           onChange={handleStateChange}
         />
       )}
+      {routineDialog}
     </div>
   );
 }

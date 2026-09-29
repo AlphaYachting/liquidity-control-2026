@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import HeuteGebucht from '@/components/sprint/HeuteGebucht';
 import HeuteAufgabenliste from '@/components/sprint/HeuteAufgabenliste';
+import useTicketStatus from '@/hooks/useTicketStatus';
 import HeuteFristen from '@/components/sprint/HeuteFristen';
 import HeutePmBlock from '@/components/sprint/HeutePmBlock';
 import Fortschrittszaehler from '@/components/sprint/Fortschrittszaehler';
@@ -42,6 +43,8 @@ export default function SprintHeute() {
       } else if (focusDay?.type === 'reaktion') {
         tickets = myTickets;
       }
+      // Routinen erscheinen erst, wenn sie fällig werden
+      tickets = tickets.filter((t) => !(t.rhythmus && t.planned_for && t.planned_for > today));
       const standardHours = Number(settings.find((s) => s.key === 'standard_day_hours')?.value) || 8;
       const myProjectIds = new Set([
         ...myTickets.map((t) => t.project_id),
@@ -53,10 +56,7 @@ export default function SprintHeute() {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['sprintHeute'] });
 
-  const handleStatusChange = async (ticket, status) => {
-    await base44.entities.Ticket.update(ticket.id, { status, last_status_change: new Date().toISOString() });
-    refresh();
-  };
+  const { setStatus: handleStatusChange, dialog: routineDialog } = useTicketStatus(refresh);
 
   if (isLoading || !data) {
     return (
@@ -173,6 +173,7 @@ export default function SprintHeute() {
       <HeuteFristen deadlines={deadlines} />
 
       <HeuteGebucht entries={todayEntries} projectTitleById={projectTitleById} />
+      {routineDialog}
     </div>
   );
 }
