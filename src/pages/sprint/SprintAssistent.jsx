@@ -269,6 +269,8 @@ export default function SprintAssistent() {
             modules={modules}
             ticketTemplates={ticketTemplates}
             projektTyp={seed.type}
+            standardBetreuer={seed.pm_email}
+            members={members}
             zusatzModulIds={initial.sprint.selected.map((s) => s.module_template_id).filter(Boolean)}
             value={containerAuswahl}
             onChange={setContainerAuswahl}

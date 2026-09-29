@@ -18,11 +18,12 @@ export default function ModulHinzufuegenKnopf({ project, milestone, tickets, onA
     queryKey: ['modulKatalogFuerBehaelter'],
     enabled: offen,
     queryFn: async () => {
-      const [modules, ticketTemplates] = await Promise.all([
+      const [modules, ticketTemplates, members] = await Promise.all([
         base44.entities.ModuleTemplate.filter({ active: true }, 'name', 300),
         base44.entities.TicketTemplate.list('order', 2000),
+        base44.entities.TeamMember.filter({ active: true }, 'name', 200),
       ]);
-      return { modules, ticketTemplates };
+      return { modules, ticketTemplates, members };
     },
   });
 
@@ -51,6 +52,8 @@ export default function ModulHinzufuegenKnopf({ project, milestone, tickets, onA
               modules={data.modules}
               ticketTemplates={data.ticketTemplates}
               projektTyp="container"
+              standardBetreuer={project.pm_email}
+              members={data.members}
               bereitsVorhandeneModulIds={vorhanden}
               value={auswahl}
               onChange={setAuswahl}

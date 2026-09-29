@@ -1,12 +1,13 @@
 import React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { standardTermin } from '@/lib/sprint/ensureContainer';
 
 const RHYTHMUS_LABEL = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', manuell: 'manuell' };
 
 // Vorlagen eines angehakten Moduls: einmalige und (bei Container) wiederkehrende.
-export default function ModulVorlagenAuswahl({ templates, istContainer, eintrag, onChange }) {
+export default function ModulVorlagenAuswahl({ templates, istContainer, eintrag, onChange, members = [] }) {
   const einmalig = templates.filter((t) => t.art !== 'routine');
   const routinen = istContainer ? templates.filter((t) => t.art === 'routine') : [];
   const ids = eintrag.template_ids || [];
@@ -29,6 +30,20 @@ export default function ModulVorlagenAuswahl({ templates, istContainer, eintrag,
 
   return (
     <div className="ml-7 mt-1 mb-2 space-y-2">
+      {members.length > 0 && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-xs text-muted-foreground w-16">Betreuer</span>
+          <Select
+            value={eintrag.betreuer_email || undefined}
+            onValueChange={(v) => onChange({ ...eintrag, betreuer_email: v })}
+          >
+            <SelectTrigger className="h-8 text-sm w-56"><SelectValue placeholder="Betreuer wählen" /></SelectTrigger>
+            <SelectContent>
+              {members.map((m) => <SelectItem key={m.email} value={m.email}>{m.name || m.email}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       {einmalig.length > 0 && (
         <div>
           <p className="text-xs text-muted-foreground mb-1">Einmalig zum Start</p>

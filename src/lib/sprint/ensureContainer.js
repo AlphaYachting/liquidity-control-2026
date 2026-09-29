@@ -20,12 +20,12 @@ export function standardTermin(rhythmus, heuteIso = todayIso()) {
 }
 
 // Standardauswahl eines Moduls: alle nicht-optionalen Vorlagen (Routinen nur bei Container).
-export function standardAuswahl(moduleId, templates, istContainer) {
+export function standardAuswahl(moduleId, templates, istContainer, standardBetreuer) {
   const eigene = templates.filter((t) => t.module_template_id === moduleId && !t.optional
     && (t.art !== 'routine' || istContainer));
   const erste_termine = {};
   eigene.filter((t) => t.art === 'routine').forEach((t) => { erste_termine[t.id] = standardTermin(t.rhythmus); });
-  return { module_template_id: moduleId, template_ids: eigene.map((t) => t.id), erste_termine };
+  return { module_template_id: moduleId, template_ids: eigene.map((t) => t.id), erste_termine, betreuer_email: standardBetreuer || null };
 }
 
 // Laufender Behälter: ein Sprint OHNE Liefertermin und ein offener Milestone
@@ -62,7 +62,7 @@ export async function ensureContainer(project, options = {}) {
     if (!auswahl && module_ids.length) {
       const templates = await base44.entities.TicketTemplate.filter({ module_template_id: { $in: module_ids } }, 'order', 500);
       const istContainer = projectTypeOf(project) === 'container';
-      auswahl = module_ids.map((id) => standardAuswahl(id, templates, istContainer));
+      auswahl = module_ids.map((id) => standardAuswahl(id, templates, istContainer, project.pm_email));
     }
     await modulTicketsAnlegen(project, milestone, auswahl || []);
   }
@@ -103,7 +103,9 @@ export async function modulTicketsAnlegen(project, milestone, auswahl = []) {
         module_template_id: a.module_template_id,
         ticket_template_id: t.id,
       };
-      const person = resolveAssignee(t.role, members) || project.pm_email;
+      const person = routine
+        ? a.betreuer_email || project.pm_email
+        : resolveAssignee(t.role, members) || a.betreuer_email || project.pm_email;
       if (person) ticket.assignee_email = person;
       if (routine) {
         const termin = a.erste_termine?.[t.id] || standardTermin(t.rhythmus);

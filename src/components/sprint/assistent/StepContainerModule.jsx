@@ -7,7 +7,7 @@ import { standardAuswahl } from '@/lib/sprint/ensureContainer';
 // Modulwahl für laufende Behälter (Support, Container, Alt, Intern).
 // value/onChange tragen die auswahl-Struktur für modulTicketsAnlegen.
 export default function StepContainerModule({
-  modules, ticketTemplates = [], projektTyp, bereitsVorhandeneModulIds = [], zusatzModulIds = [], value = [], onChange,
+  modules, ticketTemplates = [], projektTyp, standardBetreuer, members = [], bereitsVorhandeneModulIds = [], zusatzModulIds = [], value = [], onChange,
 }) {
   const istContainer = projektTyp === 'container';
   const model = projektTyp === 'support' ? 'support' : 'container';
@@ -17,14 +17,14 @@ export default function StepContainerModule({
     if (value.length) return;
     const ids = [...new Set([...sichtbar.filter((m) => m.vorausgewaehlt).map((m) => m.id), ...zusatzModulIds])]
       .filter((id) => sichtbar.some((m) => m.id === id));
-    if (ids.length) onChange(ids.map((id) => standardAuswahl(id, ticketTemplates, istContainer)));
+    if (ids.length) onChange(ids.map((id) => standardAuswahl(id, ticketTemplates, istContainer, standardBetreuer)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const eintragVon = (id) => value.find((a) => a.module_template_id === id);
   const toggle = (id) => onChange(eintragVon(id)
     ? value.filter((a) => a.module_template_id !== id)
-    : [...value, standardAuswahl(id, ticketTemplates, istContainer)]);
+    : [...value, standardAuswahl(id, ticketTemplates, istContainer, standardBetreuer)]);
   const setzeEintrag = (e) => onChange(value.map((a) => (a.module_template_id === e.module_template_id ? e : a)));
 
   const passend = sichtbar.filter((m) => !m.default_arbeitsmodell || m.default_arbeitsmodell === model);
@@ -46,6 +46,7 @@ export default function StepContainerModule({
             templates={ticketTemplates.filter((t) => t.module_template_id === m.id)}
             istContainer={istContainer}
             eintrag={eintrag}
+            members={members}
             onChange={setzeEintrag}
           />
         )}
