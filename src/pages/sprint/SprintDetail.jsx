@@ -89,8 +89,8 @@ export default function SprintDetail() {
       />
 
       <Tabs defaultValue="uebersicht">
-        <div className="flex items-center justify-between gap-3">
-          <TabsList>
+        <div className="flex items-center justify-between gap-3 border-b border-border">
+          <TabsList className="bg-transparent p-0 h-auto rounded-none -mb-px [&>button]:rounded-none [&>button]:border-b-2 [&>button]:border-transparent [&>button]:px-3 [&>button]:pb-2 [&>button]:pt-1 [&>button[data-state=active]]:border-primary [&>button[data-state=active]]:bg-transparent [&>button[data-state=active]]:shadow-none">
             <TabsTrigger value="uebersicht">Projektübersicht</TabsTrigger>
             <TabsTrigger value="kundenakt">Kundenakt</TabsTrigger>
             <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
