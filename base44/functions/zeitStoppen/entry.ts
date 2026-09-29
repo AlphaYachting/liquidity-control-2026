@@ -93,6 +93,7 @@ export default async function (req: Request): Promise<Response> {
     const eintrag = await db.TimeEntry.create({
       ...felder,
       ...(laufende.ticket_id ? { ticket_id: laufende.ticket_id } : {}),
+      ...(laufende.module_template_id ? { module_template_id: laufende.module_template_id } : {}),
       laufende_id,
       person_email: laufende.person_email,
       entry_date: tag,

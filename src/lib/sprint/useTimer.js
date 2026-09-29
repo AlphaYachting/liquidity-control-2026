@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { todayIso } from '@/components/sprint/sprintConfig';
 import { ermittleBuchungsfelder, ueberKontingentPruefen } from './buchungsfelder';
 import { vorbelegeTaetigkeit } from '@/lib/zeit/taetigkeit';
+import { vorbelegeBereich } from '@/lib/zeit/leistungsbereich';
 
 const KEY = 'sprint_timer_cache';
 const MAX_MINUTEN = 600; // 10 Stunden
@@ -62,7 +63,7 @@ export async function tagBestaetigt(email, tag) {
 export async function bucheZeit({
   projectId, email, durationMinutes, note = '', entryDate,
   startedAt, endedAt, taetigkeit, verrechenbar, nichtVerrechenbarGrund,
-  ueberKontingent, quelle = 'timer', korrekturZu, ticketId, ausCrm,
+  ueberKontingent, quelle = 'timer', korrekturZu, ticketId, ausCrm, moduleTemplateId,
 }) {
   const felder = await ermittleBuchungsfelder(projectId);
   const minuten = Math.round(Number(durationMinutes) || 0);
@@ -86,6 +87,7 @@ export async function bucheZeit({
     ...(nichtVerrechenbarGrund ? { nicht_verrechenbar_grund: nichtVerrechenbarGrund } : {}),
     ...(art ? { taetigkeit: art } : {}),
     ...(ticketId ? { ticket_id: ticketId } : {}),
+    ...(moduleTemplateId ? { module_template_id: moduleTemplateId } : {}),
     ...(korrekturZu ? { korrektur_zu: korrekturZu } : {}),
     person_email: email,
     entry_date: tag,
@@ -124,6 +126,7 @@ export async function aendereZeit(id, patch = {}) {
       note: daten.note ?? `Korrektur zu ${original.entry_date}`,
       taetigkeit: daten.taetigkeit || original.taetigkeit,
       verrechenbar: daten.verrechenbar ?? original.verrechenbar,
+      moduleTemplateId: daten.module_template_id !== undefined ? daten.module_template_id : original.module_template_id,
       quelle: 'korrektur',
       korrekturZu: original.id,
     });
@@ -218,7 +221,7 @@ export function useTimer(email) {
   }, [email, refresh, qc]);
 
   // Je Person läuft genau ein Timer — ein zweiter Start braucht die ausdrückliche Bestätigung.
-  const start = useCallback(async (project, kuerzel, notiz = '', { force = false, ticketId } = {}) => {
+  const start = useCallback(async (project, kuerzel, notiz = '', { force = false, ticketId, moduleTemplateId } = {}) => {
     const bestehend = await laufendeVon(email);
     if (bestehend && !force) return { conflict: bestehend };
     if (bestehend) {
@@ -231,7 +234,11 @@ export function useTimer(email) {
     for (const alt of reste) await base44.entities.LaufendeZeitbuchung.delete(alt.id).catch(() => null);
 
     const felder = await ermittleBuchungsfelder(project.id);
+    const bereich = moduleTemplateId !== undefined
+      ? moduleTemplateId
+      : await vorbelegeBereich({ projectId: project.id, ticketId, email });
     const neu = await base44.entities.LaufendeZeitbuchung.create({
+      ...(bereich ? { module_template_id: bereich } : {}),
       person_email: email,
       client_id: felder.client_id,
       project_id: project.id,

@@ -18,6 +18,8 @@ import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceS
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import useKundenaktProjektId from '@/hooks/useKundenaktProjektId';
 import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
+import { projectTypeOf } from '@/components/sprint/projectTypes';
+import ModulHinzufuegenKnopf from '@/components/sprint/ModulHinzufuegenKnopf';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
 export default function SprintDetail() {
@@ -69,6 +71,7 @@ export default function SprintDetail() {
 
   const { sprint, project, client, milestones, tickets, members, timeEntries, focusDays } = data;
 
+  const offenerMilestone = milestones.find((m) => !m.released);
   const status = sprintStatus({ sprint, milestones, tickets, timeEntries, focusDays });
 
   const peopleOf = (milestoneId) => {
@@ -98,6 +101,9 @@ export default function SprintDetail() {
             <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-2 shrink-0">
+            {projectTypeOf(project) === 'container' && me?.email && me.email === project?.pm_email && offenerMilestone && (
+              <ModulHinzufuegenKnopf project={project} milestone={offenerMilestone} tickets={tickets} onAdded={refetch} />
+            )}
             <Button size="sm" className="shadow-sm shrink-0" onClick={() => oeffneIntelligenz('frage')}>
               <BrainCircuit className="w-4 h-4 mr-1.5" /> Projektintelligenz
             </Button>

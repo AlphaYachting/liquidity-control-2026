@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { aendereZeit } from '@/lib/sprint/useTimer';
+import BereichChips from './BereichChips';
 import { minuteVonIso, isoVonMinute, uhr } from '@/lib/zeit/tagesAuswertung';
 
 const zuMinute = (s) => {
@@ -17,12 +18,14 @@ export default function BuchungBearbeitenDialog({ eintrag, open, onOpenChange, o
   const [bis, setBis] = useState('10:00');
   const [notiz, setNotiz] = useState('');
   const [saving, setSaving] = useState(false);
+  const [bereich, setBereich] = useState(null);
 
   useEffect(() => {
     if (!eintrag) return;
     setVon(eintrag.started_at ? uhr(minuteVonIso(eintrag.started_at)) : '09:00');
     setBis(eintrag.ended_at ? uhr(minuteVonIso(eintrag.ended_at)) : '10:00');
     setNotiz(eintrag.note || '');
+    setBereich(eintrag.module_template_id || null);
   }, [eintrag?.id, open]);
 
   if (!eintrag) return null;
@@ -35,6 +38,7 @@ export default function BuchungBearbeitenDialog({ eintrag, open, onOpenChange, o
       ended_at: isoVonMinute(eintrag.entry_date, zuMinute(bis)),
       duration_minutes: minuten,
       note: notiz,
+      ...(bereich !== (eintrag.module_template_id || null) ? { module_template_id: bereich } : {}),
     });
     setSaving(false);
     onOpenChange(false);
@@ -53,6 +57,7 @@ export default function BuchungBearbeitenDialog({ eintrag, open, onOpenChange, o
             <div><Label>Bis</Label><Input type="time" value={bis} onChange={(e) => setBis(e.target.value)} /></div>
           </div>
           <div><Label>Notiz</Label><Input value={notiz} onChange={(e) => setNotiz(e.target.value)} /></div>
+          <BereichChips projectId={eintrag.project_id} wert={bereich} onWaehlen={setBereich} />
           <Button className="w-full font-bold uppercase" disabled={saving || minuten <= 0} onClick={speichern}>
             {saving ? 'Speichert…' : 'Speichern'}
           </Button>

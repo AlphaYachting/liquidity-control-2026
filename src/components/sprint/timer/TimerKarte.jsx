@@ -8,6 +8,9 @@ import ProjektKopf from '@/components/zeit/ProjektKopf';
 import ZahlenBlock from '@/components/zeit/ZahlenBlock';
 import HauptKnopf from '@/components/zeit/HauptKnopf';
 import FussVerweise from '@/components/zeit/FussVerweise';
+import BereichChips from '@/components/zeit/BereichChips';
+import { base44 } from '@/api/base44Client';
+import { useQueryClient } from '@tanstack/react-query';
 
 const jetztMinute = () => {
   const d = new Date();
@@ -22,6 +25,7 @@ export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzoge
   const [pausen, setPausen] = useState([]);
   const [pauseAb, setPauseAb] = useState(null);
   const { data: kontext } = useProjektKontext(timer.project_id);
+  const qc = useQueryClient();
 
   const pausenMinuten = pausen.reduce((s, p) => s + (p.bis - p.von), 0);
 
@@ -58,6 +62,15 @@ export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzoge
       </p>
 
       <ZahlenBlock kontext={kontext} />
+
+      <BereichChips
+        projectId={timer.project_id}
+        wert={timer.module_template_id || null}
+        onWaehlen={async (id) => {
+          await base44.entities.LaufendeZeitbuchung.update(timer.id, { module_template_id: id });
+          qc.invalidateQueries({ queryKey: ['laufendeZeitbuchung', timer.person_email] });
+        }}
+      />
 
       {(pausen.length > 0 || pauseAb !== null) && (
         <p className="text-[11.5px] mt-2" style={{ color: STATUS_COLORS.attention }}>

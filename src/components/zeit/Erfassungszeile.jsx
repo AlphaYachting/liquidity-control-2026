@@ -8,6 +8,8 @@ import { findeLuecke, fensterZuIso } from '@/lib/zeit/luecke';
 import { useProjektSuche } from '@/lib/zeit/useProjektSuche';
 import { merkeTaetigkeit } from '@/lib/zeit/taetigkeit';
 import TaetigkeitWahl from './TaetigkeitWahl';
+import BereichChips from './BereichChips';
+import { vorbelegeBereich } from '@/lib/zeit/leistungsbereich';
 import HauptKnopf from './HauptKnopf';
 import FussVerweise from './FussVerweise';
 import TrefferListe from './TrefferListe';
@@ -44,6 +46,14 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
   const treffer = useMemo(() => suche(projektWort), [suche, projektWort]);
   const projekt = gewaehlt || (projektWort ? treffer[0] : null);
   const bereit = !!projekt && minuten > 0;
+  const [bereich, setBereich] = useState(null);
+  useEffect(() => {
+    setBereich(null);
+    if (!projekt?.id) return;
+    let aktuell = true;
+    vorbelegeBereich({ projectId: projekt.id, email }).then((b) => { if (aktuell) setBereich(b); });
+    return () => { aktuell = false; };
+  }, [projekt?.id, email]);
 
   const uebernehmen = (p) => {
     setGewaehlt(p);
@@ -73,6 +83,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
       note: notiz,
       taetigkeit: taetigkeit || undefined,
       quelle: fenster ? 'zeile' : 'luecke',
+      moduleTemplateId: bereich || undefined,
     });
     merkeTaetigkeit(taetigkeit);
     setBusy(false);
@@ -89,7 +100,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
   const timerStarten = async () => {
     if (!projekt) return;
     setBusy(true);
-    await onStart?.(projekt, projekt.kuerzelAnzeige, notiz, { force: true });
+    await onStart?.(projekt, projekt.kuerzelAnzeige, notiz, { force: true, moduleTemplateId: bereich });
     setBusy(false);
   };
 
@@ -134,6 +145,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
       )}
 
       {projekt && <div className="mt-2"><TaetigkeitWahl wert={taetigkeit} onWaehlen={setTaetigkeit} /></div>}
+      {projekt && <BereichChips projectId={projekt.id} wert={bereich} onWaehlen={setBereich} />}
 
       <HauptKnopf
         disabled={busy || !bereit}
