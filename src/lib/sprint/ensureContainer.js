@@ -8,6 +8,7 @@ const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 
 // Erster Termin einer Routine, falls niemand einen gewählt hat.
 export function standardTermin(rhythmus, heuteIso = todayIso()) {
+  if (rhythmus === 'manuell') return null;
   const d = new Date(`${heuteIso}T00:00:00`);
   if (rhythmus === 'monatlich') {
     const erster = iso(new Date(d.getFullYear(), d.getMonth() + 1, 1));
@@ -109,8 +110,7 @@ export async function modulTicketsAnlegen(project, milestone, auswahl = []) {
         Object.assign(ticket, {
           rhythmus: t.rhythmus || 'manuell',
           fenster_tage: t.fenster_tage || 0,
-          planned_for: termin,
-          rhythmus_anker: termin,
+          ...(termin ? { planned_for: termin, rhythmus_anker: termin } : {}),
         });
       }
       tickets.push(ticket);

@@ -19,6 +19,7 @@ export default function FaelligkeitKnopf({ ticket, disabled = false }) {
 
   const speichern = async (d) => {
     setOpen(false);
+    if (!d && ticket.rhythmus) return;
     await base44.entities.Ticket.update(ticket.id, { planned_for: d ? iso(d) : null });
     queryClient.invalidateQueries();
   };

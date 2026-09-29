@@ -9,6 +9,7 @@ import SectionLabel from '@/components/sprint/SectionLabel';
 import HeuteGebucht from '@/components/sprint/HeuteGebucht';
 import HeuteAufgabenliste from '@/components/sprint/HeuteAufgabenliste';
 import useTicketStatus from '@/hooks/useTicketStatus';
+import HeuteRoutinen from '@/components/sprint/HeuteRoutinen';
 import HeuteFristen from '@/components/sprint/HeuteFristen';
 import HeutePmBlock from '@/components/sprint/HeutePmBlock';
 import Fortschrittszaehler from '@/components/sprint/Fortschrittszaehler';
@@ -30,27 +31,31 @@ export default function SprintHeute() {
         base44.entities.Project.list('-created_date', 200),
         base44.entities.Client.list('-created_date', 200),
         base44.entities.Milestone.list('-created_date', 500),
-        base44.entities.Ticket.filter({ assignee_email: email }, 'order', 500),
+        base44.entities.Ticket.filter({ assignee_email: email }, '-last_status_change', 1000),
         base44.entities.Setting.filter({ group: 'kapazitaet' }, 'key', 50),
         base44.entities.Sprint.list('-created_date', 500),
         base44.entities.TimeEntry.filter({ person_email: email, entry_date: today }),
       ]);
+      const relevant = (t) => t.status !== 'erledigt' || (t.last_status_change || '').startsWith(today);
+      const nachOrder = (a, b) => (a.order || 0) - (b.order || 0);
+      const meine = myTickets.filter(relevant).sort(nachOrder);
       const focusDay = focusDays[0] || null;
       let tickets = [];
       if (focusDay?.type === 'focus' && focusDay.project_id) {
-        const all = await base44.entities.Ticket.filter({ project_id: focusDay.project_id }, 'order', 500);
-        tickets = all.filter((t) => !t.assignee_email || t.assignee_email === email);
+        const all = await base44.entities.Ticket.filter({ project_id: focusDay.project_id }, '-last_status_change', 1000);
+        tickets = all.filter((t) => relevant(t) && (!t.assignee_email || t.assignee_email === email)).sort(nachOrder);
       } else if (focusDay?.type === 'reaktion') {
-        tickets = myTickets;
+        tickets = meine;
       }
-      // Routinen erscheinen erst, wenn sie fällig werden
-      tickets = tickets.filter((t) => !(t.rhythmus && t.planned_for && t.planned_for > today));
+      // Routinen stehen ausschließlich im Block „Wiederkehrend“
+      tickets = tickets.filter((t) => !t.rhythmus);
+      const routinen = meine.filter((t) => t.rhythmus);
       const standardHours = Number(settings.find((s) => s.key === 'standard_day_hours')?.value) || 8;
       const myProjectIds = new Set([
         ...myTickets.map((t) => t.project_id),
         ...projects.filter((p) => p.pm_email === email).map((p) => p.id),
       ]);
-      return { focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints, todayEntries };
+      return { routinen, focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints, todayEntries };
     },
   });
 
@@ -68,7 +73,7 @@ export default function SprintHeute() {
     );
   }
 
-  const { focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints, todayEntries } = data;
+  const { routinen, focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints, todayEntries } = data;
   const sprintProject = Object.fromEntries(sprints.map((s) => [s.id, s.project_id]));
   const projectById = Object.fromEntries(projects.map((p) => [p.id, p]));
   const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
@@ -98,6 +103,18 @@ export default function SprintHeute() {
       };
     });
 
+  const istFocus = focusDay?.type === 'focus' && !!focusProject;
+  const routinenBlock = (
+    <HeuteRoutinen
+      tickets={routinen}
+      today={today}
+      projectById={projectById}
+      clientById={clientById}
+      milestoneById={milestoneById}
+      onStatusChange={handleStatusChange}
+    />
+  );
+
   const listeProps = {
     milestoneById,
     projectById,
@@ -108,7 +125,9 @@ export default function SprintHeute() {
     <div className="max-w-[1200px] mx-auto space-y-5">
       <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Heute</h1>
 
-      {focusDay?.type === 'focus' && focusProject ? (
+      {!istFocus && focusDay?.type !== 'abwesend' && routinenBlock}
+
+      {istFocus ? (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <SectionLabel className="mb-2">Mein Focus-Tag</SectionLabel>
           <h2 className="text-xl font-extrabold uppercase text-foreground">{focusProject.title}</h2>
@@ -128,7 +147,11 @@ export default function SprintHeute() {
             />
           </div>
         </div>
-      ) : focusDay?.type === 'reaktion' ? (
+      ) : null}
+
+      {istFocus && routinenBlock}
+
+      {istFocus ? null : focusDay?.type === 'reaktion' ? (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <SectionLabel className="mb-2">Reaktionstag</SectionLabel>
           <h2 className="text-xl font-extrabold uppercase text-foreground">Reaktionstag — kein Projektfokus</h2>

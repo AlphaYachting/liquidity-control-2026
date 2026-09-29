@@ -56,7 +56,7 @@ export default function SprintAssistent() {
         base44.entities.AddOnBlock.list('-created_date', 200),
         base44.entities.TeamMember.filter({ active: true }, 'name', 100),
         base44.entities.Setting.filter({ group: 'fristen' }, 'key', 100),
-        base44.entities.TicketTemplate.list('order', 500),
+        base44.entities.TicketTemplate.list('order', 2000),
         base44.entities.AddOnTicketTemplate.list('order', 500),
       ]);
       return {

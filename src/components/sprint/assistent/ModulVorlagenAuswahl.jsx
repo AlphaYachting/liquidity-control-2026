@@ -46,7 +46,7 @@ export default function ModulVorlagenAuswahl({ templates, istContainer, eintrag,
                 aria-label="erster Termin"
                 title="erster Termin"
                 className="h-8 w-40 text-sm"
-                value={termine[t.id] || standardTermin(t.rhythmus)}
+                value={termine[t.id] || standardTermin(t.rhythmus) || ''}
                 onChange={(e) => onChange({ ...eintrag, erste_termine: { ...termine, [t.id]: e.target.value } })}
               />
             </>

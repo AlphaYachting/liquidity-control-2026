@@ -37,7 +37,13 @@ export function naechsterTermin(ticket, heuteIso) {
 
 export async function ticketStatusSetzen(ticket, status, { folgetermin } = {}) {
   await base44.entities.Ticket.update(ticket.id, { status, last_status_change: new Date().toISOString() });
-  if (status !== 'erledigt' || !ticket.rhythmus) return;
+  if (!ticket.rhythmus) return;
+  if (ticket.status === 'erledigt' && (status === 'offen' || status === 'in_arbeit')) {
+    const folge = await base44.entities.Ticket.filter({ vorgaenger_id: ticket.id }, 'order', 10);
+    await Promise.all(folge.filter((f) => f.status === 'offen').map((f) => base44.entities.Ticket.delete(f.id)));
+    return;
+  }
+  if (status !== 'erledigt') return;
   const vorhanden = await base44.entities.Ticket.filter({ vorgaenger_id: ticket.id }, 'order', 1);
   if (vorhanden.length) return;
   const felder = ['milestone_id', 'project_id', 'order', 'title', 'description', 'role', 'assignee_email',
