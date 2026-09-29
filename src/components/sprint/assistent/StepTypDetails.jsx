@@ -7,7 +7,7 @@ import { MODEL_OPTIONS } from '@/components/sprint/projectTypes';
 
 // Vollständigkeit der typspezifischen Zusatzfelder
 export function typDetailsValid(seed) {
-  if (seed.type === 'support') return Number(seed.stundensatz) > 0;
+  if (seed.type === 'support' || seed.type === 'regie') return Number(seed.stundensatz) > 0;
   if (seed.type === 'container') return Number(seed.kontingent_stunden) > 0;
   if (seed.type === 'legacy') return Boolean(seed.modell);
   return true;
@@ -21,7 +21,7 @@ export default function StepTypDetails({ seed, setSeed, contracts = [] }) {
     <div className="space-y-5 max-w-xl">
       <SectionLabel>Zusatzangaben</SectionLabel>
 
-      {seed.type === 'support' && (
+      {(seed.type === 'support' || seed.type === 'regie') && (
         <div>
           <Label>Stundensatz (EUR) *</Label>
           <Input type="number" value={seed.stundensatz || ''} onChange={(e) => set({ stundensatz: e.target.value })} />

@@ -6,9 +6,10 @@ import { kurzinfo } from './paketZaehler';
 export default function PaketAuswahl({ modules, templates, projektTyp, vorhanden, gewaehlt, onToggle }) {
   const [alle, setAlle] = useState(false);
   const istContainer = projektTyp === 'container';
-  const model = projektTyp === 'support' ? 'support' : 'container';
-  const standard = modules.filter((m) => m.vorausgewaehlt);
-  const leistungen = modules.filter((m) => !m.vorausgewaehlt && m.default_arbeitsmodell === model);
+  const model = { support: 'support', regie: 'support', intern: 'intern' }[projektTyp] || 'container';
+  // Standard-Gruppe und Vorauswahl gibt es nur bei Containern
+  const standard = istContainer ? modules.filter((m) => m.vorausgewaehlt) : [];
+  const leistungen = modules.filter((m) => !standard.includes(m) && m.default_arbeitsmodell === model);
   const weitere = modules.filter((m) => !standard.includes(m) && !leistungen.includes(m));
 
   const zeile = (m) => {

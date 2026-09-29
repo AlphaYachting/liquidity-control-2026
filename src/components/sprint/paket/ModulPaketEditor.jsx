@@ -16,7 +16,8 @@ export default function ModulPaketEditor({
 
   useEffect(() => {
     if (value.length) return;
-    const ids = [...new Set([...modules.filter((m) => m.vorausgewaehlt).map((m) => m.id), ...zusatzModulIds])]
+    const vorauswahl = istContainer ? modules.filter((m) => m.vorausgewaehlt).map((m) => m.id) : [];
+    const ids = [...new Set([...vorauswahl, ...zusatzModulIds])]
       .filter((id) => modules.some((m) => m.id === id) && !bereitsVorhandeneModulIds.includes(id));
     if (ids.length) onChange(ids.map(neu));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -27,7 +28,7 @@ export default function ModulPaketEditor({
   const setze = (e) => onChange(value.map((a) => (a.module_template_id === e.module_template_id ? e : a)));
   const z = zaehle(value, ticketTemplates);
   const gewaehlt = modules.filter((m) => eintragVon(m.id));
-  const kompakt = (m) => m.vorausgewaehlt && !aufgeklappt.includes(m.id) && gleich(eintragVon(m.id), neu(m.id));
+  const kompakt = (m) => istContainer && m.vorausgewaehlt && !aufgeklappt.includes(m.id) && gleich(eintragVon(m.id), neu(m.id));
 
   const kompaktText = (m) => {
     const { routinen, setup } = vorlagenVon(m.id, ticketTemplates, istContainer);

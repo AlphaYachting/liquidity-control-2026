@@ -2,7 +2,8 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PROJECT_TYPES, PROJECT_TYPE_ORDER } from '@/components/sprint/projectTypes';
+import { PROJECT_TYPES, PROJECT_TYPE_ORDER, projectTypeOf } from '@/components/sprint/projectTypes';
+import { Link } from 'react-router-dom';
 
 export const NEW_CLIENT = '__new__';
 
@@ -17,7 +18,7 @@ export function rahmenValid(seed) {
 
 // Schritt 1 — Rahmen für alle Projekttypen. Füllt den Startkeim, aus dem alle
 // weiteren Schritte lesen.
-export default function StepRahmen({ seed, setSeed, clients = [], members = [], projects = [] }) {
+export default function StepRahmen({ seed, setSeed, clients = [], members = [], projects = [], sprints = [] }) {
   const set = (patch) => setSeed((s) => ({ ...s, ...patch }));
   const clientProjects = projects.filter((p) => p.client_id === seed.client_id);
 
@@ -68,8 +69,21 @@ export default function StepRahmen({ seed, setSeed, clients = [], members = [], 
         </Select>
       </div>
 
+      {seed.type === 'support' && (() => {
+        const vorhanden = clientProjects.find((p) => projectTypeOf(p) === 'support' && p.status !== 'abgeschlossen');
+        if (!vorhanden) return null;
+        const kunde = clients.find((c) => c.id === seed.client_id)?.name || 'Der Kunde';
+        const sprint = sprints.find((s) => s.project_id === vorhanden.id);
+        return (
+          <p className="text-xs text-status-attention">
+            {kunde} hat bereits ein Support-Projekt:{' '}
+            <Link className="underline" to={sprint ? `/sprint/sprints/${sprint.id}` : '/sprint/projekte'}>{vorhanden.title}</Link>
+          </p>
+        );
+      })()}
+
       <div>
-        <Label>Projekttitel *</Label>
+        <Label>{seed.type === 'regie' ? 'Auftragstitel *' : 'Projekttitel *'}</Label>
         <Input value={seed.title || ''} onChange={(e) => set({ title: e.target.value })} />
       </div>
 

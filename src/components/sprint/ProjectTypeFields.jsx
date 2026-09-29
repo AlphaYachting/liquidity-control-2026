@@ -14,7 +14,7 @@ export default function ProjectTypeFields({ type, form, setForm, contracts = [] 
 
   return (
     <>
-      {type === 'support' && (
+      {(type === 'support' || type === 'regie') && (
         <div>
           <Label>Stundensatz (EUR)</Label>
           <Input type="number" value={form.stundensatz || ''} onChange={(e) => set('stundensatz')(e.target.value)} />

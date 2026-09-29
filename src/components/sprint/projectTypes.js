@@ -3,11 +3,12 @@ export const PROJECT_TYPES = {
   sprint: { label: 'Sprintprojekt', model: 'sprint', container: false, style: { pillBg: '#FBEAF0', pillText: '#72243E', icon: 'bolt', short: 'Sprint' } },
   support: { label: 'Supportprojekt', model: 'aufwand', container: true, style: { pillBg: '#FAEEDA', pillText: '#633806', icon: 'headset', short: 'Support' } },
   container: { label: 'Containerkunde', model: 'paket', container: true, style: { pillBg: '#E1F5EE', pillText: '#085041', icon: 'refresh', short: 'Container' } },
+  regie: { label: 'Regie-Projekt', model: 'aufwand', container: true, style: { pillBg: '#E6F1FB', pillText: '#0C447C', icon: 'clock', short: 'Regie' } },
   legacy: { label: 'Altprojekt', model: null, container: true, style: { pillBg: '#F1EFE8', pillText: '#444441', icon: 'archive', short: 'Alt' } },
   intern: { label: 'Internes Projekt', model: 'intern', container: true, style: { pillBg: '#EEEDFE', pillText: '#3C3489', icon: 'building', short: 'Intern' } },
 };
 
-export const PROJECT_TYPE_ORDER = ['sprint', 'support', 'container', 'legacy', 'intern'];
+export const PROJECT_TYPE_ORDER = ['sprint', 'container', 'support', 'regie', 'intern', 'legacy'];
 
 export const MODEL_OPTIONS = [
   { value: 'sprint', label: 'Sprint' },
@@ -24,7 +25,13 @@ export function projectTypeOf(project) {
   if (project.abrechnungsmodell === 'intern') return 'intern';
   if (project.abrechnungsmodell === 'paket') return 'container';
   if (project.abrechnungsmodell === 'sprint') return 'sprint';
-  return 'support';
+  return project.aufwand_art === 'regie' ? 'regie' : 'support';
+}
+
+// Support und Regie verhalten sich gleich — nur Label, Pille und Kopftext unterscheiden sich
+export function istNachAufwand(project) {
+  const t = projectTypeOf(project);
+  return t === 'support' || t === 'regie';
 }
 
 // Darstellung (Farbe, Icon, Kurzwort) zum Typ eines Projekts

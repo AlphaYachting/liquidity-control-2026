@@ -90,7 +90,7 @@ export default function SprintAssistent() {
   );
   const stepLabels = isSprint
     ? ['Rahmen', 'Sprint', 'Module', 'Zuständigkeiten', 'Übersicht']
-    : ['Rahmen', 'Details', 'Module'];
+    : (seed.type === 'support' || seed.type === 'regie') ? ['Rahmen', 'Details'] : ['Rahmen', 'Details', 'Module'];
   const lastStep = stepLabels.length;
 
   const sprintRahmenValid = size && startDate && deliveryDate;
@@ -151,6 +151,7 @@ export default function SprintAssistent() {
       support_kontingent_stunden: seed.type === 'container' ? Number(seed.kontingent_stunden) || undefined : undefined,
       recurring_contract_id: seed.type === 'container' ? seed.recurring_contract_id || undefined : undefined,
       is_legacy: seed.type === 'legacy',
+      aufwand_art: seed.type === 'support' || seed.type === 'regie' ? seed.type : undefined,
     });
   };
 

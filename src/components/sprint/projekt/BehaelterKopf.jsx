@@ -23,6 +23,7 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
   const typText = {
     container: `Retainer · Betreuer ${pmName}`,
     support: `Support · ${project?.stundensatz || 0} €/h`,
+    regie: ['Regie', `${project?.stundensatz || 0} €/h`, client?.contact_person].filter(Boolean).join(' · '),
     intern: 'Intern',
     legacy: 'Altprojekt',
   }[typ];
@@ -46,7 +47,7 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
         </>
       );
     }
-    if (typ === 'support') {
+    if (typ === 'support' || typ === 'regie') {
       const verrechenbar = monatsEintraege.filter((e) => e.verrechenbar !== false).reduce((s, e) => s + stundenVon(e), 0);
       return (
         <>

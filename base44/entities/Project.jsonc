@@ -50,6 +50,15 @@
       "default": "sprint",
       "description": "tr\u00e4gt die Kategorie jeder Zeitbuchung"
     },
+    "aufwand_art": {
+      "type": "string",
+      "enum": [
+        "support",
+        "regie"
+      ],
+      "default": "support",
+      "description": "Support = dauerhaftes technisches Projekt je Kunde; Regie = Auftrag nach Aufwand auf Zuruf"
+    },
     "stundensatz": {
       "type": "number",
       "description": "nur relevant bei Abrechnung nach Aufwand"
