@@ -139,6 +139,7 @@ export default function SprintDetail() {
             projectName={project?.title}
             customer={client?.name}
             onFesthalten={() => oeffneIntelligenz('erfassung')}
+            titel="Verlauf"
           />
         </TabsContent>
 

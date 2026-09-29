@@ -10,7 +10,7 @@ import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntry
 
 // Digitaler Kundenakt des Projekts — Vereinbarungen, Updates und Dokumente
 // als Timeline, neueste Eingabe oben.
-export default function KundenaktTab({ projectId, projectName, customer, onFesthalten }) {
+export default function KundenaktTab({ projectId, projectName, customer, onFesthalten, titel = 'Kundenakt' }) {
   const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
 
@@ -23,7 +23,7 @@ export default function KundenaktTab({ projectId, projectName, customer, onFesth
 
   return (
     <Sektion
-      titel="Kundenakt"
+      titel={titel}
       symbol={FolderOpen}
       aktion={
         <Button size="sm" variant="ghost" onClick={onFesthalten} className="gap-2 shrink-0 text-muted-foreground hover:text-foreground">
