@@ -28,7 +28,6 @@ export default function ProjektUebersicht({ project, client, sprint, timeEntries
 
   return (
     <div>
-      <SectionLabel className="mb-2">Projekt-Übersicht</SectionLabel>
       <div className="bg-white rounded-lg border border-border p-4 space-y-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <div className="flex items-center gap-2">
