@@ -5,7 +5,7 @@ import { h1 } from '@/lib/sprint/behaelterZahlen';
 
 // Monatskontingent: gebuchte Stunden von support_kontingent_stunden
 export default function KontingentFeld({ label, gebucht, kontingent }) {
-  if (!kontingent) return <KennzahlFeld label={label} value={`${h1(gebucht)} h`} hint="kein Kontingent" />;
+  if (!kontingent) return <KennzahlFeld label={label} value={`${h1(gebucht)} h`} />;
   const quote = gebucht / kontingent;
   const farbe = quote > 1 ? STATUS_COLORS.critical : quote >= 0.8 ? STATUS_COLORS.attention : undefined;
   return (

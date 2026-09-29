@@ -51,7 +51,7 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
       const verrechenbar = monatsEintraege.filter((e) => e.verrechenbar !== false).reduce((s, e) => s + stundenVon(e), 0);
       return (
         <>
-          <KontingentFeld label={`Kontingent ${mName}`} gebucht={gebucht} kontingent={project?.support_kontingent_stunden} />
+          <KontingentFeld label={project?.support_kontingent_stunden ? `Rahmen ${mName}` : `Stunden ${mName}`} gebucht={gebucht} kontingent={project?.support_kontingent_stunden} />
           <KennzahlFeld label="Offene Tickets" value={offen.length} />
           <KennzahlFeld label={`Abrechenbar ${mName}`} value={fmtEUR(verrechenbar * (project?.stundensatz || 0))} hint={`${h1(verrechenbar)} h`} />
         </>

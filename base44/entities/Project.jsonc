@@ -65,7 +65,7 @@
     },
     "support_kontingent_stunden": {
       "type": "number",
-      "description": "monatliches Stundenkontingent bei Support"
+      "description": "Monatskontingent (Retainer) bzw. Monatsrahmen (Support, Regie) in Stunden \u2013 leer = kein Rahmen"
     },
     "rundung_minuten": {
       "type": "number",

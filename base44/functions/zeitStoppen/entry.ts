@@ -82,16 +82,30 @@ export default async function (req: Request): Promise<Response> {
     }
 
     // b) Buchungsfelder aus dem Projekt
-    const { felder, kategorie } = await buchungsfelder(db, laufende.project_id);
+    const { felder, kategorie, project } = await buchungsfelder(db, laufende.project_id);
     const art = await taetigkeitVon(db, kategorie, laufende.ticket_id);
 
     const gemessen = Math.max(0, Math.floor((Date.now() - new Date(laufende.gestartet_am).getTime()) / 60000));
     const minuten = Math.max(0, gemessen - (Number(abzug_minuten) || 0));
     const tag = entry_date || String(laufende.gestartet_am).slice(0, 10);
 
+    // Kontingent/Monatsrahmen bei Container, Support und Regie prüfen
+    let ueber = false;
+    const kontingent = Number(project.support_kontingent_stunden) || 0;
+    const laufendTyp = !project.is_legacy && ['paket', 'aufwand', 'support'].includes(project.abrechnungsmodell);
+    if (laufendTyp && kontingent && minuten > 0) {
+      const monat = tag.slice(0, 7);
+      const rows = await db.TimeEntry.filter({ project_id: laufende.project_id }, '-entry_date', 500);
+      const bisher = rows
+        .filter((r) => String(r.entry_date || '').slice(0, 7) === monat)
+        .reduce((s, r) => s + (Number(r.duration_minutes) || 0), 0);
+      ueber = bisher + minuten > kontingent * 60;
+    }
+
     // c) Buchung anlegen — schlägt das fehl, wird nichts gelöscht.
     const eintrag = await db.TimeEntry.create({
       ...felder,
+      ueber_kontingent: ueber,
       ...(laufende.ticket_id ? { ticket_id: laufende.ticket_id } : {}),
       ...(laufende.module_template_id ? { module_template_id: laufende.module_template_id } : {}),
       laufende_id,

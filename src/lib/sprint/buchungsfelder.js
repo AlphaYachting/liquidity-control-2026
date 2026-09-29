@@ -1,4 +1,5 @@
 import { base44 } from '@/api/base44Client';
+import { projectTypeOf } from '@/components/sprint/projectTypes';
 
 export const KATEGORIE_TEXT = {
   sprint: 'Sprint · zählt gegen das Sprintbudget',
@@ -14,15 +15,17 @@ export const laufenderSprint = (sprints = []) =>
     .filter((s) => s.status === 'laufend')
     .sort((a, b) => (a.delivery_date || '9999-12-31').localeCompare(b.delivery_date || '9999-12-31'))[0] || null;
 
-// Support: liegt die neue Buchung über dem Monatskontingent des Projekts?
-export async function ueberKontingentPruefen({ projectId, tag, minuten }) {
+// Container, Support, Regie: liegt die Buchung über dem Monatskontingent bzw. -rahmen?
+// ohneId: bei Änderungen die ursprüngliche Buchung nicht mitzählen.
+export async function ueberKontingentPruefen({ projectId, tag, minuten, ohneId }) {
   const project = await base44.entities.Project.get(projectId);
+  if (!['container', 'support', 'regie'].includes(projectTypeOf(project))) return false;
   const kontingent = Number(project.support_kontingent_stunden) || 0;
   if (!kontingent) return false;
   const monat = String(tag || '').slice(0, 7);
   const rows = await base44.entities.TimeEntry.filter({ project_id: projectId }, '-entry_date', 500);
   const bisher = rows
-    .filter((r) => String(r.entry_date || '').slice(0, 7) === monat)
+    .filter((r) => r.id !== ohneId && String(r.entry_date || '').slice(0, 7) === monat)
     .reduce((s, r) => s + (Number(r.duration_minutes) || 0), 0);
   return bisher + (Number(minuten) || 0) > kontingent * 60;
 }

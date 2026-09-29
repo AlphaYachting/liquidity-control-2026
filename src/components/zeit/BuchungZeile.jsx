@@ -15,10 +15,11 @@ const Etikett = ({ children, farbe, flaeche }) => (
 
 const zaehler = (e) => {
   if (e.kategorie === 'aufwand') {
+    if (e.ueber_kontingent) return 'über Monatsrahmen';
     const betrag = e.stundensatz ? Math.round(((e.duration_minutes || 0) / 60) * e.stundensatz) : null;
     return betrag !== null ? `${betrag} EUR bei ${e.stundensatz} EUR/h` : 'Stundensatz fehlt';
   }
-  if (e.kategorie === 'support') return e.ueber_kontingent ? 'Mehrleistung über Kontingent' : 'im Kontingent';
+  if (e.kategorie === 'support') return e.ueber_kontingent ? 'über Monatsrahmen' : 'im Kontingent';
   if (e.kategorie === 'sprint') return 'im Sprintbudget';
   if (e.kategorie === 'paket') return e.ueber_kontingent ? 'Mehrleistung über Kontingent' : 'im Kontingent';
   return 'interne Zeit';

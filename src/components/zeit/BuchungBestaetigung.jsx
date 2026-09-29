@@ -6,6 +6,7 @@ import { loescheZeit } from '@/lib/sprint/useTimer';
 import { dauerText } from '@/lib/zeit/tagesAuswertung';
 import HauptKnopf from './HauptKnopf';
 import FussVerweise from './FussVerweise';
+import KontingentHinweis from './KontingentHinweis';
 
 // Bestätigung im Fenster statt Toast — mit der Möglichkeit, die Buchung zurückzunehmen.
 export default function BuchungBestaetigung({ info, onFertig, onRueckgaengig }) {
@@ -54,6 +55,8 @@ export default function BuchungBestaetigung({ info, onFertig, onRueckgaengig }) 
           )}
         </div>
       )}
+
+      {!weg && info.eintragId && <KontingentHinweis eintragId={info.eintragId} />}
 
       {!weg && info.offenerTag && (
         <p

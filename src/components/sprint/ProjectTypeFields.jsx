@@ -20,6 +20,12 @@ export default function ProjectTypeFields({ type, form, setForm, contracts = [] 
           <Input type="number" value={form.stundensatz || ''} onChange={(e) => set('stundensatz')(e.target.value)} />
         </div>
       )}
+      {(type === 'support' || type === 'regie') && (
+        <div>
+          <Label>Monatsrahmen in Stunden (optional)</Label>
+          <Input type="number" value={form.support_kontingent_stunden || ''} onChange={(e) => set('support_kontingent_stunden')(e.target.value)} />
+        </div>
+      )}
 
       {type === 'container' && (
         <>

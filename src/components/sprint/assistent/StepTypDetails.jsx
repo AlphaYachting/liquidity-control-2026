@@ -25,6 +25,8 @@ export default function StepTypDetails({ seed, setSeed, contracts = [] }) {
         <div>
           <Label>Stundensatz (EUR) *</Label>
           <Input type="number" value={seed.stundensatz || ''} onChange={(e) => set({ stundensatz: e.target.value })} />
+          <Label className="mt-4 block">Monatsrahmen in Stunden (optional)</Label>
+          <Input type="number" value={seed.kontingent_stunden || ''} onChange={(e) => set({ kontingent_stunden: e.target.value })} />
         </div>
       )}
 

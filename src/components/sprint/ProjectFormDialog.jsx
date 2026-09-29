@@ -66,7 +66,7 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
       mindestbuchung_minuten: Number(form.mindestbuchung_minuten) || 0,
       stundensatz: type === 'support' || type === 'regie' ? Number(form.stundensatz) || 0 : undefined,
       aufwand_art: type === 'support' || type === 'regie' ? type : undefined,
-      support_kontingent_stunden: type === 'container' ? Number(form.support_kontingent_stunden) || 0 : undefined,
+      support_kontingent_stunden: ['container', 'support', 'regie'].includes(type) ? Number(form.support_kontingent_stunden) || 0 : undefined,
       recurring_contract_id: type === 'container' ? (form.recurring_contract_id || '') : undefined,
     };
     Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);

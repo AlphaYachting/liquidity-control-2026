@@ -148,7 +148,7 @@ export default function SprintAssistent() {
       status: 'aktiv',
       abrechnungsmodell: seed.type === 'legacy' ? seed.modell : def.model,
       stundensatz: Number(seed.stundensatz) || undefined,
-      support_kontingent_stunden: seed.type === 'container' ? Number(seed.kontingent_stunden) || undefined : undefined,
+      support_kontingent_stunden: ['container', 'support', 'regie'].includes(seed.type) ? Number(seed.kontingent_stunden) || undefined : undefined,
       recurring_contract_id: seed.type === 'container' ? seed.recurring_contract_id || undefined : undefined,
       is_legacy: seed.type === 'legacy',
       aufwand_art: seed.type === 'support' || seed.type === 'regie' ? seed.type : undefined,

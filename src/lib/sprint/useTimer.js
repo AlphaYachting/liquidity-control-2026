@@ -78,7 +78,7 @@ export async function bucheZeit({
   // Support über dem Monatskontingent wird als Mehrleistung gekennzeichnet.
   const ueber = ueberKontingent !== undefined
     ? ueberKontingent
-    : felder.kategorie === 'support' && minuten > 0
+    : minuten > 0
       ? await ueberKontingentPruefen({ projectId, tag, minuten })
       : false;
   return base44.entities.TimeEntry.create({
@@ -132,6 +132,14 @@ export async function aendereZeit(id, patch = {}) {
     });
   }
 
+  if (daten.duration_minutes !== undefined || daten.project_id || daten.entry_date) {
+    daten.ueber_kontingent = await ueberKontingentPruefen({
+      projectId: daten.project_id || original.project_id,
+      tag: daten.entry_date || original.entry_date,
+      minuten: daten.duration_minutes ?? original.duration_minutes,
+      ohneId: id,
+    });
+  }
   return base44.entities.TimeEntry.update(id, daten);
 }
 
