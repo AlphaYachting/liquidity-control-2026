@@ -39,7 +39,7 @@ export default function SprintAssistent() {
   const [deliveryDate, setDeliveryDate] = useState(initial.sprint.deliveryDate);
   const [discount, setDiscount] = useState(initial.sprint.discount);
   const [selected, setSelected] = useState(initial.sprint.selected);
-  const [containerModuleIds, setContainerModuleIds] = useState([]);
+  const [containerAuswahl, setContainerAuswahl] = useState([]);
   const [roleAssign, setRoleAssign] = useState({});
   const [overrides, setOverrides] = useState({});
   const [creating, setCreating] = useState(false);
@@ -158,7 +158,7 @@ export default function SprintAssistent() {
   const handleCreateContainer = async () => {
     setCreating(true);
     const project = await resolveProject();
-    const { sprint } = await ensureContainer(project, { module_ids: containerModuleIds });
+    const { sprint } = await ensureContainer(project, { auswahl: containerAuswahl });
     if (handoff) await finishHandoff(handoff, project);
     navigate(`/sprint/sprints/${sprint.id}`);
   };
@@ -267,9 +267,11 @@ export default function SprintAssistent() {
         {!isSprint && step === 3 && (
           <StepContainerModule
             modules={modules}
-            moduleIds={containerModuleIds}
-            setModuleIds={setContainerModuleIds}
-            model={seed.type === 'support' ? 'support' : 'container'}
+            ticketTemplates={ticketTemplates}
+            projektTyp={seed.type}
+            zusatzModulIds={initial.sprint.selected.map((s) => s.module_template_id).filter(Boolean)}
+            value={containerAuswahl}
+            onChange={setContainerAuswahl}
           />
         )}
 

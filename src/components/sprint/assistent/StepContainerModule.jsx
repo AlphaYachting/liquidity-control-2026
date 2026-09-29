@@ -1,25 +1,57 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import SectionLabel from '@/components/sprint/SectionLabel';
+import ModulVorlagenAuswahl from '@/components/sprint/assistent/ModulVorlagenAuswahl';
+import { standardAuswahl } from '@/lib/sprint/ensureContainer';
 
-// Modulwahl für laufende Behälter (Support, Container, Alt, Intern):
-// keine Beträge, keine Termine — nur die Standard-Tickets aus dem Katalog.
-export default function StepContainerModule({ modules, moduleIds, setModuleIds, model }) {
-  const toggle = (id) =>
-    setModuleIds(moduleIds.includes(id) ? moduleIds.filter((x) => x !== id) : [...moduleIds, id]);
+// Modulwahl für laufende Behälter (Support, Container, Alt, Intern).
+// value/onChange tragen die auswahl-Struktur für modulTicketsAnlegen.
+export default function StepContainerModule({
+  modules, ticketTemplates = [], projektTyp, bereitsVorhandeneModulIds = [], zusatzModulIds = [], value = [], onChange,
+}) {
+  const istContainer = projektTyp === 'container';
+  const model = projektTyp === 'support' ? 'support' : 'container';
+  const sichtbar = modules.filter((m) => !bereitsVorhandeneModulIds.includes(m.id));
 
-  const passend = modules.filter((m) => !m.default_arbeitsmodell || m.default_arbeitsmodell === model);
-  const rest = modules.filter((m) => !passend.includes(m));
+  useEffect(() => {
+    if (value.length) return;
+    const ids = [...new Set([...sichtbar.filter((m) => m.vorausgewaehlt).map((m) => m.id), ...zusatzModulIds])]
+      .filter((id) => sichtbar.some((m) => m.id === id));
+    if (ids.length) onChange(ids.map((id) => standardAuswahl(id, ticketTemplates, istContainer)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const zeile = (m) => (
-    <label key={m.id} className="flex items-start gap-3 rounded border border-muted px-4 py-3 cursor-pointer hover:border-primary/40">
-      <Checkbox checked={moduleIds.includes(m.id)} onCheckedChange={() => toggle(m.id)} className="mt-0.5" />
-      <span className="text-sm">
-        <span className="font-semibold text-foreground">{m.name}</span>
-        {m.description && <span className="block text-xs text-muted-foreground">{m.description}</span>}
-      </span>
-    </label>
-  );
+  const eintragVon = (id) => value.find((a) => a.module_template_id === id);
+  const toggle = (id) => onChange(eintragVon(id)
+    ? value.filter((a) => a.module_template_id !== id)
+    : [...value, standardAuswahl(id, ticketTemplates, istContainer)]);
+  const setzeEintrag = (e) => onChange(value.map((a) => (a.module_template_id === e.module_template_id ? e : a)));
+
+  const passend = sichtbar.filter((m) => !m.default_arbeitsmodell || m.default_arbeitsmodell === model);
+  const rest = sichtbar.filter((m) => !passend.includes(m));
+
+  const zeile = (m) => {
+    const eintrag = eintragVon(m.id);
+    return (
+      <div key={m.id} className="rounded border border-muted px-4 py-3">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <Checkbox checked={!!eintrag} onCheckedChange={() => toggle(m.id)} className="mt-0.5" />
+          <span className="text-sm">
+            <span className="font-semibold text-foreground">{m.name}</span>
+            {m.description && <span className="block text-xs text-muted-foreground">{m.description}</span>}
+          </span>
+        </label>
+        {eintrag && (
+          <ModulVorlagenAuswahl
+            templates={ticketTemplates.filter((t) => t.module_template_id === m.id)}
+            istContainer={istContainer}
+            eintrag={eintrag}
+            onChange={setzeEintrag}
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
