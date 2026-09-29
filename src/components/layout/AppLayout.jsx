@@ -14,7 +14,9 @@ export default function AppLayout() {
           <Kopfleiste />
           {/* Freiraum unten in Höhe der Pille, damit sie keine Bedienelemente verdeckt */}
           <div className="p-4 md:p-6 lg:p-8 pb-28 md:pb-28 lg:pb-28 max-w-[1600px] mx-auto">
-            <Outlet />
+            <React.Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Ansicht wird geladen...</div>}>
+              <Outlet />
+            </React.Suspense>
           </div>
         </main>
         <TimerKnopf />
