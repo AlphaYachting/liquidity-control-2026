@@ -99,10 +99,20 @@ function MonthKpiPanel({ label, billable, nonBillable, userStats, isCurrentMonth
   );
 }
 
+// Aktueller Monat und die vier Monate davor, lokal (nicht UTC), älteste zuerst
+function getLetzteFuenfMonate() {
+  const now = new Date();
+  return [4, 3, 2, 1, 0].map((back) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+}
+
 export default function NonBillableWidget() {
+  const fuenfMonate = getLetzteFuenfMonate();
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ['aworkTimeEntries'],
-    queryFn: () => base44.entities.AworkTimeEntry.list('-entry_date', 5000),
+    queryKey: ['aworkTimeEntries', 'fuenfMonate', fuenfMonate[0]],
+    queryFn: () => base44.entities.AworkTimeEntry.filter({ entry_month: { $in: fuenfMonate } }, '-entry_date', 5000),
     staleTime: 5 * 60 * 1000,
   });
 
