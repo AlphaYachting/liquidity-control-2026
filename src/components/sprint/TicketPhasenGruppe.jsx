@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Check } from 'lucide-react';
 import { STATE_LABELS, RITTLER } from '@/components/sprint/sprintConfig';
 import TicketZeile from '@/components/sprint/TicketZeile';
+import SortierbareAufgaben from '@/components/sprint/SortierbareAufgaben';
 
 // V5 — Gruppenkopf mit Gewicht; nur die Gruppe des aktuellen Zustands ist offen.
 export default function TicketPhasenGruppe({
@@ -32,17 +33,21 @@ export default function TicketPhasenGruppe({
 
       {open && (
         <div>
-          {rows.map((t) => (
-            <TicketZeile
-              key={t.id}
-              ticket={t}
-              members={members}
-              currentUserEmail={currentUserEmail}
-              editable={!locked || t.milestone_state === 'kundenfeedback'}
-              onStatus={onStatus}
-              onAssignee={onAssignee}
-            />
-          ))}
+          <SortierbareAufgaben
+            id={`phase-${phase}`}
+            tickets={[...rows].sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))}
+            renderZeile={(t) => (
+              <TicketZeile
+                key={t.id}
+                ticket={t}
+                members={members}
+                currentUserEmail={currentUserEmail}
+                editable={!locked || t.milestone_state === 'kundenfeedback'}
+                onStatus={onStatus}
+                onAssignee={onAssignee}
+              />
+            )}
+          />
           {rows.length === 0 && (
             <p className="text-sm px-4 py-3" style={{ color: RITTLER.textSecondary }}>
               {tickets.length === 0 ? 'Keine Aufgaben in dieser Phase.' : 'Keine Aufgaben im gewählten Filter.'}

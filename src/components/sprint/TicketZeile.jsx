@@ -38,15 +38,20 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
   const checklist = ticket.checklist || [];
   const erledigt = checklist.filter((c) => c.done).length;
   const stop = (e) => e.stopPropagation();
-  const ueberfaellig = istUeberfaellig(ticket, todayIso());
+  const heute = todayIso();
+  const ueberfaellig = istUeberfaellig(ticket, heute);
+  // „fällig": heute fällig, im Toleranzfenster oder in den nächsten 2 Tagen
+  const bald = new Date(); bald.setDate(bald.getDate() + 2);
+  const baldIso = `${bald.getFullYear()}-${String(bald.getMonth() + 1).padStart(2, '0')}-${String(bald.getDate()).padStart(2, '0')}`;
+  const faellig = !ueberfaellig && ticket.status !== 'erledigt' && !!ticket.planned_for && ticket.planned_for <= baldIso;
 
   return (
     <>
       <div
         id={`aufgabe-${ticket.id}`}
         onClick={() => setOffen((v) => !v)}
-        className={`flex items-center gap-3 min-h-[56px] pr-2 border-b border-[#eeeeee] last:border-0 cursor-pointer group ${ueberfaellig ? 'bg-status-critical-surface hover:bg-status-critical-surface/70' : 'hover:bg-[#fafafa]'}`}
-        style={{ paddingLeft: 16, borderLeft: ueberfaellig ? `3px solid ${STATUS_COLORS.critical}` : isMe ? `3px solid ${RITTLER.black}` : '3px solid transparent' }}
+        className={`flex items-center gap-3 min-h-[56px] pr-2 border-b border-[#eeeeee] last:border-0 cursor-pointer group ${ueberfaellig ? 'bg-status-critical-surface hover:bg-status-critical-surface/70' : faellig ? 'bg-status-attention-surface/60 hover:bg-status-attention-surface' : 'hover:bg-[#fafafa]'}`}
+        style={{ paddingLeft: 16, borderLeft: ueberfaellig ? `4px solid ${STATUS_COLORS.critical}` : faellig ? `3px solid ${STATUS_COLORS.attention}` : isMe ? `3px solid ${RITTLER.black}` : '3px solid transparent' }}
       >
         <div onClick={stop}>
           <PersonenChip
@@ -64,6 +69,8 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
             {offen ? <ChevronDown className="w-3.5 h-3.5 shrink-0" style={{ color: RITTLER.textSecondary }} />
                    : <ChevronRight className="w-3.5 h-3.5 shrink-0" style={{ color: RITTLER.textSecondary }} />}
             {ticket.title}
+            {ueberfaellig && <span className="shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded bg-status-critical text-primary-foreground">Überfällig</span>}
+            {faellig && <span className="shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded bg-status-attention-surface text-status-attention">Fällig</span>}
             {ticket.blocks_others && (
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" style={{ color: STATUS_COLORS.attention }} title="blockiert andere Aufgaben" />
             )}
