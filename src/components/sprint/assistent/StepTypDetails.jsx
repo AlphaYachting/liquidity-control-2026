@@ -75,7 +75,7 @@ export default function StepTypDetails({ seed, setSeed, contracts = [] }) {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Es entsteht ein laufender Behälter mit einer offenen Etappe — ohne Liefertermin und ohne Etappenbetrag.
+        Es entsteht eine laufende Betreuung mit einer offenen Etappe — ohne Liefertermin und ohne Etappenbetrag.
         Tickets können sofort abgelegt werden.
       </p>
     </div>

@@ -26,7 +26,7 @@ export default function ProjektZeileOhneSprint({ project, client, onEdit }) {
 
         <div className="w-[160px] shrink-0 text-right">
           <p className="text-[13px]" style={{ color: RITTLER.textSecondary }}>
-            kein aktiver Sprint/Behälter
+            kein aktiver Sprint / keine laufende Betreuung
           </p>
         </div>
 

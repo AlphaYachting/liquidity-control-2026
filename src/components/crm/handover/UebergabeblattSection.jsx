@@ -23,7 +23,7 @@ const eur = (v) => new Intl.NumberFormat('de-AT', { style: 'currency', currency:
 
 const PROJEKTTYPEN = [
   { key: 'sprint', label: 'Sprint (fester Liefertermin)' },
-  { key: 'container', label: 'Retainer / Container (laufend)' },
+  { key: 'container', label: 'Retainer (laufende Betreuung)' },
   { key: 'support', label: 'Support (technisch, laufend)' },
   { key: 'regie', label: 'Regie (nach Aufwand, ohne Angebot)' },
   { key: 'intern', label: 'Intern' },

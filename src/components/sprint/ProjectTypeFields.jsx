@@ -65,7 +65,7 @@ export default function ProjectTypeFields({ type, form, setForm, contracts = [] 
       )}
 
       <p className="text-xs text-muted-foreground">
-        Es entsteht sofort ein laufender Behälter ohne Termin und ohne Betrag — Tickets können direkt abgelegt werden.
+        Es entsteht sofort eine laufende Betreuung ohne Termin und ohne Betrag — Tickets können direkt abgelegt werden.
       </p>
     </>
   );
