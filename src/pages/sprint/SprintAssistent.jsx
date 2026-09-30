@@ -20,6 +20,7 @@ import { verteileNachlass } from '@/lib/sprint/nachlass';
 import StepZustaendigkeit from '@/components/sprint/assistent/StepZustaendigkeit';
 import { buildTicketPlan, ticketValue, unresolvedTickets, OPEN } from '@/lib/sprint/ticketPlan';
 import { finishHandoff } from '@/lib/crm/finishHandoff';
+import { kundeAnlegen } from '@/lib/kunden/kundeAnlegen';
 
 const BLANK_CLIENT_FIELDS = { new_client_name: '', new_client_email: '' };
 
@@ -125,7 +126,7 @@ export default function SprintAssistent() {
   const handleNext = async () => {
     if (step === 1 && seed.client_id === NEW_CLIENT) {
       setCreating(true);
-      const client = await base44.entities.Client.create({
+      const client = await kundeAnlegen({
         name: seed.new_client_name.trim(),
         contact_email: seed.new_client_email || '',
       });

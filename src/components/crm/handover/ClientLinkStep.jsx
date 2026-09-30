@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Check, Link2, Plus, Search } from 'lucide-react';
 import AdressFelder from '@/components/crm/handover/AdressFelder';
 import { adresseAufteilen, adresseVollstaendig } from '@/lib/crm/adresse';
+import { kundeAnlegen, kundennameKlaeren } from '@/lib/kunden/kundeAnlegen';
 
 // Pflichtschritt vor der Freigabe: der Kunde wird ausdrücklich gewählt oder angelegt.
 // Gültig ist er erst mit verknüpfter sevDesk-Kontakt-ID.
@@ -88,7 +89,7 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
   const saveManualId = () => run('manual', async () => {
     const id = manualId.trim();
     if (!id) throw new Error('Kontakt-ID fehlt');
-    const target = client || await base44.entities.Client.create({ name: query.trim(), ...clientFields() });
+    const target = client || await kundeAnlegen({ name: query.trim(), ...clientFields() });
     const updated = await base44.entities.Client.update(target.id, { sevdesk_contact_id: id });
     onClient({ ...target, ...updated, sevdesk_contact_id: id });
     setManualHint(null);
@@ -98,7 +99,7 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
   // (b) sevDesk-Kontakt ohne Client → Client anlegen und ID übernehmen
   const createFromContact = (contact) => run(`create-${contact.sevdesk_contact_id}`, async () => {
     const felder = adresseAusKontakt(contact);
-    const created = await base44.entities.Client.create({
+    const created = await kundeAnlegen({
       name: contact.name, ...clientFields(), ...felder, sevdesk_contact_id: contact.sevdesk_contact_id,
     });
     setAdresse(felder);
@@ -108,8 +109,10 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
 
   // (c) weder Client noch sevDesk-Kontakt → beides neu anlegen
   const createBoth = () => run('new', async () => {
-    const name = query.trim();
-    if (!name) throw new Error('Kundenname fehlt');
+    if (!query.trim()) throw new Error('Kundenname fehlt');
+    const geklaert = await kundennameKlaeren(query);
+    if (geklaert.bestehend) { onClient(geklaert.bestehend); setLinkMode(false); return; }
+    const name = geklaert.name;
     if (!adresse.street || !adresse.zip || !adresse.city) throw new Error('Rechnungsadresse (Straße, PLZ, Ort) ausfüllen — sie wird in sevDesk mitangelegt');
     const res = await base44.functions.invoke('createSevdeskContact', {
       name,

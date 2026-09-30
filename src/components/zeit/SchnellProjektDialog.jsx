@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { kuerzelVorschlag } from '@/lib/zeit/useProjektSuche';
+import { kundeAnlegen } from '@/lib/kunden/kundeAnlegen';
 
 // Das Projekt entsteht in der Zeile — schmaler Dialog, vorbelegt aus der Eingabe.
 export default function SchnellProjektDialog({ open, onOpenChange, vorgabe = '', email, clients = [], onCreated }) {
@@ -53,7 +54,7 @@ export default function SchnellProjektDialog({ open, onOpenChange, vorgabe = '',
     setSaving(true);
     let id = clientId;
     if (!id) {
-      const client = await base44.entities.Client.create({
+      const client = await kundeAnlegen({
         name: neuerKunde.name,
         contact_email: neuerKunde.email,
         agb_version: 'offen',

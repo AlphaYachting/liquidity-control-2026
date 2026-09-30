@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { kundennameKlaeren } from '@/lib/kunden/kundeAnlegen';
 
 const EMPTY = { name: '', contact_person: '', contact_email: '', billing_email: '', agb_version: '', notes: '' };
 
@@ -21,8 +22,16 @@ export default function ClientFormDialog({ open, onOpenChange, client, onSaved }
   const handleSave = async () => {
     if (!form.name || !form.contact_email) return;
     setSaving(true);
+    let geklaert;
+    try {
+      geklaert = await kundennameKlaeren(form.name, { ausserId: client?.id, erlaubeVerwenden: false });
+    } catch (e) {
+      setSaving(false);
+      window.alert(e.message);
+      return;
+    }
     const data = {
-      name: form.name, contact_person: form.contact_person, contact_email: form.contact_email,
+      name: geklaert.name, contact_person: form.contact_person, contact_email: form.contact_email,
       billing_email: form.billing_email, agb_version: form.agb_version, notes: form.notes,
     };
     if (client?.id) await base44.entities.Client.update(client.id, data);

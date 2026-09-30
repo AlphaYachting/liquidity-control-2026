@@ -2,6 +2,7 @@ import { base44 } from '@/api/base44Client';
 import { threadIdOf } from '@/components/crm/inboxDecision';
 import { emailApi } from '@/components/crm/emails/emailApi';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
+import { findeKunde } from '@/lib/kunden/kundeAnlegen';
 
 export const SUPPORT_MODELS = ['aufwand', 'support'];
 export const DEFAULT_SUPPORT_RATE = 130;
@@ -26,7 +27,7 @@ export async function resolveSupportProject(customerName, options = {}) {
   if (!customer) throw new Error('Für ein Support-Ticket braucht es einen Kunden.');
 
   const { pmEmail = '', contactEmail = '', stundensatz } = options;
-  let client = (await base44.entities.Client.filter({ name: customer }))[0];
+  let client = await findeKunde(customer);
 
   let project = null;
   if (client) {
