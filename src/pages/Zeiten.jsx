@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ladeStammdaten, ladeEigeneBuchungen, ladeEigeneAbschluesse, ladeEigeneAbwesenheiten } from '@/lib/zeit/zeitDaten';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -74,14 +75,14 @@ export default function Zeiten() {
   const { data, isLoading } = useQuery({
     queryKey: ['zeitenSeite', email, tage[0]],
     enabled: !!email,
+    placeholderData: (vorher) => vorher,
     queryFn: async () => {
-      const [eintraege, abschluesse, vorschlaege, projects, clients, focusDays, members] = await Promise.all([
-        base44.entities.TimeEntry.filter({ person_email: email }, '-entry_date', 500),
-        base44.entities.Tagesabschluss.filter({ person_email: email }, '-tag', 60),
+      const [eintraege, abschluesse, vorschlaege, { projects, clients }, focusDays, members] = await Promise.all([
+        ladeEigeneBuchungen(email),
+        ladeEigeneAbschluesse(email),
         base44.entities.Zeitvorschlag.filter({ person_email: email, status: 'offen' }, '-von', 100),
-        base44.entities.Project.list('title', 500),
-        base44.entities.Client.list('name', 500),
-        base44.entities.FocusDay.filter({ person_email: email }, '-day', 200),
+        ladeStammdaten(),
+        ladeEigeneAbwesenheiten(email),
         base44.entities.TeamMember.filter({ email }, 'name', 1),
       ]);
       const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));

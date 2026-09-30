@@ -86,6 +86,7 @@ export default function TimerKnopf() {
   const auffrischen = () => {
     qc.invalidateQueries({ queryKey: ['sprintHeute'] });
     qc.invalidateQueries({ queryKey: ['projektKontext'] });
+    qc.removeQueries({ queryKey: ['zeitStammdaten'] });
     qc.invalidateQueries({ queryKey: ['zeitProjektSuche'] });
     qc.invalidateQueries({ queryKey: ['ticketHours'] });
     qc.invalidateQueries({ queryKey: ['offeneTage'] });

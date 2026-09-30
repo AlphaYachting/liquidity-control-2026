@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { ladeStammdaten, ladeEigeneBuchungen } from './zeitDaten';
 
 // Durchsucht Kürzel, Projekttitel und Kundenname über ALLE Projekte — eine
 // Zuweisung ist keine Voraussetzung. Zuletzt bebuchte Projekte stehen oben.
@@ -27,10 +27,9 @@ export function useProjektSuche(email) {
     queryKey: ['zeitProjektSuche', email],
     enabled: !!email,
     queryFn: async () => {
-      const [projects, clients, eigene] = await Promise.all([
-        base44.entities.Project.list('title', 500),
-        base44.entities.Client.list('name', 500),
-        base44.entities.TimeEntry.filter({ person_email: email }, '-entry_date', 400),
+      const [{ projects, clients }, eigene] = await Promise.all([
+        ladeStammdaten(),
+        ladeEigeneBuchungen(email),
       ]);
       const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
       const grenze = vor14Tagen();
