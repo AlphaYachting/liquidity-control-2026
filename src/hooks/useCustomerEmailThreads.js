@@ -30,7 +30,7 @@ export function useCustomerEmailThreads(customer) {
       // Umlaut-Variante für E-Mail-Adressen/Domains (erdkönig → erdkoenig)
       const coreAscii = coreLc.replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
       const nameMatches = (s) => {
-        const v = (s || '').toLowerCase();
+        const v = (Array.isArray(s) ? s.join(' ') : s || '').toLowerCase();
         return v.includes(coreLc) || v.includes(coreAscii);
       };
       const byThread = new Map();
