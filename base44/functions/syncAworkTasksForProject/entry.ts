@@ -56,19 +56,24 @@ Deno.serve(async (req) => {
     // Fetch tasks — use project tasks endpoint directly
     let allTasks = [];
 
-    const tasksResp = await fetch(
-      `${apiBase}/api/v1/projects/${awork_project_id}/projecttasks?page=1&pageSize=200`,
-      { headers }
-    );
+    // Alle Seiten laden — vorher endete der Abruf nach 200 Aufgaben
+    for (let page = 1; ; page++) {
+      const tasksResp = await fetch(
+        `${apiBase}/api/v1/projects/${awork_project_id}/projecttasks?page=${page}&pageSize=500`,
+        { headers }
+      );
 
-    if (!tasksResp.ok || !tasksResp.headers.get('content-type')?.includes('application/json')) {
-      const errText = await tasksResp.text();
-      console.error('Tasks endpoint failed:', tasksResp.status, errText.slice(0, 200));
-      return Response.json({ error: `awork tasks API error: ${tasksResp.status}`, detail: errText.slice(0, 200) }, { status: 502 });
+      if (!tasksResp.ok || !tasksResp.headers.get('content-type')?.includes('application/json')) {
+        const errText = await tasksResp.text();
+        console.error('Tasks endpoint failed:', tasksResp.status, errText.slice(0, 200));
+        return Response.json({ error: `awork tasks API error: ${tasksResp.status}`, detail: errText.slice(0, 200) }, { status: 502 });
+      }
+
+      const data = await tasksResp.json();
+      const batch = Array.isArray(data) ? data : (data.data || []);
+      allTasks = allTasks.concat(batch);
+      if (batch.length < 500) break;
     }
-
-    const data = await tasksResp.json();
-    allTasks = Array.isArray(data) ? data : (data.data || []);
 
     const now = new Date().toISOString();
     let created = 0, updated = 0, failed = 0;
