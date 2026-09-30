@@ -96,6 +96,12 @@ Deno.serve(async (req) => {
       sevdeskContactId = String(snapshot.sevdesk_contact_id);
     }
 
+    // 2c. Gespeicherte Kontakt-ID prüfen — existiert sie nicht (mehr), per Name neu suchen
+    if (sevdeskContactId) {
+      const ok = await sevdeskGet(`/Contact/${sevdeskContactId}`, apiKey).then(() => true).catch(() => false);
+      if (!ok) sevdeskContactId = null;
+    }
+
     // 3. Fallback: Kontakt per Name suchen
     if (!sevdeskContactId && instr.customer_name) {
       const searchName = encodeURIComponent(instr.customer_name.substring(0, 40));
