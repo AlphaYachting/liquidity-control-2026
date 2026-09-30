@@ -1,13 +1,27 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 
 const MONATE = ['Jänner', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
 // Kategorie und Budgetzeile eines Projekts — die Summen kommen fertig aus dem Backend.
 export function useProjektKontext(projectId) {
-  return useQuery({
+  return useQuery(projektKontextQuery(projectId));
+}
+
+// Vorladen, sobald jemand im Projekt ist — das Zeitfenster öffnet dann ohne Wartezeit.
+export function usePrefetchProjektKontext(projectId) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (projectId) qc.prefetchQuery(projektKontextQuery(projectId));
+  }, [projectId, qc]);
+}
+
+function projektKontextQuery(projectId) {
+  return {
     queryKey: ['projektKontext', projectId],
     enabled: !!projectId,
+    staleTime: 60 * 1000,
     queryFn: async () => {
       const [project, summenAntwort] = await Promise.all([
         base44.entities.Project.get(projectId),
@@ -39,5 +53,5 @@ export function useProjektKontext(projectId) {
 
       return { project, client, kategorie, budget, summen };
     },
-  });
+  };
 }

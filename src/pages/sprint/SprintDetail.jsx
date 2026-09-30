@@ -21,6 +21,7 @@ import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceS
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import useKundenaktProjektId from '@/hooks/useKundenaktProjektId';
 import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
+import { usePrefetchProjektKontext } from '@/lib/sprint/useProjektKontext';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import ModulHinzufuegenKnopf from '@/components/sprint/ModulHinzufuegenKnopf';
 
@@ -66,6 +67,7 @@ export default function SprintDetail() {
   });
 
   useMeldeZeitKontext({ project_id: data?.sprint?.project_id, quelle: 'sprint' });
+  usePrefetchProjektKontext(data?.sprint?.project_id);
 
   if (isLoading || !data) {
     return (
