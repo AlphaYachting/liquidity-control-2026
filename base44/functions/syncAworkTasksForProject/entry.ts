@@ -76,17 +76,22 @@ Deno.serve(async (req) => {
     }
 
     const now = new Date().toISOString();
-    let created = 0, updated = 0, failed = 0;
+    let created = 0, updated = 0, failed = 0, unveraendert = 0;
 
-    // Load existing snapshots for this project
-    let existingMap = {};
+    // Load existing snapshots for this project — ohne Bestand kein Schreiben (sonst Dubletten)
+    const existingMap = {};
     try {
       const existing = await base44.asServiceRole.entities.AworkTaskSnapshot.filter({ awork_project_id });
       await sleep(200);
       for (const s of existing) existingMap[s.awork_task_id] = s;
     } catch (e) {
       console.error('Failed to load existing snapshots:', e.message);
+      return Response.json({ error: 'Bestand nicht ladbar' }, { status: 503 });
     }
+
+    const VERGLEICH = ['task_title', 'task_status_id', 'task_status_name', 'task_list_id', 'task_list_name',
+      'assignee_email', 'due_date', 'planned_duration_minutes', 'tracked_duration_minutes', 'is_done',
+      'is_blocked', 'last_activity_at'];
 
     // Upsert tasks with delays to avoid rate limits
     for (const task of allTasks) {
@@ -123,7 +128,12 @@ Deno.serve(async (req) => {
       };
 
       try {
-        if (existingMap[task.id]) {
+        const prev = existingMap[task.id];
+        if (prev && VERGLEICH.every(k => (snapshot[k] ?? null) === (prev[k] ?? null))) {
+          unveraendert++;
+          continue;
+        }
+        if (prev) {
           await base44.asServiceRole.entities.AworkTaskSnapshot.update(existingMap[task.id].id, snapshot);
           updated++;
         } else {
@@ -144,6 +154,7 @@ Deno.serve(async (req) => {
       task_lists: Object.keys(taskListMap).length,
       created,
       updated,
+      unveraendert,
       failed
     });
 
