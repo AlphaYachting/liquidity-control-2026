@@ -5,6 +5,7 @@ import { minuteVonIso, uhr, dauerText, MODELL_TEXT, MODELL_FARBE } from '@/lib/z
 import { verrechnetJeBuchung } from '@/lib/zeit/rundung';
 import VerrechenbarSchalter from './VerrechenbarSchalter';
 import TaetigkeitEtikett from './TaetigkeitEtikett';
+import { useBereichNamen } from '@/lib/zeit/useBereichNamen';
 
 const Etikett = ({ children, farbe, flaeche }) => (
   <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-[2px]"
@@ -34,6 +35,7 @@ export default function BuchungZeile({
   const verrechnetMinuten = regeln && regeln.rundung_basis === 'buchung' && !e.dauer_geschaetzt
     ? verrechnetJeBuchung(e, regeln)
     : null;
+  const bereich = useBereichNamen()[e.module_template_id];
   const fenster = e.started_at && e.ended_at
     ? `${uhr(minuteVonIso(e.started_at))}–${uhr(minuteVonIso(e.ended_at))}`
     : 'ohne Zeitfenster';
@@ -62,8 +64,12 @@ export default function BuchungZeile({
             {label.voll}
           </p>
           <p className="text-xs truncate" style={{ color: RITTLER.textSecondary }}>
-            {MODELL_TEXT[e.kategorie] || 'Zeitbuchung'} · {zaehler(e)}{e.note ? ` · ${e.note}` : ''}
+            {MODELL_TEXT[e.kategorie] || 'Zeitbuchung'} · {zaehler(e)}
+            {bereich ? <> · <span className="font-medium" style={{ color: RITTLER.black }}>{bereich}</span></> : ''}
           </p>
+          {e.note && (
+            <p className="text-xs whitespace-pre-line" style={{ color: RITTLER.black }}>{e.note}</p>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <TaetigkeitEtikett eintrag={e} onGeaendert={onGeaendert} />
