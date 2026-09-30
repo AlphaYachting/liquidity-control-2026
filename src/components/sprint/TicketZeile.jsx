@@ -9,7 +9,8 @@ import PersonenChip from '@/components/sprint/PersonenChip';
 import TicketDetailPanel from '@/components/sprint/ticket/TicketDetailPanel';
 import TicketInlineDetail from '@/components/sprint/ticket/TicketInlineDetail';
 import { schreibeSystemEintrag } from '@/lib/sprint/systemComment';
-import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
+import { RITTLER, STATUS_COLORS, todayIso } from '@/components/sprint/sprintConfig';
+import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
 
 const ORIGIN_LABEL = { addon: 'Zusatz', change_request: 'Change Request · nach Aufwand abrechenbar' };
 
@@ -37,14 +38,15 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
   const checklist = ticket.checklist || [];
   const erledigt = checklist.filter((c) => c.done).length;
   const stop = (e) => e.stopPropagation();
+  const ueberfaellig = istUeberfaellig(ticket, todayIso());
 
   return (
     <>
       <div
         id={`aufgabe-${ticket.id}`}
         onClick={() => setOffen((v) => !v)}
-        className="flex items-center gap-3 min-h-[56px] pr-2 border-b border-[#eeeeee] last:border-0 hover:bg-[#fafafa] cursor-pointer group"
-        style={{ paddingLeft: 16, borderLeft: isMe ? `3px solid ${RITTLER.black}` : '3px solid transparent' }}
+        className={`flex items-center gap-3 min-h-[56px] pr-2 border-b border-[#eeeeee] last:border-0 cursor-pointer group ${ueberfaellig ? 'bg-status-critical-surface hover:bg-status-critical-surface/70' : 'hover:bg-[#fafafa]'}`}
+        style={{ paddingLeft: 16, borderLeft: ueberfaellig ? `3px solid ${STATUS_COLORS.critical}` : isMe ? `3px solid ${RITTLER.black}` : '3px solid transparent' }}
       >
         <div onClick={stop}>
           <PersonenChip
