@@ -18,7 +18,8 @@ import BehaelterKopf from '@/components/sprint/projekt/BehaelterKopf';
 import ProjektBearbeitenKnopf from '@/components/sprint/projekt/ProjektBearbeitenKnopf';
 import BehaelterInhalt from '@/components/sprint/projekt/BehaelterInhalt';
 import NeueAufgabeDialog from '@/components/sprint/NeueAufgabeDialog';
-import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
+const ProjectIntelligenceSheet = React.lazy(() =>
+  import('@/components/projects/ProjectIntelligenceSheet'));
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import useKundenaktProjektId from '@/hooks/useKundenaktProjektId';
 import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
@@ -30,6 +31,8 @@ import ModulHinzufuegenKnopf from '@/components/sprint/ModulHinzufuegenKnopf';
 export default function SprintDetail() {
   const { sprintId } = useParams();
   const [intelligenzOffen, setIntelligenzOffen] = React.useState(false);
+  const [schonGeoeffnet, setSchonGeoeffnet] = React.useState(false);
+  if (intelligenzOffen && !schonGeoeffnet) setSchonGeoeffnet(true);
   const [addOpen, setAddOpen] = React.useState(false);
   const [intelligenzModus, setIntelligenzModus] = React.useState('frage');
   const oeffneIntelligenz = (modus) => { setIntelligenzModus(modus); setIntelligenzOffen(true); };
@@ -212,14 +215,18 @@ export default function SprintDetail() {
         />
       )}
 
-      <ProjectIntelligenceSheet
-        open={intelligenzOffen}
-        startModus={intelligenzModus}
-        onClose={() => setIntelligenzOffen(false)}
-        projectId={aktProjektId}
-        projectName={project?.title}
-        customer={client?.name}
-      />
+      {schonGeoeffnet && (
+        <React.Suspense fallback={null}>
+          <ProjectIntelligenceSheet
+            open={intelligenzOffen}
+            startModus={intelligenzModus}
+            onClose={() => setIntelligenzOffen(false)}
+            projectId={aktProjektId}
+            projectName={project?.title}
+            customer={client?.name}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 }

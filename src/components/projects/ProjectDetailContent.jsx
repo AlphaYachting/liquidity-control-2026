@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useNavigate, Link } from 'react-router-dom';
@@ -44,7 +44,8 @@ import useProjektIntelligenzKontext from '@/hooks/useProjektIntelligenzKontext';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import FesthaltenKnopf from '@/components/projects/kundenakt/FesthaltenKnopf';
 import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntryDialog';
-import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
+const ProjectIntelligenceSheet = lazy(() =>
+  import('@/components/projects/ProjectIntelligenceSheet'));
 import Sektion from '@/components/projects/Sektion';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
@@ -67,6 +68,8 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem(TAB_STORAGE_KEY) || 'stand');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showIntelligence, setShowIntelligence] = useState(false);
+  const [schonGeoeffnet, setSchonGeoeffnet] = useState(false);
+  if (showIntelligence && !schonGeoeffnet) setSchonGeoeffnet(true);
   const [intelligenzModus, setIntelligenzModus] = useState('frage');
   const [aktEingabe, setAktEingabe] = useState(null); // { text, analyse }
   const [editingPM, setEditingPM] = useState(false);
@@ -771,17 +774,21 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         onSaved={() => queryClient.invalidateQueries({ queryKey: ['projektZusagen', projectId] })}
       />
 
-      <ProjectIntelligenceSheet
-        open={showIntelligence}
-        startModus={intelligenzModus}
-        onClose={() => setShowIntelligence(false)}
-        projectId={projectId}
-        projectName={project.project_name}
-        customer={project.customer}
-        kennzahlen={aufgabenKennzahlen}
-        finanzen={intelligenzFinanzen}
-        kontext={intelligenzKontext}
-      />
+      {schonGeoeffnet && (
+        <Suspense fallback={null}>
+          <ProjectIntelligenceSheet
+            open={showIntelligence}
+            startModus={intelligenzModus}
+            onClose={() => setShowIntelligence(false)}
+            projectId={projectId}
+            projectName={project.project_name}
+            customer={project.customer}
+            kennzahlen={aufgabenKennzahlen}
+            finanzen={intelligenzFinanzen}
+            kontext={intelligenzKontext}
+          />
+        </Suspense>
+      )}
 
       <AworkProjectPicker
         open={showAworkPicker}
