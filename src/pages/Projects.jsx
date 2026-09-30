@@ -99,12 +99,23 @@ export default function Projects() {
     queryKey: ['billingBlocks'], queryFn: () => base44.entities.ProjectBillingBlock.list()
   });
 
+  // Nur die aWork-Daten der Projekte dieser Seite laden, nicht den ganzen Bestand
+  const aworkIds = useMemo(
+    () => [...new Set(projects.map(p => p.awork_project_id).filter(Boolean))].sort(),
+    [projects]
+  );
+  const aworkBereit = !projectsLoading && aworkIds.length > 0;
+
   const { data: aworkSnapshots = [] } = useQuery({
-    queryKey: ['aworkSnapshots'], queryFn: () => base44.entities.AworkProjectSnapshot.list()
+    queryKey: ['aworkSnapshots', 'fuerProjekte', aworkIds],
+    queryFn: () => base44.entities.AworkProjectSnapshot.filter({ awork_project_id: { $in: aworkIds } }, '-last_synced_at', 500),
+    enabled: aworkBereit,
   });
 
   const { data: openAworkTasks = [] } = useQuery({
-    queryKey: ['openAworkTasks'], queryFn: () => base44.entities.AworkTaskSnapshot.filter({ is_done: false })
+    queryKey: ['openAworkTasks', 'fuerProjekte', aworkIds],
+    queryFn: () => base44.entities.AworkTaskSnapshot.filter({ is_done: false, awork_project_id: { $in: aworkIds } }, '-last_activity_at', 5000),
+    enabled: aworkBereit,
   });
 
   const { data: billingPlans = [] } = useQuery({
