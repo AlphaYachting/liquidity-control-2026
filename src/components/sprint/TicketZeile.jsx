@@ -11,6 +11,7 @@ import TicketInlineDetail from '@/components/sprint/ticket/TicketInlineDetail';
 import { schreibeSystemEintrag } from '@/lib/sprint/systemComment';
 import { RITTLER, STATUS_COLORS, todayIso } from '@/components/sprint/sprintConfig';
 import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
+import { ladeAnsichtenNachTicketAenderung } from '@/lib/sprint/ansichtenNeuLaden';
 
 const ORIGIN_LABEL = { addon: 'Zusatz', change_request: 'Change Request · nach Aufwand abrechenbar' };
 
@@ -129,7 +130,7 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
           editable={editable}
           onChecklist={async (checklist) => {
             await base44.entities.Ticket.update(ticket.id, { checklist });
-            queryClient.invalidateQueries();
+            ladeAnsichtenNachTicketAenderung(queryClient);
           }}
         />
       )}
@@ -139,7 +140,7 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
         members={members}
         open={detailOpen}
         onOpenChange={setDetailOpen}
-        onSaved={() => queryClient.invalidateQueries()}
+        onSaved={() => ladeAnsichtenNachTicketAenderung(queryClient)}
       />
     </>
   );

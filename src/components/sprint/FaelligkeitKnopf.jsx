@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { STATUS_COLORS, RITTLER, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
+import { ladeAnsichtenNachTicketAenderung } from '@/lib/sprint/ansichtenNeuLaden';
 
 const RHYTHMUS_LABEL = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', manuell: 'manuell' };
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -21,7 +22,7 @@ export default function FaelligkeitKnopf({ ticket, disabled = false }) {
     setOpen(false);
     if (!d && ticket.rhythmus) return;
     await base44.entities.Ticket.update(ticket.id, { planned_for: d ? iso(d) : null });
-    queryClient.invalidateQueries();
+    ladeAnsichtenNachTicketAenderung(queryClient);
   };
 
   return (
