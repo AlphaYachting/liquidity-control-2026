@@ -47,6 +47,13 @@ function projektKontextQuery(projectId) {
           gebucht: summen.gebucht_monat || 0,
           gesamt: project.support_kontingent_stunden || 0,
         };
+      } else if (kategorie === 'paket') {
+        // Container/Retainer: Monatsstunden gegen ein optionales Monatskontingent
+        budget = {
+          label: `Kontingent ${MONATE[new Date().getMonth()]}`,
+          gebucht: summen.gebucht_monat || 0,
+          gesamt: project.support_kontingent_stunden || 0,
+        };
       } else if (kategorie === 'aufwand') {
         budget = { label: 'Bisher gebucht', gebucht: summen.gebucht_gesamt || 0, gesamt: 0 };
       }
