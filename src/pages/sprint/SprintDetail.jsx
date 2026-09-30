@@ -15,6 +15,7 @@ import { sprintStatus } from '@/lib/sprint/status';
 import { Button } from '@/components/ui/button';
 import { BrainCircuit, Plus } from 'lucide-react';
 import BehaelterKopf from '@/components/sprint/projekt/BehaelterKopf';
+import ProjektBearbeitenKnopf from '@/components/sprint/projekt/ProjektBearbeitenKnopf';
 import BehaelterInhalt from '@/components/sprint/projekt/BehaelterInhalt';
 import NeueAufgabeDialog from '@/components/sprint/NeueAufgabeDialog';
 import ProjectIntelligenceSheet from '@/components/projects/ProjectIntelligenceSheet';
@@ -118,6 +119,7 @@ export default function SprintDetail() {
             {projectTypeOf(project) === 'container' && me?.email && me.email === project?.pm_email && offenerMilestone && (
               <ModulHinzufuegenKnopf project={project} milestone={offenerMilestone} tickets={tickets} onAdded={refetch} />
             )}
+            {me?.role === 'admin' && <ProjektBearbeitenKnopf project={project} onSaved={refetch} />}
             {!istSprint && offenerMilestone && (
               <Button variant="outline" size="sm" className="rounded" onClick={() => setAddOpen(true)}>
                 <Plus className="w-3.5 h-3.5 mr-1" /> Aufgabe hinzufügen
