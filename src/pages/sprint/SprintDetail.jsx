@@ -45,18 +45,18 @@ export default function SprintDetail() {
         base44.entities.Milestone.filter({ sprint_id: sprintId }, 'order', 100),
         base44.entities.TeamMember.filter({ active: true }, 'name', 100),
       ]);
-      const client = project ? await base44.entities.Client.get(project.client_id).catch(() => null) : null;
       const milestoneIds = milestones.map((m) => m.id);
-      const [tickets, timeEntries, focusDays] = await Promise.all([
+      const [client, tickets, timeEntries, focusDays, vertrag] = await Promise.all([
+        project ? base44.entities.Client.get(project.client_id).catch(() => null) : Promise.resolve(null),
         milestoneIds.length
           ? base44.entities.Ticket.filter({ milestone_id: { $in: milestoneIds } }, 'order', 1000)
           : Promise.resolve([]),
         base44.entities.TimeEntry.filter({ project_id: sprint.project_id }, '-entry_date', 1000),
         base44.entities.FocusDay.filter({ project_id: sprint.project_id, type: 'focus' }, 'day', 500),
+        project?.recurring_contract_id
+          ? base44.entities.RecurringContract.get(project.recurring_contract_id).catch(() => null)
+          : Promise.resolve(null),
       ]);
-      const vertrag = project?.recurring_contract_id
-        ? await base44.entities.RecurringContract.get(project.recurring_contract_id).catch(() => null)
-        : null;
       return { sprint, project, client, milestones, tickets, members, timeEntries, focusDays, vertrag };
     },
   });

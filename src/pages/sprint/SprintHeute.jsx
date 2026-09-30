@@ -26,7 +26,7 @@ export default function SprintHeute() {
     queryKey: ['sprintHeute', email, today],
     enabled: !!email,
     queryFn: async () => {
-      const [focusDays, projects, clients, milestones, myTickets, settings, sprints, todayEntries] = await Promise.all([
+      const [focusDays, projects, clients, milestones, myTickets, settings, sprints, todayEntries, module] = await Promise.all([
         base44.entities.FocusDay.filter({ person_email: email, day: today }),
         base44.entities.Project.list('-created_date', 200),
         base44.entities.Client.list('-created_date', 200),
@@ -35,6 +35,7 @@ export default function SprintHeute() {
         base44.entities.Setting.filter({ group: 'kapazitaet' }, 'key', 50),
         base44.entities.Sprint.list('-created_date', 500),
         base44.entities.TimeEntry.filter({ person_email: email, entry_date: today }),
+        base44.entities.ModuleTemplate.list('name', 500),
       ]);
       const relevant = (t) => t.status !== 'erledigt' || (t.last_status_change || '').startsWith(today);
       const nachOrder = (a, b) => (a.order || 0) - (b.order || 0);
@@ -55,7 +56,6 @@ export default function SprintHeute() {
         ...myTickets.map((t) => t.project_id),
         ...projects.filter((p) => p.pm_email === email).map((p) => p.id),
       ]);
-      const module = await base44.entities.ModuleTemplate.list('name', 500);
       return { routinen, focusDay, projects, clients, tickets, milestones, standardHours, myProjectIds, sprints, todayEntries, module };
     },
   });
