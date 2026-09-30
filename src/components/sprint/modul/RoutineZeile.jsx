@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import FaelligkeitKnopf from '@/components/sprint/FaelligkeitKnopf';
 import TicketStatusElement from '@/components/sprint/TicketStatusElement';
 import PersonenChip from '@/components/sprint/PersonenChip';
-import { RITTLER, STATUS_COLORS, fmtDate } from '@/components/sprint/sprintConfig';
+import { RITTLER, STATUS_COLORS, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
+import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
 
 const RHYTHMUS = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', manuell: 'manuell' };
 
@@ -15,8 +16,17 @@ export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssi
   const ref = aktuell || kette[0];
   const name = (e) => members.find((m) => m.email === e)?.name || e || '—';
 
+  const heute = todayIso();
+  const ueberfaellig = !!aktuell && istUeberfaellig(aktuell, heute);
+  const bald = new Date(); bald.setDate(bald.getDate() + 2);
+  const baldIso = `${bald.getFullYear()}-${String(bald.getMonth() + 1).padStart(2, '0')}-${String(bald.getDate()).padStart(2, '0')}`;
+  const faellig = !!aktuell && !ueberfaellig && !!aktuell.planned_for && aktuell.planned_for <= baldIso;
+
   return (
-    <div className="border-b border-border last:border-0 py-2">
+    <div
+      className={`border-b border-border last:border-0 py-2 pr-2 ${ueberfaellig ? 'bg-status-critical-surface' : faellig ? 'bg-status-attention-surface/60' : ''}`}
+      style={{ paddingLeft: 12, borderLeft: ueberfaellig ? `4px solid ${STATUS_COLORS.critical}` : faellig ? `3px solid ${STATUS_COLORS.attention}` : '3px solid transparent' }}
+    >
       <div className="flex items-center gap-3">
         {aktuell && (
           <PersonenChip
@@ -28,7 +38,11 @@ export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssi
           />
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate" style={{ color: RITTLER.black }}>{ref.title}</p>
+          <p className="text-sm font-medium truncate flex items-center gap-1.5" style={{ color: RITTLER.black }}>
+            <span className="truncate">{ref.title}</span>
+            {ueberfaellig && <span className="shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded bg-status-critical text-primary-foreground">Überfällig</span>}
+            {faellig && <span className="shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded bg-status-attention-surface text-status-attention">Fällig</span>}
+          </p>
           <p className="text-xs text-muted-foreground">{RHYTHMUS[ref.rhythmus] || 'manuell'}</p>
         </div>
         {aktuell ? (
