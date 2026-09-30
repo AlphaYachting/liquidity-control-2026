@@ -59,6 +59,10 @@ async function upsert(svc, existing, threadId, row, source) {
   patch.needs_reply = computeNeedsReply(patch);
   const prev = existing.get(String(threadId));
   if (prev) {
+    const gleich = Object.keys(patch)
+      .filter((k) => k !== 'indexed_at' && k !== 'source')
+      .every((k) => JSON.stringify(patch[k] ?? null) === JSON.stringify(prev[k] ?? null));
+    if (gleich) return 'unverändert';
     await svc.entities.EmailThreadIndex.update(prev.id, patch);
     return 'aktualisiert';
   }
@@ -79,7 +83,7 @@ export default async function (req) {
     const pageSize = body.page_size ?? 100;
     const backfillPages = body.backfill_pages ?? 1;
 
-    const stats = { fenster_geprueft: 0, neu: 0, aktualisiert: 0, details_geladen: 0, nachlauf_geprueft: 0, gesamt_verlaeufe: 0, fehler: [] };
+    const stats = { fenster_geprueft: 0, neu: 0, aktualisiert: 0, unveraendert: 0, details_geladen: 0, nachlauf_geprueft: 0, gesamt_verlaeufe: 0, fehler: [] };
 
     const stateRows = await svc.entities.EmailIndexState.list('-created_date', 1);
     const state = stateRows[0] || await svc.entities.EmailIndexState.create({ indexed_total: 0 });
@@ -119,7 +123,7 @@ export default async function (req) {
             };
           }
           const res = await upsert(svc, existing, t.id, row, source);
-          stats[res === 'neu' ? 'neu' : 'aktualisiert']++;
+          stats[res === 'neu' ? 'neu' : res === 'unverändert' ? 'unveraendert' : 'aktualisiert']++;
         } catch (e) { stats.fehler.push(`Verlauf ${t.id}: ${e.message}`); }
       });
     };
