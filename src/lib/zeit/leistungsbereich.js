@@ -1,10 +1,14 @@
 import { base44 } from '@/api/base44Client';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
+import { ladeStammdaten } from './zeitDaten';
 
 // Leistungsbereich = Modul, nur bei Container-Projekten.
 export async function istContainerProjekt(projectId) {
   if (!projectId) return false;
-  const p = await base44.entities.Project.get(projectId).catch(() => null);
+  // Aus den bereits geladenen Stammdaten — spart eine Anfrage je Projektwahl
+  const { projects } = await ladeStammdaten();
+  const p = projects.find((x) => x.id === projectId)
+    || await base44.entities.Project.get(projectId).catch(() => null);
   return projectTypeOf(p) === 'container';
 }
 

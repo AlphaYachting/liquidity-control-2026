@@ -24,7 +24,9 @@ export default function KontingentHinweis({ eintragId }) {
           ? `Kontingent ${mName} überschritten – als Mehrleistung markiert`
           : `Monatsrahmen ${mName} überschritten – mit dem Kunden abstimmen`;
       }
-      const rows = await base44.entities.TimeEntry.filter({ project_id: project.id }, '-entry_date', 500);
+      const rows = await base44.entities.TimeEntry.filter(
+        { project_id: project.id, entry_date: { $gte: `${monat}-01`, $lte: `${monat}-31` } }, '-entry_date', 1000,
+      );
       const summe = rows.filter((r) => String(r.entry_date || '').startsWith(monat))
         .reduce((s, r) => s + (Number(r.duration_minutes) || 0), 0);
       const key = `rahmen80:${project.id}:${monat}`;

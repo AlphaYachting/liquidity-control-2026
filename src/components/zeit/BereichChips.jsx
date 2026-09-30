@@ -7,6 +7,7 @@ export default function BereichChips({ projectId, wert, onWaehlen }) {
   const { data: bereiche = [] } = useQuery({
     queryKey: ['leistungsbereiche', projectId],
     enabled: !!projectId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => ((await istContainerProjekt(projectId)) ? bereicheVonProjekt(projectId) : []),
   });
   if (!bereiche.length) return null;
