@@ -18,7 +18,13 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
   const member = members.find((m) => m.email === ticket.assignee_email);
   const isMe = !!ticket.assignee_email && ticket.assignee_email === currentUserEmail;
   const originLabel = ORIGIN_LABEL[ticket.origin];
-  const [offen, setOffen] = useState(false);
+  // Direktsprung aus der Übersicht (?aufgabe=id): Aufgabe aufgeklappt öffnen
+  const [offen, setOffen] = useState(() => new URLSearchParams(window.location.search).get('aufgabe') === ticket.id);
+  useEffect(() => {
+    if (offen && new URLSearchParams(window.location.search).get('aufgabe') === ticket.id) {
+      document.getElementById(`aufgabe-${ticket.id}`)?.scrollIntoView({ block: 'center' });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [detailOpen, setDetailOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -35,6 +41,7 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
   return (
     <>
       <div
+        id={`aufgabe-${ticket.id}`}
         onClick={() => setOffen((v) => !v)}
         className="flex items-center gap-3 min-h-[56px] pr-2 border-b border-[#eeeeee] last:border-0 hover:bg-[#fafafa] cursor-pointer group"
         style={{ paddingLeft: 16, borderLeft: isMe ? `3px solid ${RITTLER.black}` : '3px solid transparent' }}

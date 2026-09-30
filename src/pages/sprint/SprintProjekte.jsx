@@ -11,6 +11,9 @@ import ProjektZeileOhneSprint from '@/components/sprint/uebersicht/ProjektZeileO
 import ClientFormDialog from '@/components/sprint/ClientFormDialog';
 import ProjectFormDialog from '@/components/sprint/ProjectFormDialog';
 import { sprintStatus } from '@/lib/sprint/status';
+import BehaelterZeile from '@/components/sprint/uebersicht/BehaelterZeile';
+import { behaelterStatus } from '@/lib/sprint/behaelterStatus';
+import { projectTypeOf } from '@/components/sprint/projectTypes';
 
 // S3 — Projektliste + Stammdaten für Client und Project (gleicher Informationsgehalt wie die Übersicht)
 export default function SprintProjekte() {
@@ -24,7 +27,7 @@ export default function SprintProjekte() {
   const { data, isLoading } = useQuery({
     queryKey: ['sprintProjekte'],
     queryFn: async () => {
-      const [clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays] = await Promise.all([
+      const [clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays, contracts] = await Promise.all([
         base44.entities.Client.list('name', 300),
         base44.entities.Project.list('-created_date', 300),
         base44.entities.Sprint.list('-created_date', 500),
@@ -34,8 +37,9 @@ export default function SprintProjekte() {
         base44.entities.IntelligenceSignal.filter({ resolved: false }, '-triggered_at', 100),
         base44.entities.TimeEntry.list('-entry_date', 3000),
         base44.entities.FocusDay.list('-day', 2000),
+        base44.entities.RecurringContract.list('-created_date', 500),
       ]);
-      return { clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays };
+      return { clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays, contracts };
     },
   });
 
@@ -50,8 +54,9 @@ export default function SprintProjekte() {
     );
   }
 
-  const { clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays } = data;
+  const { clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays, contracts } = data;
   const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
+  const contractById = Object.fromEntries(contracts.map((c) => [c.id, c]));
 
   const ohnePmAnzahl = projects.filter((p) => !p.pm_email).length;
   const sichtbar = nurOhnePm ? projects.filter((p) => !p.pm_email) : projects;
@@ -59,6 +64,20 @@ export default function SprintProjekte() {
   const zeilen = sichtbar.map((project) => {
     const projectSprints = sprints.filter((s) => s.project_id === project.id);
     const sprint = projectSprints.find((s) => s.status === 'laufend') || projectSprints.find((s) => s.status === 'geplant');
+    if (projectTypeOf(project) !== 'sprint') {
+      const projectTickets = tickets.filter((t) => t.project_id === project.id);
+      const emails = [...new Set(projectTickets.filter((t) => t.assignee_email).map((t) => t.assignee_email))];
+      return {
+        project, client: clientById[project.client_id], sprint: sprint || null, projectSprints, behaelter: true,
+        status: behaelterStatus({
+          project,
+          tickets: projectTickets,
+          timeEntries: timeEntries.filter((t) => t.project_id === project.id),
+          contract: contractById[project.recurring_contract_id],
+        }),
+        people: emails.map((e) => members.find((m) => m.email === e) || { email: e, name: e }),
+      };
+    }
     if (!sprint) return { project, client: clientById[project.client_id], sprint: null, projectSprints };
 
     const sprintMilestones = milestones.filter((m) => m.sprint_id === sprint.id);
@@ -85,11 +104,11 @@ export default function SprintProjekte() {
   })
     // gleiche Sortierung wie die Übersicht: Dringlichkeit, dann Liefertermin; Projekte ohne Sprint zuletzt
     .sort((a, b) => {
-      if (!a.sprint && !b.sprint) return (a.project.title || '').localeCompare(b.project.title || '');
-      if (!a.sprint) return 1;
-      if (!b.sprint) return -1;
+      if (!a.status && !b.status) return (a.project.title || '').localeCompare(b.project.title || '');
+      if (!a.status) return 1;
+      if (!b.status) return -1;
       return a.status.urgency - b.status.urgency
-        || (a.sprint.delivery_date || '').localeCompare(b.sprint.delivery_date || '');
+        || (a.sprint?.delivery_date || '').localeCompare(b.sprint.delivery_date || '');
     });
 
   return (
@@ -125,7 +144,17 @@ export default function SprintProjekte() {
           <div className="bg-white rounded-lg border border-border overflow-hidden">
             {zeilen.map((z) => (
               <div key={z.project.id} className="border-b border-[#eeeeee] last:border-0">
-                {z.sprint ? (
+                {z.behaelter ? (
+                  <BehaelterZeile
+                    sprint={z.sprint}
+                    project={z.project}
+                    client={z.client}
+                    status={z.status}
+                    people={z.people}
+                    currentUserEmail={me?.email}
+                    onEdit={() => setProjectDialog({ open: true, project: z.project })}
+                  />
+                ) : z.sprint ? (
                   <ProjektZeile
                     sprint={z.sprint}
                     project={z.project}

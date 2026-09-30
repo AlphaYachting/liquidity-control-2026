@@ -7,6 +7,9 @@ import HandlungsListe from '@/components/sprint/uebersicht/HandlungsListe';
 import ProjektZeile from '@/components/sprint/uebersicht/ProjektZeile';
 import UnternehmenBlock from '@/components/sprint/uebersicht/UnternehmenBlock';
 import { sprintStatus } from '@/lib/sprint/status';
+import BehaelterZeile from '@/components/sprint/uebersicht/BehaelterZeile';
+import { behaelterStatus } from '@/lib/sprint/behaelterStatus';
+import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { RITTLER, fmtEUR, todayIso } from '@/components/sprint/sprintConfig';
 
 const mondayOf = (iso) => {
@@ -35,7 +38,7 @@ export default function SprintUebersicht() {
   const { data, isLoading } = useQuery({
     queryKey: ['sprintUebersicht'],
     queryFn: async () => {
-      const [clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays] = await Promise.all([
+      const [clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays, contracts] = await Promise.all([
         base44.entities.Client.list('name', 300),
         base44.entities.Project.list('-created_date', 300),
         base44.entities.Sprint.list('-created_date', 300),
@@ -45,8 +48,9 @@ export default function SprintUebersicht() {
         base44.entities.IntelligenceSignal.filter({ resolved: false }, '-triggered_at', 100),
         base44.entities.TimeEntry.list('-entry_date', 3000),
         base44.entities.FocusDay.list('-day', 2000),
+        base44.entities.RecurringContract.list('-created_date', 500),
       ]);
-      return { clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays };
+      return { clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays, contracts };
     },
   });
 
@@ -60,7 +64,7 @@ export default function SprintUebersicht() {
     );
   }
 
-  const { clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays } = data;
+  const { clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays, contracts } = data;
   const today = todayIso();
   const weekStart = mondayOf(today);
   const myEmail = me?.email;
@@ -72,11 +76,22 @@ export default function SprintUebersicht() {
 
   const activeSprints = sprints.filter((s) => ['geplant', 'laufend'].includes(s.status));
 
+  const contractById = Object.fromEntries(contracts.map((c) => [c.id, c]));
+
   const rows = activeSprints.map((sprint) => {
+    const project = projectById[sprint.project_id];
+    const behaelter = projectTypeOf(project) !== 'sprint';
     const sprintMilestones = milestones.filter((m) => m.sprint_id === sprint.id);
     const ids = sprintMilestones.map((m) => m.id);
-    const sprintTickets = tickets.filter((t) => ids.includes(t.milestone_id));
-    const status = sprintStatus({
+    const sprintTickets = behaelter
+      ? tickets.filter((t) => t.project_id === sprint.project_id)
+      : tickets.filter((t) => ids.includes(t.milestone_id));
+    const status = behaelter ? behaelterStatus({
+      project,
+      tickets: sprintTickets,
+      timeEntries: timeEntries.filter((t) => t.project_id === sprint.project_id),
+      contract: contractById[project?.recurring_contract_id],
+    }) : sprintStatus({
       sprint,
       milestones: sprintMilestones,
       tickets: sprintTickets,
@@ -87,7 +102,8 @@ export default function SprintUebersicht() {
     const emails = [...new Set(sprintTickets.filter((t) => t.assignee_email).map((t) => t.assignee_email))];
     return {
       sprint,
-      project: projectById[sprint.project_id],
+      behaelter,
+      project,
       client: clientById[projectById[sprint.project_id]?.client_id],
       milestones: sprintMilestones,
       tickets: sprintTickets,
@@ -169,7 +185,17 @@ export default function SprintUebersicht() {
       <div>
         <SectionLabel className="mb-2">Projekte</SectionLabel>
         <div className="bg-white rounded-lg border border-border overflow-hidden">
-          {visibleRows.map((r) => (
+          {visibleRows.map((r) => r.behaelter ? (
+            <BehaelterZeile
+              key={r.sprint.id}
+              sprint={r.sprint}
+              project={r.project}
+              client={r.client}
+              status={r.status}
+              people={r.people}
+              currentUserEmail={myEmail}
+            />
+          ) : (
             <ProjektZeile
               key={r.sprint.id}
               sprint={r.sprint}
