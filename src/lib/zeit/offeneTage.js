@@ -4,7 +4,7 @@ import { werteTagAus, verschiebeTage } from './tagesAuswertung';
 export const MAX_LUECKE = 45;
 export const RUECKBLICK_TAGE = 14;
 // Solange die Demophase läuft, gilt kein Tag vor dem Systemstart als offen.
-export const SYSTEMSTART = '2026-08-24';
+export const SYSTEMSTART = '2026-09-30';
 
 export const istWerktag = (iso) => {
   const [y, m, d] = iso.split('-').map(Number);

@@ -3,7 +3,7 @@
 
 const RUECKBLICK = 14;
 // Demophase: Tage vor dem Systemstart werden nicht eingefordert.
-const SYSTEMSTART = '2026-08-24';
+const SYSTEMSTART = '2026-09-30';
 
 const dauerText = (min) => {
   const m = Math.max(0, Math.round(min));
