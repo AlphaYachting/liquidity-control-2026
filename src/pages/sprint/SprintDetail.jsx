@@ -94,6 +94,12 @@ export default function SprintDetail() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
+      <div className="relative">
+      {me?.role === 'admin' && (
+        <div className="absolute top-3 right-3 z-10">
+          <ProjektBearbeitenKnopf project={project} onSaved={refetch} />
+        </div>
+      )}
       {istSprint ? (
         <SprintKopf
           sprint={sprint}
@@ -105,6 +111,7 @@ export default function SprintDetail() {
       ) : (
         <BehaelterKopf project={project} client={client} tickets={tickets} timeEntries={timeEntries} members={members} vertrag={vertrag} />
       )}
+      </div>
 
       <Tabs defaultValue="uebersicht">
         <div className="flex items-center justify-between gap-3 border-b border-border">
@@ -119,7 +126,6 @@ export default function SprintDetail() {
             {projectTypeOf(project) === 'container' && me?.email && me.email === project?.pm_email && offenerMilestone && (
               <ModulHinzufuegenKnopf project={project} milestone={offenerMilestone} tickets={tickets} onAdded={refetch} />
             )}
-            {me?.role === 'admin' && <ProjektBearbeitenKnopf project={project} onSaved={refetch} />}
             {!istSprint && offenerMilestone && (
               <Button variant="outline" size="sm" className="rounded" onClick={() => setAddOpen(true)}>
                 <Plus className="w-3.5 h-3.5 mr-1" /> Aufgabe hinzufügen
