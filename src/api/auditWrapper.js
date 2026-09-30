@@ -2,6 +2,8 @@
 // und schreibt einen AuditLog-Eintrag mit dem Login (E-Mail) des Benutzers.
 // Kein Einfluss auf bestehende Aufrufe — Ergebnisse werden unverändert durchgereicht.
 
+import { queryClientInstance } from '@/lib/query-client';
+
 const MUTATION_ACTIONS = {
   create: 'create',
   bulkCreate: 'create',
@@ -70,6 +72,9 @@ export function withAuditLogging(client) {
       return async (...args) => {
         const result = await orig.apply(target, args);
         writeLog(buildEntry(prop, args, result, entityName)).catch(() => {});
+        // Nach jeder Speicherung: Zwischenspeicher als veraltet markieren (ohne sofortiges
+        // Neuladen) — der nächste Seitenwechsel holt dann frische Daten wie bisher.
+        queryClientInstance.invalidateQueries({ refetchType: 'none' });
         return result;
       };
     },

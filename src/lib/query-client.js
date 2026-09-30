@@ -6,6 +6,9 @@ export const queryClientInstance = new QueryClient({
 		queries: {
 			refetchOnWindowFocus: false,
 			retry: 1,
+			// Frischhaltezeit: Daten gelten 30 s als aktuell. Jede Speicherung aus der App
+			// markiert sie sofort als veraltet (siehe auditWrapper).
+			staleTime: 30 * 1000,
 		},
 	},
 });
