@@ -1,5 +1,4 @@
-import React from 'react';
-import * as XLSX from 'xlsx';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 
@@ -21,7 +20,11 @@ const PLAN_TYPE_LABELS = { AZ: 'Anzahlung', TR: 'Teilrechnung', ER: 'Schlussrech
 // Exportiert die Abrechnungsdaten EINES Monats (Anweisungen + Rechnungsplanung)
 // als modernes Excel-Workbook (.xlsx) mit zwei Arbeitsblättern.
 export default function BillingMonthXlsExport({ monthStr, monthLabel, instructions, plans, projectsById, allInstructions }) {
-  const handleExport = () => {
+  const [laeuft, setLaeuft] = useState(false);
+  const handleExport = async () => {
+    setLaeuft(true);
+    try {
+    const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
 
     const instrRows = instructions.map((i) => ({
@@ -72,10 +75,13 @@ export default function BillingMonthXlsExport({ monthStr, monthLabel, instructio
     XLSX.utils.book_append_sheet(wb, wsInstr, 'Anweisungen');
     XLSX.utils.book_append_sheet(wb, wsPlans, 'Rechnungsplanung');
     XLSX.writeFile(wb, `Abrechnungsforecast_${monthStr}.xlsx`);
+    } finally {
+      setLaeuft(false);
+    }
   };
 
   return (
-    <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={handleExport}>
+    <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={handleExport} disabled={laeuft}>
       <Download className="w-3.5 h-3.5" /> Excel-Export
     </Button>
   );
