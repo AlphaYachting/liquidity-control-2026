@@ -50,7 +50,11 @@ export function useMyDayQueues() {
     scope.seesAll || myProjectIds.has(projectId) || scope.isMineStrict(pmName || projectById[projectId]?.project_manager);
 
   return {
-    isLoading: lp || li || lpl || ld || ldl || le,
+    // Die E-Mail-Eskalationen kommen aus der externen E-Mail-Datenbank und sind
+    // deutlich langsamer als alles andere — sie dürfen die Seite nicht aufhalten.
+    // Die Karte zeigt ihren eigenen Ladezustand (escalationsLoading).
+    isLoading: lp || li || lpl || ld || ldl,
+    escalationsLoading: le,
     scope,
     myProjectCount: myProjects.length,
 
