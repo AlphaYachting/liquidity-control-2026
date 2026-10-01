@@ -1,11 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Kopfleiste from './Kopfleiste';
 import TimerKnopf from '@/components/sprint/timer/TimerKnopf';
 import { ZeitKontextProvider } from '@/lib/sprint/ZeitKontext';
+import { ladeAlltagsseitenVor } from '@/lib/seitenVorladen';
+
+// Schmaler Ladebalken statt Text — erscheint nur noch beim allerersten Laden,
+// danach bleibt beim Seitenwechsel die bisherige Seite stehen (Router-Übergang).
+function Ladebalken() {
+  return (
+    <div className="h-0.5 w-full overflow-hidden rounded bg-muted" role="progressbar" aria-label="Ansicht wird geladen">
+      <div className="h-full w-1/3 bg-primary animate-pulse" />
+    </div>
+  );
+}
 
 export default function AppLayout() {
+  useEffect(() => { ladeAlltagsseitenVor(); }, []);
+
   return (
     <ZeitKontextProvider>
       <div className="flex min-h-screen">
@@ -14,10 +27,8 @@ export default function AppLayout() {
           <Kopfleiste />
           {/* Freiraum unten in Höhe der Pille, damit sie keine Bedienelemente verdeckt */}
           <div className="p-4 md:p-6 lg:p-8 pb-28 md:pb-28 lg:pb-28 max-w-[1600px] mx-auto">
-            <React.Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Ansicht wird geladen...</div>}>
-              <React.Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Ansicht wird geladen...</div>}>
-                <Outlet />
-              </React.Suspense>
+            <React.Suspense fallback={<Ladebalken />}>
+              <Outlet />
             </React.Suspense>
           </div>
         </main>
