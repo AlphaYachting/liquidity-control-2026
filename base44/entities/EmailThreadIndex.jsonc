@@ -25,8 +25,7 @@
       "type": "boolean"
     },
     "done_at": {
-      "description": "Zeitpunkt der letzten Erledigt-/Antwort-Aktion aus der App \u2014 gilt bis zur n\u00e4chsten Kundennachricht",
-      "format": "date-time",
+      "description": "ISO-Zeitpunkt der letzten Erledigt-/Antwort-Aktion aus der App (leer = keine) \u2014 gilt bis zur n\u00e4chsten Kundennachricht",
       "type": "string"
     },
     "first_message_at": {
