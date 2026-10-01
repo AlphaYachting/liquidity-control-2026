@@ -8,7 +8,7 @@ import { STATUS_COLORS, RITTLER, fmtDate, todayIso } from '@/components/sprint/s
 import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
 import { ladeAnsichtenNachTicketAenderung } from '@/lib/sprint/ansichtenNeuLaden';
 
-const RHYTHMUS_LABEL = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', manuell: 'manuell' };
+const RHYTHMUS_LABEL = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', '2monatlich': 'alle 2 Monate', quartalsweise: 'quartalsweise', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich', manuell: 'manuell' };
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 // Fälligkeit einer Aufgabe — anzeigen und verschieben.
