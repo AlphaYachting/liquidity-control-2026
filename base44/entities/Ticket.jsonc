@@ -1,44 +1,49 @@
 {
   "name": "Ticket",
-  "type": "object",
   "properties": {
-    "milestone_id": {
+    "assignee_email": {
+      "format": "email",
       "type": "string"
     },
-    "project_id": {
-      "type": "string",
-      "description": "denormalisiert, damit Zeitbuchung und Heute-Ansicht ohne Joins auskommen"
+    "blocks_others": {
+      "default": false,
+      "type": "boolean"
     },
-    "order": {
-      "type": "number"
+    "checklist": {
+      "description": "Arbeitsschritte innerhalb des Tickets",
+      "items": {
+        "properties": {
+          "done": {
+            "default": false,
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
     },
-    "title": {
+    "customer_name": {
+      "description": "denormalisierter Kundenname \u2014 tr\u00e4gt die Support-Zuordnung ohne Joins",
       "type": "string"
     },
     "description": {
       "type": "string"
     },
-    "checklist": {
-      "type": "array",
-      "description": "Arbeitsschritte innerhalb des Tickets",
-      "items": {
-        "type": "object",
-        "properties": {
-          "text": {
-            "type": "string"
-          },
-          "done": {
-            "type": "boolean",
-            "default": false
-          }
-        }
-      }
+    "fenster_tage": {
+      "default": 0,
+      "type": "number"
+    },
+    "last_status_change": {
+      "description": "tr\u00e4gt Warnsignal W3 \u2014 bei jedem Statuswechsel setzen",
+      "format": "date-time",
+      "type": "string"
     },
     "links": {
-      "type": "array",
       "description": "Verweise auf Dateien, Entw\u00fcrfe, Dokumente",
       "items": {
-        "type": "object",
         "properties": {
           "label": {
             "type": "string"
@@ -46,15 +51,71 @@
           "url": {
             "type": "string"
           }
-        }
-      }
+        },
+        "type": "object"
+      },
+      "type": "array"
     },
-    "assignee_email": {
-      "type": "string",
-      "format": "email"
+    "milestone_id": {
+      "type": "string"
+    },
+    "milestone_state": {
+      "default": "produktion",
+      "description": "Phase, in der das Ticket bearbeitet wird \u2014 tr\u00e4gt den Zustandsautomaten und die Livegang-Ausnahme",
+      "enum": [
+        "input",
+        "produktion",
+        "pruefung",
+        "kundenfeedback"
+      ],
+      "type": "string"
+    },
+    "module_template_id": {
+      "description": "aus welchem Modul die Aufgabe stammt",
+      "type": "string"
+    },
+    "order": {
+      "type": "number"
+    },
+    "origin": {
+      "default": "pflicht",
+      "enum": [
+        "pflicht",
+        "addon",
+        "change_request",
+        "support"
+      ],
+      "type": "string"
+    },
+    "planned_for": {
+      "description": "F\u00e4lligkeit \u2013 an diesem Tag ist die Aufgabe f\u00e4llig",
+      "format": "date",
+      "type": "string"
+    },
+    "project_id": {
+      "description": "denormalisiert, damit Zeitbuchung und Heute-Ansicht ohne Joins auskommen",
+      "type": "string"
+    },
+    "rhythmus": {
+      "description": "leer = keine Routine",
+      "enum": [
+        "woechentlich",
+        "14taegig",
+        "monatlich",
+        "2monatlich",
+        "quartalsweise",
+        "halbjaehrlich",
+        "jaehrlich",
+        "manuell"
+      ],
+      "type": "string"
+    },
+    "rhythmus_anker": {
+      "description": "erster Termin der Routine \u2014 bleibt \u00fcber alle Folgetickets gleich",
+      "format": "date",
+      "type": "string"
     },
     "role": {
-      "type": "string",
       "enum": [
         "Beratung",
         "Konzept",
@@ -63,94 +124,36 @@
         "Web",
         "Media",
         "QS"
-      ]
-    },
-    "milestone_state": {
-      "type": "string",
-      "enum": [
-        "input",
-        "produktion",
-        "pruefung",
-        "kundenfeedback"
       ],
-      "default": "produktion",
-      "description": "Phase, in der das Ticket bearbeitet wird \u2014 tr\u00e4gt den Zustandsautomaten und die Livegang-Ausnahme"
+      "type": "string"
+    },
+    "source_thread_id": {
+      "description": "Verlauf in der E-Mail-Zentrale, aus dem das Ticket entstanden ist",
+      "type": "string"
     },
     "status": {
-      "type": "string",
+      "default": "offen",
       "enum": [
         "offen",
         "in_arbeit",
         "wartet",
         "erledigt"
       ],
-      "default": "offen"
-    },
-    "last_status_change": {
-      "type": "string",
-      "format": "date-time",
-      "description": "tr\u00e4gt Warnsignal W3 \u2014 bei jedem Statuswechsel setzen"
-    },
-    "origin": {
-      "type": "string",
-      "enum": [
-        "pflicht",
-        "addon",
-        "change_request",
-        "support"
-      ],
-      "default": "pflicht"
-    },
-    "source_thread_id": {
-      "type": "string",
-      "description": "Verlauf in der E-Mail-Zentrale, aus dem das Ticket entstanden ist"
-    },
-    "customer_name": {
-      "type": "string",
-      "description": "denormalisierter Kundenname \u2014 tr\u00e4gt die Support-Zuordnung ohne Joins"
+      "type": "string"
     },
     "target_hours": {
       "type": "number"
     },
-    "planned_for": {
-      "type": "string",
-      "format": "date",
-      "description": "F\u00e4lligkeit \u2013 an diesem Tag ist die Aufgabe f\u00e4llig"
-    },
-    "blocks_others": {
-      "type": "boolean",
-      "default": false
-    },
-    "module_template_id": {
-      "type": "string",
-      "description": "aus welchem Modul die Aufgabe stammt"
-    },
     "ticket_template_id": {
-      "type": "string",
-      "description": "aus welcher Vorlage"
+      "description": "aus welcher Vorlage",
+      "type": "string"
     },
-    "rhythmus": {
-      "type": "string",
-      "enum": [
-        "woechentlich",
-        "14taegig",
-        "monatlich",
-        "manuell"
-      ],
-      "description": "leer = keine Routine"
-    },
-    "fenster_tage": {
-      "type": "number",
-      "default": 0
-    },
-    "rhythmus_anker": {
-      "type": "string",
-      "format": "date",
-      "description": "erster Termin der Routine \u2014 bleibt \u00fcber alle Folgetickets gleich"
+    "title": {
+      "type": "string"
     },
     "vorgaenger_id": {
-      "type": "string",
-      "description": "das erledigte Ticket, aus dem dieses Folgeticket entstand"
+      "description": "das erledigte Ticket, aus dem dieses Folgeticket entstand",
+      "type": "string"
     }
   },
   "required": [
@@ -158,5 +161,6 @@
     "project_id",
     "title",
     "status"
-  ]
+  ],
+  "type": "object"
 }
