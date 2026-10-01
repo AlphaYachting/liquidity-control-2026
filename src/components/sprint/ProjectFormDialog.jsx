@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { kuerzelVorschlag } from '@/lib/zeit/useProjektSuche';
+import { finanzIdVon } from '@/lib/projekt/cockpitSicherstellen';
 import { PROJECT_TYPES, PROJECT_TYPE_ORDER, projectTypeOf } from '@/components/sprint/projectTypes';
 import ProjectTypeFields from '@/components/sprint/ProjectTypeFields';
 import RundungsFelder from '@/components/sprint/RundungsFelder';
@@ -21,6 +23,32 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
   const [form, setForm] = useState(EMPTY);
   const [type, setType] = useState('sprint');
   const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Jüngste gültige AB — liefert Vorschlag für Laufzeitbeginn und aWork-Projekt
+  const { data: abVorschlag = null } = useQuery({
+    queryKey: ['ab-vorschlag', project?.id],
+    queryFn: async () => {
+      const finanzId = finanzIdVon(project);
+      const orders = await base44.entities.ConfirmedOrder.filter(
+        { project_id: finanzId }, '-confirmation_date', 20,
+      ).catch(() => []);
+      const gueltig = orders
+        .filter((o) => !['cancelled', 'draft'].includes(o.status) && (o.confirmation_date || o.signed_date))
+        .sort((a, b) =>
+          String(b.confirmation_date || b.signed_date).localeCompare(String(a.confirmation_date || a.signed_date)),
+        );
+      if (!gueltig.length) return null;
+      const ab = gueltig[0];
+      return {
+        beginn: String(ab.confirmation_date || ab.signed_date).slice(0, 10),
+        ab_nummer: ab.order_number || null,
+        awork_project_id: ab.awork_project_id || null,
+      };
+    },
+    enabled: open && !!project?.id,
+  });
 
   const { data: contracts = [] } = useQuery({
     queryKey: ['recurring-contracts-select'],
@@ -51,6 +79,13 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
     if (!form.client_id || !form.title || !form.pm_email) return;
     setSaving(true);
     const def = PROJECT_TYPES[type];
+    const isContainer = type === 'container';
+
+    // Periodenwechsel erkennen: bestehender Beginn, neuer Wert liegt später
+    const altBeginn = project.laufzeit_beginn ? String(project.laufzeit_beginn).slice(0, 10) : null;
+    const neuBeginn = form.laufzeit_beginn ? String(form.laufzeit_beginn).slice(0, 10) : null;
+    const isPeriodChange = isContainer && altBeginn && neuBeginn && neuBeginn > altBeginn;
+
     const data = {
       client_id: form.client_id,
       title: form.title,
@@ -71,11 +106,39 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
     };
     Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
 
+    if (isContainer) {
+      if (isPeriodChange) {
+        // Zunächst Periode abschließen, dann restliche Felder ohne Beginn/Übertrag
+        await base44.functions.invoke('kontingentPeriodeAbschliessen', {
+          project_id: project.id,
+          neuer_beginn: neuBeginn,
+          uebertrag: Number(form.kontingent_uebertrag_stunden) || 0,
+        });
+        data.awork_project_id = form.awork_project_id || null;
+      } else {
+        data.laufzeit_beginn = neuBeginn || null;
+        data.laufzeit_beginn_quelle = abVorschlag?.beginn && neuBeginn === abVorschlag.beginn ? 'ab' : 'manuell';
+        data.kontingent_uebertrag_stunden = Number(form.kontingent_uebertrag_stunden) || 0;
+        data.awork_project_id = form.awork_project_id || null;
+      }
+    }
+
     // Nur Bearbeiten — neue Projekte entstehen ausschließlich im Anlage-Wizard
     const saved = await base44.entities.Project.update(project.id, data);
 
     if (def.container) await ensureContainer(saved);
 
+    // Bei normalem Speichern (kein Periodenwechsel): ggf. Altstand neu berechnen
+    if (isContainer && !isPeriodChange) {
+      const beginnChanged = altBeginn !== neuBeginn;
+      const aworkChanged = (project.awork_project_id || null) !== (form.awork_project_id || null);
+      const altstandFehlt = !project.awork_altstand_berechnet_am;
+      if (beginnChanged || aworkChanged || altstandFehlt) {
+        await base44.functions.invoke('aworkAltstandBerechnen', { project_id: project.id }).catch(() => {});
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['projektKontext'] });
     setSaving(false);
     onOpenChange(false);
     onSaved?.();
@@ -139,7 +202,7 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
           </div>
           <div><Label>Gesamtbudget netto (EUR)</Label><Input type="number" value={form.total_budget} onChange={(e) => setForm((f) => ({ ...f, total_budget: e.target.value }))} /></div>
 
-          <ProjectTypeFields type={type} form={form} setForm={setForm} contracts={contracts} />
+          <ProjectTypeFields type={type} form={form} setForm={setForm} contracts={contracts} project={project} abVorschlag={abVorschlag} user={user} />
 
           <RundungsFelder form={form} setForm={setForm} />
 

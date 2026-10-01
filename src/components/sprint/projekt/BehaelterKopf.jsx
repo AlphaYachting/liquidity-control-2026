@@ -4,14 +4,18 @@ import { ArrowLeft } from 'lucide-react';
 import KennzahlFeld from '@/components/sprint/KennzahlFeld';
 import TypPill from '@/components/sprint/TypPill';
 import KontingentFeld from '@/components/sprint/projekt/KontingentFeld';
+import LaufzeitSaldoFeld from '@/components/sprint/projekt/LaufzeitSaldoFeld';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { RITTLER, STATUS_COLORS, fmtDate, fmtEUR, todayIso } from '@/components/sprint/sprintConfig';
 import { istFaellig, istUeberfaellig } from '@/lib/sprint/faelligkeit';
 import { laufenderMonat, monatsName, stundenVon, imMonat, h1, nachFaelligkeit } from '@/lib/sprint/behaelterZahlen';
+import { useProjektKontext } from '@/lib/sprint/useProjektKontext';
 
 // Kopf für Nicht-Sprint-Projekte: keine Etappen, keine Freigabebeträge.
 export default function BehaelterKopf({ project, client, tickets, timeEntries, members, vertrag }) {
   const typ = projectTypeOf(project);
+  const { data: kontext } = useProjektKontext(project?.id);
+  const laufzeit = kontext?.summen?.laufzeit;
   const monat = laufenderMonat();
   const mName = monatsName(monat);
   const heute = todayIso();
@@ -37,6 +41,9 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
       return (
         <>
           <KontingentFeld label={`Kontingent ${mName}`} gebucht={gebucht} kontingent={project?.support_kontingent_stunden} />
+          {(laufzeit || !kontext) && (
+            <LaufzeitSaldoFeld laufzeit={laufzeit} loading={!kontext} />
+          )}
           <KennzahlFeld
             label="Routinen"
             value={`${faellig} fällig · ${ueber} überfällig`}
