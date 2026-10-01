@@ -48,7 +48,9 @@ export async function attachInboxItemToDeal(item, deal) {
 }
 
 // "Kein Lead, beantworten" bzw. "Verwerfen" — der Eintrag verlässt den Posteingang.
-// Die Konversation wird mit erledigt markiert; schreibt der Kunde wieder, kommt sie zurück.
+// "Verwerfen" markiert die Konversation zusätzlich als erledigt (kommt bei der nächsten
+// Kundennachricht zurück). "Kein Lead" lässt sie offen: Sie bleibt im Posteingang,
+// bis jemand antwortet.
 export async function decideInboxItem(item, decision, dismissReason = '') {
   const user = await base44.auth.me().catch(() => null);
   const result = await base44.entities.CrmInboxItem.update(item.id, {
@@ -59,7 +61,7 @@ export async function decideInboxItem(item, decision, dismissReason = '') {
     status: 'dismissed',
   });
   const threadId = threadIdOf(item);
-  if (threadId) {
+  if (threadId && decision === 'verworfen') {
     await emailApi('enrich', { thread_id: threadId, fields: { status: 'erledigt' } }).catch(() => {});
   }
   return result;
