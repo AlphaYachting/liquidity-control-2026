@@ -1,6 +1,21 @@
 {
   "name": "EmailThreadIndex",
   "properties": {
+    "anliegen": {
+      "description": "KI-Einordnung der letzten Kundennachricht \u2014 steuert die Filter im Posteingang",
+      "enum": [
+        "web_support",
+        "neue_anfrage",
+        "kundenanliegen",
+        "verwaltung",
+        "kein_geschaeft"
+      ],
+      "type": "string"
+    },
+    "anliegen_beleg": {
+      "description": "w\u00f6rtliche Textstelle, auf die sich die Einordnung st\u00fctzt",
+      "type": "string"
+    },
     "category": {
       "type": "string"
     },
