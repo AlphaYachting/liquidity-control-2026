@@ -2,10 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 
 // Eskalations-Vorgänge (Zweitschrift in der App) — Schlüssel ist die thread_id.
-export function useCrmEscalationCases() {
+export function useCrmEscalationCases({ enabled = true } = {}) {
   return useQuery({
     queryKey: ['crm-escalations'],
     queryFn: () => base44.entities.CrmEscalation.list('-created_at', 300),
+    enabled,
   });
 }
 
