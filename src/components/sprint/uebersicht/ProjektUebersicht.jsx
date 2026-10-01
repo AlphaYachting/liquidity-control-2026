@@ -6,20 +6,19 @@ import SectionLabel from '@/components/sprint/SectionLabel';
 import ProjektBeschreibung from '@/components/sprint/uebersicht/ProjektBeschreibung';
 import AworkVerlaufPanel from '@/components/sprint/uebersicht/AworkVerlaufPanel';
 import { fmtEUR } from '@/components/sprint/sprintConfig';
+import AuftragsumfangKarte from '@/components/projekt/AuftragsumfangKarte';
 import { finanzIdVon } from '@/lib/projekt/cockpitSicherstellen';
 
 const h1 = (v) => (v || 0).toLocaleString('de-AT', { maximumFractionDigits: 1 });
 
 // Projekt-Übersicht über den Etappen: Briefing, Zuständigkeit, Plan gegen Ist, Auftrag, aWork-Verlauf
 export default function ProjektUebersicht({ project, client, sprint, timeEntries, onChanged, zeigeStunden = true }) {
-  const { data: order } = useQuery({
-    queryKey: ['projectOrder', finanzIdVon(project)],
+  const { data: orders = [] } = useQuery({
+    queryKey: ['projektAbrechnung', 'auftraege', finanzIdVon(project)],
     enabled: Boolean(project?.id),
-    queryFn: async () => {
-      const rows = await base44.entities.ConfirmedOrder.filter({ project_id: finanzIdVon(project) }, '-confirmation_date', 5);
-      return rows[0] || null;
-    },
+    queryFn: () => base44.entities.ConfirmedOrder.filter({ project_id: finanzIdVon(project) }, '-created_date', 20),
   });
+  const order = orders[0] || null;
 
   if (!project) return null;
 
@@ -47,6 +46,8 @@ export default function ProjektUebersicht({ project, client, sprint, timeEntries
         </div>
 
         <ProjektBeschreibung project={project} onSaved={onChanged} />
+
+        {orders.map((o) => <AuftragsumfangKarte key={o.id} order={o} />)}
 
         {zeigeStunden && <div className="max-w-sm">
           <div className="flex items-baseline justify-between text-xs">

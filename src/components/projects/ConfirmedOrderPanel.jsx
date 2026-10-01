@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, Plus, Save, X, Pencil } from 'lucide-react';
 import { formatCurrency } from '@/lib/liquidityUtils';
+import AbLinks from '@/components/projekt/AbLinks';
+import { abStatus } from '@/lib/crm/abStatus';
 
 const STATUS_COLORS = {
   draft: 'bg-gray-100 text-gray-600',
@@ -48,6 +50,7 @@ export default function ConfirmedOrderPanel({ projectId, order, project }) {
       : base44.entities.ConfirmedOrder.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['confirmedOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['projektAbrechnung'] });
       setEditing(false);
     }
   });
@@ -85,7 +88,7 @@ export default function ConfirmedOrderPanel({ projectId, order, project }) {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {['draft','sent','confirmed','cancelled','completed'].map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s} value={s}>{abStatus(s).label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -148,7 +151,7 @@ export default function ConfirmedOrderPanel({ projectId, order, project }) {
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Status</span>
-          <Badge className={STATUS_COLORS[order.status] || 'bg-gray-100 text-gray-600'}>{order.status}</Badge>
+          <span className={`text-xs px-2 py-0.5 rounded text-right ${abStatus(order.status).className}`}>{abStatus(order.status).label}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Betrag netto</span>
@@ -171,6 +174,7 @@ export default function ConfirmedOrderPanel({ projectId, order, project }) {
             <FileText className="w-3 h-3" /> Dokument öffnen
           </a>
         )}
+        <div className="pt-1"><AbLinks order={order} /></div>
       </CardContent>
     </Card>
   );

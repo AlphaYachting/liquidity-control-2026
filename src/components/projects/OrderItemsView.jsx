@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import Sektion from '@/components/projects/Sektion';
+import PositionBeschreibung from '@/components/projects/PositionBeschreibung';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { ExternalLink, ListOrdered } from 'lucide-react';
@@ -64,13 +65,14 @@ export default function OrderItemsView({ linkedOrders }) {
               {items.map(item => {
               const cfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.not_started;
               return (
-                <div key={item.id} className="flex items-center gap-3 py-1.5 border-b last:border-0">
-                  <span className="text-xs text-muted-foreground w-5 flex-shrink-0">
+                <div key={item.id} className="flex items-start gap-3 py-1.5 border-b last:border-0">
+                  <span className="text-xs text-muted-foreground w-5 flex-shrink-0 mt-0.5">
                     {item.position}.
                   </span>
-                  <span className="flex-1 text-sm min-w-0 truncate" title={item.title}>
-                    {item.title}
-                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm break-words">{item.title}</p>
+                    <PositionBeschreibung text={item.description} />
+                  </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button className={`text-xs px-2 py-0.5 rounded-full border cursor-pointer hover:opacity-80 transition-opacity ${cfg.className}`}>

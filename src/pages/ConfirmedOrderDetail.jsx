@@ -17,6 +17,7 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { calculateOrderReconciliation } from '@/lib/reconciliationUtils';
 import OrderItemsTable from '@/components/orders/OrderItemsTable';
+import UmfangAuftragEditor from '@/components/orders/UmfangAuftragEditor';
 
 function ProjectPickerInline({ projects, order, orderBlocks, onLink, isSaving, onCancel }) {
   const [selectedId, setSelectedId] = React.useState('');
@@ -334,6 +335,7 @@ export default function ConfirmedOrderDetail() {
         <div className="lg:col-span-2 space-y-6">
 
           {/* Leistungsübersicht */}
+          <UmfangAuftragEditor key={order.updated_date} order={order} />
           <OrderItemsTable items={orderItems} />
 
           {/* Billing Blocks — simplified reference */}

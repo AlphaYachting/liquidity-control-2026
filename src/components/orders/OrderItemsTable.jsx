@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/liquidityUtils';
+import PositionUmfangEditor from '@/components/orders/PositionUmfangEditor';
 
 const STATUS_LABELS = {
   not_started: { label: 'Nicht begonnen', color: 'bg-gray-100 text-gray-500' },
@@ -43,7 +44,10 @@ export default function OrderItemsTable({ items = [] }) {
               return (
                 <tr key={item.id} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
                   <td className="px-4 py-2.5 text-muted-foreground">{item.position}.</td>
-                  <td className="px-4 py-2.5 font-medium">{item.title}</td>
+                  <td className="px-4 py-2.5">
+                    <p className="font-medium break-words">{item.title}</p>
+                    <PositionUmfangEditor item={item} />
+                  </td>
                   <td className="px-4 py-2.5 text-right text-muted-foreground">{formatCurrency(item.unit_price)}</td>
                   <td className="px-4 py-2.5 text-right font-semibold">{formatCurrency(item.total_price)}</td>
                   <td className="px-4 py-2.5 text-center">
