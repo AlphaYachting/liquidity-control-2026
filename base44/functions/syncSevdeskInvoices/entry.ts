@@ -263,10 +263,16 @@ Deno.serve(async (req) => {
     }
 
     // Load lookup data in bulk
-    const [allOrders, existingInvoices] = await Promise.all([
+    const [allOrders, existingInvoices, instrMitRechnung] = await Promise.all([
       base44.asServiceRole.entities.ConfirmedOrder.list(),
-      base44.asServiceRole.entities.InvoiceRecord.filter({ source_type: 'sevdesk' })
+      base44.asServiceRole.entities.InvoiceRecord.filter({ source_type: 'sevdesk' }),
+      base44.asServiceRole.entities.BillingInstruction.filter({ sevdesk_invoice_id: { $nin: [null, ''] } }, '-created_date', 2000),
     ]);
+    // Sichere Verknüpfung: Anweisung kennt die sevDesk-Rechnungs-ID
+    const instrBySevdeskId = {};
+    for (const b of instrMitRechnung) {
+      if (b.sevdesk_invoice_id) instrBySevdeskId[String(b.sevdesk_invoice_id)] = b;
+    }
 
     const existingMap = {};
     const recordIdBySevdeskId = {};
@@ -295,6 +301,7 @@ Deno.serve(async (req) => {
     let created = 0;
     let updated = 0;
     let failed = 0;
+    let linked_via_instruction = 0;
     const errors = [];
     const debugResults = [];
 
@@ -322,6 +329,16 @@ Deno.serve(async (req) => {
         const effectiveMatch = (existing?.match_status === 'manually_matched') ? null : matchResult;
         let record = buildRecord(inv, effectiveMatch, existing, recordIdBySevdeskId, recordById, ordersById);
 
+        // Vorrang: Verknüpfung über die Abrechnungsanweisung (auch für Entwürfe)
+        const instr = instrBySevdeskId[sevdeskId] || null;
+        if (instr && existing?.match_status !== 'manually_matched') {
+          record.confirmed_order_id = instr.confirmed_order_id || record.confirmed_order_id;
+          record.project_id = existing?.project_id || instr.project_id || record.project_id;
+          record.match_status = 'auto_matched';
+          record.match_confidence = 100;
+          linked_via_instruction++;
+        }
+
         // Für Teilzahlungen: Payments separat abrufen (sevDesk liefert sumGrossPay nicht im Listen-Endpoint)
         if (record.payment_status === 'partially_paid') {
           const { paid, open, _debug } = await fetchPaidAmount(sevdeskId, record.gross_amount, apiKey);
@@ -333,12 +350,19 @@ Deno.serve(async (req) => {
           await sleep(300);
         }
 
+        let recordId;
         if (existing) {
           await base44.asServiceRole.entities.InvoiceRecord.update(existing.id, record);
+          recordId = existing.id;
           updated++;
         } else {
-          await base44.asServiceRole.entities.InvoiceRecord.create(record);
+          const neu = await base44.asServiceRole.entities.InvoiceRecord.create(record);
+          recordId = neu.id;
           created++;
+        }
+
+        if (instr && !instr.linked_invoice_id && recordId) {
+          await base44.asServiceRole.entities.BillingInstruction.update(instr.id, { linked_invoice_id: recordId });
         }
 
         // 1s between writes to stay within rate limits
@@ -370,6 +394,7 @@ Deno.serve(async (req) => {
       created,
       updated,
       failed,
+      linked_via_instruction,
       offset,
       next_offset: offset + limit,
       has_more: (data.objects || []).length >= limit,
