@@ -7,15 +7,16 @@ import { FILTER, SCHWELLE_ARBEITSSTUNDEN } from '@/lib/crm/posteingang';
 // Reiter über der EINEN Liste — sie filtern, sie zerlegen die Liste nicht in Spalten.
 export default function InboxFilterZeile({ filter, onFilter, zahlen, neuesteZuerst, onSortierung, jungAnzahl = 0, zeigeJung, onZeigeJung }) {
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <div className="flex gap-1 border-b flex-1 min-w-[320px]">
+    <div className="space-y-2">
+      <div className="flex gap-1 border-b overflow-x-auto">
+
         {FILTER.filter((r) => !r.nurWennVorhanden || (zahlen[r.key] || 0) > 0).map((r) => (
           <button
             key={r.key}
             type="button"
             onClick={() => onFilter(r.key)}
             className={cn(
-              'h-[38px] px-3 -mb-px border-b-2 text-body font-medium inline-flex items-center gap-1.5',
+              'h-[38px] px-3 -mb-px border-b-2 text-body font-medium inline-flex items-center gap-1.5 whitespace-nowrap shrink-0',
               filter === r.key
                 ? 'border-foreground text-foreground font-semibold'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -28,6 +29,7 @@ export default function InboxFilterZeile({ filter, onFilter, zahlen, neuesteZuer
           </button>
         ))}
       </div>
+      <div className="flex justify-end gap-2">
       <Button
         size="sm"
         variant={zeigeJung ? 'default' : 'outline'}
@@ -39,6 +41,7 @@ export default function InboxFilterZeile({ filter, onFilter, zahlen, neuesteZuer
       <Button size="sm" variant="outline" onClick={onSortierung}>
         <ArrowUpDown /> {neuesteZuerst ? 'Neueste zuerst' : 'Älteste zuerst'}
       </Button>
+      </div>
     </div>
   );
 }
