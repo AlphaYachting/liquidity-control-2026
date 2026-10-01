@@ -100,7 +100,7 @@ export default function MyDay() {
           tone="red"
           items={q.escalations}
           loading={q.escalationsLoading}
-          to="/crm/alerts"
+          to="/crm/escalations"
           ctaLabel="Zu den Kommunikations-Alerts"
           renderItem={(t) => (
             <>
