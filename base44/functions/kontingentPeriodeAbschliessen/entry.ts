@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import {
   darfVerwalten, wirksamerBeginn, ladeStichtag, monateZwischen, tagDavor,
-  aworkStunden, appStunden, altstandNeuBerechnen, r2,
+  appStunden, r2,
 } from '../../shared/kontingentLaufzeit.js';
 
 // Bisherige Retainer-Periode abschließen und eine neue beginnen.
@@ -34,10 +34,9 @@ export default async function (req) {
     const monate = monateZwischen(alt, ende);
     const verfuegbar = monate * kontingent + uebertrag;
 
-    // Gebucht = aWork (alt bis min(ende, stichtag)) + App (alt bis ende, nach stichtag)
-    const aworkBis = ende < stichtag ? ende : stichtag;
+    // Gebucht = aWork-Altstand (manuell übertragen, alt bis Stichtag) + App (alt bis ende, nach stichtag)
     const gebucht_awork = alt <= stichtag
-      ? await aworkStunden(db, project.awork_project_id, alt, aworkBis)
+      ? Number(project.awork_altstand_stunden) || 0
       : 0;
     const gebucht_app = await appStunden(db, project.id, { beginn: alt, ende, stichtag });
     const gebucht = r2(gebucht_awork + gebucht_app);
@@ -60,24 +59,18 @@ export default async function (req) {
       historieEintrag,
     ];
 
-    // Neue Periode setzen
+    // Neue Periode setzen + aWork-Altstand für neue Periode initialisieren
     await db.Project.update(body.project_id, {
       laufzeit_beginn: body.neuer_beginn,
       laufzeit_beginn_quelle: 'manuell',
       kontingent_uebertrag_stunden: Number(body.uebertrag) || 0,
       laufzeit_historie: historie,
+      awork_altstand_stunden: body.neuer_beginn > stichtag ? 0 : null,
+      awork_altstand_beginn: body.neuer_beginn > stichtag ? body.neuer_beginn : null,
     });
-
-    // aWork-Altstand für den neuen Beginn neu berechnen
-    const updatedProject = await db.Project.get(body.project_id);
-    const { stunden, hinweis, update } = await altstandNeuBerechnen(db, updatedProject);
-    if (update) {
-      await db.Project.update(body.project_id, update);
-    }
 
     return Response.json({
       abgeschlossen: historieEintrag,
-      altstand: { stunden, hinweis },
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

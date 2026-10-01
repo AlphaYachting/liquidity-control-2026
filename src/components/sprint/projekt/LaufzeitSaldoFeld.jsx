@@ -15,7 +15,7 @@ function buildTooltip(lz) {
   const lines = [
     `Laufzeitbeginn: ${fmtDate(lz.beginn)} (${quelleText(lz)})`,
     `${lz.monate} × ${h1(lz.kontingent_monat)} h + Übertrag ${h1(lz.uebertrag)} h = ${h1(lz.verfuegbar)} h`,
-    `aWork bis ${fmtDate(lz.stichtag)}: ${h1(lz.gebucht_awork)} h · App: ${h1(lz.gebucht_app)} h`,
+    `aus aWork übernommen (bis ${fmtDate(lz.stichtag)}): ${h1(lz.gebucht_awork)} h · App: ${h1(lz.gebucht_app)} h`,
   ];
   if (lz.davon_mehrleistung_abgerechnet > 0) {
     lines.push(`davon als Mehrleistung abgerechnet: ${h1(lz.davon_mehrleistung_abgerechnet)} h`);
@@ -57,7 +57,7 @@ export default function LaufzeitSaldoFeld({ laufzeit, loading }) {
         label={`Saldo seit ${fmtDate(beginn)}`}
         value={value}
         valueColor={valueColor}
-        hint="aWork-Altstand fehlt – unvollständig"
+        hint="aWork-Stand fehlt – bitte im Projekt eintragen"
         hintColor={STATUS_COLORS.attention}
         tooltip={tooltip}
       />

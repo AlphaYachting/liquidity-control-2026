@@ -44,7 +44,6 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
       return {
         beginn: String(ab.confirmation_date || ab.signed_date).slice(0, 10),
         ab_nummer: ab.order_number || null,
-        awork_project_id: ab.awork_project_id || null,
       };
     },
     enabled: open && !!project?.id,
@@ -53,6 +52,16 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
   const { data: contracts = [] } = useQuery({
     queryKey: ['recurring-contracts-select'],
     queryFn: () => base44.entities.RecurringContract.list('-updated_date', 200),
+    enabled: open,
+  });
+
+  const { data: stichtagData } = useQuery({
+    queryKey: ['awork-umstellung-stichtag'],
+    queryFn: async () => {
+      const rows = await base44.entities.Setting.filter({ key: 'awork_umstellung_stichtag' }, 'key', 1).catch(() => []);
+      const wert = String(rows[0]?.value || '').slice(0, 10);
+      return /^\d{4}-\d{2}-\d{2}$/.test(wert) ? wert : '2026-10-04';
+    },
     enabled: open,
   });
 
@@ -114,12 +123,15 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
           neuer_beginn: neuBeginn,
           uebertrag: Number(form.kontingent_uebertrag_stunden) || 0,
         });
-        data.awork_project_id = form.awork_project_id || null;
       } else {
         data.laufzeit_beginn = neuBeginn || null;
         data.laufzeit_beginn_quelle = abVorschlag?.beginn && neuBeginn === abVorschlag.beginn ? 'ab' : 'manuell';
         data.kontingent_uebertrag_stunden = Number(form.kontingent_uebertrag_stunden) || 0;
-        data.awork_project_id = form.awork_project_id || null;
+        const stichtag = stichtagData || '2026-10-04';
+        data.awork_altstand_stunden = neuBeginn > stichtag
+          ? 0
+          : (form.awork_altstand_stunden === '' || form.awork_altstand_stunden == null ? null : Number(form.awork_altstand_stunden) || 0);
+        data.awork_altstand_beginn = neuBeginn || null;
       }
     }
 
@@ -127,16 +139,6 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
     const saved = await base44.entities.Project.update(project.id, data);
 
     if (def.container) await ensureContainer(saved);
-
-    // Bei normalem Speichern (kein Periodenwechsel): ggf. Altstand neu berechnen
-    if (isContainer && !isPeriodChange) {
-      const beginnChanged = altBeginn !== neuBeginn;
-      const aworkChanged = (project.awork_project_id || null) !== (form.awork_project_id || null);
-      const altstandFehlt = !project.awork_altstand_berechnet_am;
-      if (beginnChanged || aworkChanged || altstandFehlt) {
-        await base44.functions.invoke('aworkAltstandBerechnen', { project_id: project.id }).catch(() => {});
-      }
-    }
 
     queryClient.invalidateQueries({ queryKey: ['projektKontext'] });
     setSaving(false);
