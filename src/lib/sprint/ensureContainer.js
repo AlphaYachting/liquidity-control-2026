@@ -10,7 +10,7 @@ const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 export function standardTermin(rhythmus, heuteIso = todayIso()) {
   if (rhythmus === 'manuell') return null;
   const d = new Date(`${heuteIso}T00:00:00`);
-  if (rhythmus === 'monatlich') {
+  if (rhythmus === 'monatlich' || ['2monatlich', 'quartalsweise', 'halbjaehrlich', 'jaehrlich'].includes(rhythmus)) {
     const erster = iso(new Date(d.getFullYear(), d.getMonth() + 1, 1));
     return isWeekend(erster) ? addWorkdays(erster, 1) : erster;
   }
