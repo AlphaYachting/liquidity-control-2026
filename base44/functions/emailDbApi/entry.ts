@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { emailDbGet, emailDbEnrich } from '../../shared/emailDb.ts';
-import { computeNeedsReply } from '../../shared/emailWorkQueue.js';
+import { computeNeedsReply, conversationKeyOf } from '../../shared/emailWorkQueue.js';
+import { recomputeConversationOf } from '../../shared/emailConversations.js';
 
 // "AW: Re: Fwd: Feedback" -> "feedback" (gleiche Logik wie im Frontend-Grouping)
 function normalizeSubject(s: string) {
@@ -27,8 +28,9 @@ Deno.serve(async (req) => {
     if (action === 'enrich') {
       if (!thread_id || !fields) return Response.json({ error: 'thread_id und fields erforderlich' }, { status: 400 });
       const result = await emailDbEnrich(thread_id, fields);
-      // Verlaufs-Index sofort nachziehen: ein als erledigt markierter Verlauf
-      // verschwindet damit umgehend aus der Arbeitsliste und dem Zähler.
+      // Verlaufs-Index sofort nachziehen: Jede Erledigt-, Antwort-, Lead- oder
+      // Ticket-Aktion aus der App setzt done_at. Das gilt bis zur nächsten
+      // Kundennachricht — danach kehrt die Konversation in den Posteingang zurück.
       try {
         const svc = base44.asServiceRole;
         const rows = await svc.entities.EmailThreadIndex.filter({ thread_id: String(thread_id) }, '-indexed_at', 1);
@@ -38,8 +40,17 @@ Deno.serve(async (req) => {
           if (fields.category !== undefined) patch.category = fields.category || '';
           if (fields.customer !== undefined) patch.customer = fields.customer || '';
           if (fields.crm_status !== undefined) patch.crm_status = fields.crm_status || '';
-          patch.needs_reply = computeNeedsReply({ ...rows[0], ...patch });
+          if (fields.status !== undefined) {
+            patch.done_at = fields.status && fields.status !== 'offen' ? new Date().toISOString() : '';
+          } else if (fields.crm_status) {
+            patch.done_at = new Date().toISOString();
+          }
+          const merged = { ...rows[0], ...patch };
+          if (!merged.conversation_key) patch.conversation_key = conversationKeyOf(merged);
+          patch.needs_reply = computeNeedsReply(merged);
           await svc.entities.EmailThreadIndex.update(rows[0].id, patch);
+          // Geschwister-Verläufe derselben Konversation sofort mitziehen
+          await recomputeConversationOf(svc, { ...merged, ...patch });
         }
       } catch (_e) { /* Index-Nachzug ist Best-Effort */ }
       return Response.json(result);
