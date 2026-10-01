@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { PenLine, KanbanSquare, AlertTriangle } from 'lucide-react';
@@ -8,6 +8,9 @@ import { Link } from 'react-router-dom';
 import Seitenkopf from '@/components/shared/Seitenkopf';
 import { Box } from '@/components/shared/Box';
 import InboxItemCard from '@/components/crm/InboxItemCard';
+import InboxThreadCard from '@/components/crm/InboxThreadCard';
+import { usePosteingang } from '@/hooks/usePosteingang';
+import { FILTER, SCHWELLE_ARBEITSSTUNDEN } from '@/lib/crm/posteingang';
 import InboxFilterZeile from '@/components/crm/InboxFilterZeile';
 import SupportTicketDialog from '@/components/crm/support/SupportTicketDialog';
 import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
@@ -18,7 +21,6 @@ import InboxAssignDealDialog from '@/components/crm/InboxAssignDealDialog';
 import { descriptionFromThread } from '@/components/crm/support/threadDescription';
 import { useToast } from '@/components/ui/use-toast';
 import { findDuplicateDeal, CLOSED_STAGES } from '@/lib/crm/crmDuplicate';
-import { isBlockedSender } from '@/lib/crm/blockedSenders';
 
 export default function CrmInbox() {
   const navigate = useNavigate();
@@ -35,6 +37,7 @@ export default function CrmInbox() {
   const [threadText, setThreadText] = useState('');
   const [filter, setFilter] = useState('alle');
   const [neuesteZuerst, setNeuesteZuerst] = useState(true);
+  const [zeigeJung, setZeigeJung] = useState(false);
   const [offenId, setOffenId] = useState(null);
 
   // Fehlt der Anfragetext, den echten E-Mail-Verlauf nachladen — die Beschreibung
@@ -49,45 +52,20 @@ export default function CrmInbox() {
     return () => { cancelled = true; };
   }, [convertItem]);
 
-  const { data: rawItems = [], isLoading } = useQuery({
-    queryKey: ['crm-inbox'],
-    queryFn: () => base44.entities.CrmInboxItem.filter({ status: 'new', decision: 'offen' }, '-created_date', 100),
-  });
+  // EIN Posteingang: nur unbeantwortete Konversationen (Regel im Backend) plus
+  // Anfragen der Telefon-KI und manuell erfasste — siehe lib/crm/posteingang.js
+  const { eintraege, zahlen, gesamt, ueberfaellig: overdue, isLoading } = usePosteingang();
 
-  // Vertrauliche Absender (Einstellungen → Posteingangs-Filter) bleiben unsichtbar
-  const { data: blockedRules = [] } = useQuery({
-    queryKey: ['inbox-blocked-senders'],
-    queryFn: () => base44.entities.InboxBlockedSender.list('-created_date', 200),
-  });
-
-  // Eine gemeinsame Liste, streng nach Datum
-  const zeit = (i) => new Date(i.received_at || i.created_date).getTime();
-  const items = [...rawItems]
-    .filter((i) => !isBlockedSender(i.sender_email, blockedRules))
-    .sort((a, b) => (neuesteZuerst ? zeit(b) - zeit(a) : zeit(a) - zeit(b)));
-
-  const aktionVon = (i) => i.suggested_action || (i.track === 'support' ? 'supportticket' : 'anfrage');
-  const passt = (i, f) => {
-    const act = aktionVon(i);
-    if (f === 'neu') return act === 'anfrage' && !i.is_known_customer;
-    if (f === 'bestand') return act === 'anfrage' && i.is_known_customer;
-    if (f === 'support') return act === 'supportticket';
-    return true;
-  };
-  const zahlen = {
-    alle: items.length,
-    neu: items.filter((i) => passt(i, 'neu')).length,
-    bestand: items.filter((i) => passt(i, 'bestand')).length,
-    support: items.filter((i) => passt(i, 'support')).length,
-  };
-  const gefilterte = items.filter((i) => passt(i, filter));
-  const offeneId = (gefilterte.find((i) => i.id === offenId) || gefilterte[0])?.id;
-
-  const overdue = items.filter((i) => Date.now() - zeit(i) >= 2 * 86400000).length;
+  const passt = FILTER.find((f) => f.key === filter)?.passt || FILTER[0].passt;
+  const imFilter = eintraege.filter(passt);
+  const jungAnzahl = imFilter.filter((e) => !e.sichtbar).length;
+  const gefilterte = imFilter
+    .filter((e) => e.sichtbar || zeigeJung)
+    .sort((a, b) => (neuesteZuerst ? b.eingang - a.eingang : a.eingang - b.eingang));
+  const offeneId = (gefilterte.find((e) => e.key === offenId) || gefilterte[0])?.key;
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['crm-inbox'] });
-    queryClient.invalidateQueries({ queryKey: ['crm-inbox-badge'] });
+    queryClient.invalidateQueries({ queryKey: ['posteingang'] });
   };
 
   // Vor der Übernahme prüfen, ob es zu diesem Kontakt schon einen offenen Deal gibt —
@@ -166,7 +144,7 @@ export default function CrmInbox() {
       <Seitenkopf
         bereich="CRM"
         titel="Posteingang"
-        kontext={`${items.length} Anfragen zu entscheiden${overdue > 0 ? ` · ${overdue} davon länger als 2 Tage unbeantwortet` : ''}`}
+        kontext={`${gesamt} unbeantwortet seit mindestens ${SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden${overdue > 0 ? ` · ${overdue} davon länger als 2 Tage` : ''}`}
         aktionen={
           <>
             <Button variant="outline" asChild>
@@ -202,29 +180,42 @@ export default function CrmInbox() {
             zahlen={zahlen}
             neuesteZuerst={neuesteZuerst}
             onSortierung={() => setNeuesteZuerst((v) => !v)}
+            jungAnzahl={jungAnzahl}
+            zeigeJung={zeigeJung}
+            onZeigeJung={() => setZeigeJung((v) => !v)}
           />
 
           {gefilterte.length === 0 ? (
             <Box className="py-16 text-center">
-              <p className="text-body text-foreground">Keine offenen Anfragen</p>
+              <p className="text-body text-foreground">Nichts unbeantwortet</p>
               <p className="text-meta text-muted-foreground mt-1 max-w-sm mx-auto">
-                Sobald die Postfach-Anbindung aktiv ist, landen Anfragen der Telefon-KI und E-Mail-Leads automatisch hier.
+                Hier erscheint jede Kundennachricht, auf die seit {SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden niemand geantwortet hat,
+                Eskalationen sofort. Beantwortetes findest du in der E-Mail-Zentrale.
               </p>
             </Box>
           ) : (
             <div className="bg-card border rounded-lg overflow-hidden divide-y">
-              {gefilterte.map((item) => (
+              {gefilterte.map((e) => (e.item ? (
                 <InboxItemCard
-                  key={item.id}
-                  item={item}
-                  offen={item.id === offeneId}
-                  onOeffnen={() => setOffenId(item.id)}
+                  key={e.key}
+                  item={e.item}
+                  eintrag={e}
+                  offen={e.key === offeneId}
+                  onOeffnen={() => setOffenId(e.key)}
                   onConvert={handleConvert}
                   onAssign={setAssignItem}
                   onSupportTicket={setSupportItem}
                   onChanged={refresh}
                 />
-              ))}
+              ) : (
+                <InboxThreadCard
+                  key={e.key}
+                  eintrag={e}
+                  offen={e.key === offeneId}
+                  onOeffnen={() => setOffenId(e.key)}
+                  onChanged={refresh}
+                />
+              )))}
             </div>
           )}
         </>
