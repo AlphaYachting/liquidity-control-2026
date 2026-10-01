@@ -127,15 +127,40 @@ Deno.serve(async (req) => {
           status: mapOrderStatus(ord),
           source_type: 'sevdesk',
           notes: `sevDesk ID: ${sevdeskId} | Typ: ${ord.orderType || 'AB'}`,
-          responsible_project_manager: ord.contact?.surename || '',
           sevdesk_order_id: sevdeskId,
           ...(contactId ? { sevdesk_contact_id: contactId } : {}),
         };
 
         const existing = existingByOrderNumber[orderNumber] || existingBySevdeskId[sevdeskId];
+        // CRM-Aufträge (aus dem Übergabeblatt) behalten ihre Stammdaten und Positionen.
+        const ausCrm = !!existing && (!!existing.deal_id || existing.source_type === 'manual');
         let confirmedOrderId;
 
-        if (existing) {
+        if (existing && ausCrm) {
+          await base44.asServiceRole.entities.ConfirmedOrder.update(existing.id, {
+            status: record.status,
+            total_net_amount: netAmount,
+            total_gross_amount: grossAmount,
+            vat_rate: vatRate,
+            confirmation_date: orderDate,
+            sevdesk_order_id: sevdeskId,
+            ...(contactId ? { sevdesk_contact_id: contactId } : {}),
+          });
+          const alt = existing.total_net_amount || 0;
+          if (Math.abs(alt - netAmount) > 1) {
+            await base44.asServiceRole.entities.AuditLog.create({
+              action: 'update',
+              entity_type: 'ConfirmedOrder',
+              entity_id: existing.id,
+              user_email: user.email,
+              details: `sevDesk-Sync: Nettobetrag weicht ab (AB ${orderNumber})`,
+              old_value: String(alt),
+              new_value: String(netAmount),
+            });
+          }
+          confirmedOrderId = existing.id;
+          updated++;
+        } else if (existing) {
           await base44.asServiceRole.entities.ConfirmedOrder.update(existing.id, record);
           confirmedOrderId = existing.id;
           updated++;
@@ -146,7 +171,7 @@ Deno.serve(async (req) => {
         }
 
         // Positionen nur bei explizitem manuellem Aufruf
-        if (includeOrderItems && confirmedOrderId) {
+        if (includeOrderItems && confirmedOrderId && !ausCrm) {
           try {
             const posData = await sevdeskGet(`/OrderPos?order[id]=${sevdeskId}&order[objectName]=Order&embed=part&limit=100`, apiKey);
             const positions = posData.objects || [];
