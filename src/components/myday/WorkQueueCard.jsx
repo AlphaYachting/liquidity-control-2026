@@ -14,7 +14,7 @@ const TONE = {
 };
 
 // Eine Arbeitsliste in "Mein Tag": Was liegt an, wie viel, und wo erledige ich es.
-export default function WorkQueueCard({ title, icon: Icon, tone = 'blue', items = [], to, ctaLabel = 'Öffnen', renderItem, max = 5 }) {
+export default function WorkQueueCard({ title, icon: Icon, tone = 'blue', items = [], to, ctaLabel = 'Öffnen', renderItem, max = 5, loading = false }) {
   const count = items.length;
 
   return (
@@ -25,11 +25,13 @@ export default function WorkQueueCard({ title, icon: Icon, tone = 'blue', items 
             {Icon && <Icon className="w-4 h-4 text-muted-foreground" />}
             {title}
           </CardTitle>
-          <Badge className={`border ${TONE[tone]} ${count === 0 ? 'opacity-60' : ''}`}>{count}</Badge>
+          <Badge className={`border ${TONE[tone]} ${count === 0 || loading ? 'opacity-60' : ''}`}>{loading ? '…' : count}</Badge>
         </div>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-2">
-        {count === 0 ? (
+        {loading ? (
+          <p className="text-xs text-muted-foreground py-2">Wird geladen…</p>
+        ) : count === 0 ? (
           <p className="text-xs text-muted-foreground flex items-center gap-1.5 py-2">
             <Check className="w-3.5 h-3.5 text-emerald-600" /> Nichts offen
           </p>
