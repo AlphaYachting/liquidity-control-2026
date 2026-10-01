@@ -1,5 +1,6 @@
 // EINE gemeinsame Quelle für die Posteingangs-Regel "unbeantwortet".
-// Backend (Verlaufs-Index) und Frontend (Kopie unter src/lib/crm) folgen derselben Logik.
+// Das Backend schreibt das Ergebnis als needs_reply in den Verlaufs-Index (EmailThreadIndex);
+// die Oberfläche liest nur dieses Feld — es gibt keine zweite Regel im Frontend.
 import { domainOf, isInternalDomain, isSystemDomain, isFreemailDomain } from './senderLists.js';
 
 // Abwesenheitsnotizen, Unzustellbar-Meldungen u. ä. — nie eine Kundenanfrage
