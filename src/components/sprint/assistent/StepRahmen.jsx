@@ -6,6 +6,7 @@ import { PROJECT_TYPES, PROJECT_TYPE_ORDER, projectTypeOf } from '@/components/s
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import CockpitAuswahl from '@/components/projekt/CockpitAuswahl';
 
 export const NEW_CLIENT = '__new__';
 
@@ -96,6 +97,14 @@ export default function StepRahmen({ seed, setSeed, clients = [], members = [], 
         <Label>{seed.type === 'regie' ? 'Auftragstitel *' : 'Projekttitel *'}</Label>
         <Input value={seed.title || ''} onChange={(e) => set({ title: e.target.value })} />
       </div>
+
+      {seed.type && seed.type !== 'intern' && seed.client_id !== NEW_CLIENT && (
+        <CockpitAuswahl
+          customer={clients.find((c) => c.id === seed.client_id)?.name}
+          value={seed.cockpit_id || ''}
+          onChange={(v) => set({ cockpit_id: v })}
+        />
+      )}
 
       {seed.type === 'sprint' && (
         <div className="space-y-3 rounded border border-muted p-4">

@@ -4,7 +4,7 @@
   "properties": {
     "project_id": {
       "type": "string",
-      "description": "Projekt-ID. Auftr\u00e4ge aus dem CRM-\u00dcbergabeblatt: Project.id. Altbestand: LiquidityProject.id."
+      "description": "Projekt-Cockpit-ID (LiquidityProject.id). Das Projekt findet den Auftrag \u00fcber Project.liquidity_project_id."
     },
     "deal_id": {
       "type": "string",

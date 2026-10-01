@@ -11,7 +11,8 @@ import StepModule, { milestoneAmount } from '@/components/sprint/assistent/StepM
 import StepRahmen, { rahmenValid, NEW_CLIENT } from '@/components/sprint/assistent/StepRahmen';
 import StepTypDetails, { typDetailsValid } from '@/components/sprint/assistent/StepTypDetails';
 import ModulPaketEditor from '@/components/sprint/paket/ModulPaketEditor';
-import { PROJECT_TYPES } from '@/components/sprint/projectTypes';
+import { PROJECT_TYPES, projectTypeOf } from '@/components/sprint/projectTypes';
+import { cockpitSicherstellen } from '@/lib/projekt/cockpitSicherstellen';
 import { readWizardSeed } from '@/lib/sprint/wizardSeed';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { SPRINT_SIZES, fmtEUR, fmtDate, addWeeks } from '@/components/sprint/sprintConfig';
@@ -156,12 +157,35 @@ export default function SprintAssistent() {
     });
   };
 
+  // Jedes Projekt (außer intern) bekommt sein Projekt-Cockpit. Fehler → anhalten.
+  const sichereCockpit = async (project) => {
+    const typ = projectTypeOf(project);
+    if (typ === 'intern') return { cockpit: null };
+    try {
+      const order = handoff?.confirmed_order_id
+        ? await base44.entities.ConfirmedOrder.get(handoff.confirmed_order_id).catch(() => null)
+        : null;
+      const cockpit = await cockpitSicherstellen({
+        project, clientName, typ, pmEmail: project.pm_email, order,
+        bestehendesCockpitId: seed.cockpit_id || undefined,
+      });
+      return { cockpit };
+    } catch (e) {
+      setCreateError(`Projekt-Cockpit konnte nicht angelegt werden: ${e.message}`);
+      setCreating(false);
+      return { fehler: true };
+    }
+  };
+
   // Laufender Behälter für alle Typen außer Sprint — ohne Termin, ohne Betrag
   const handleCreateContainer = async () => {
+    setCreateError('');
     setCreating(true);
     const project = await resolveProject();
+    const { cockpit, fehler } = await sichereCockpit(project);
+    if (fehler) return;
     const { sprint } = await ensureContainer(project, { auswahl: containerAuswahl });
-    if (handoff) await finishHandoff(handoff, project);
+    if (handoff) await finishHandoff(handoff, project, cockpit);
     navigate(`/sprint/sprints/${sprint.id}`);
   };
 
@@ -175,6 +199,8 @@ export default function SprintAssistent() {
     setCreateError('');
     setCreating(true);
     const project = await resolveProject();
+    const { cockpit, fehler } = await sichereCockpit(project);
+    if (fehler) return;
     const projectId = project.id;
     const now = new Date().toISOString();
     const sprint = await base44.entities.Sprint.create({
@@ -233,7 +259,7 @@ export default function SprintAssistent() {
       if (tickets.length) await base44.entities.Ticket.bulkCreate(tickets);
     }
 
-    if (handoff) await finishHandoff(handoff, project);
+    if (handoff) await finishHandoff(handoff, project, cockpit);
     navigate(`/sprint/sprints/${sprint.id}`);
   };
 
@@ -379,6 +405,7 @@ export default function SprintAssistent() {
           </div>
         )}
 
+        {!isSprint && createError && <p className="mt-4 text-sm text-status-critical">{createError}</p>}
         <div className="flex justify-between mt-6 pt-4 border-t border-muted">
           <Button variant="outline" className="rounded" disabled={step === 1 || creating} onClick={() => setStep(step - 1)}>
             Zurück
