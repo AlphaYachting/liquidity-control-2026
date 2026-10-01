@@ -3,10 +3,11 @@ import { base44 } from '@/api/base44Client';
 
 // Zählt Auftragsbestätigungen ab 2026, die noch keinem Projekt-Cockpit
 // (LiquidityProject) zugeordnet sind (project_id leer) und nicht storniert wurden.
-export function useUnlinkedOrdersCount() {
+export function useUnlinkedOrdersCount({ enabled = true } = {}) {
   const { data: orders = [] } = useQuery({
     queryKey: ['confirmedOrders'],
     queryFn: () => base44.entities.ConfirmedOrder.list(),
+    enabled,
   });
 
   const count = orders.filter(o => {
