@@ -4,12 +4,13 @@ import { loadWorkQueueThreads } from '@/components/crm/emails/emailWorkQueueSour
 
 // Zähler der E-Mail-Zentrale — dieselbe Quelle und dieselbe Regel
 // wie die Liste "Braucht Antwort", damit Zahl und Liste nie auseinanderlaufen.
-export function useEmailTriageCount() {
+export function useEmailTriageCount({ enabled = true } = {}) {
   const { data } = useQuery({
     queryKey: ['email-triage-count'],
     queryFn: async () => buildTriageList(await loadWorkQueueThreads('30')).length,
     staleTime: 5 * 60 * 1000,
     retry: false,
+    enabled,
   });
   return data || 0;
 }
