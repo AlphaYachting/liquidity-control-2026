@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { emailDbGet } from '../../shared/emailDb.ts';
-import { computeNeedsReply } from '../../shared/emailWorkQueue.js';
+import { recomputeWindow } from '../../shared/emailConversations.js';
 
 // Die E-Mail-Datenbank kann seit API v2 seitenweise blättern (limit/offset,
 // has_more, next_offset). Der Verlaufs-Index wird daher direkt über die
@@ -70,8 +70,8 @@ async function loadExisting(svc, ids) {
 }
 
 async function upsert(svc, existing, threadId, row, source) {
+  // needs_reply wird NICHT hier gesetzt, sondern in Phase 3 auf Konversationsebene.
   const patch = { ...row, thread_id: String(threadId), source, indexed_at: new Date().toISOString() };
-  patch.needs_reply = computeNeedsReply(patch);
   const prev = existing.get(String(threadId));
   if (prev) {
     const gleich = Object.keys(patch)
@@ -98,7 +98,7 @@ export default async function (req) {
     const pageSize = body.page_size ?? 100;
     const backfillPages = body.backfill_pages ?? 1;
 
-    const stats = { fenster_geprueft: 0, neu: 0, aktualisiert: 0, unveraendert: 0, details_geladen: 0, nachlauf_geprueft: 0, gesamt_verlaeufe: 0, fehler: [] };
+    const stats: any = { fenster_geprueft: 0, neu: 0, aktualisiert: 0, unveraendert: 0, details_geladen: 0, nachlauf_geprueft: 0, gesamt_verlaeufe: 0, fehler: [] };
 
     const stateRows = await svc.entities.EmailIndexState.list('-created_date', 1);
     const state = stateRows[0] || await svc.entities.EmailIndexState.create({ indexed_total: 0 });
@@ -196,6 +196,11 @@ export default async function (req) {
         max_thread_id: maxThreadId,
       });
     }
+
+    // ---------- Phase 3: Konversationen auflösen (Quelle des Posteingangs) ----------
+    try {
+      stats.konversationen = await recomputeWindow(svc, body.window_days ?? 45);
+    } catch (e) { stats.fehler.push(`Konversationen: ${e.message}`); }
 
     await svc.entities.EmailIndexState.update(state.id, {
       max_thread_id: maxThreadId,
