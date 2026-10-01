@@ -51,6 +51,27 @@ export function sichtbarAb(eingangMs, stunden = SCHWELLE_ARBEITSSTUNDEN) {
 const aktionVon = (item) => item?.suggested_action || (item?.track === 'support' ? 'supportticket' : 'anfrage');
 
 /**
+ * Arbeitsbereich eines Eintrags. Quelle ist die KI-Einordnung der letzten Kundennachricht
+ * (EmailThreadIndex.anliegen, mit Textbeleg). Absender-Regeln "Verwaltung" haben Vorrang.
+ *  support    — technische Unterstützung an Website, Shop, Hosting, Tracking (Fehler oder Änderung)
+ *  neu        — neues Projekt, neue Leistung, Angebotsanfrage, Neukunde
+ *  kunde      — alle anderen Kundenanliegen (Abstimmung, Feedback, Druck, Termine, Rechnungsfragen)
+ *  verwaltung — Lieferanten, Steuerberatung, Bank, Behörden, Spam
+ *  offen      — noch nicht eingeordnet (Nachbewertung läuft)
+ */
+export function klasseVon(e) {
+  if (e.verwaltung) return 'verwaltung';
+  const anliegen = e.thread?.anliegen;
+  if (anliegen === 'web_support') return 'support';
+  if (anliegen === 'neue_anfrage') return 'neu';
+  if (anliegen === 'kundenanliegen') return 'kunde';
+  if (anliegen === 'verwaltung' || anliegen === 'kein_geschaeft') return 'verwaltung';
+  // Telefon-KI, manuell erfasst oder Verlauf ohne Einordnung: KI-Vorschlag des Eintrags
+  if (e.item && aktionVon(e.item) === 'anfrage') return 'neu';
+  return e.thread ? 'offen' : 'kunde';
+}
+
+/**
  * Baut die Einträge des Posteingangs.
  *  threads    — EmailThreadIndex mit needs_reply = true (je offener Konversation genau einer)
  *  items      — offene CrmInboxItem (status new, decision offen)
@@ -125,9 +146,7 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
 
   return eintraege.map((e) => {
     const ab = e.sofort || e.eskalation ? e.eingang : sichtbarAb(e.eingang);
-    const klasse = e.verwaltung ? 'verwaltung'
-      : e.item && aktionVon(e.item) === 'anfrage' && !e.item.is_known_customer ? 'neu'
-      : 'kunde';
+    const klasse = klasseVon(e);
     return {
       ...e,
       klasse,
@@ -140,10 +159,20 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
 
 export const FILTER = [
   { key: 'alle', label: 'Alle', passt: (e) => e.klasse !== 'verwaltung' },
+  { key: 'support', label: 'Support (Web)', passt: (e) => e.klasse === 'support' },
+  { key: 'kunde', label: 'Kundenanfragen', passt: (e) => e.klasse === 'kunde' },
   { key: 'neu', label: 'Neue Anfragen', passt: (e) => e.klasse === 'neu' },
-  { key: 'kunde', label: 'Kunden & Support', passt: (e) => e.klasse === 'kunde' },
+  { key: 'offen', label: 'Noch nicht eingeordnet', passt: (e) => e.klasse === 'offen', nurWennVorhanden: true },
   { key: 'verwaltung', label: 'Verwaltung', passt: (e) => e.klasse === 'verwaltung' },
 ];
+
+export const KLASSE_LABEL = {
+  support: 'Support (Web)',
+  kunde: 'Kundenanfrage',
+  neu: 'Neue Anfrage',
+  offen: 'Wird eingeordnet',
+  verwaltung: 'Verwaltung',
+};
 
 export function zaehle(eintraege) {
   const sichtbar = eintraege.filter((e) => e.sichtbar);
