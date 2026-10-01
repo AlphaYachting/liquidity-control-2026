@@ -72,8 +72,10 @@ export function isNoiseThread(t) {
  *  2. sie NACH einem manuellen "Erledigt" aus der App kam (done_at gilt nur bis zur nächsten Kundennachricht)
  *  3. der Verlauf als Geschäftskonversation belegt ist: wir haben schon geschrieben, es gibt mehrere
  *     Nachrichten, oder ein Kunde bzw. eine inhaltliche Kategorie ist zugeordnet.
- * Der KI-Status (offen/beantwortet/erledigt) entscheidet NICHT mehr — einzige Ausnahme: eine einzelne,
- * unbeantwortete Nachricht, die die KI als Spam/System erledigt hat.
+ * Der KI-Status "beantwortet"/"wartet auf Kunde" entscheidet NICHT — es zählt, wer zuletzt geschrieben hat.
+ * Einzige Ausnahme ist der KI-Filter für Spam, Werbung, Benachrichtigungen und Lieferantenrechnungen:
+ * ein Verlauf, in dem WIR NIE geschrieben haben und den die KI als "erledigt" eingestuft hat. Schreibt
+ * der Absender erneut, bewertet analyseEingang den Verlauf neu, der Status ist also nie veraltet.
  */
 export function computeNeedsReply(t) {
   const direction = t.last_direction || t.direction;
@@ -84,9 +86,8 @@ export function computeNeedsReply(t) {
   if (isNoiseThread(t)) return false;
   const eingang = toTime(t.last_message_at);
   if (t.done_at && toTime(t.done_at) >= eingang) return false;
-  const einzeln = (t.message_count || 0) <= 1 && !t.has_outbound;
-  if (einzeln && t.crm_status === 'lead_angelegt') return false;
-  if (einzeln && !t.done_at && t.status === 'erledigt' && (!t.category || t.category === 'sonstiges')) return false;
+  if (!t.has_outbound && !t.done_at && t.status === 'erledigt') return false;
+  if ((t.message_count || 0) <= 1 && !t.has_outbound && t.crm_status === 'lead_angelegt') return false;
   const meaningfulCategory = !!t.category && t.category !== 'sonstiges';
   return t.has_outbound === true || (t.message_count || 0) > 1 || !!t.customer || meaningfulCategory;
 }
