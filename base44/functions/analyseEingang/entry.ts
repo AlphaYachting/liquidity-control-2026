@@ -14,6 +14,13 @@ import { resolveRecipient } from '../../shared/mailRecipient.js';
 const CATEGORIES = ['abnahme_freigabe', 'rechnung_zahlung', 'reklamation', 'anforderung_change', 'terminabstimmung', 'rueckfrage_antwort', 'sonstiges'];
 const STATUSES = ['offen', 'beantwortet', 'erledigt', 'wartet_auf_kunde'];
 
+const toMs = (s) => {
+  if (!s) return 0;
+  const str = String(s);
+  const t = new Date(str.includes('T') ? str : str.slice(0, 19).replace(' ', 'T') + 'Z').getTime();
+  return Number.isNaN(t) ? 0 : t;
+};
+
 const toIso = (s) =>
   s ? new Date(String(s).slice(0, 19).replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString();
 
@@ -30,29 +37,44 @@ Deno.serve(async (req) => {
     const maxLlm = payload.max_llm || 40;
 
     const stats = {
-      threads_new: 0, checked: 0, llm_calls: 0, lead_verdacht: 0, support_faelle: 0,
+      threads_new: 0, nachbewertet: 0, checked: 0, llm_calls: 0, lead_verdacht: 0, support_faelle: 0,
       form_leads: 0, skipped_limit: 0, errors: [] as string[],
     };
 
-    // 1. Ledger: bereits geprüfte Threads überspringen
+    // 1. Ledger: geprüfte Threads nur dann erneut bewerten, wenn seit der letzten
+    // Prüfung eine neue Nachricht dazugekommen ist (Nachrichtenzahl gestiegen oder
+    // jüngere Nachricht). So werden Antworten auf unsere Angebote, Rechnungen und
+    // Mahnungen sowie spätere Eskalationen in bestehenden Verläufen erkannt.
     // Ein Fehlversuch sperrt den Thread NICHT — erst ab dem dritten wird er übersprungen.
     const ledger = await db.EmailScanLedger.list('-checked_at', 3000);
     const failEntries = new Map<string, any>();
-    const seen = new Set<string>();
+    const blocked = new Set<string>();
+    const lastCheck = new Map<string, { at: number; count: number | null }>();
     for (const l of ledger) {
       const id = String(l.thread_id || '');
       if (!id) continue;
       if (l.outcome === 'fehler') {
         if (!failEntries.has(id)) failEntries.set(id, l);
-        if ((l.fail_count || 0) >= 3) seen.add(id);
-      } else {
-        seen.add(id);
+        if ((l.fail_count || 0) >= 3) blocked.add(id);
+      } else if (!lastCheck.has(id)) {
+        // Ledger ist absteigend sortiert — der erste Treffer ist die jüngste Prüfung
+        lastCheck.set(id, { at: toMs(l.checked_at), count: typeof l.message_count === 'number' ? l.message_count : null });
       }
     }
 
     const listing = await emailDbGet('threads', { days, limit: 150 });
-    const threads = (listing.results || []).filter((t) => !seen.has(String(t.id)));
-    stats.threads_new = threads.length;
+    const msgCount = new Map<string, number>();
+    const threads = (listing.results || []).filter((t) => {
+      const id = String(t.id);
+      msgCount.set(id, Number(t.message_count) || 0);
+      if (blocked.has(id) && !lastCheck.has(id)) return false;
+      const prev = lastCheck.get(id);
+      if (!prev) return true;
+      if (prev.count !== null && (Number(t.message_count) || 0) > prev.count) return true;
+      return toMs(t.last_message_at) > prev.at;
+    });
+    stats.threads_new = threads.filter((t) => !lastCheck.has(String(t.id))).length;
+    stats.nachbewertet = threads.length - stats.threads_new;
 
     const projects = await db.LiquidityProject.list('-updated_date', 500);
     const customers = [...new Set(projects.map((p) => p.customer).filter(Boolean))];
@@ -88,7 +110,8 @@ Deno.serve(async (req) => {
     const note = async (threadId, outcome, reason, extra = {}) => {
       await db.EmailScanLedger.create({
         thread_id: String(threadId), checked_at: new Date().toISOString(),
-        outcome, reason: String(reason || '').slice(0, 500), ...extra,
+        outcome, reason: String(reason || '').slice(0, 500),
+        message_count: msgCount.get(String(threadId)) || 0, ...extra,
       });
     };
 
@@ -99,6 +122,14 @@ Deno.serve(async (req) => {
         const detail = await emailDbGet('thread', { id: t.id, msgs: 10, full: 1 });
         const msgs = detail.messages || [];
         if (!msgs.length) { await note(t.id, 'kein_geschaeft', 'keine Nachrichten'); stats.checked++; continue; }
+        // Nachbewertung nur, wenn die neue Nachricht vom Kunden kommt — eine Antwort
+        // von uns braucht keine KI-Auswertung (Stand wird trotzdem vermerkt).
+        const nachbewertung = lastCheck.has(String(t.id));
+        if (nachbewertung && msgs[0]?.direction !== 'in') {
+          await note(t.id, 'betrieb', 'Nachbewertung: keine neue Kundennachricht');
+          stats.checked++;
+          continue;
+        }
 
         let firstIn = [...msgs].reverse().find((m) => m.direction === 'in');
         const oldest = msgs[msgs.length - 1];
@@ -273,7 +304,11 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
 
         // Ziel 2: Jede triage-relevante Mail landet im Posteingang — die
         // Vorklassifizierung ist eine Empfehlung, entschieden wird dort.
-        if (suggested !== 'kein_lead') {
+        // Bei einer Nachbewertung kein zweiter Eintrag für denselben Verlauf.
+        const vorhanden = suggested !== 'kein_lead'
+          ? (await db.CrmInboxItem.filter({ thread_id: String(t.id) }, '-created_date', 1))[0]
+          : null;
+        if (suggested !== 'kein_lead' && !vorhanden) {
           await db.CrmInboxItem.create({
             source: 'email',
             sender_name: r.contact_name || firstIn.from_name || '',
