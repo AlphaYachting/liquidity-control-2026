@@ -4,11 +4,15 @@ import { projectTypeOf } from '@/components/sprint/projectTypes';
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const parse = (s) => new Date(`${s}T00:00:00`);
 
+// Rhythmen in Monaten — alle anderen laufen in Tagen
+export const RHYTHMUS_MONATE = { monatlich: 1, '2monatlich': 2, quartalsweise: 3, halbjaehrlich: 6, jaehrlich: 12 };
+
 function terminK(anker, rhythmus, k) {
   const a = parse(anker);
-  if (rhythmus === 'monatlich') {
+  const monate = RHYTHMUS_MONATE[rhythmus];
+  if (monate) {
     const y = a.getFullYear();
-    const m = a.getMonth() + k;
+    const m = a.getMonth() + k * monate;
     const letzter = new Date(y, m + 1, 0).getDate();
     return new Date(y, m, Math.min(a.getDate(), letzter));
   }
