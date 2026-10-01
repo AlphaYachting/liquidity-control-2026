@@ -141,3 +141,20 @@ export function laufzeitAusSummen({ project, beginn, quelle, ab_nummer = null, s
 // Darf der Nutzer Retainer-Stammdaten neu berechnen lassen?
 export const darfVerwalten = (user) =>
   user?.role === 'admin' || ['gf', 'pm'].includes(user?.system_role);
+
+// Gemeinsame Hilfsfunktion: aWork-Altstand für den wirksamen Beginn berechnen.
+// Verwendet in aworkAltstandBerechnen und kontingentPeriodeAbschliessen.
+// Liefert { beginn, stunden, hinweis, update } — update ist null, wenn nichts geschrieben wird.
+export async function altstandNeuBerechnen(db, project) {
+  const { beginn } = await wirksamerBeginn(db, project);
+  if (!beginn) return { beginn: null, stunden: 0, hinweis: 'Laufzeitbeginn fehlt', update: null };
+  const stichtag = await ladeStichtag(db);
+  if (beginn > stichtag) {
+    return { beginn, stunden: 0, hinweis: null, update: { awork_altstand_stunden: 0, awork_altstand_beginn: beginn, awork_altstand_berechnet_am: new Date().toISOString() } };
+  }
+  if (!project.awork_project_id) {
+    return { beginn, stunden: 0, hinweis: 'aWork-Projekt nicht zugeordnet', update: null };
+  }
+  const stunden = await aworkStunden(db, project.awork_project_id, beginn, stichtag);
+  return { beginn, stunden, hinweis: null, update: { awork_altstand_stunden: stunden, awork_altstand_beginn: beginn, awork_altstand_berechnet_am: new Date().toISOString() } };
+}

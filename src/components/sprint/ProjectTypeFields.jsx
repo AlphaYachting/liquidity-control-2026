@@ -3,9 +3,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MODEL_OPTIONS } from '@/components/sprint/projectTypes';
+import ContainerLaufzeitFelder from '@/components/sprint/ContainerLaufzeitFelder';
 
 // Zusatzfelder je Projekttyp — nur was der Typ wirklich braucht.
-export default function ProjectTypeFields({ type, form, setForm, contracts = [] }) {
+export default function ProjectTypeFields({ type, form, setForm, contracts = [], project, abVorschlag, user }) {
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
 
   if (type === 'sprint') {
@@ -37,6 +38,7 @@ export default function ProjectTypeFields({ type, form, setForm, contracts = [] 
               onChange={(e) => set('support_kontingent_stunden')(e.target.value)}
             />
           </div>
+          <ContainerLaufzeitFelder form={form} setForm={setForm} project={project} abVorschlag={abVorschlag} user={user} />
           <div>
             <Label>Laufender Vertrag (optional)</Label>
             <Select value={form.recurring_contract_id || 'none'} onValueChange={(v) => set('recurring_contract_id')(v === 'none' ? '' : v)}>
