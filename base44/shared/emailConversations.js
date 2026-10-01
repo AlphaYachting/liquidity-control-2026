@@ -5,7 +5,24 @@ import { resolveConversations } from './emailWorkQueue.js';
 
 const PAGE = 500;
 const MAX_PAGES = 12;
-const CONCURRENCY = 5;
+// Die Datenbank der App begrenzt die Schreibrate: kleine Pakete mit Pause, und je Lauf
+// höchstens MAX_WRITES Änderungen. Der Rest folgt im nächsten 15-Minuten-Lauf.
+const CONCURRENCY = 2;
+const PAUSE_MS = 300;
+const MAX_WRITES = 200;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function updateMitWiederholung(svc, id, patch) {
+  for (let versuch = 0; versuch < 4; versuch++) {
+    try {
+      return await svc.entities.EmailThreadIndex.update(id, patch);
+    } catch (e) {
+      const gedrosselt = /rate limit|429/i.test(String(e?.message || e));
+      if (!gedrosselt || versuch === 3) throw e;
+      await sleep(2000 * (versuch + 1));
+    }
+  }
+}
 
 async function loadAll(svc, query) {
   const out = [];
@@ -24,22 +41,26 @@ async function loadAll(svc, query) {
   return out;
 }
 
-async function writeChanges(svc, rows, map) {
+async function writeChanges(svc, rows, map, maxWrites = MAX_WRITES) {
   const changes = [];
   for (const r of rows) {
     const res = map.get(String(r.thread_id));
     if (!res) continue;
-    if (r.needs_reply !== res.needs_reply
+    const offenGeaendert = Boolean(r.needs_reply) !== res.needs_reply;
+    if (offenGeaendert
       || (r.conversation_key || '') !== res.conversation_key
       || (r.conversation_size || 0) !== res.conversation_size) {
-      changes.push({ id: r.id, patch: res });
+      changes.push({ id: r.id, patch: res, prio: offenGeaendert ? 0 : 1 });
     }
   }
-  for (let i = 0; i < changes.length; i += CONCURRENCY) {
-    await Promise.all(changes.slice(i, i + CONCURRENCY).map((c) =>
-      svc.entities.EmailThreadIndex.update(c.id, c.patch)));
+  // Was den Posteingang verändert, zuerst
+  changes.sort((a, b) => a.prio - b.prio);
+  const jetzt = changes.slice(0, maxWrites);
+  for (let i = 0; i < jetzt.length; i += CONCURRENCY) {
+    await Promise.all(jetzt.slice(i, i + CONCURRENCY).map((c) => updateMitWiederholung(svc, c.id, c.patch)));
+    await sleep(PAUSE_MS);
   }
-  return changes.length;
+  return { geschrieben: jetzt.length, offen_geblieben: changes.length - jetzt.length };
 }
 
 const utcString = (ms) => new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
@@ -48,15 +69,21 @@ const utcString = (ms) => new Date(ms).toISOString().slice(0, 19).replace('T', '
 export async function recomputeWindow(svc, days = 45) {
   const grenze = utcString(Date.now() - days * 864e5);
   const rows = await loadAll(svc, { last_message_at: { $gte: grenze } });
-  const geaendert = await writeChanges(svc, rows, resolveConversations(rows));
+  const ergebnis = resolveConversations(rows);
+  const geaendert = await writeChanges(svc, rows, ergebnis);
 
-  const alt = await loadAll(svc, { needs_reply: true, last_message_at: { $lt: grenze } });
-  for (let i = 0; i < alt.length; i += CONCURRENCY) {
-    await Promise.all(alt.slice(i, i + CONCURRENCY).map((r) =>
-      svc.entities.EmailThreadIndex.update(r.id, { needs_reply: false })));
+  // Ältere Verläufe verlassen den Posteingang — nur wenn im Lauf noch Schreibbudget ist
+  let alt = [];
+  const rest = MAX_WRITES - geaendert.geschrieben;
+  if (rest > 0) {
+    alt = (await loadAll(svc, { needs_reply: true, last_message_at: { $lt: grenze } })).slice(0, rest);
+    for (let i = 0; i < alt.length; i += CONCURRENCY) {
+      await Promise.all(alt.slice(i, i + CONCURRENCY).map((r) => updateMitWiederholung(svc, r.id, { needs_reply: false })));
+      await sleep(PAUSE_MS);
+    }
   }
-  const offen = [...resolveConversations(rows).values()].filter((v) => v.needs_reply).length;
-  return { geprueft: rows.length, geaendert, ausserhalb_zeitfenster: alt.length, offen };
+  const offen = [...ergebnis.values()].filter((v) => v.needs_reply).length;
+  return { geprueft: rows.length, ...geaendert, ausserhalb_zeitfenster: alt.length, offen };
 }
 
 // Nur die Konversation eines Verlaufs neu auflösen (sofort nach einer Aktion in der App).
@@ -64,5 +91,5 @@ export async function recomputeConversationOf(svc, row) {
   if (!row?.conversation_key) return 0;
   const rows = await loadAll(svc, { conversation_key: row.conversation_key });
   const merged = rows.map((r) => (r.id === row.id ? { ...r, ...row } : r));
-  return writeChanges(svc, merged, resolveConversations(merged));
+  return (await writeChanges(svc, merged, resolveConversations(merged), 50)).geschrieben;
 }
