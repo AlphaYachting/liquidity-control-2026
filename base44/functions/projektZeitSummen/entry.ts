@@ -3,7 +3,7 @@ import {
   wirksamerBeginn, ladeStichtag, heuteWien, zaehltFuerLaufzeit, stundenVon, laufzeitAusSummen,
 } from '../../shared/kontingentLaufzeit.js';
 
-// Drei Summen je Projekt — statt tausend Buchungen im Browser.
+// Drei Summen je Projekt — statt tausend Buchungen im Browser. Bei Retainern zusätzlich der Saldo seit Laufzeitbeginn.
 export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
