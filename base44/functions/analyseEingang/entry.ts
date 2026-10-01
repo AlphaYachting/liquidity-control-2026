@@ -67,8 +67,9 @@ Deno.serve(async (req) => {
     const threads = (listing.results || []).filter((t) => {
       const id = String(t.id);
       msgCount.set(id, Number(t.message_count) || 0);
-      if (blocked.has(id) && !lastCheck.has(id)) return false;
       const prev = lastCheck.get(id);
+      // Dreimal gescheitert und seither nicht erfolgreich geprüft: ruhen lassen
+      if (blocked.has(id) && (!prev || toMs(failEntries.get(id)?.checked_at) > prev.at)) return false;
       if (!prev) return true;
       if (prev.count !== null && (Number(t.message_count) || 0) > prev.count) return true;
       return toMs(t.last_message_at) > prev.at;
