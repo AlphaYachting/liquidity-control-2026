@@ -4,7 +4,7 @@
   "properties": {
     "project_id": {
       "type": "string",
-      "description": "Linked LiquidityProject ID"
+      "description": "Projekt-ID. Auftr\u00e4ge aus dem CRM-\u00dcbergabeblatt: Project.id. Altbestand: LiquidityProject.id."
     },
     "deal_id": {
       "type": "string",
@@ -131,6 +131,62 @@
     "awork_progress_percent": {
       "type": "number",
       "default": 0
+    },
+    "angebot_url": {
+      "type": "string",
+      "description": "Datei-URL des vom Kunden angenommenen Angebots (PDF)"
+    },
+    "angebot_nummer": {
+      "type": "string"
+    },
+    "angebot_datum": {
+      "type": "string",
+      "format": "date"
+    },
+    "angebot_quelle": {
+      "type": "string",
+      "enum": [
+        "studio",
+        "email_angebot",
+        "extern_pdf",
+        "manuell"
+      ]
+    },
+    "leistungszeitraum": {
+      "type": "string",
+      "description": "Vereinbarte Dauer bzw. Zeitplan im Wortlaut des Angebots"
+    },
+    "liefertermin": {
+      "type": "string",
+      "format": "date",
+      "description": "Vereinbarter Liefer- oder Fertigstellungstermin, falls im Angebot genannt"
+    },
+    "korrekturschleifen": {
+      "type": "number",
+      "description": "Vereinbarte Korrekturschleifen je Leistungspaket f\u00fcr den ganzen Auftrag"
+    },
+    "mehrkosten_regel": {
+      "type": "string",
+      "description": "Wie Mehraufwand verrechnet wird, Wortlaut aus dem Angebot"
+    },
+    "nicht_enthalten": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ausdr\u00fccklich nicht enthaltene Leistungen"
+    },
+    "ab_pdf_url": {
+      "type": "string",
+      "description": "PDF-Kopie der Auftragsbest\u00e4tigung"
+    },
+    "umfang_geprueft_von": {
+      "type": "string",
+      "description": "Wer den Umfang im \u00dcbergabeblatt freigegeben hat"
+    },
+    "umfang_geprueft_am": {
+      "type": "string",
+      "format": "date-time"
     }
   },
   "required": [

@@ -50,6 +50,34 @@
     },
     "notes": {
       "type": "string"
+    },
+    "lieferumfang": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Einzelleistungen der Position im Wortlaut"
+    },
+    "korrekturschleifen": {
+      "type": "number",
+      "description": "Nur wenn f\u00fcr diese Position abweichend vom Auftragswert"
+    },
+    "leistungszeitraum": {
+      "type": "string",
+      "description": "Dauer bzw. Termin dieser Position, falls genannt"
+    },
+    "abrechnung": {
+      "type": "string",
+      "enum": [
+        "einmalig",
+        "monatlich",
+        "nach_aufwand"
+      ],
+      "default": "einmalig"
+    },
+    "optional_im_angebot": {
+      "type": "boolean",
+      "default": false
     }
   },
   "required": [
