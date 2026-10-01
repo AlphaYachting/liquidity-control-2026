@@ -1,18 +1,61 @@
 {
   "name": "TicketTemplate",
-  "type": "object",
   "properties": {
+    "art": {
+      "default": "einmalig",
+      "enum": [
+        "einmalig",
+        "routine"
+      ],
+      "type": "string"
+    },
+    "blocks_others": {
+      "default": false,
+      "description": "blockiert andere Aufgaben, wenn es liegen bleibt",
+      "type": "boolean"
+    },
+    "fenster_tage": {
+      "default": 0,
+      "description": "Arbeitstage nach der F\u00e4lligkeit, in denen die Aufgabe noch nicht als \u00fcberf\u00e4llig gilt",
+      "type": "number"
+    },
+    "milestone_state": {
+      "default": "produktion",
+      "description": "in welchem Milestone-Zustand dieses Ticket bearbeitet wird \u2014 bei Routinen immer produktion",
+      "enum": [
+        "input",
+        "produktion",
+        "pruefung",
+        "kundenfeedback"
+      ],
+      "type": "string"
+    },
     "module_template_id": {
       "type": "string"
+    },
+    "optional": {
+      "default": false,
+      "description": "bei der Projektanlage nicht vorausgew\u00e4hlt",
+      "type": "boolean"
     },
     "order": {
       "type": "number"
     },
-    "title": {
+    "rhythmus": {
+      "description": "nur bei art = routine",
+      "enum": [
+        "woechentlich",
+        "14taegig",
+        "monatlich",
+        "2monatlich",
+        "quartalsweise",
+        "halbjaehrlich",
+        "jaehrlich",
+        "manuell"
+      ],
       "type": "string"
     },
     "role": {
-      "type": "string",
       "enum": [
         "Beratung",
         "Konzept",
@@ -21,54 +64,14 @@
         "Web",
         "Media",
         "QS"
-      ]
+      ],
+      "type": "string"
     },
     "target_hours": {
       "type": "number"
     },
-    "milestone_state": {
-      "type": "string",
-      "enum": [
-        "input",
-        "produktion",
-        "pruefung",
-        "kundenfeedback"
-      ],
-      "default": "produktion",
-      "description": "in welchem Milestone-Zustand dieses Ticket bearbeitet wird \u2014 bei Routinen immer produktion"
-    },
-    "blocks_others": {
-      "type": "boolean",
-      "default": false,
-      "description": "blockiert andere Aufgaben, wenn es liegen bleibt"
-    },
-    "art": {
-      "type": "string",
-      "enum": [
-        "einmalig",
-        "routine"
-      ],
-      "default": "einmalig"
-    },
-    "rhythmus": {
-      "type": "string",
-      "enum": [
-        "woechentlich",
-        "14taegig",
-        "monatlich",
-        "manuell"
-      ],
-      "description": "nur bei art = routine"
-    },
-    "fenster_tage": {
-      "type": "number",
-      "default": 0,
-      "description": "Arbeitstage nach der F\u00e4lligkeit, in denen die Aufgabe noch nicht als \u00fcberf\u00e4llig gilt"
-    },
-    "optional": {
-      "type": "boolean",
-      "default": false,
-      "description": "bei der Projektanlage nicht vorausgew\u00e4hlt"
+    "title": {
+      "type": "string"
     }
   },
   "required": [
@@ -78,5 +81,6 @@
     "role",
     "target_hours",
     "milestone_state"
-  ]
+  ],
+  "type": "object"
 }
