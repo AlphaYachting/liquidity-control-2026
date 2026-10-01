@@ -1,45 +1,9 @@
 {
   "name": "Project",
-  "type": "object",
   "properties": {
-    "client_id": {
-      "type": "string"
-    },
-    "title": {
-      "type": "string"
-    },
-    "kuerzel": {
-      "type": "string",
-      "description": "Kurzform f\u00fcr die Erfassungszeile, 2 bis 5 Zeichen (z. B. ami, grz)"
-    },
-    "description": {
-      "type": "string",
-      "description": "Briefing / Umfang des Projekts im Klartext"
-    },
-    "target_hours": {
-      "type": "number",
-      "description": "Planstunden \u00fcber das gesamte Projekt (Referenzwert)"
-    },
-    "pm_email": {
-      "type": "string",
-      "format": "email",
-      "description": "verantwortlicher Projektmanager"
-    },
-    "status": {
-      "type": "string",
-      "enum": [
-        "aktiv",
-        "pausiert",
-        "abgeschlossen"
-      ],
-      "default": "aktiv"
-    },
-    "total_budget": {
-      "type": "number",
-      "description": "Netto in EUR \u00fcber alle Sprints"
-    },
     "abrechnungsmodell": {
-      "type": "string",
+      "default": "sprint",
+      "description": "tr\u00e4gt die Kategorie jeder Zeitbuchung",
       "enum": [
         "sprint",
         "support",
@@ -47,74 +11,177 @@
         "paket",
         "intern"
       ],
-      "default": "sprint",
-      "description": "tr\u00e4gt die Kategorie jeder Zeitbuchung"
+      "type": "string"
     },
     "aufwand_art": {
-      "type": "string",
+      "default": "support",
+      "description": "Support = dauerhaftes technisches Projekt je Kunde; Regie = Auftrag nach Aufwand auf Zuruf",
       "enum": [
         "support",
         "regie"
       ],
-      "default": "support",
-      "description": "Support = dauerhaftes technisches Projekt je Kunde; Regie = Auftrag nach Aufwand auf Zuruf"
+      "type": "string"
     },
-    "stundensatz": {
-      "type": "number",
-      "description": "nur relevant bei Abrechnung nach Aufwand"
+    "awork_altstand_berechnet_am": {
+      "description": "Zeitpunkt der letzten Berechnung des aWork-Altstands",
+      "format": "date-time",
+      "type": "string"
     },
-    "support_kontingent_stunden": {
-      "type": "number",
-      "description": "Monatskontingent (Retainer) bzw. Monatsrahmen (Support, Regie) in Stunden \u2013 leer = kein Rahmen"
+    "awork_altstand_stunden": {
+      "description": "In aWork gebuchte Stunden zwischen Laufzeitbeginn und Umstellungsstichtag \u2014 von aworkAltstandBerechnen geschrieben, nicht von Hand",
+      "type": "number"
+    },
+    "awork_project_id": {
+      "description": "Zuordnung zum aWork-Projekt f\u00fcr den aWork-Altstand",
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "description": {
+      "description": "Briefing / Umfang des Projekts im Klartext",
+      "type": "string"
+    },
+    "is_legacy": {
+      "default": false,
+      "description": "Altprojekt \u2014 l\u00e4uft nur weiter, erh\u00e4lt keine Automatismen",
+      "type": "boolean"
+    },
+    "kontingent_uebertrag_stunden": {
+      "default": 0,
+      "description": "Retainer: Anfangsstand der Periode in Stunden \u2014 normalerweise 0; positiv = Guthaben, negativ = \u00fcbernommenes Minus",
+      "type": "number"
+    },
+    "kuerzel": {
+      "description": "Kurzform f\u00fcr die Erfassungszeile, 2 bis 5 Zeichen (z. B. ami, grz)",
+      "type": "string"
+    },
+    "laufzeit_beginn": {
+      "description": "Retainer: Beginn der laufenden Vertragsperiode. Leer = Datum der Auftragsbest\u00e4tigung wird verwendet",
+      "format": "date",
+      "type": "string"
+    },
+    "laufzeit_beginn_quelle": {
+      "description": "Woher der Laufzeitbeginn stammt",
+      "enum": [
+        "ab",
+        "manuell"
+      ],
+      "type": "string"
+    },
+    "laufzeit_historie": {
+      "description": "Abgeschlossene Vorperioden des Retainers",
+      "items": {
+        "properties": {
+          "abgeschlossen_am": {
+            "type": "string"
+          },
+          "beginn": {
+            "type": "string"
+          },
+          "ende": {
+            "type": "string"
+          },
+          "gebucht": {
+            "type": "number"
+          },
+          "kontingent_monat": {
+            "type": "number"
+          },
+          "monate": {
+            "type": "number"
+          },
+          "saldo": {
+            "type": "number"
+          },
+          "uebertrag": {
+            "type": "number"
+          },
+          "verfuegbar": {
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "liquidity_project_id": {
+      "description": "Verkn\u00fcpftes Projekt-Cockpit (LiquidityProject.id). Auftrag, Anweisungen, Rechnungen, Abrechnungsplan und Kundenakt h\u00e4ngen dort.",
+      "type": "string"
+    },
+    "mindestbuchung_minuten": {
+      "description": "0 = keine Mindestbuchung",
+      "type": "number"
+    },
+    "pm_email": {
+      "description": "verantwortlicher Projektmanager",
+      "format": "email",
+      "type": "string"
+    },
+    "recurring_contract_id": {
+      "description": "optional verkn\u00fcpfter laufender Vertrag (RecurringContract) bei Containerkunden",
+      "type": "string"
+    },
+    "rundung_art": {
+      "default": "auf",
+      "enum": [
+        "auf",
+        "kaufmaennisch"
+      ],
+      "type": "string"
+    },
+    "rundung_basis": {
+      "default": "tag_projekt",
+      "description": "je Buchung oder je Tag und Projekt gerundet",
+      "enum": [
+        "buchung",
+        "tag_projekt"
+      ],
+      "type": "string"
     },
     "rundung_minuten": {
-      "type": "number",
+      "description": "Rundungsschritt der Verrechnung \u2014 0 = keine Rundung. Leer = Voreinstellung aus Setting",
       "enum": [
         0,
         15,
         30,
         60
       ],
-      "description": "Rundungsschritt der Verrechnung \u2014 0 = keine Rundung. Leer = Voreinstellung aus Setting"
+      "type": "number"
     },
-    "rundung_art": {
-      "type": "string",
+    "status": {
+      "default": "aktiv",
       "enum": [
-        "auf",
-        "kaufmaennisch"
+        "aktiv",
+        "pausiert",
+        "abgeschlossen"
       ],
-      "default": "auf"
+      "type": "string"
     },
-    "rundung_basis": {
-      "type": "string",
-      "enum": [
-        "buchung",
-        "tag_projekt"
-      ],
-      "default": "tag_projekt",
-      "description": "je Buchung oder je Tag und Projekt gerundet"
+    "stundensatz": {
+      "description": "nur relevant bei Abrechnung nach Aufwand",
+      "type": "number"
     },
-    "mindestbuchung_minuten": {
-      "type": "number",
-      "description": "0 = keine Mindestbuchung"
+    "support_kontingent_stunden": {
+      "description": "Monatskontingent (Retainer) bzw. Monatsrahmen (Support, Regie) in Stunden \u2013 leer = kein Rahmen",
+      "type": "number"
     },
-    "recurring_contract_id": {
-      "type": "string",
-      "description": "optional verkn\u00fcpfter laufender Vertrag (RecurringContract) bei Containerkunden"
+    "target_hours": {
+      "description": "Planstunden \u00fcber das gesamte Projekt (Referenzwert)",
+      "type": "number"
     },
-    "is_legacy": {
-      "type": "boolean",
-      "default": false,
-      "description": "Altprojekt \u2014 l\u00e4uft nur weiter, erh\u00e4lt keine Automatismen"
+    "title": {
+      "type": "string"
     },
-    "liquidity_project_id": {
-      "type": "string",
-      "description": "Verkn\u00fcpftes Projekt-Cockpit (LiquidityProject.id). Auftrag, Anweisungen, Rechnungen, Abrechnungsplan und Kundenakt h\u00e4ngen dort."
+    "total_budget": {
+      "description": "Netto in EUR \u00fcber alle Sprints",
+      "type": "number"
     }
   },
   "required": [
     "client_id",
     "title",
     "pm_email"
-  ]
+  ],
+  "type": "object"
 }
