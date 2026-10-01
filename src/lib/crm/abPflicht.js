@@ -19,6 +19,15 @@ export function computeAbPflicht({ deal, proposal, hasPreviousOrders }) {
     };
   }
 
+  if (deal?.quote_id) {
+    return {
+      required: true,
+      origin: 'email',
+      regie: false,
+      reason: 'E-Mail-Angebot vorhanden — Auftragsbestätigung immer nötig.',
+    };
+  }
+
   const neukunde = !hasPreviousOrders;
   if (value > AB_SCHWELLE || neukunde) {
     return {

@@ -27,7 +27,7 @@ export function matchModules(positions, modules) {
 
 // Der Kunde wird im Übergabeblatt ausdrücklich gewählt oder angelegt —
 // hier wird nie mehr geraten und kein Stummel-Client erzeugt.
-export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, positions, total, advancePercent, projectType, pm, abRequired, modules, contextText }) {
+export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, positions, total, advancePercent, projectType, pm, abRequired, modules, contextText, auftragUmfang = {} }) {
   if (!clientId) throw new Error('Kein verknüpfter Kunde übergeben');
   const today = new Date().toISOString().split('T')[0];
 
@@ -44,6 +44,7 @@ export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, 
     responsible_project_manager: pm,
     sevdesk_contact_id: sevdeskContactId || '',
     notes: `Projekttyp: ${projectType}`,
+    ...auftragUmfang,
   });
 
   if (positions.length > 0) {
@@ -54,13 +55,19 @@ export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, 
       unit_price: p.amount,
       quantity: 1,
       total_price: p.amount,
+      ...(p.description ? { description: p.description } : {}),
+      ...(p.lieferumfang ? { lieferumfang: p.lieferumfang } : {}),
+      ...(p.korrekturschleifen !== '' && p.korrekturschleifen != null ? { korrekturschleifen: Number(p.korrekturschleifen) } : {}),
+      ...(p.leistungszeitraum ? { leistungszeitraum: p.leistungszeitraum } : {}),
+      ...(p.abrechnung ? { abrechnung: p.abrechnung } : {}),
+      optional_im_angebot: Boolean(p.optional_im_angebot),
     })));
   }
 
   // Beleg in sevDesk: Angebot anlegen, daraus die Auftragsbestätigung erzeugen
   let sevdeskFehler = '';
   const belegPositionen = positions.length > 0
-    ? positions.map((p) => ({ name: p.name, amount: p.amount, quantity: 1 }))
+    ? positions.map((p) => ({ name: p.abrechnung === 'monatlich' ? `${p.name} (monatlich)` : p.name, amount: p.amount, quantity: 1 }))
     : [{ name: deal.title, amount: total, quantity: 1 }];
   const res = await base44.functions.invoke('createSevdeskAngebotUndAb', {
     sevdesk_contact_id: sevdeskContactId,

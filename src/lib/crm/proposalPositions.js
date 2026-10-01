@@ -1,11 +1,11 @@
-// Liest die Angebots-Module als Auftragspositionen aus dem angenommenen Angebot.
-// Reine Leseableitung, keine Nebenwirkungen.
+// Liest die Positionen und den Auftragsrahmen aus dem angenommenen Studio-Angebot.
+// Texte bleiben im Wortlaut des Angebots. Reine Leseableitung, keine Nebenwirkungen.
 
-const toAmount = (v) => {
+export const toAmount = (v) => {
   if (typeof v === 'number') return v;
   if (!v) return 0;
   const clean = String(v).replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(',', '.');
-  const n = Number(clean);
+  const n = parseFloat(clean);
   return Number.isFinite(n) ? n : 0;
 };
 
@@ -14,20 +14,62 @@ function readJson(raw) {
   try { return JSON.parse(raw); } catch { return null; }
 }
 
-// [{ name, amount, optional }]
-export function proposalPositions(proposal) {
+// "TT.MM.JJJJ" → "JJJJ-MM-TT"
+export const deDatumZuIso = (s) => {
+  const m = String(s || '').match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
+};
+
+const leer = (p) => ({ description: '', lieferumfang: [], korrekturschleifen: '', leistungszeitraum: '', abrechnung: 'einmalig', ...p });
+
+// [{ name, amount, description, lieferumfang, abrechnung, optional_im_angebot, ... }]
+export function proposalPositions(proposal, config) {
+  if (Array.isArray(config?.POSITIONS) && config.POSITIONS.length > 0) {
+    return config.POSITIONS.map((p) => leer({
+      name: p.title || 'Position',
+      amount: toAmount(p.price),
+      description: [p.goal, p.result ? `Ergebnis: ${p.result}` : ''].filter(Boolean).join('\n\n'),
+      lieferumfang: Array.isArray(p.items) ? p.items.filter(Boolean) : [],
+      abrechnung: /monat/i.test(p.price_suffix || '') ? 'monatlich' : 'einmalig',
+      optional_im_angebot: Boolean(p.optional),
+    }));
+  }
+  // Rückfallebene: alte, kleingeschriebene Schlüssel
   for (const raw of [proposal?.config_json, proposal?.mapping_json]) {
     const data = readJson(raw);
     const list = data?.positions || data?.packages || data?.module || data?.modules;
     if (Array.isArray(list) && list.length > 0) {
-      return list.map((p) => ({
+      return list.map((p) => leer({
         name: p.title || p.name || p.label || 'Position',
         amount: toAmount(p.price ?? p.amount ?? p.price_net ?? p.total_net),
-        optional: Boolean(p.optional),
+        optional_im_angebot: Boolean(p.optional),
       }));
     }
   }
   return [];
+}
+
+// Auftragsebene aus dem Studio-Angebot
+export function studioAuftrag(config) {
+  if (!config) return {};
+  const timeline = Array.isArray(config.TIMELINE)
+    ? config.TIMELINE.map((z) => (Array.isArray(z) ? `${z[0]}: ${z[1] || ''}` : String(z))).join('\n')
+    : '';
+  const nicht = [];
+  const scope = String(config.CLIENT_PROJECT_SCOPE || '');
+  const teil = scope.split(/NICHT(?:\s+IN)?:/i)[1];
+  if (teil) teil.split(/,(?![^(]*\))/).map((s) => s.trim().replace(/\.$/, '')).filter(Boolean).forEach((s) => nicht.push(s));
+  (config.CONVERSATION_EXCLUDED || []).forEach((z) => {
+    const s = Array.isArray(z) ? z[0] : z;
+    if (s && !nicht.includes(s)) nicht.push(s);
+  });
+  return {
+    leistungszeitraum: timeline,
+    liefertermin: deDatumZuIso(config.SPRINT_LIEFERTERMIN),
+    nicht_enthalten: nicht,
+    angebot_datum: deDatumZuIso(config.PROPOSAL_DATE),
+    summe: toAmount(config.TOTAL_NET),
+  };
 }
 
 // Arbeitsmodell des Katalogs auf die Übergabeblatt-Typen abbilden.

@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,14 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, ClipboardCheck } from 'lucide-react';
 import { PIPELINES } from '@/components/crm/stages';
 import { computeAbPflicht } from '@/lib/crm/abPflicht';
-import { proposalPositions, guessProjectType } from '@/lib/crm/proposalPositions';
-import { commitHandover } from '@/lib/crm/handoverCommit';
+import { guessProjectType } from '@/lib/crm/proposalPositions';
+import { bestimmeAngebot, startZustand, externesAngebot } from '@/lib/crm/angebotsUmfang';
+import { commitHandover, suggestModuleId } from '@/lib/crm/handoverCommit';
 import { threadTranscript } from '@/components/crm/support/threadDescription';
+import useUebergabeKontext from '@/hooks/useUebergabeKontext';
 import ClientLinkStep from '@/components/crm/handover/ClientLinkStep';
-import ManualPositionsEditor from '@/components/crm/handover/ManualPositionsEditor';
 import ExternesAngebotLeser from '@/components/crm/handover/ExternesAngebotLeser';
-import PositionModuleSelect, { NO_MODULE } from '@/components/crm/handover/PositionModuleSelect';
-import { suggestModuleId } from '@/lib/crm/handoverCommit';
+import VereinbarterUmfang from '@/components/crm/handover/VereinbarterUmfang';
+import AngebotsGrundlage from '@/components/crm/handover/AngebotsGrundlage';
+import BestehenderAuftrag from '@/components/crm/handover/BestehenderAuftrag';
+import { NO_MODULE } from '@/components/crm/handover/PositionModuleSelect';
 
 const eur = (v) => new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v || 0);
 
@@ -37,64 +39,70 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
   const [pm, setPm] = useState('');
   const [saving, setSaving] = useState(false);
   const [client, setClient] = useState(null);
-  const [manualRows, setManualRows] = useState([{ name: '', amount: '', module_choice: '' }]);
-  const [moduleChoices, setModuleChoices] = useState({});
   const [belegFehler, setBelegFehler] = useState(null);
+  const [angebot, setAngebot] = useState(null);
+  const [zustand, setZustand] = useState(null);
+  const [geprueft, setGeprueft] = useState(false);
   const kunde = deal.linked_customer_name || deal.company_name || '';
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['uebergabe-kontext', deal.id],
-    queryFn: async () => {
-      const [proposal, orders, team, modules] = await Promise.all([
-        deal.proposal_id ? base44.entities.CrmProposal.get(deal.proposal_id).catch(() => null) : Promise.resolve(null),
-        kunde ? base44.entities.ConfirmedOrder.filter({ customer: kunde }, '-created_date', 5) : Promise.resolve([]),
-        base44.entities.TeamMember.filter({ active: true }, 'name', 100),
-        base44.entities.ModuleTemplate.list('-created_date', 200),
-      ]);
-      return { proposal, hasPreviousOrders: (orders || []).length > 0, team: team || [], modules: modules || [] };
-    },
-  });
-
-  const studioPositions = useMemo(() => proposalPositions(data?.proposal), [data?.proposal]);
-  const manualMode = !isLoading && studioPositions.length === 0;
-
-  // Wurde das externe Angebot schon während der Lead-Bearbeitung angehängt,
-  // stehen seine Positionen hier sofort bereit.
-  useEffect(() => {
-    if (!manualMode || !deal.externes_angebot_json) return;
-    let gespeichert;
-    try { gespeichert = JSON.parse(deal.externes_angebot_json); } catch { return; }
-    const rows = (gespeichert?.positions || []).filter((p) => p?.name).map((p) => ({
-      name: p.name,
-      amount: p.amount ? String(p.amount) : '',
-      module_choice: suggestModuleId(p.name, data?.modules || []) || '',
-    }));
-    if (rows.length) setManualRows(rows);
-  }, [manualMode, deal.externes_angebot_json, data?.modules]); // eslint-disable-line react-hooks/exhaustive-deps
-  // von Hand erfasste Zeilen zählen erst, wenn Leistung, Betrag und Katalogmodul stehen
-  const manualPositions = useMemo(() => manualRows
-    .filter((r) => r.name.trim() && Number(r.amount) > 0 && r.module_choice)
-    .map((r) => ({ name: r.name.trim(), amount: Number(r.amount), module_template_id: r.module_choice === NO_MODULE ? '' : r.module_choice })),
-    [manualRows]);
-
-  // Studio-Positionen: Namensvorschlag, offene Zeilen verlangen eine ausdrückliche Wahl
+  const { data, isLoading } = useUebergabeKontext(deal, kunde);
   const modules = data?.modules || [];
-  const choiceFor = (p, i) => moduleChoices[i] ?? (suggestModuleId(p.name, modules) || '');
-  const studioReady = studioPositions.every((p, i) => Boolean(choiceFor(p, i)));
-  const studioMapped = studioPositions.map((p, i) => {
-    const choice = choiceFor(p, i);
-    return { ...p, module_template_id: choice === NO_MODULE ? '' : choice };
-  });
 
-  const positions = manualMode ? manualPositions : studioMapped;
-  const positionsTotal = positions.reduce((s, p) => s + (p.amount || 0), 0);
-  const total = positionsTotal > 0 ? positionsTotal : Number(deal.value_net) || 0;
+  const uebernehmen = (a) => {
+    const z = startZustand(a);
+    z.positionen = z.positionen.map((p) => ({ ...p, module_choice: suggestModuleId(p.name, modules) || '' }));
+    setAngebot(a);
+    setZustand(z);
+    setGeprueft(false);
+  };
+
+  useEffect(() => {
+    if (data && !angebot) uebernehmen(bestimmeAngebot({ deal, proposal: data.proposal, config: data.config, quote: data.quote }));
+  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const beauftragt = (zustand?.positionen || []).filter((p) => p.beauftragt);
+  const positions = beauftragt.filter((p) => p.name.trim()).map((p) => ({
+    ...p,
+    name: p.name.trim(),
+    amount: Number(p.amount) || 0,
+    lieferumfang: (p.lieferumfang || []).map((s) => s.trim()).filter(Boolean),
+    module_template_id: p.module_choice === NO_MODULE ? '' : p.module_choice,
+  }));
+  const summeVon = (art) => positions.filter((p) => p.abrechnung === art).reduce((s, p) => s + p.amount, 0);
+  const summen = { einmalig: summeVon('einmalig'), monatlich: summeVon('monatlich'), aufwand: summeVon('nach_aufwand') };
+  const total = summen.einmalig;
+  const summeAlle = positions.reduce((s, p) => s + p.amount, 0);
+  const alleAngehakt = (zustand?.positionen.length || 0) > 0 && beauftragt.length === zustand.positionen.length;
+  const abweichung = angebot?.summe > 0 && alleAngehakt && Math.abs(summeAlle - angebot.summe) > 1
+    ? { positionen: summeAlle, angebot: angebot.summe } : null;
+  const positionenOk = positions.length > 0 && positions.length === beauftragt.length
+    && positions.every((p) => p.description.trim() && p.module_choice);
+
   const ab = data ? computeAbPflicht({ deal, proposal: data.proposal, hasPreviousOrders: data.hasPreviousOrders }) : null;
   // Ohne AB-Pflicht läuft die Abrechnung auf Regie — dann auch keine Anzahlung
   const regie = ab ? ab.regie === true : false;
   const typ = projectType || (regie ? 'regie' : (data ? guessProjectType(data.proposal, positions, data.modules) : 'sprint'));
   const advancePercent = regie ? 0 : Number(advance) || 0;
   const advanceAmount = Math.round(advancePercent / 100 * total);
+
+  const auftragUmfang = async () => {
+    const a = zustand.auftrag;
+    const me = await base44.auth.me().catch(() => null);
+    return {
+      angebot_quelle: angebot.quelle,
+      ...(angebot.url ? { angebot_url: angebot.url } : {}),
+      ...(angebot.nummer ? { angebot_nummer: angebot.nummer } : {}),
+      ...(angebot.datum ? { angebot_datum: angebot.datum } : {}),
+      ...(a.leistungszeitraum.trim() ? { leistungszeitraum: a.leistungszeitraum.trim() } : {}),
+      ...(a.liefertermin ? { liefertermin: a.liefertermin } : {}),
+      ...(a.korrekturschleifen !== '' ? { korrekturschleifen: Number(a.korrekturschleifen) } : {}),
+      mehrkosten_regel: a.mehrkosten_regel.trim(),
+      nicht_enthalten: (a.nicht_enthalten || []).map((s) => s.trim()).filter(Boolean),
+      ...(a.zahlungsbedingungen ? { payment_terms: a.zahlungsbedingungen } : {}),
+      umfang_geprueft_von: me?.email || '',
+      umfang_geprueft_am: new Date().toISOString(),
+    };
+  };
 
   const freigeben = async () => {
     setSaving(true);
@@ -106,6 +114,7 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
       const { wizardState, sevdeskFehler } = await commitHandover({
         deal, kunde: client.name, clientId: client.id, sevdeskContactId: client.sevdesk_contact_id,
         positions, total,
+        auftragUmfang: await auftragUmfang(),
         advancePercent: advancePercent,
         projectType: typ,
         pm,
@@ -139,8 +148,12 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
     }
   };
 
+  if (data?.bestehenderAuftrag && !belegFehler) {
+    return <BestehenderAuftrag order={data.bestehenderAuftrag} deal={deal} onCancel={onCancel} />;
+  }
+
   return (
-    <div className="border-2 border-primary/30 rounded-xl bg-card p-4 space-y-4">
+    <div className="border rounded-lg bg-card p-4 space-y-4">
       <div className="flex items-center gap-2">
         <ClipboardCheck className="w-4 h-4 text-primary" />
         <h2 className="text-sm font-semibold">Übergabeblatt · Beauftragung</h2>
@@ -151,46 +164,27 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
         )}
       </div>
 
-      {isLoading ? (
+      {isLoading || !zustand ? (
         <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Angebot wird gelesen…</p>
       ) : (
         <>
+          <AngebotsGrundlage angebot={angebot} />
           <p className="text-xs text-muted-foreground">{ab?.reason}</p>
 
           <ClientLinkStep deal={deal} kunde={kunde} client={client} onClient={setClient} />
 
-          {manualMode && (
-            <ExternesAngebotLeser
-              deal={deal}
-              modules={data?.modules || []}
-              onRows={(rows) => setManualRows(rows.length ? rows : [{ name: '', amount: '', module_choice: '' }])}
-            />
+          {(angebot.quelle === 'extern_pdf' || angebot.quelle === 'manuell') && (
+            <ExternesAngebotLeser deal={deal} onGelesen={(json, url) => uebernehmen(externesAngebot(json, url))} />
           )}
 
-          <div className="rounded-lg border overflow-hidden">
-            <div className="px-3 py-2 bg-muted/50 border-b">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Auftragspositionen</p>
-            </div>
-            {manualMode ? (
-              <ManualPositionsEditor rows={manualRows} modules={data?.modules || []} onChange={setManualRows} />
-            ) : (
-              studioPositions.map((p, i) => (
-                <div key={i} className="px-3 py-2 flex items-center justify-between gap-3 border-b last:border-b-0">
-                  <span className="text-sm truncate flex-1">{p.name}{p.optional ? ' (optional)' : ''}</span>
-                  <PositionModuleSelect
-                    value={choiceFor(p, i)}
-                    modules={modules}
-                    onChange={(v) => setModuleChoices((prev) => ({ ...prev, [i]: v }))}
-                  />
-                  <span className="text-sm tabular-nums w-20 text-right">{eur(p.amount)}</span>
-                </div>
-              ))
-            )}
-            <div className="px-3 py-2 flex items-center justify-between bg-muted/30 border-t">
-              <span className="text-sm font-semibold">Projekthöhe netto</span>
-              <span className="text-sm font-bold tabular-nums">{eur(total)}</span>
-            </div>
-          </div>
+          <VereinbarterUmfang
+            zustand={zustand} onChange={setZustand} modules={modules} summen={summen}
+            abweichung={abweichung} geprueft={geprueft} onGeprueft={setGeprueft}
+            manuell={angebot.quelle === 'manuell' || angebot.quelle === 'extern_pdf'}
+          />
+          {beauftragt.length > 0 && !positionenOk && (
+            <p className="text-xs text-status-attention">Jede angehakte Position braucht Name, Beschreibung und Modulwahl.</p>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -246,9 +240,8 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
 
           <div className="flex justify-end gap-2 border-t pt-3">
             <Button variant="outline" onClick={onCancel}>Abbrechen</Button>
-            <Button onClick={freigeben} disabled={saving || !ab || !client?.sevdesk_contact_id || positions.length === 0 || (!manualMode && !studioReady)}>
+            <Button onClick={freigeben} disabled={saving || !!belegFehler || !ab || !client?.sevdesk_contact_id || !positionenOk || (abweichung && !geprueft)}>
               {saving ? 'Wird angelegt…' : 'Freigeben & anlegen'}
-
             </Button>
           </div>
         </>
