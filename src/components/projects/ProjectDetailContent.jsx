@@ -17,6 +17,7 @@ import { formatCurrency, getMonthLabel } from '@/lib/liquidityUtils';
 import AworkStatusBar from '@/components/awork/AworkStatusBar';
 import AworkProjectPicker from '@/components/awork/AworkProjectPicker';
 import AworkTaskLinker from '@/components/awork/AworkTaskLinker';
+import ZumProjektLink from '@/components/projekt/ZumProjektLink';
 import AworkSignalBadge from '@/components/awork/AworkSignalBadge';
 import { calculateBillingBlockStatus } from '@/lib/reconciliationUtils';
 import { calculateProjectFinancials } from '@/lib/projectFinancials';
@@ -348,6 +349,12 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         }}
         onDelete={() => setShowDeleteDialog(true)}
       />
+
+      {project.project_ref_id && (
+        <div className="border-t border-border/60 pt-3">
+          <ZumProjektLink projectRefId={project.project_ref_id} />
+        </div>
+      )}
 
       {!project.awork_project_id && primaryOrder?.awork_project_id && (
         <div className="border-t border-border/60 pt-3 flex items-center gap-2 text-xs text-muted-foreground">

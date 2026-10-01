@@ -9,12 +9,13 @@ import InvoicingTimeline from '@/components/projects/InvoicingTimeline';
 import BillingProgressBar from '@/components/projects/BillingProgressBar';
 import AbrechnungAnker from '@/components/sprint/abrechnung/AbrechnungAnker';
 import { formatCurrency } from '@/lib/liquidityUtils';
+import { finanzIdVon } from '@/lib/projekt/cockpitSicherstellen';
 
 // Abrechnung eines Projekts: Auftrag, Anweisungen, ausgestellte Rechnungen.
 // sevDesk bleibt Ausstellungssystem — hier wird nur angestoßen und abgeglichen.
 export default function AbrechnungSektion({ project, milestones = [], tickets = [] }) {
   const queryClient = useQueryClient();
-  const projectId = project?.id;
+  const projectId = finanzIdVon(project);
 
   const { data, isLoading } = useQuery({
     enabled: Boolean(projectId),
@@ -66,7 +67,7 @@ export default function AbrechnungSektion({ project, milestones = [], tickets = 
       <AbrechnungAnker project={project} milestones={milestones} tickets={tickets} />
 
       {orders.map((order) => (
-        <ConfirmedOrderPanel key={order.id} projectId={projectId} order={order} project={project} />
+        <ConfirmedOrderPanel key={order.id} projectId={projectId} order={order} project={{ ...project, id: projectId }} />
       ))}
       {orders.length > 0 && <OrderItemsView linkedOrders={orders} />}
 
@@ -84,7 +85,7 @@ export default function AbrechnungSektion({ project, milestones = [], tickets = 
           }}
           onDuplicate={async (instr) => {
             const { id, created_date, updated_date, created_by_id, ...rest } = instr;
-            await base44.entities.BillingInstruction.create({ ...rest, status: 'draft' });
+            await base44.entities.BillingInstruction.create({ ...rest, project_id: projectId, status: 'draft' });
             invalidate();
           }}
         />

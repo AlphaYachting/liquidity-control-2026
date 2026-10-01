@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import ZumProjektLink from '@/components/projekt/ZumProjektLink';
 import {
   ArrowLeft, ClipboardList, AlertTriangle, CheckCircle2, ExternalLink,
   FolderKanban, Link2, Info, Plus
@@ -482,6 +483,7 @@ export default function ConfirmedOrderDetail() {
                 </div>
               ) : (
                 <div className="text-center py-2">
+                  {order.project_id && <ZumProjektLink projectRefId={order.project_id} className="mb-2" />}
                   <p className="text-sm text-muted-foreground">Kein Projekt-Cockpit verknüpft</p>
                   <p className="text-xs text-muted-foreground mt-1">Verknüpfe diese AB mit einem internen Projekt über das Projekt-Cockpit.</p>
                 </div>

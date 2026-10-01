@@ -26,6 +26,7 @@ import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
 import { usePrefetchProjektKontext } from '@/lib/sprint/useProjektKontext';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import ModulHinzufuegenKnopf from '@/components/sprint/ModulHinzufuegenKnopf';
+import CockpitLeiste from '@/components/projekt/CockpitLeiste';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
 export default function SprintDetail() {
@@ -68,6 +69,7 @@ export default function SprintDetail() {
     customer: data?.client?.name,
     title: data?.project?.title,
     fallbackId: data?.sprint?.project_id,
+    liquidityProjectId: data?.project?.liquidity_project_id,
   });
 
   useMeldeZeitKontext({ project_id: data?.sprint?.project_id, quelle: 'sprint' });
@@ -115,6 +117,7 @@ export default function SprintDetail() {
         <BehaelterKopf project={project} client={client} tickets={tickets} timeEntries={timeEntries} members={members} vertrag={vertrag} />
       )}
       </div>
+      <CockpitLeiste project={project} client={client} istAdmin={me?.role === 'admin'} onSaved={refetch} />
 
       <Tabs defaultValue="uebersicht">
         <div className="flex items-center justify-between gap-3 border-b border-border">
