@@ -20,7 +20,8 @@ export default function MyDay() {
 
   const totalOpen =
     q.progressToCheck.length + q.riskProjects.length + q.openInstructions.length +
-    q.plansToReview.length + q.dunningDrafts.length + q.newDeals.length + q.escalations.length;
+    q.plansToReview.length + q.dunningDrafts.length + q.newDeals.length +
+    (q.escalationsLoading ? 0 : q.escalations.length);
 
   return (
     <div className="space-y-6">
@@ -98,6 +99,7 @@ export default function MyDay() {
           icon={Siren}
           tone="red"
           items={q.escalations}
+          loading={q.escalationsLoading}
           to="/crm/alerts"
           ctaLabel="Zu den Kommunikations-Alerts"
           renderItem={(t) => (
