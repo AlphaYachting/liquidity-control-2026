@@ -13,8 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 import { useUnlinkedOrdersCount } from '@/hooks/useUnlinkedOrdersCount';
 import { usePendingDunningCount } from '@/hooks/usePendingDunningCount';
-import { useCrmInboxCount } from '@/hooks/useCrmInboxCount';
-import { useEmailTriageCount } from '@/hooks/useEmailTriageCount';
+import { usePosteingang } from '@/hooks/usePosteingang';
 import { useEscalationAlertCount } from '@/hooks/useEscalationAlertCount';
 
 const navSections = [
@@ -107,8 +106,9 @@ export default function Sidebar() {
   }, []);
   const unlinkedCount = useUnlinkedOrdersCount({ enabled: zaehlerBereit });
   const pendingDunningCount = usePendingDunningCount({ enabled: zaehlerBereit });
-  const crmInbox = useCrmInboxCount({ enabled: zaehlerBereit });
-  const emailTriageCount = useEmailTriageCount({ enabled: zaehlerBereit });
+  // Ein Zähler für den einen Posteingang — dieselbe Quelle wie die Liste
+  const posteingang = usePosteingang({ enabled: zaehlerBereit });
+  const crmInbox = { total: posteingang.gesamt, overdue: posteingang.ueberfaellig };
   const escalationCount = useEscalationAlertCount({ enabled: zaehlerBereit });
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -128,8 +128,7 @@ export default function Sidebar() {
     const active = isActive(item.path);
     const badgeCount = item.path === '/confirmed-orders' ? unlinkedCount
       : item.path === '/receivables' ? pendingDunningCount
-      : item.path === '/crm/inbox' ? crmInbox.total
-      : item.path === '/crm/emails' ? emailTriageCount : 0;
+      : item.path === '/crm/inbox' ? crmInbox.total : 0;
     // roter Zähler = Kunden-Eskalationen, hat im eingeklappten Zustand Vorrang
     const alertCount = item.path === '/crm/escalations' ? escalationCount : 0;
     // überfällige Posteingangsanfragen färben den Zähler rot statt gelb
