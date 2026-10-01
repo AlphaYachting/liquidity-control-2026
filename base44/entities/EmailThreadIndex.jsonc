@@ -1,35 +1,44 @@
 {
   "name": "EmailThreadIndex",
-  "type": "object",
   "properties": {
-    "thread_id": {
-      "type": "string",
-      "description": "ID des Verlaufs in der zentralen E-Mail-Datenbank"
+    "category": {
+      "type": "string"
     },
-    "subject": {
+    "conversation_key": {
+      "description": "normalisierter Betreff + Gegenstelle \u2014 fasst Parallel-Verl\u00e4ufe derselben Konversation zusammen",
+      "type": "string"
+    },
+    "conversation_size": {
+      "default": 1,
+      "description": "Anzahl Verl\u00e4ufe in dieser Konversation",
+      "type": "number"
+    },
+    "crm_status": {
       "type": "string"
     },
     "customer": {
       "type": "string"
     },
-    "category": {
-      "type": "string"
+    "detail_loaded": {
+      "default": false,
+      "description": "Nachrichten des Verlaufs wurden gelesen (Richtung/Antwortstand belegt)",
+      "type": "boolean"
     },
-    "status": {
-      "type": "string"
-    },
-    "crm_status": {
+    "done_at": {
+      "description": "Zeitpunkt der letzten Erledigt-/Antwort-Aktion aus der App \u2014 gilt bis zur n\u00e4chsten Kundennachricht",
+      "format": "date-time",
       "type": "string"
     },
     "first_message_at": {
       "type": "string"
     },
-    "last_message_at": {
-      "type": "string"
+    "has_outbound": {
+      "default": false,
+      "type": "boolean"
     },
-    "message_count": {
-      "type": "number",
-      "default": 0
+    "indexed_at": {
+      "format": "date-time",
+      "type": "string"
     },
     "last_direction": {
       "type": "string"
@@ -40,41 +49,46 @@
     "last_from_name": {
       "type": "string"
     },
-    "last_to": {
-      "type": "string"
-    },
     "last_inbound_from": {
       "type": "string"
     },
-    "has_outbound": {
-      "type": "boolean",
-      "default": false
+    "last_message_at": {
+      "type": "string"
+    },
+    "last_to": {
+      "type": "string"
+    },
+    "message_count": {
+      "default": 0,
+      "type": "number"
     },
     "needs_reply": {
-      "type": "boolean",
       "default": false,
-      "description": "erf\u00fcllt die Triage-Kriterien \u2014 Basis der Arbeitsliste"
-    },
-    "detail_loaded": {
-      "type": "boolean",
-      "default": false,
-      "description": "Nachrichten des Verlaufs wurden gelesen (Richtung/Antwortstand belegt)"
-    },
-    "indexed_at": {
-      "type": "string",
-      "format": "date-time"
+      "description": "Konversation ist unbeantwortet \u2014 genau ein Verlauf je offener Konversation (der j\u00fcngste). Quelle des Posteingangs",
+      "type": "boolean"
     },
     "source": {
-      "type": "string",
+      "default": "fenster",
+      "description": "\u00fcber das laufende Zeitfenster oder den historischen Nachlauf erfasst",
       "enum": [
         "fenster",
         "nachlauf"
       ],
-      "default": "fenster",
-      "description": "\u00fcber das laufende Zeitfenster oder den historischen Nachlauf erfasst"
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "thread_id": {
+      "description": "ID des Verlaufs in der zentralen E-Mail-Datenbank",
+      "type": "string"
     }
   },
   "required": [
     "thread_id"
-  ]
+  ],
+  "type": "object"
 }
