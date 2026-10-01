@@ -10,6 +10,8 @@ import BillingProgressBar from '@/components/projects/BillingProgressBar';
 import AbrechnungAnker from '@/components/sprint/abrechnung/AbrechnungAnker';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { finanzIdVon } from '@/lib/projekt/cockpitSicherstellen';
+import RechnungenTabelle from '@/components/sprint/abrechnung/RechnungenTabelle';
+import { rechnungsStatus, nettoVorzeichen } from '@/lib/billing/rechnungsStatus';
 
 // Abrechnung eines Projekts: Auftrag, Anweisungen, ausgestellte Rechnungen.
 // sevDesk bleibt Ausstellungssystem — hier wird nur angestoßen und abgeglichen.
@@ -21,11 +23,15 @@ export default function AbrechnungSektion({ project, milestones = [], tickets = 
     enabled: Boolean(projectId),
     queryKey: ['projektAbrechnung', projectId],
     queryFn: async () => {
-      const [orders, instructions, invoices] = await Promise.all([
+      const [orders, instructions, perProjekt] = await Promise.all([
         base44.entities.ConfirmedOrder.filter({ project_id: projectId }, '-confirmation_date', 50),
         base44.entities.BillingInstruction.filter({ project_id: projectId }, '-created_date', 100),
         base44.entities.InvoiceRecord.filter({ project_id: projectId }, '-invoice_date', 200),
       ]);
+      const perAuftrag = orders.length
+        ? await base44.entities.InvoiceRecord.filter({ confirmed_order_id: { $in: orders.map((o) => o.id) } }, '-invoice_date', 200)
+        : [];
+      const invoices = [...new Map([...perProjekt, ...perAuftrag].map((i) => [i.id, i])).values()];
       return { orders, instructions, invoices };
     },
   });
@@ -37,9 +43,12 @@ export default function AbrechnungSektion({ project, milestones = [], tickets = 
 
   const { orders, instructions, invoices } = data;
   const auftragswert = orders.reduce((s, o) => s + (Number(o.total_net_amount) || 0), 0);
-  const verrechnet = invoices
-    .filter((i) => !i.is_credit_note)
-    .reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
+  const zaehlend = invoices.filter((i) => rechnungsStatus(i).zaehltAlsVerrechnet);
+  const verrechnet = zaehlend.reduce((s, i) => s + nettoVorzeichen(i), 0);
+  const bezahlt = zaehlend.filter((i) => !i.is_credit_note).reduce((s, i) => s + (Number(i.paid_amount) || 0), 0);
+  const ueberfaellig = zaehlend.filter((i) => rechnungsStatus(i).key === 'ueberfaellig').reduce((s, i) => s + (Number(i.open_amount) || 0), 0);
+  // Monatsleiste: nur zählende Rechnungen, Gutschriften negativ eingerechnet
+  const fuerLeiste = zaehlend.map((i) => ({ ...i, net_amount: nettoVorzeichen(i), is_credit_note: false }));
   const pct = auftragswert > 0 ? (verrechnet / auftragswert) * 100 : 0;
 
   if (orders.length === 0 && instructions.length === 0 && invoices.length === 0) {
@@ -61,6 +70,10 @@ export default function AbrechnungSektion({ project, milestones = [], tickets = 
             </span>
           </div>
           <BillingProgressBar billingPct={pct} performancePct={0} size="md" />
+          <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <span>davon bezahlt: {formatCurrency(bezahlt)} brutto</span>
+            {ueberfaellig > 0 && <span className="text-status-critical font-medium">überfällig: {formatCurrency(ueberfaellig)} brutto</span>}
+          </div>
         </div>
       )}
 
@@ -74,6 +87,7 @@ export default function AbrechnungSektion({ project, milestones = [], tickets = 
       {instructions.length > 0 && (
         <BillingInstructionList
           instructions={instructions}
+          invoices={invoices}
           projectBlocks={[]}
           onUpdate={async (id, patch) => {
             await base44.entities.BillingInstruction.update(id, patch);
@@ -91,7 +105,8 @@ export default function AbrechnungSektion({ project, milestones = [], tickets = 
         />
       )}
 
-      <InvoicingTimeline projectInvoices={invoices} />
+      <RechnungenTabelle invoices={invoices} />
+      <InvoicingTimeline projectInvoices={fuerLeiste} />
     </div>
   );
 }

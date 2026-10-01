@@ -13,6 +13,7 @@ import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import BillingInstructionEditDialog from './BillingInstructionEditDialog';
 import AdvanceInvoiceTask from './AdvanceInvoiceTask';
+import { rechnungsStatus, TON_KLASSEN } from '@/lib/billing/rechnungsStatus';
 
 const STATUS_CFG = {
   draft:                { label: 'Entwurf',                color: 'bg-gray-100 text-gray-600',     icon: CircleDot },
@@ -76,7 +77,7 @@ function AuditLine({ instr }) {
   );
 }
 
-export default function BillingInstructionList({ instructions, projectBlocks, onUpdate, onDelete, onDuplicate }) {
+export default function BillingInstructionList({ instructions, projectBlocks, onUpdate, onDelete, onDuplicate, invoices = [] }) {
   const [expandedId, setExpandedId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [creatingDraft, setCreatingDraft] = useState(null);
@@ -200,6 +201,13 @@ export default function BillingInstructionList({ instructions, projectBlocks, on
                   instr.status === 'blocked' ? 'text-red-500' : 'text-gray-400'
                 }`} />
                 <Badge className={`text-xs flex-shrink-0 ${sc.color}`}>{sc.label}</Badge>
+                {(() => {
+                  const rg = invoices.find((i) => (instr.linked_invoice_id && i.id === instr.linked_invoice_id)
+                    || (instr.sevdesk_invoice_id && String(i.sevdesk_id) === String(instr.sevdesk_invoice_id)));
+                  if (!rg) return null;
+                  const rs = rechnungsStatus(rg);
+                  return <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${TON_KLASSEN[rs.ton]}`}>· {rs.label}</span>;
+                })()}
               </div>
 
               {/* Info-Bereich */}
