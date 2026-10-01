@@ -1,25 +1,19 @@
 {
   "name": "EmailScanLedger",
-  "type": "object",
   "properties": {
-    "thread_id": {
+    "checked_at": {
+      "format": "date-time",
       "type": "string"
     },
-    "checked_at": {
-      "type": "string",
-      "format": "date-time"
+    "fail_count": {
+      "default": 0,
+      "description": "Fehlversuche \u2014 erst ab 3 wird der Thread dauerhaft \u00fcbersprungen",
+      "type": "number"
     },
-    "outcome": {
-      "type": "string",
-      "enum": [
-        "kein_geschaeft",
-        "betrieb",
-        "lead_verdacht",
-        "fehler"
-      ]
+    "inbox_item_id": {
+      "type": "string"
     },
     "inquiry_type": {
-      "type": "string",
       "enum": [
         "angebotsanfrage",
         "erweiterung_bestandskunde",
@@ -27,17 +21,26 @@
         "support_stoerung",
         "verwaltung",
         "kein_geschaeft"
-      ]
+      ],
+      "type": "string"
+    },
+    "message_count": {
+      "description": "Nachrichtenzahl des Verlaufs bei der Pr\u00fcfung \u2014 kommt eine neue hinzu, wird der Verlauf neu bewertet",
+      "type": "number"
+    },
+    "outcome": {
+      "enum": [
+        "kein_geschaeft",
+        "betrieb",
+        "lead_verdacht",
+        "fehler"
+      ],
+      "type": "string"
     },
     "reason": {
       "type": "string"
     },
-    "fail_count": {
-      "type": "number",
-      "default": 0,
-      "description": "Fehlversuche \u2014 erst ab 3 wird der Thread dauerhaft \u00fcbersprungen"
-    },
-    "inbox_item_id": {
+    "thread_id": {
       "type": "string"
     }
   },
@@ -45,5 +48,6 @@
     "thread_id",
     "checked_at",
     "outcome"
-  ]
+  ],
+  "type": "object"
 }
