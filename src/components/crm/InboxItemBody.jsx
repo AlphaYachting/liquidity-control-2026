@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp, MessagesSquare } from 'lucide-react';
 import EscalationThreadPreview from '@/components/crm/emails/EscalationThreadPreview';
+import { threadIdOf } from '@/components/crm/inboxDecision';
 
 // Inhalt einer Posteingangs-Anfrage: voller Anfragetext plus E-Mail-Verlauf,
 // damit der Fall ohne Wechsel in die E-Mail-Zentrale beurteilbar ist.
@@ -11,9 +12,8 @@ export default function InboxItemBody({ item }) {
 
   const body = (item.body || '').trim();
   const isLong = body.length > 320;
-  const threadId = String(item.email_message_id || '').startsWith('thread:')
-    ? item.email_message_id.slice(7)
-    : null;
+  // Neue Einträge tragen thread_id, ältere nur email_message_id "thread:<id>"
+  const threadId = threadIdOf(item);
 
   return (
     <div className="space-y-2">
@@ -38,7 +38,7 @@ export default function InboxItemBody({ item }) {
         )}
       </div>
 
-      {threadOpen && threadId && <EscalationThreadPreview threadId={threadId} limit={8} />}
+      {threadOpen && threadId && <EscalationThreadPreview threadId={threadId} start={8} />}
     </div>
   );
 }
