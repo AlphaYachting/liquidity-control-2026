@@ -29,8 +29,7 @@ export default function InboxScanSettings() {
     try {
       await base44.functions.invoke('analyseEingang', {});
       queryClient.invalidateQueries({ queryKey: ['inbox-scan-runs'] });
-      queryClient.invalidateQueries({ queryKey: ['crm-inbox'] });
-      queryClient.invalidateQueries({ queryKey: ['crm-inbox-badge'] });
+      queryClient.invalidateQueries({ queryKey: ['posteingang'] });
     } catch (e) {
       setError(e?.response?.data?.error || e?.message || 'Der Lauf ist fehlgeschlagen.');
     }
