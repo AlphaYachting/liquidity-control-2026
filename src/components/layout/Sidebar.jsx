@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, Megaphone, Shield, Wrench, Server,
@@ -98,11 +98,18 @@ export default function Sidebar() {
   const location = useLocation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const unlinkedCount = useUnlinkedOrdersCount();
-  const pendingDunningCount = usePendingDunningCount();
-  const crmInbox = useCrmInboxCount();
-  const emailTriageCount = useEmailTriageCount();
-  const escalationCount = useEscalationAlertCount();
+  // Die Zähler laden erst kurz nach dem Start: die geöffnete Seite bekommt den
+  // Server zuerst, statt ihn sich mit sechs Zählerabfragen zu teilen.
+  const [zaehlerBereit, setZaehlerBereit] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setZaehlerBereit(true), 4000);
+    return () => clearTimeout(t);
+  }, []);
+  const unlinkedCount = useUnlinkedOrdersCount({ enabled: zaehlerBereit });
+  const pendingDunningCount = usePendingDunningCount({ enabled: zaehlerBereit });
+  const crmInbox = useCrmInboxCount({ enabled: zaehlerBereit });
+  const emailTriageCount = useEmailTriageCount({ enabled: zaehlerBereit });
+  const escalationCount = useEscalationAlertCount({ enabled: zaehlerBereit });
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
