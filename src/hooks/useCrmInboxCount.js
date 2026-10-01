@@ -4,11 +4,12 @@ import { base44 } from '@/api/base44Client';
 // Ab wann eine unbearbeitete Anfrage als überfällig gilt
 const OVERDUE_HOURS = 48;
 
-export function useCrmInboxCount() {
+export function useCrmInboxCount({ enabled = true } = {}) {
   const { data = [] } = useQuery({
     queryKey: ['crm-inbox-badge'],
     queryFn: () => base44.entities.CrmInboxItem.filter({ status: 'new' }, '-created_date', 100),
     refetchInterval: 60000,
+    enabled,
   });
 
   const grenze = Date.now() - OVERDUE_HOURS * 3600 * 1000;
