@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Phone, Mail, PenLine, UserPlus, MailCheck, Link2, LifeBuoy, Sparkles, ChevronDown, Check, Archive } from 'lucide-react';
+import { Phone, Mail, PenLine, UserPlus, MailCheck, Link2, LifeBuoy, Sparkles, ChevronDown, Check, Archive, Siren, Clock } from 'lucide-react';
+import { wartezeitText } from '@/components/crm/inboxZeit';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
@@ -24,14 +25,15 @@ const KORREKTUREN = [
 
 const domain = (x) => String(x || '').split('@')[1] || '';
 
-export default function InboxItemCard({ item, offen, onOeffnen, onConvert, onAssign, onSupportTicket, onChanged }) {
+export default function InboxItemCard({ item, eintrag, offen, onOeffnen, onConvert, onAssign, onSupportTicket, onChanged }) {
   const act = item.suggested_action || (item.track === 'support' ? 'supportticket' : 'anfrage');
   const Icon = SOURCE_ICON[item.source] || PenLine;
   const stark = item.lead_strength === 'stark';
-  const tageOffen = Math.floor(
-    (Date.now() - new Date(item.received_at || item.created_date).getTime()) / 86400000,
-  );
+  // Im Posteingang zählt die jüngste Kundennachricht der Konversation, nicht die erste Anfrage
+  const eingang = eintrag?.eingang || new Date(item.received_at || item.created_date).getTime();
+  const tageOffen = Math.floor((Date.now() - eingang) / 86400000);
   const ueberfaellig = tageOffen >= 2;
+  const zeit = eintrag ? wartezeitText(eintrag) : null;
   const [dismissOpen, setDismissOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const { toast } = useToast();
@@ -71,7 +73,7 @@ export default function InboxItemCard({ item, offen, onOeffnen, onConvert, onAss
   const knopf = (ziel) => (act === ziel ? 'default' : 'outline');
 
   return (
-    <div className={cn(ueberfaellig && TON_STREIFEN.critical)}>
+    <div className={cn(eintrag?.eskalation ? TON_STREIFEN.critical : ueberfaellig && TON_STREIFEN.critical)}>
       <div
         role="button"
         tabIndex={0}
@@ -85,7 +87,10 @@ export default function InboxItemCard({ item, offen, onOeffnen, onConvert, onAss
         </span>
 
         <div className="min-w-0">
-          <p className="text-object text-foreground truncate">{item.subject || 'Anfrage ohne Betreff'}</p>
+          <p className="text-object text-foreground truncate">
+            {eintrag?.eskalation && <Siren className="inline w-3.5 h-3.5 mr-1 -mt-0.5 text-status-critical" />}
+            {item.subject || 'Anfrage ohne Betreff'}
+          </p>
           <p className="text-label uppercase text-muted-foreground truncate">
             {[item.sender_name, item.matched_customer_name || domain(item.sender_email), item.sender_phone]
               .filter(Boolean).join(' · ') || 'Unbekannter Absender'}
@@ -109,9 +114,13 @@ export default function InboxItemCard({ item, offen, onOeffnen, onConvert, onAss
 
         <div className="text-right">
           <p className="text-meta text-muted-foreground">
-            {new Date(item.received_at || item.created_date).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+            {new Date(eingang).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
           </p>
-          {ueberfaellig ? (
+          {zeit ? (
+            <p className={cn('text-meta', zeit.ton === 'critical' ? 'font-semibold text-status-critical' : 'text-muted-foreground')}>
+              {!eintrag.sichtbar && <Clock className="inline w-3 h-3 mr-1 -mt-0.5" />}{zeit.text}
+            </p>
+          ) : ueberfaellig ? (
             <p className="text-meta font-semibold text-status-critical">{tageOffen} Tage unbeantwortet</p>
           ) : (
             <p className="text-meta text-muted-foreground">{tageOffen === 1 ? 'seit 1 Tag' : 'heute'}</p>
