@@ -13,6 +13,7 @@ import { PIPELINES, eur, isClosedStage } from '@/components/crm/stages';
 import { angebotStille } from '@/lib/crm/angebotStille';
 import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
+import { usePosteingang } from '@/hooks/usePosteingang';
 
 export default function CrmBoard() {
   const navigate = useNavigate();
@@ -32,10 +33,7 @@ export default function CrmBoard() {
     queryKey: ['crm-activities-all'],
     queryFn: () => base44.entities.CrmActivity.list('-activity_date', 1000),
   });
-  const { data: inboxItems = [] } = useQuery({
-    queryKey: ['crm-inbox-count'],
-    queryFn: () => base44.entities.CrmInboxItem.filter({ status: 'new' }, '-created_date', 100),
-  });
+  const { gesamt: posteingangOffen } = usePosteingang();
 
   const stilleTage = (deal) => angebotStille(deal, allActivities.filter((a) => a.deal_id === deal.id))?.tage || 0;
 
@@ -85,9 +83,9 @@ export default function CrmBoard() {
             <Button variant="outline" className="gap-2 relative" asChild>
               <Link to="/crm/inbox">
                 <Inbox className="w-4 h-4" /> Posteingang
-                {inboxItems.length > 0 && (
+                {posteingangOffen > 0 && (
                   <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[11px] font-semibold flex items-center justify-center">
-                    {inboxItems.length}
+                    {posteingangOffen}
                   </span>
                 )}
               </Link>
