@@ -9,6 +9,11 @@ export async function finishHandoff(handoff, project, cockpit) {
 
   await base44.entities.ConfirmedOrder.update(handoff.confirmed_order_id, { project_id: finanzId });
 
+  const projektPatch = {};
+  if (!project.description && handoff.umfang_text) projektPatch.description = handoff.umfang_text;
+  if (!Number(project.total_budget) && Number(handoff.total_net)) projektPatch.total_budget = Number(handoff.total_net);
+  if (Object.keys(projektPatch).length) await base44.entities.Project.update(project.id, projektPatch);
+
   if (cockpit) {
     const order = await base44.entities.ConfirmedOrder.get(handoff.confirmed_order_id).catch(() => null);
     const patch = {};
@@ -45,6 +50,18 @@ export async function finishHandoff(handoff, project, cockpit) {
       entry_type: 'update',
       title: 'Kontext aus der Anfrage',
       content: handoff.context_text,
+      entry_date: new Date().toISOString(),
+    });
+  }
+
+  if (handoff.umfang_text) {
+    const nr = handoff.angebot_nummer || '';
+    await base44.entities.ProjectFileEntry.create({
+      project_id: finanzId,
+      entry_type: 'vereinbarung',
+      title: `Auftragsumfang laut Angebot${nr ? ` ${nr}` : ''}`,
+      content: handoff.umfang_text,
+      ...(handoff.angebot_url ? { file_url: handoff.angebot_url, file_name: `Angebot${nr ? ` ${nr}` : ''}.pdf` } : {}),
       entry_date: new Date().toISOString(),
     });
   }

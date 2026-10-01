@@ -115,6 +115,8 @@ export default function UebergabeblattSection({ deal, onDone, onCancel }) {
         deal, kunde: client.name, clientId: client.id, sevdeskContactId: client.sevdesk_contact_id,
         positions, total,
         auftragUmfang: await auftragUmfang(),
+        client,
+        emailQuote: data?.quote,
         advancePercent: advancePercent,
         projectType: typ,
         pm,

@@ -27,6 +27,10 @@ export default async function (req) {
     const taxRate = Number(body.vat_rate ?? 20);
     const today = new Date().toISOString().split('T')[0];
 
+    // Bestehendes sevDesk-Angebot: kein neues Angebot anlegen, AB direkt daraus erzeugen
+    let quoteId = String(body.quote_id || '').trim();
+    let quoteNumber = String(body.quote_number || '');
+    if (!quoteId) {
     const angebotBody = {
       order: {
         objectName: 'Order',
@@ -70,7 +74,8 @@ export default async function (req) {
       return Response.json({ success: false, error: `Angebot ${angebotRes.status}: ${angebotText.slice(0, 300)}` });
     }
     const angebot = JSON.parse(angebotText)?.objects?.order || JSON.parse(angebotText)?.objects;
-    const quoteId = String(angebot?.id || '');
+    quoteId = String(angebot?.id || '');
+    quoteNumber = angebot?.orderNumber || '';
     if (!quoteId) return Response.json({ success: false, error: 'sevDesk hat keine Angebots-ID geliefert' });
 
     // sevDesk übernimmt Anschrift und Positionsbeschreibungen beim Anlegen nicht — gezielt nachtragen
@@ -98,9 +103,10 @@ export default async function (req) {
       return Response.json({
         success: true,
         quote_id: quoteId,
-        quote_number: angebot?.orderNumber || '',
+        quote_number: quoteNumber,
         quote_url: `https://my.sevdesk.de/#/om/edit/type/AN/id/${quoteId}`,
       });
+    }
     }
 
     // Auftragsbestätigung aus dem Angebot
@@ -113,7 +119,7 @@ export default async function (req) {
       return Response.json({
         success: false,
         quote_id: quoteId,
-        quote_number: angebot?.orderNumber || '',
+        quote_number: quoteNumber,
         error: `Auftragsbestätigung ${abRes.status}: ${abText.slice(0, 300)}`,
       });
     }
@@ -123,7 +129,7 @@ export default async function (req) {
     return Response.json({
       success: true,
       quote_id: quoteId,
-      quote_number: angebot?.orderNumber || '',
+      quote_number: quoteNumber,
       order_id: orderId,
       order_number: ab?.orderNumber || '',
       order_url: orderId ? `https://my.sevdesk.de/#/om/edit/type/AB/id/${orderId}` : '',

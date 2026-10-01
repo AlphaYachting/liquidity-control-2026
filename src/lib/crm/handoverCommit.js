@@ -1,4 +1,5 @@
 import { base44 } from '@/api/base44Client';
+import { positionsText, abKopfText, umfangText, kundenAdresse, gleichWieAngebot } from '@/lib/crm/umfangTexte';
 
 // Legt aus dem Übergabeblatt den Auftrag samt Positionen an und baut den
 // Startkeim für den Anlage-Wizard. Wird ausschließlich bei „Freigeben & anlegen" gerufen.
@@ -27,9 +28,11 @@ export function matchModules(positions, modules) {
 
 // Der Kunde wird im Übergabeblatt ausdrücklich gewählt oder angelegt —
 // hier wird nie mehr geraten und kein Stummel-Client erzeugt.
-export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, positions, total, advancePercent, projectType, pm, abRequired, modules, contextText, auftragUmfang = {} }) {
+export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, positions, total, advancePercent, projectType, pm, abRequired, modules, contextText, auftragUmfang = {}, client = null, emailQuote = null }) {
   if (!clientId) throw new Error('Kein verknüpfter Kunde übergeben');
   const today = new Date().toISOString().split('T')[0];
+  const regie = projectType === 'regie';
+  const anzahlung = Number(advancePercent) || 0;
 
   const order = await base44.entities.ConfirmedOrder.create({
     customer: kunde || deal.title,
@@ -45,6 +48,9 @@ export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, 
     sevdesk_contact_id: sevdeskContactId || '',
     notes: `Projekttyp: ${projectType}`,
     ...auftragUmfang,
+    vat_rate: 20,
+    total_gross_amount: Math.round(total * 1.2 * 100) / 100,
+    payment_terms: regie || !anzahlung ? '' : `Anzahlung ${anzahlung} % bei Beauftragung`,
   });
 
   if (positions.length > 0) {
@@ -67,9 +73,17 @@ export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, 
   // Beleg in sevDesk: Angebot anlegen, daraus die Auftragsbestätigung erzeugen
   let sevdeskFehler = '';
   const belegPositionen = positions.length > 0
-    ? positions.map((p) => ({ name: p.abrechnung === 'monatlich' ? `${p.name} (monatlich)` : p.name, amount: p.amount, quantity: 1 }))
+    ? positions.map((p) => ({
+      name: p.abrechnung === 'monatlich' ? `${p.name} (monatlich)` : p.name,
+      amount: p.amount, quantity: 1,
+      text: positionsText(p, auftragUmfang),
+    }))
     : [{ name: deal.title, amount: total, quantity: 1 }];
+  const bestehendesAngebot = emailQuote?.sevdesk_quote_id && gleichWieAngebot(positions, emailQuote);
   const res = await base44.functions.invoke('createSevdeskAngebotUndAb', {
+    head_text: abKopfText(auftragUmfang),
+    address: kundenAdresse(client),
+    ...(bestehendesAngebot ? { quote_id: emailQuote.sevdesk_quote_id, quote_number: emailQuote.sevdesk_quote_number || '' } : {}),
     sevdesk_contact_id: sevdeskContactId,
     header: `Angebot ${deal.title}`,
     positions: belegPositionen,
@@ -115,6 +129,9 @@ export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, 
         pm,
         context_text: contextText || '',
         email_thread_id: deal.email_thread_id || '',
+        umfang_text: umfangText(positions, auftragUmfang),
+        angebot_url: auftragUmfang.angebot_url || '',
+        angebot_nummer: auftragUmfang.angebot_nummer || '',
       },
     },
   };
