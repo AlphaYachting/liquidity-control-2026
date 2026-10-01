@@ -41,9 +41,11 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
       return (
         <>
           <KontingentFeld label={`Kontingent ${mName}`} gebucht={gebucht} kontingent={project?.support_kontingent_stunden} />
-          {(laufzeit || !kontext) && (
-            <LaufzeitSaldoFeld laufzeit={laufzeit} loading={!kontext} />
-          )}
+          <LaufzeitSaldoFeld
+            laufzeit={laufzeit}
+            loading={!kontext}
+            fehlgrund={!(Number(project?.support_kontingent_stunden) > 0) ? 'Monatskontingent fehlt' : 'Saldo nicht verfügbar'}
+          />
           <KennzahlFeld
             label="Routinen"
             value={`${faellig} fällig · ${ueber} überfällig`}

@@ -28,9 +28,12 @@ function buildTooltip(lz) {
   return lines.join('\n');
 }
 
-export default function LaufzeitSaldoFeld({ laufzeit, loading }) {
-  if (loading || !laufzeit) {
+export default function LaufzeitSaldoFeld({ laufzeit, loading, fehlgrund }) {
+  if (loading) {
     return <KennzahlFeld label="Saldo Laufzeit" value="…" />;
+  }
+  if (!laufzeit) {
+    return <KennzahlFeld label="Saldo Laufzeit" value="—" hint={fehlgrund} hintColor={STATUS_COLORS.attention} />;
   }
 
   const {
