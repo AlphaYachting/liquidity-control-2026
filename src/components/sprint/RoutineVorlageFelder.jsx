@@ -7,6 +7,10 @@ export const RHYTHMEN = [
   { value: 'woechentlich', label: 'wöchentlich' },
   { value: '14taegig', label: 'alle 14 Tage' },
   { value: 'monatlich', label: 'monatlich' },
+  { value: '2monatlich', label: 'alle 2 Monate' },
+  { value: 'quartalsweise', label: 'quartalsweise' },
+  { value: 'halbjaehrlich', label: 'halbjährlich' },
+  { value: 'jaehrlich', label: 'jährlich' },
   { value: 'manuell', label: 'manuell' },
 ];
 
