@@ -202,10 +202,12 @@ export default async function (req) {
       stats.konversationen = await recomputeWindow(svc, body.window_days ?? 45);
     } catch (e) { stats.fehler.push(`Konversationen: ${e.message}`); }
 
-    await svc.entities.EmailIndexState.update(state.id, {
-      max_thread_id: maxThreadId,
-      last_window_run_at: new Date().toISOString(),
-    });
+    try {
+      await svc.entities.EmailIndexState.update(state.id, {
+        max_thread_id: maxThreadId,
+        last_window_run_at: new Date().toISOString(),
+      });
+    } catch (e) { stats.fehler.push(`Status: ${e.message}`); }
 
     if (stats.fehler.length) {
       console.error(`syncEmailThreadIndex: ${stats.fehler.length} Fehler in diesem Lauf`);
