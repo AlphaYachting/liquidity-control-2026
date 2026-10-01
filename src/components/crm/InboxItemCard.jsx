@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Phone, Mail, PenLine, UserPlus, MailCheck, Link2, LifeBuoy, Sparkles, ChevronDown, Check, Archive, Siren, Clock } from 'lucide-react';
 import { wartezeitText } from '@/components/crm/inboxZeit';
+import { KLASSE_LABEL } from '@/lib/crm/posteingang';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
@@ -38,7 +39,8 @@ export default function InboxItemCard({ item, eintrag, offen, onOeffnen, onConve
   const [busy, setBusy] = useState(false);
   const { toast } = useToast();
 
-  const einordnung = suggestionMeta(item)?.label;
+  // Im Posteingang gilt die Einordnung der letzten Kundennachricht (Arbeitsbereich)
+  const einordnung = (eintrag && KLASSE_LABEL[eintrag.klasse]) || suggestionMeta(item)?.label;
   const signale = (item.buying_signals || []).map(parseSignal);
 
   // Zweite Zeile der KI-Spalte — in einem Satz, was die KI erkannt hat
