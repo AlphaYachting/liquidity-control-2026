@@ -13,6 +13,8 @@ import { resolveRecipient } from '../../shared/mailRecipient.js';
 
 const CATEGORIES = ['abnahme_freigabe', 'rechnung_zahlung', 'reklamation', 'anforderung_change', 'terminabstimmung', 'rueckfrage_antwort', 'sonstiges'];
 const STATUSES = ['offen', 'beantwortet', 'erledigt', 'wartet_auf_kunde'];
+// Arbeitsbereich der letzten Kundennachricht — steuert die Filter im Posteingang
+const ANLIEGEN = ['web_support', 'neue_anfrage', 'kundenanliegen', 'verwaltung', 'kein_geschaeft'];
 
 const toMs = (s) => {
   if (!s) return 0;
@@ -77,6 +79,24 @@ Deno.serve(async (req) => {
     stats.threads_new = threads.filter((t) => !lastCheck.has(String(t.id))).length;
     stats.nachbewertet = threads.length - stats.threads_new;
 
+    // Nachtrag: offene Konversationen im Posteingang ohne Anliegen-Einordnung werden
+    // mit eigenem, kleinem Budget je Lauf nachbewertet (einmaliger Nachlauf).
+    const maxNachtrag = payload.max_nachtrag ?? 15;
+    let nachtrag: any[] = [];
+    if (maxNachtrag > 0) {
+      try {
+        const grenze = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 19).replace('T', ' ');
+        const offen = await db.EmailThreadIndex.filter({ needs_reply: true, last_message_at: { $gte: grenze } }, '-last_message_at', 300);
+        const schon = new Set(threads.map((t) => String(t.id)));
+        nachtrag = offen
+          .filter((r) => !r.anliegen && !schon.has(String(r.thread_id)))
+          .slice(0, maxNachtrag)
+          .map((r) => ({ id: Number(r.thread_id), subject: r.subject, message_count: r.message_count, last_message_at: r.last_message_at, _nachtrag: true }));
+        nachtrag.forEach((t) => msgCount.set(String(t.id), Number(t.message_count) || 0));
+      } catch (e) { stats.errors.push(`Nachtrag: ${e.message}`); }
+    }
+    (stats as any).nachtrag = nachtrag.length;
+
     const projects = await db.LiquidityProject.list('-updated_date', 500);
     const customers = [...new Set(projects.map((p) => p.customer).filter(Boolean))];
     const allDeals = await db.CrmDeal.list('-updated_date', 500);
@@ -116,9 +136,10 @@ Deno.serve(async (req) => {
       });
     };
 
-    for (const t of threads) {
+    for (const t of [...threads, ...nachtrag]) {
       // Threads über dem Limit NICHT als geprüft vermerken — sie kommen im nächsten Lauf dran
-      if (stats.llm_calls >= maxLlm) { stats.skipped_limit++; continue; }
+      if (!t._nachtrag && stats.llm_calls >= maxLlm) { stats.skipped_limit++; continue; }
+      if (t._nachtrag && stats.llm_calls >= maxLlm + maxNachtrag) { stats.skipped_limit++; continue; }
       try {
         const detail = await emailDbGet('thread', { id: t.id, msgs: 10, full: 1 });
         const msgs = detail.messages || [];
@@ -198,6 +219,14 @@ request_nature: Art des Anliegens, genau eine, IMMER mit wörtlicher Textstelle 
   sonstiges — trifft nichts davon
 Hinweis: Änderung an etwas, das der Kunde schon von uns hat = aenderung_bestehend. Ein neues, eigenständiges Vorhaben = neue_leistung.
 
+TEIL 3 — ARBEITSBEREICH (anliegen) der LETZTEN Kundennachricht, genau einer, IMMER mit wörtlicher Textstelle als Beleg (anliegen_evidence):
+  web_support — technische Unterstützung an Website, Webshop, Hosting, Domain, E-Mail-Postfach, CMS/WordPress, Plugins, Formularen, Tracking, Produktfeeds oder Schnittstellen: einen Fehler beheben ODER Inhalte/Funktionen an einer bestehenden Web-Anwendung ändern oder einpflegen
+  neue_anfrage — neues Projekt oder neue Leistung, Angebots- oder Preisanfrage, Interessent oder Neukunde
+  kundenanliegen — alles andere von Kunden: Abstimmung laufender Projekte, Feedback und Freigaben, Druck/Grafik/Nachdruck, Termine, Rückfragen, Rechnungs- und Zahlungsfragen des Kunden
+  verwaltung — Lieferanten, Dienstleister, Steuerberatung, Bank, Behörden, Anwälte, Rechnungen oder Mahnungen an uns
+  kein_geschaeft — Spam, Werbung, Kaltakquise, Newsletter, System-Mails
+Druck, Grafik und Broschüren sind NIE web_support, auch wenn es um eine Änderung geht.
+
 Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
           response_json_schema: {
             type: 'object',
@@ -212,6 +241,8 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
               inquiry_type: { type: 'string', enum: INQUIRY_TYPES },
               request_nature: { type: 'string', enum: REQUEST_NATURES },
               request_nature_evidence: { type: 'string', description: 'wörtliche Textstelle als Beleg' },
+              anliegen: { type: 'string', enum: ANLIEGEN },
+              anliegen_evidence: { type: 'string', description: 'wörtliche Textstelle als Beleg' },
               buying_signals: {
                 type: 'array',
                 items: {
@@ -300,16 +331,33 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
         if (suggested === 'supportticket') stats.support_faelle++;
         if (suggested === 'anfrage') stats.lead_verdacht++;
 
+        // Arbeitsbereich in den Verlaufs-Index — Quelle der Filter im Posteingang
+        try {
+          const anliegen = ANLIEGEN.includes(r.anliegen) ? r.anliegen
+            : r.inquiry_type === 'kein_geschaeft' ? 'kein_geschaeft'
+            : r.inquiry_type === 'verwaltung' ? 'verwaltung'
+            : requestNature === 'neue_leistung' ? 'neue_anfrage' : 'kundenanliegen';
+          const zeile = (await db.EmailThreadIndex.filter({ thread_id: String(t.id) }, '-indexed_at', 1))[0];
+          if (zeile) {
+            await db.EmailThreadIndex.update(zeile.id, {
+              anliegen,
+              anliegen_beleg: String(r.anliegen_evidence || '').slice(0, 300),
+            });
+          }
+        } catch (e) {
+          stats.errors.push(`Anliegen Thread ${t.id}: ${e.message}`);
+        }
+
         const contactEmail = String(r.contact_email || (isFormMail ? '' : firstIn.from) || '').trim();
         const bodyText = (firstIn.text || '').slice(0, 5000);
 
         // Ziel 2: Jede triage-relevante Mail landet im Posteingang — die
         // Vorklassifizierung ist eine Empfehlung, entschieden wird dort.
         // Bei einer Nachbewertung kein zweiter Eintrag für denselben Verlauf.
-        const vorhanden = suggested !== 'kein_lead'
+        const vorhanden = suggested !== 'kein_lead' && !t._nachtrag
           ? (await db.CrmInboxItem.filter({ thread_id: String(t.id) }, '-created_date', 1))[0]
           : null;
-        if (suggested !== 'kein_lead' && !vorhanden) {
+        if (suggested !== 'kein_lead' && !t._nachtrag && !vorhanden) {
           await db.CrmInboxItem.create({
             source: 'email',
             sender_name: r.contact_name || firstIn.from_name || '',
@@ -343,7 +391,7 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
           contactEmail, senderDomain: domainOf(contactEmail),
           companyName: r.company_name || customerName,
         });
-        if (isFormMail && contactEmail && !duplicate) {
+        if (isFormMail && contactEmail && !duplicate && !t._nachtrag) {
           const deal = await db.CrmDeal.create({
             pipeline: isKnownCustomer ? 'existing_customer' : 'new_business',
             stage: isKnownCustomer ? 'inquiry_received' : 'new_lead',
