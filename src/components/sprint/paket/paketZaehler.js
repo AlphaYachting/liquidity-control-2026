@@ -1,4 +1,4 @@
-export const RHYTHMUS_LABEL = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', manuell: 'manuell' };
+export const RHYTHMUS_LABEL = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', '2monatlich': 'alle 2 Monate', quartalsweise: 'quartalsweise', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich', manuell: 'manuell' };
 
 export const vorlagenVon = (moduleId, templates, istContainer) => {
   const eigene = templates.filter((t) => t.module_template_id === moduleId).sort((a, b) => (a.order || 0) - (b.order || 0));
