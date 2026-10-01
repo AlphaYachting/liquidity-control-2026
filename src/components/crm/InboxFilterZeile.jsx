@@ -9,7 +9,7 @@ export default function InboxFilterZeile({ filter, onFilter, zahlen, neuesteZuer
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <div className="flex gap-1 border-b flex-1 min-w-[320px]">
-        {FILTER.map((r) => (
+        {FILTER.filter((r) => !r.nurWennVorhanden || (zahlen[r.key] || 0) > 0).map((r) => (
           <button
             key={r.key}
             type="button"
