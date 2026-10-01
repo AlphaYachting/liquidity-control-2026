@@ -24,6 +24,21 @@ async function mapLimited(items, fn) {
   return out;
 }
 
+// Die E-Mail-Datenbank liefert Empfänger (to) als Liste. Das Index-Feld last_to
+// ist ein Textfeld — eine Liste dort ließ das Speichern genau der Verläufe
+// scheitern, deren Details geladen wurden (Antwortstand fehlte dadurch).
+function alsText(wert) {
+  if (wert === null || wert === undefined) return '';
+  if (Array.isArray(wert)) {
+    return wert
+      .map((x) => (typeof x === 'string' ? x : (x?.email || x?.address || '')))
+      .filter(Boolean)
+      .join(', ');
+  }
+  if (typeof wert === 'object') return String(wert.email || wert.address || '');
+  return String(wert);
+}
+
 function rowFromDetail(meta, messages) {
   const msgs = messages || [];
   const last = msgs[0];
@@ -41,7 +56,7 @@ function rowFromDetail(meta, messages) {
     last_direction: last?.direction || '',
     last_from: last?.from || '',
     last_from_name: last?.from_name || '',
-    last_to: last?.to || (last?.direction === 'in' ? (lastOut?.from || '') : (lastIn?.from || '')),
+    last_to: alsText(last?.to) || (last?.direction === 'in' ? (lastOut?.from || '') : (lastIn?.from || '')),
     last_inbound_from: lastIn?.from || '',
     has_outbound: msgs.some((m) => m.direction === 'out'),
     detail_loaded: msgs.length > 0,
@@ -110,6 +125,12 @@ export default async function (req) {
             stats.details_geladen++;
           } else {
             const prev = existing.get(String(t.id));
+            // Hat der Verlauf seit dem letzten Detailabruf eine neue Nachricht, ist der
+            // gespeicherte Antwortstand veraltet: dann NICHT als geladen markieren, damit
+            // er in einem der nächsten Läufe mit Details nachgeladen wird.
+            const unveraendertSeitDetail = !!prev?.detail_loaded
+              && String(prev.last_message_at || '') === String(t.last_message_at || '')
+              && (prev.message_count || 0) === (t.message_count || 0);
             // Stammdaten frisch übernehmen, Antwortstand aus dem Index behalten
             row = {
               ...rowFromDetail(t, []),
@@ -119,12 +140,16 @@ export default async function (req) {
               last_to: prev?.last_to || '',
               last_inbound_from: prev?.last_inbound_from || '',
               has_outbound: prev?.has_outbound || false,
-              detail_loaded: prev?.detail_loaded || false,
+              detail_loaded: unveraendertSeitDetail,
             };
           }
           const res = await upsert(svc, existing, t.id, row, source);
           stats[res === 'neu' ? 'neu' : res === 'unverändert' ? 'unveraendert' : 'aktualisiert']++;
-        } catch (e) { stats.fehler.push(`Verlauf ${t.id}: ${e.message}`); }
+        } catch (e) {
+          // Sichtbar protokollieren — bisher wurden Speicherfehler stillschweigend verschluckt.
+          console.error(`syncEmailThreadIndex: Verlauf ${t.id} nicht gespeichert: ${e.message}`);
+          stats.fehler.push(`Verlauf ${t.id}: ${e.message}`);
+        }
       });
     };
 
@@ -177,6 +202,9 @@ export default async function (req) {
       last_window_run_at: new Date().toISOString(),
     });
 
+    if (stats.fehler.length) {
+      console.error(`syncEmailThreadIndex: ${stats.fehler.length} Fehler in diesem Lauf`);
+    }
     return Response.json({ ok: true, ...stats });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
