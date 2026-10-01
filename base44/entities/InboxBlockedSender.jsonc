@@ -1,23 +1,32 @@
 {
   "name": "InboxBlockedSender",
-  "type": "object",
   "properties": {
-    "value": {
-      "type": "string",
-      "description": "E-Mail-Adresse oder Domain (z. B. unseranwalt.at) \u2014 Treffer werden im Posteingang ausgeblendet"
+    "is_active": {
+      "default": true,
+      "type": "boolean"
     },
     "label": {
-      "type": "string",
-      "description": "Klartext, wozu der Filter dient"
+      "description": "Klartext, wozu der Filter dient",
+      "type": "string"
     },
-    "is_active": {
-      "type": "boolean",
-      "default": true
+    "mode": {
+      "default": "ausblenden",
+      "description": "ausblenden = erscheint nie im Posteingang (vertraulich); verwaltung = erscheint im Posteingang unter dem Filter Verwaltung (Lieferanten, Beh\u00f6rden, Steuerberatung)",
+      "enum": [
+        "ausblenden",
+        "verwaltung"
+      ],
+      "type": "string"
+    },
+    "value": {
+      "description": "E-Mail-Adresse oder Domain (z. B. unseranwalt.at)",
+      "type": "string"
     }
   },
   "required": [
     "value"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "user_condition": {
