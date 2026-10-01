@@ -10,6 +10,7 @@ import { EMAIL_CATEGORIES, deriveCustomerFromEmail } from '@/components/crm/emai
 import EscalationThreadPreview from '@/components/crm/emails/EscalationThreadPreview';
 import ThreadActionBar from '@/components/crm/emails/ThreadActionBar';
 import { wartezeitText } from '@/components/crm/inboxZeit';
+import { KLASSE_LABEL } from '@/lib/crm/posteingang';
 
 // Unbeantwortete Konversation ohne KI-Anfrage-Eintrag (laufende Kundenkommunikation,
 // Antwort auf Angebot/Rechnung, Verwaltung). Dieselben Entscheidungen wie im Posteingang.
@@ -61,10 +62,12 @@ export default function InboxThreadCard({ eintrag, offen, onOeffnen, onChanged }
             </p>
           ) : (
             <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
-              {eintrag.klasse === 'verwaltung' ? 'Verwaltung' : t.has_outbound ? 'Laufende Konversation' : 'Neue Nachricht'}
+              {KLASSE_LABEL[eintrag.klasse] || 'Kundenanfrage'}
             </p>
           )}
-          {kategorie && <p className="text-meta text-muted-foreground truncate">{kategorie.label}</p>}
+          {t.anliegen_beleg
+            ? <p className="text-meta text-muted-foreground truncate" title={t.anliegen_beleg}>„{t.anliegen_beleg}“</p>
+            : kategorie && <p className="text-meta text-muted-foreground truncate">{kategorie.label}</p>}
         </div>
 
         <div className="text-right">
