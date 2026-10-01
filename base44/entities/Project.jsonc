@@ -22,6 +22,11 @@
       ],
       "type": "string"
     },
+    "awork_altstand_beginn": {
+      "description": "Laufzeitbeginn, f\u00fcr den der aWork-Altstand berechnet wurde \u2014 weicht er vom aktuellen ab, ist der Altstand veraltet",
+      "format": "date",
+      "type": "string"
+    },
     "awork_altstand_berechnet_am": {
       "description": "Zeitpunkt der letzten Berechnung des aWork-Altstands",
       "format": "date-time",
