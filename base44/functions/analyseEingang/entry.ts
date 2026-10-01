@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
 
     // Nachtrag: offene Konversationen im Posteingang ohne Anliegen-Einordnung werden
     // mit eigenem, kleinem Budget je Lauf nachbewertet (einmaliger Nachlauf).
-    const maxNachtrag = payload.max_nachtrag ?? 15;
+    const maxNachtrag = payload.max_nachtrag ?? 30;
     let nachtrag: any[] = [];
     if (maxNachtrag > 0) {
       try {
