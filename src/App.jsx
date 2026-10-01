@@ -228,7 +228,9 @@ function App() {
     <FehlerGrenze>
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
-          <Router>
+          {/* Seitenwechsel als React-Übergang: die bisherige Seite bleibt sichtbar,
+              bis der Code der neuen Seite geladen ist (kein „Ansicht wird geladen“). */}
+          <Router future={{ v7_startTransition: true }}>
             <FehlerGrenze>
               <AuthenticatedApp />
             </FehlerGrenze>
