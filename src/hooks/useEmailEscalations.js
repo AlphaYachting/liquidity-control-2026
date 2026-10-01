@@ -6,9 +6,10 @@ import { deriveCustomerFromEmail, isInternalSender } from '@/components/crm/emai
 // Eskalationen UND offene Reklamationen — beides erfordert Handeln.
 // with_reply_state liefert die echten Absender-/Empfängerdaten des Threads mit,
 // damit der Alert ohne Öffnen der E-Mail-Zentrale beurteilbar ist.
-export function useEmailEscalations(days = 60) {
+export function useEmailEscalations(days = 60, { enabled = true } = {}) {
   return useQuery({
     queryKey: ['email-escalations', days],
+    enabled,
     queryFn: async () => {
       const data = await emailApi('threads', { params: { days, limit: 200, with_reply_state: 1 } });
       return (data?.results || [])
