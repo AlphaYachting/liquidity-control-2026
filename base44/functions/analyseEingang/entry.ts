@@ -223,9 +223,10 @@ TEIL 3 — ARBEITSBEREICH (anliegen) der LETZTEN Kundennachricht, genau einer, I
   web_support — technische Unterstützung an Website, Webshop, Hosting, Domain, E-Mail-Postfach, CMS/WordPress, Plugins, Formularen, Tracking, Produktfeeds oder Schnittstellen: einen Fehler beheben ODER Inhalte/Funktionen an einer bestehenden Web-Anwendung ändern oder einpflegen
   neue_anfrage — neues Projekt oder neue Leistung, Angebots- oder Preisanfrage, Interessent oder Neukunde
   kundenanliegen — alles andere von Kunden: Abstimmung laufender Projekte, Feedback und Freigaben, Druck/Grafik/Nachdruck, Termine, Rückfragen, Rechnungs- und Zahlungsfragen des Kunden
-  verwaltung — Lieferanten, Dienstleister, Steuerberatung, Bank, Behörden, Anwälte, Rechnungen oder Mahnungen an uns
+  verwaltung — Lieferanten, Dienstleister, Steuerberatung, Bank, Behörden, Anwälte, Rechnungen oder Mahnungen, die WIR bezahlen sollen
   kein_geschaeft — Spam, Werbung, Kaltakquise, Newsletter, System-Mails
 Druck, Grafik und Broschüren sind NIE web_support, auch wenn es um eine Änderung geht.
+Antwortet ein Kunde auf UNSERE Rechnung, Zahlungserinnerung oder Mahnung, ist das kundenanliegen, nie verwaltung.
 
 Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
           response_json_schema: {
