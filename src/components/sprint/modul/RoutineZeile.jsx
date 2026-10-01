@@ -5,7 +5,7 @@ import PersonenChip from '@/components/sprint/PersonenChip';
 import { RITTLER, STATUS_COLORS, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
 
-const RHYTHMUS = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', manuell: 'manuell' };
+const RHYTHMUS = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', '2monatlich': 'alle 2 Monate', quartalsweise: 'quartalsweise', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich', manuell: 'manuell' };
 
 // Eine Zeile je Routine-Kette: offenes Ticket plus aufklappbarer Verlauf.
 export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssignee }) {
