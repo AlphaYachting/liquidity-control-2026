@@ -30,7 +30,7 @@ export default function SprintHeute() {
       const [focusDays, projects, clients, milestones, myTickets, settings, sprints, todayEntries, module] = await Promise.all([
         base44.entities.FocusDay.filter({ person_email: email, day: today }),
         base44.entities.Project.filter(PROJEKT_LAUFEND, '-created_date', 500),
-        base44.entities.Client.list('-created_date', 200),
+        base44.entities.Client.list('-created_date', 2000),
         base44.entities.Milestone.list('-created_date', 500),
         base44.entities.Ticket.filter(ohneArchiv({ assignee_email: email }), '-last_status_change', 1000),
         base44.entities.Setting.filter({ group: 'kapazitaet' }, 'key', 50),

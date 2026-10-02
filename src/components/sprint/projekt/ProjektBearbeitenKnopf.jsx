@@ -10,7 +10,7 @@ export default function ProjektBearbeitenKnopf({ project, onSaved }) {
   const [open, setOpen] = useState(false);
   const { data: clients = [] } = useQuery({
     queryKey: ['clients'],
-    queryFn: () => base44.entities.Client.list('name', 500),
+    queryFn: () => base44.entities.Client.list('name', 2000),
     enabled: open,
   });
 

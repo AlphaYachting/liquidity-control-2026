@@ -18,7 +18,7 @@ export default function SprintRechnungsuebergabe() {
         base44.entities.Milestone.filter({ released: true }, '-released_at', 500),
         base44.entities.Sprint.list('-created_date', 300),
         base44.entities.Project.list('-created_date', 300),
-        base44.entities.Client.list('name', 300),
+        base44.entities.Client.list('name', 2000),
       ]);
       return { milestones, sprints, projects, clients };
     },

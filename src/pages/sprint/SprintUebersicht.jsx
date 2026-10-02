@@ -40,7 +40,7 @@ export default function SprintUebersicht() {
     queryKey: ['sprintUebersicht'],
     queryFn: async () => {
       const [clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays, contracts] = await Promise.all([
-        base44.entities.Client.list('name', 300),
+        base44.entities.Client.list('name', 2000),
         base44.entities.Project.list('-created_date', 300),
         base44.entities.Sprint.list('-created_date', 300),
         base44.entities.Milestone.list('order', 1000),

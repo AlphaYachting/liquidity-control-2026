@@ -10,7 +10,7 @@ export const ladeStammdaten = () => queryClientInstance.fetchQuery({
   queryFn: async () => {
     const [projects, clients] = await Promise.all([
       base44.entities.Project.list('title', 500),
-      base44.entities.Client.list('name', 500),
+      base44.entities.Client.list('name', 2000),
     ]);
     return { projects, clients };
   },
