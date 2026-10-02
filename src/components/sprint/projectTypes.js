@@ -34,7 +34,23 @@ export function istNachAufwand(project) {
   return t === 'support' || t === 'regie';
 }
 
+// Retainer-Art (nur Darstellung) — Wartungsverträge bekommen eine eigene Pille, alles andere bleibt Retainer
+export const RETAINER_ARTEN = [
+  { value: 'online_marketing', label: 'Online Marketing' },
+  { value: 'wartung', label: 'Wartungsvertrag' },
+  { value: 'sonstiges', label: 'Sonstiger Retainer' },
+];
+
+export const WARTUNG_STYLE = { pillBg: '#EEF2DC', pillText: '#3E4A12', icon: 'wrench', short: 'Wartung' };
+
+export function istWartung(project) {
+  return !!project && typeof project === 'object'
+    && projectTypeOf(project) === 'container'
+    && project.retainer_art === 'wartung';
+}
+
 // Darstellung (Farbe, Icon, Kurzwort) zum Typ eines Projekts
 export function typeStyleOf(project) {
+  if (istWartung(project)) return WARTUNG_STYLE;
   return PROJECT_TYPES[projectTypeOf(project)].style;
 }
