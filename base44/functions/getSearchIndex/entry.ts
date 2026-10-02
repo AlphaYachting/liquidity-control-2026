@@ -64,6 +64,11 @@ export default async function (req) {
         haystack: z.haystack,
         area: z.area,
         route: z.route,
+        // Cockpit-Verweis am Projekt nur mit Finanzrecht.
+        route_cockpit: darfGeld ? (z.route_cockpit || '') : '',
+        owner_email: z.owner_email || '',
+        kuerzel: z.kuerzel || '',
+        ist_erledigt: !!z.ist_erledigt,
         activity_at: z.activity_at,
         weight: z.weight,
         card: darfGeld ? (z.card || []) : (z.card_team || []),
