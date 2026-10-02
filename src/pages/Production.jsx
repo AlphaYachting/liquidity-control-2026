@@ -46,7 +46,7 @@ export default function Production() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Produktion & Support 2026" subtitle={`${filtered.length} Positionen`} icon={Wrench} />
+      <PageHeader title="Planumsatz Produktion & Support 2026" subtitle={`${filtered.length} Positionen`} icon={Wrench} />
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <KpiCard title="Gesamtvolumen" value={formatCurrency(totalNet)} variant="info" />
