@@ -14,7 +14,7 @@ import HeuteFristen from '@/components/sprint/HeuteFristen';
 import HeutePmBlock from '@/components/sprint/HeutePmBlock';
 import Fortschrittszaehler from '@/components/sprint/Fortschrittszaehler';
 import { todayIso } from '@/components/sprint/sprintConfig';
-import { ohneArchiv, PROJEKT_LAUFEND } from '@/lib/sprint/aktivFilter';
+import { ohneArchiv, PROJEKT_LAUFEND, istAktiv } from '@/lib/sprint/aktivFilter';
 
 // S1 — HEUTE: Focus-Tag-Ansicht des angemeldeten Nutzers
 export default function SprintHeute() {
@@ -38,7 +38,10 @@ export default function SprintHeute() {
         base44.entities.TimeEntry.filter({ person_email: email, entry_date: today }),
         base44.entities.ModuleTemplate.list('name', 500),
       ]);
-      const relevant = (t) => t.status !== 'erledigt' || (t.last_status_change || '').startsWith(today);
+      // Pausierte und abgeschlossene Projekte erzeugen keine Arbeit in „Heute"
+      const aktiveIds = new Set(projects.filter(istAktiv).map((p) => p.id));
+      const relevant = (t) => aktiveIds.has(t.project_id)
+        && (t.status !== 'erledigt' || (t.last_status_change || '').startsWith(today));
       const nachOrder = (a, b) => (a.order || 0) - (b.order || 0);
       const meine = myTickets.filter(relevant).sort(nachOrder);
       const focusDay = focusDays[0] || null;
