@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
+import { istAktiv } from '@/lib/sprint/aktivFilter';
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const parse = (s) => new Date(`${s}T00:00:00`);
@@ -49,9 +50,9 @@ export async function ticketStatusSetzen(ticket, status, { folgetermin } = {}) {
     return;
   }
   if (status !== 'erledigt' || ticket.archiviert) return;
-  // Routinen laufen nur in Container-Projekten weiter
+  // Routinen laufen nur in aktiven Container-Projekten weiter (pausiert/abgeschlossen = Routinen ruhen)
   const project = await base44.entities.Project.get(ticket.project_id).catch(() => null);
-  if (projectTypeOf(project) !== 'container') return;
+  if (projectTypeOf(project) !== 'container' || !istAktiv(project)) return;
   const vorhanden = await base44.entities.Ticket.filter({ vorgaenger_id: ticket.id }, 'order', 1);
   if (vorhanden.length) return;
   const felder = ['milestone_id', 'project_id', 'order', 'title', 'description', 'role', 'assignee_email',
