@@ -24,20 +24,30 @@ export default async function (req) {
 
     const zeilen = await baueAlleZeilen(sr);
 
-    // Voller Neuaufbau: alte Zeilen weg, die Version steigt, alle Zwischen-
-    // speicher im Browser verlieren dadurch ihre Gültigkeit.
-    let geloescht = 0;
-    for (let runde = 0; runde < 40; runde++) {
-      const alt = await sr.entities.SearchIndexEntry.list('-created_date', 500);
-      if (!alt.length) break;
-      await sr.entities.SearchIndexEntry.deleteMany({ id: { $in: alt.map((z) => z.id) } });
-      geloescht += alt.length;
+    // Ohne Leerfenster: zuerst die Ids des alten Stands merken, dann den neuen
+    // Stand schreiben, erst danach den alten löschen. Die Suche hat so in jedem
+    // Moment einen vollständigen Index.
+    const alteIds = [];
+    for (let seite = 0; seite < 60; seite++) {
+      const teil = await sr.entities.SearchIndexEntry.list('-created_date', 500, seite * 500);
+      if (!teil.length) break;
+      teil.forEach((z) => alteIds.push(z.id));
+      if (teil.length < 500) break;
     }
 
     for (let i = 0; i < zeilen.length; i += 200) {
       await sr.entities.SearchIndexEntry.bulkCreate(zeilen.slice(i, i + 200));
     }
 
+    let geloescht = 0;
+    for (let i = 0; i < alteIds.length; i += 500) {
+      const teil = alteIds.slice(i, i + 500);
+      await sr.entities.SearchIndexEntry.deleteMany({ id: { $in: teil } });
+      geloescht += teil.length;
+    }
+
+    // Die Version steigt erst am Ende: alle Zwischenspeicher im Browser holen
+    // danach den vollständigen neuen Stand.
     const versionRows = await sr.entities.Setting.filter({ key: 'search_index_version' }, '-created_date', 1);
     const version = (Number(versionRows[0]?.value) || 0) + 1;
     await setzeSetting(sr, 'search_index_version', version, 'Version des Suchindex');
