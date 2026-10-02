@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -141,7 +141,9 @@ const AuthenticatedApp = () => {
     <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Ansicht wird geladen...</div>}>
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<MyDay />} />
+        {/* Ausgangspunkt für alle ist der eigene Tag; die Entscheidungslisten liegen unter Freigaben. */}
+        <Route path="/" element={<Navigate to="/sprint" replace />} />
+        <Route path="/freigaben" element={<MyDay />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:projectId" element={<ProjectDetail />} />
