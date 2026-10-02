@@ -13,6 +13,8 @@ import { kundenSchluessel } from '@/lib/kunden/kundeAnlegen';
 import { Link } from 'react-router-dom';
 
 const ROLES = ['Beratung', 'Konzept', 'Text', 'Grafik', 'Web', 'Media', 'QS'];
+// Feste leere Liste — solange die Daten laden, darf die Vorbelegung nicht bei jedem Rendern neu laufen
+const KEINE = [];
 
 export default function SupportTicketDialog({ open, onOpenChange, item, onDone }) {
   const [form, setForm] = useState(null);
@@ -20,14 +22,14 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
   const [error, setError] = useState(null);
   const [loadingThread, setLoadingThread] = useState(false);
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = KEINE } = useQuery({
     queryKey: ['support-projects'],
     queryFn: () => base44.entities.Project.filter(
       { abrechnungsmodell: { $in: SUPPORT_MODELS } }, 'title', 200),
     enabled: open,
   });
   // Der Kunde wird nur gewählt — angelegt wird er ausschließlich im Kundenverzeichnis
-  const { data: clients = [] } = useQuery({
+  const { data: clients = KEINE } = useQuery({
     queryKey: ['support-clients'],
     queryFn: () => base44.entities.Client.list('name', 2000),
     enabled: open,
@@ -41,21 +43,26 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
   useEffect(() => {
     if (!open || !item) return;
     const erkannt = item.matched_customer_name || item.sender_name || '';
-    const kunde = clients.find(c => kundenSchluessel(c.name) === kundenSchluessel(erkannt));
+    const nachName = erkannt ? clients.find(c => kundenSchluessel(c.name) === kundenSchluessel(erkannt)) : null;
+    const match = projects.find(p => p.title === `Support — ${nachName?.name || erkannt}`);
+    // Kunde: Namenstreffer im Verzeichnis, sonst der Kunde des passenden Support-Projekts
+    const kunde = nachName || clients.find(c => c.id === match?.client_id) || null;
     const customer = kunde?.name || '';
-    const match = projects.find(p => p.title === `Support — ${customer || erkannt}`);
-    setForm({
+    const itemKey = String(item.id || item.thread_id || '');
+    setForm((vorher) => ({
       customer,
       client_id: kunde?.id || '',
       erkannt,
+      item_key: itemKey,
       title: (item.subject || 'Support-Anfrage').slice(0, 200),
-      description: item.body || '',
+      // nachgeladener Verlauf bleibt erhalten, wenn die Listen später eintreffen
+      description: item.body || (vorher?.item_key === itemKey ? vorher.description : '') || '',
       role: 'Web',
       target_hours: 1,
       assignee_email: '',
       stundensatz: match?.stundensatz || DEFAULT_SUPPORT_RATE,
       project_id: match?.id || '__new__',
-    });
+    }));
     setError(null);
   }, [open, item, projects, clients]);
 
