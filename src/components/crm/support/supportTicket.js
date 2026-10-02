@@ -27,11 +27,13 @@ export async function resolveSupportProject(customerName, options = {}) {
   const customer = String(customerName || '').trim();
   if (!customer) throw new Error('Für ein Support-Ticket braucht es einen Kunden.');
 
-  const { pmEmail = '', stundensatz } = options;
-  const client = await findeKunde(customer);
+  const { pmEmail = '', stundensatz, projectId } = options;
 
-  let project = null;
-  if (client) {
+  // Im Dialog ausdrücklich gewähltes Support-Projekt gilt direkt
+  let project = projectId ? await base44.entities.Project.get(projectId).catch(() => null) : null;
+  const client = project ? null : await findeKunde(customer);
+
+  if (!project && client) {
     const byClient = await base44.entities.Project.filter({ client_id: client.id });
     // Regie-Aufträge nie als Support-Projekt wiederverwenden
     const kandidaten = byClient.filter(p => SUPPORT_MODELS.includes(p.abrechnungsmodell) && p.aufwand_art !== 'regie');
