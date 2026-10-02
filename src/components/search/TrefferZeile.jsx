@@ -6,7 +6,7 @@ import Hervorhebung from './Hervorhebung';
 
 // Auswahl = weicher Markenton mit Balken links. Grau bedeutet hier nichts —
 // außer bei erledigten Aufgaben, die bewusst zurücktreten.
-export default function TrefferZeile({ zeile, eingabe, markiert, onWaehlen, onZeigen, onCockpit }) {
+export default function TrefferZeile({ zeile, eingabe, markiert, onWaehlen, onZeigen, zweit }) {
   const erledigt = zeile.entry_type === 'ticket' && zeile.ist_erledigt;
   return (
     <button
@@ -33,18 +33,18 @@ export default function TrefferZeile({ zeile, eingabe, markiert, onWaehlen, onZe
         )}
         {zeile.entry_type === 'kunde' && <KundenKarte card={zeile.card} />}
       </span>
-      {zeile.entry_type === 'projekt' && zeile.route_cockpit && onCockpit && (
-        // Nur mit Finanzrecht vorhanden — getSearchIndex liefert route_cockpit sonst leer.
+      {zweit && (
+        // Zweitziel (Cockpit nur mit Finanzrecht, Kundendaten) — auch mit → erreichbar.
         <span
           role="link"
           tabIndex={-1}
-          title="Projekt-Cockpit öffnen"
+          title={`${zweit.label} öffnen (→)`}
           onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => { e.stopPropagation(); onCockpit(); }}
+          onClick={(e) => { e.stopPropagation(); zweit.oeffnen(); }}
           className="shrink-0 self-center text-[11px] font-semibold px-2 py-0.5 hover:underline"
-          style={{ color: RITTLER.textSecondary, border: `1px solid ${RITTLER.line}`, borderRadius: 3 }}
+          style={{ color: markiert ? RITTLER.black : RITTLER.textSecondary, border: `1px solid ${markiert ? '#2d2d2d' : RITTLER.line}`, borderRadius: 3 }}
         >
-          Cockpit
+          {zweit.label}{markiert ? ' →' : ''}
         </span>
       )}
       {(zeile.side || zeile.side_note) && (
