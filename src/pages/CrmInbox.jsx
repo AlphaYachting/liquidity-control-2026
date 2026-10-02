@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,15 @@ export default function CrmInbox() {
   const { toast } = useToast();
   const [backchannelWarning, setBackchannelWarning] = useState(null);
   const [threadText, setThreadText] = useState('');
-  const [filter, setFilter] = useState('alle');
+  // Der Filter steht in der Adresse (?filter=support) — so sind Sichten wie der
+  // Support-Eingang direkt verlinkbar.
+  const [params, setParams] = useSearchParams();
+  const filter = FILTER.some((f) => f.key === params.get('filter')) ? params.get('filter') : 'alle';
+  const setFilter = (key) => {
+    const neu = new URLSearchParams(params);
+    if (key === 'alle') neu.delete('filter'); else neu.set('filter', key);
+    setParams(neu, { replace: true });
+  };
   const [neuesteZuerst, setNeuesteZuerst] = useState(true);
   const [zeigeJung, setZeigeJung] = useState(false);
   const [offenId, setOffenId] = useState(null);
@@ -143,7 +151,7 @@ export default function CrmInbox() {
     <div className="max-w-[1200px] space-y-4">
       <Seitenkopf
         bereich="CRM"
-        titel="Posteingang"
+        titel={filter === 'support' ? 'Support-Eingang' : 'Posteingang'}
         kontext={`${gesamt} unbeantwortet seit mindestens ${SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden${overdue > 0 ? ` · ${overdue} davon länger als 2 Tage` : ''}`}
         aktionen={
           <>
