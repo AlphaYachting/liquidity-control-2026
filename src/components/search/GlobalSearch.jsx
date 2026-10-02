@@ -25,6 +25,7 @@ export default function GlobalSearch() {
   const [tief, setTief] = useState([]);
   const [tiefLaeuft, setTiefLaeuft] = useState(false);
   const [zuletzt, setZuletzt] = useState([]);
+  const zuletztGeholt = useRef(0);
 
   // Beim Verlassen dürfen keine Nachläufer mehr in die Anzeige schreiben.
   useEffect(() => {
@@ -43,9 +44,19 @@ export default function GlobalSearch() {
     const controller = new AbortController();
     const setzen = (z) => { if (gilt && lebt.current) setZeilen(Array.isArray(z) ? z : []); };
     ladeIndex(user.email, setzen, controller.signal).then(setzen).catch(() => setzen([]));
+    zuletztGeholt.current = Date.now();
     setZuletzt(zuletztGeoeffnet());
     return () => { gilt = false; controller.abort(); };
   }, [user?.email]);
+
+  // Beim Fokussieren den Index auffrischen (höchstens alle 30 s): Änderungen,
+  // die seit dem Laden der Seite gespeichert wurden, sind so sofort auffindbar.
+  const auffrischen = () => {
+    if (!user?.email || Date.now() - zuletztGeholt.current < 30000) return;
+    zuletztGeholt.current = Date.now();
+    const setzen = (z) => { if (lebt.current && Array.isArray(z)) setZeilen(z); };
+    ladeIndex(user.email, setzen).catch(() => {});
+  };
 
   // ⌘K / Strg+K öffnet und markiert den Inhalt.
   useEffect(() => {
@@ -60,7 +71,7 @@ export default function GlobalSearch() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const { gruppen } = useMemo(() => sucheImIndex(zeilen, eingabe), [zeilen, eingabe]);
+  const { gruppen } = useMemo(() => sucheImIndex(zeilen, eingabe, user?.email), [zeilen, eingabe, user?.email]);
 
   const alleGruppen = useMemo(() => {
     if (!tief.length) return gruppen;
@@ -153,13 +164,13 @@ export default function GlobalSearch() {
           ref={feld}
           value={eingabe}
           onChange={(e) => { setEingabe(e.target.value); setMarkiert(0); setOffen({}); }}
-          onFocus={() => setAktiv(true)}
+          onFocus={() => { setAktiv(true); auffrischen(); }}
           onBlur={() => {
             clearTimeout(blurTimer.current);
             blurTimer.current = setTimeout(() => { if (lebt.current) setAktiv(false); }, 120);
           }}
           onKeyDown={tasten}
-          placeholder="Kunde, Projekt, Beleg, Ticket …"
+          placeholder="Kunde, Projekt, Kürzel, Aufgabe …"
           className="flex-1 bg-transparent outline-none text-[13.5px]"
         />
         <span className="text-[10.5px] shrink-0" style={{ color: RITTLER.textSecondary }}>⌘K</span>
@@ -175,7 +186,7 @@ export default function GlobalSearch() {
           offen={offen}
           aufklappen={(key) => setOffen((o) => ({ ...o, [key]: true }))}
           tiefLaeuft={tiefLaeuft}
-          anzahlImSpeicher={zeilen.length}
+          darfTief={darfTief}
           zuletzt={zuletzt}
           onOeffnen={oeffnen}
         />
