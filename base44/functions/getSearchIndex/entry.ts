@@ -25,6 +25,9 @@ export default async function (req) {
         ? ['projects', 'sales', 'backoffice', 'management', 'intelligence']
         : ['projects']);
     const darfGeld = areas.includes('backoffice') || areas.includes('management');
+  // Vertrieb (CRM-Deals, Angebote) sehen neben dem Vertrieb auch Management und
+  // Verwaltung — sie brauchen den direkten Weg zum Lead bzw. Deal.
+  const darfBereich = (area) => areas.includes(area) || (area === 'sales' && darfGeld);
 
     const versionRows = await sr.entities.Setting.filter({ key: 'search_index_version' }, '-created_date', 1);
     const version = Number(versionRows[0]?.value) || 0;
@@ -44,7 +47,7 @@ export default async function (req) {
     const zeilen = [];
     for (const z of roh) {
       if (since && z.updated_date <= since) continue;
-      const sichtbar = areas.includes(z.area)
+      const sichtbar = darfBereich(z.area)
         && z.is_active !== false
         && !(scope === 'own' && z.owner_email && z.owner_email !== user.email);
       if (!sichtbar) { if (since) entfernt.push(z.id); continue; }
