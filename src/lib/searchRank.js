@@ -102,3 +102,17 @@ export function suche(zeilen, eingabe, meineEmail = '') {
 
   return { q, gruppen };
 }
+
+// Zweitziel eines Treffers — per Klick auf den kleinen Verweis oder mit der
+// Pfeiltaste → erreichbar. Projekt: Cockpit (route_cockpit kommt nur mit
+// Finanzrecht an). Kunde: Kundendatensatz in der gefilterten Projektliste.
+export function zweitZiel(z) {
+  if (!z) return null;
+  if (z.entry_type === 'projekt' && z.route_cockpit) {
+    return { label: 'Cockpit', zeile: { ...z, entry_type: 'cockpit', title: `Cockpit · ${z.title}`, route: z.route_cockpit } };
+  }
+  if (z.entry_type === 'kunde' && z.route && z.route.startsWith('/sprint/projekte?kunde=')) {
+    return { label: 'Kundendaten', zeile: { ...z, route: `${z.route}&kundendaten=1` } };
+  }
+  return null;
+}
