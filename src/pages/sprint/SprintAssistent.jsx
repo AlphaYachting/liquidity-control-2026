@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { AlertTriangle } from 'lucide-react';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import StepModule, { milestoneAmount } from '@/components/sprint/assistent/StepModule';
-import StepRahmen, { rahmenValid, NEW_CLIENT } from '@/components/sprint/assistent/StepRahmen';
+import StepRahmen, { rahmenValid } from '@/components/sprint/assistent/StepRahmen';
 import StepTypDetails, { typDetailsValid } from '@/components/sprint/assistent/StepTypDetails';
 import ModulPaketEditor from '@/components/sprint/paket/ModulPaketEditor';
 import { PROJECT_TYPES, projectTypeOf } from '@/components/sprint/projectTypes';
@@ -21,10 +21,7 @@ import { verteileNachlass } from '@/lib/sprint/nachlass';
 import StepZustaendigkeit from '@/components/sprint/assistent/StepZustaendigkeit';
 import { buildTicketPlan, ticketValue, unresolvedTickets, OPEN } from '@/lib/sprint/ticketPlan';
 import { finishHandoff } from '@/lib/crm/finishHandoff';
-import { kundeAnlegen } from '@/lib/kunden/kundeAnlegen';
 import { PROJEKT_LAUFEND } from '@/lib/sprint/aktivFilter';
-
-const BLANK_CLIENT_FIELDS = { new_client_name: '', new_client_email: '' };
 
 // Allgemeiner Anlage-Wizard: Schritt 1 Rahmen für alle Typen, danach die
 // Sprintplanung nur für Sprintprojekte. Beträge und Termine werden gerechnet.
@@ -36,7 +33,7 @@ export default function SprintAssistent() {
   // Beauftragung aus dem CRM — Auftrag existiert bereits, Projekt wird hier angelegt
   const [handoff] = useState(() => location.state?.handoff || null);
   const [step, setStep] = useState(1);
-  const [seed, setSeed] = useState({ ...BLANK_CLIENT_FIELDS, ...initial.seed });
+  const [seed, setSeed] = useState({ ...initial.seed });
   const [size, setSize] = useState(initial.sprint.size);
   const [startDate, setStartDate] = useState(initial.sprint.startDate);
   const [deliveryDate, setDeliveryDate] = useState(initial.sprint.deliveryDate);
@@ -52,7 +49,7 @@ export default function SprintAssistent() {
     queryKey: ['sprintAssistentData'],
     queryFn: async () => {
       const [clients, contracts, projects, modules, addOns, members, settings, ticketTemplates, addOnTicketTemplates] = await Promise.all([
-        base44.entities.Client.list('name', 300),
+        base44.entities.Client.list('name', 2000),
         base44.entities.RecurringContract.list('-created_date', 300),
         base44.entities.Project.filter(PROJEKT_LAUFEND, '-created_date', 500),
         base44.entities.ModuleTemplate.list('-created_date', 200),
@@ -124,20 +121,9 @@ export default function SprintAssistent() {
     ? !plan?.deliverable || offeneSchritte.length > 0
     : !typDetailsValid(seed);
 
-  // Neuer Kunde entsteht inline beim Verlassen des Rahmens
-  const handleNext = async () => {
-    if (step === 1 && seed.client_id === NEW_CLIENT) {
-      setCreating(true);
-      const client = await kundeAnlegen({
-        name: seed.new_client_name.trim(),
-        contact_email: seed.new_client_email || '',
-      });
-      setSeed((s) => ({ ...s, client_id: client.id }));
-      await refetch();
-      setCreating(false);
-    }
-    setStep(step + 1);
-  };
+  // Ein neuer Kunde entsteht im Rahmen über den Kunden-Baustein (mit sevDesk-Verknüpfung) —
+  // hier wird nur noch weitergeblättert.
+  const handleNext = () => setStep(step + 1);
 
   const resolveProject = async () => {
     if (isSprint && seed.sprint_target === 'folge') {
@@ -281,7 +267,10 @@ export default function SprintAssistent() {
 
       <div className="bg-white rounded-lg shadow-sm p-6">
         {step === 1 && (
-          <StepRahmen seed={seed} setSeed={setSeed} clients={clients} members={members} projects={projects} />
+          <StepRahmen
+            seed={seed} setSeed={setSeed} clients={clients} members={members} projects={projects}
+            onKundeAngelegt={() => refetch()}
+          />
         )}
 
         {!isSprint && step === 2 && (
