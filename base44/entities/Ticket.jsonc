@@ -1,5 +1,12 @@
 {
   "name": "Ticket",
+  "type": "object",
+  "required": [
+    "milestone_id",
+    "project_id",
+    "title",
+    "status"
+  ],
   "properties": {
     "assignee_email": {
       "format": "email",
@@ -154,13 +161,35 @@
     "vorgaenger_id": {
       "description": "das erledigte Ticket, aus dem dieses Folgeticket entstand",
       "type": "string"
+    },
+    "archiviert": {
+      "default": false,
+      "description": "Archiviert = aus allen Arbeitsansichten ausgeblendet, Zeitbuchungen bleiben unber\u00fchrt. Nur \u00fcber die Funktion ticketBereinigen setzen.",
+      "type": "boolean"
+    },
+    "archiviert_am": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "archiviert_von": {
+      "format": "email",
+      "type": "string"
+    },
+    "archiv_grund": {
+      "enum": [
+        "doppelt",
+        "nicht_mehr_relevant",
+        "storniert",
+        "altbestand_awork",
+        "routine_beendet",
+        "projekt_abgeschlossen",
+        "sonstiges"
+      ],
+      "type": "string"
+    },
+    "archiv_status_vorher": {
+      "description": "Status vor dem Archivieren \u2014 f\u00fcr Wiederherstellen",
+      "type": "string"
     }
-  },
-  "required": [
-    "milestone_id",
-    "project_id",
-    "title",
-    "status"
-  ],
-  "type": "object"
+  }
 }
