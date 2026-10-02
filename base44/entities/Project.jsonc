@@ -178,6 +178,16 @@
       ],
       "type": "string"
     },
+    "abgeschlossen_am": {
+      "description": "Zeitpunkt des Projektabschlusses",
+      "format": "date-time",
+      "type": "string"
+    },
+    "abgeschlossen_von": {
+      "description": "Wer das Projekt abgeschlossen hat",
+      "format": "email",
+      "type": "string"
+    },
     "stundensatz": {
       "description": "nur relevant bei Abrechnung nach Aufwand",
       "type": "number"
