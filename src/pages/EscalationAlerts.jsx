@@ -136,7 +136,7 @@ export default function EscalationAlerts() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Eskalations-Alerts"
+        title="Projekt-Risiko"
         subtitle={`${alerts.length} aktive Warnungen · ${criticalCount} kritisch · ${highCount} hoch`}
         icon={Bell}
       />
