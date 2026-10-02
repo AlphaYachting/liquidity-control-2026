@@ -114,6 +114,14 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
       recurring_contract_id: type === 'container' ? (form.recurring_contract_id || '') : undefined,
       retainer_art: type === 'container' && form.retainer_art ? form.retainer_art : undefined,
     };
+    // Abschluss festhalten bzw. beim Wiederöffnen leeren
+    if (form.status === 'abgeschlossen' && project.status !== 'abgeschlossen') {
+      data.abgeschlossen_am = new Date().toISOString();
+      data.abgeschlossen_von = user?.email || '';
+    } else if (form.status !== 'abgeschlossen' && project.status === 'abgeschlossen') {
+      data.abgeschlossen_am = null;
+      data.abgeschlossen_von = null;
+    }
     Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
 
     if (isContainer) {
