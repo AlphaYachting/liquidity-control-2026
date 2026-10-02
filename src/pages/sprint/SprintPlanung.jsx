@@ -69,7 +69,7 @@ export default function SprintPlanung() {
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Planung</h1>
+        <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Wochenplanung</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" className="h-8 w-8 rounded" onClick={() => setWeekOffset(weekOffset - 1)}>
             <ChevronLeft className="w-4 h-4" />
