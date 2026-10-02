@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -7,22 +7,37 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import CockpitAuswahl from '@/components/projekt/CockpitAuswahl';
+import ClientLinkStep from '@/components/crm/handover/ClientLinkStep';
 
 export const NEW_CLIENT = '__new__';
 
 // Prüft, ob der Rahmen vollständig ist — Grundlage für „Weiter"
 export function rahmenValid(seed) {
-  const clientOk = seed.client_id === NEW_CLIENT
-    ? Boolean(seed.new_client_name?.trim())
-    : Boolean(seed.client_id);
+  // Ein neuer Kunde zählt erst, wenn er über den Kunden-Baustein angelegt und mit sevDesk verknüpft ist
+  const clientOk = Boolean(seed.client_id) && seed.client_id !== NEW_CLIENT;
   const sprintOk = seed.type !== 'sprint' || seed.sprint_target === 'neu' || Boolean(seed.existing_project_id);
   return clientOk && Boolean(seed.type) && Boolean(seed.pm_email) && Boolean(seed.title?.trim()) && sprintOk;
 }
 
 // Schritt 1 — Rahmen für alle Projekttypen. Füllt den Startkeim, aus dem alle
 // weiteren Schritte lesen.
-export default function StepRahmen({ seed, setSeed, clients = [], members = [], projects = [] }) {
+export default function StepRahmen({ seed, setSeed, clients: geladeneKunden = [], members = [], projects = [], onKundeAngelegt }) {
   const set = (patch) => setSeed((s) => ({ ...s, ...patch }));
+  // Kunde aus dem Kunden-Baustein — bleibt sichtbar, bis ein anderer Kunde gewählt wird
+  const [bausteinKunde, setBausteinKunde] = useState(null);
+  const bausteinOffen = seed.client_id === NEW_CLIENT || (bausteinKunde && bausteinKunde.id === seed.client_id);
+  const clients = bausteinKunde && !geladeneKunden.some((c) => c.id === bausteinKunde.id)
+    ? [bausteinKunde, ...geladeneKunden]
+    : geladeneKunden;
+  const kundeUebernehmen = (c) => {
+    setBausteinKunde(c);
+    if (c?.sevdesk_contact_id) {
+      set({ client_id: c.id, existing_project_id: '' });
+      onKundeAngelegt?.(c);
+    } else {
+      set({ client_id: NEW_CLIENT, existing_project_id: '' });
+    }
+  };
   const clientProjects = projects.filter((p) => p.client_id === seed.client_id);
   const supportId = seed.type === 'support'
     ? clientProjects.find((p) => projectTypeOf(p) === 'support' && p.status !== 'abgeschlossen')?.id
@@ -37,23 +52,16 @@ export default function StepRahmen({ seed, setSeed, clients = [], members = [], 
     <div className="space-y-5 max-w-xl">
       <div>
         <Label>Kunde *</Label>
-        <Select value={seed.client_id} onValueChange={(v) => set({ client_id: v, existing_project_id: '' })}>
+        <Select value={seed.client_id} onValueChange={(v) => { setBausteinKunde(null); set({ client_id: v, existing_project_id: '' }); }}>
           <SelectTrigger><SelectValue placeholder="Kunde wählen" /></SelectTrigger>
           <SelectContent>
             <SelectItem value={NEW_CLIENT}>＋ neuer Kunde</SelectItem>
             {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        {seed.client_id === NEW_CLIENT && (
-          <div className="grid sm:grid-cols-2 gap-3 mt-3">
-            <div>
-              <Label>Name *</Label>
-              <Input value={seed.new_client_name || ''} onChange={(e) => set({ new_client_name: e.target.value })} />
-            </div>
-            <div>
-              <Label>E-Mail</Label>
-              <Input type="email" value={seed.new_client_email || ''} onChange={(e) => set({ new_client_email: e.target.value })} />
-            </div>
+        {bausteinOffen && (
+          <div className="mt-3">
+            <ClientLinkStep kunde="" deal={null} client={bausteinKunde} onClient={kundeUebernehmen} kontaktFelder />
           </div>
         )}
       </div>
