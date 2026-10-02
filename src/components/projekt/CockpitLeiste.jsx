@@ -24,6 +24,9 @@ export default function CockpitLeiste({ project, client, istAdmin, onSaved }) {
     );
   }
 
+  // Fehlendes Cockpit ist Admin-Sache: Kollegen sehen weder Hinweis noch Verknüpfen-Funktion.
+  if (!istAdmin) return null;
+
   const speichern = async () => {
     setLaeuft(true);
     setFehler('');
@@ -41,9 +44,7 @@ export default function CockpitLeiste({ project, client, istAdmin, onSaved }) {
     <div className="flex flex-wrap items-center gap-3 rounded border border-status-attention/40 bg-status-attention-surface px-4 py-2 text-sm text-status-attention">
       <AlertTriangle className="w-4 h-4 shrink-0" />
       <span className="flex-1">Kein Projekt-Cockpit verknüpft</span>
-      {istAdmin && (
-        <Button size="sm" variant="outline" onClick={() => setOffen(true)}>Cockpit anlegen oder verknüpfen</Button>
-      )}
+      <Button size="sm" variant="outline" onClick={() => setOffen(true)}>Cockpit anlegen oder verknüpfen</Button>
       <Dialog open={offen} onOpenChange={setOffen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Projekt-Cockpit</DialogTitle></DialogHeader>
