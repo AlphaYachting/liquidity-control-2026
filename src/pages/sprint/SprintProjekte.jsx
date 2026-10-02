@@ -163,14 +163,14 @@ export default function SprintProjekte() {
           {filterKunde && (
             <>
               <span
-                className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide pl-2.5 pr-1 py-1 rounded border bg-primary text-white border-primary"
+                className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide pl-2.5 pr-1 py-1 rounded border bg-white text-foreground border-foreground"
               >
                 Kunde: {filterKunde.name}
                 <button
                   type="button"
                   onClick={kundenfilterAufheben}
                   title="Kundenfilter aufheben"
-                  className="p-0.5 rounded hover:bg-white/20"
+                  className="p-0.5 rounded hover:bg-muted"
                 >
                   <X className="w-3 h-3" />
                 </button>
