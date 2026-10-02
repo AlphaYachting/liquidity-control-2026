@@ -156,7 +156,7 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Dashboard" subtitle="Liquiditätsübersicht 2026" icon={LayoutDashboard} />
+        <PageHeader title="Finanz-Dashboard" subtitle="Liquiditätsübersicht 2026" icon={LayoutDashboard} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {Array(8).fill(0).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
         </div>
@@ -167,7 +167,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboard" subtitle="Liquiditätsübersicht 2026" icon={LayoutDashboard} />
+      <PageHeader title="Finanz-Dashboard" subtitle="Liquiditätsübersicht 2026" icon={LayoutDashboard} />
       <DashboardKpis projects={projects} planLines={planLines} contracts={contracts} tools={tools} receivables={receivables} payables={payables} invoices={invoices} blocks={allBlocks} instructions={billingInstructions} liveInvoiced={liveInvoiced} liveOpen={liveOpen} liveReceivablesData={liveReceivablesData} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CashflowChart planLines={planLines} blocks={allBlocks} contracts={contracts} payables={payables} instructions={billingInstructions} invoiceRecords={invoices} />
