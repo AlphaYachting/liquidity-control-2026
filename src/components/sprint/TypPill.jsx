@@ -1,8 +1,8 @@
 import React from 'react';
-import { Zap, Headset, RefreshCw, Archive, Building2 } from 'lucide-react';
+import { Zap, Headset, RefreshCw, Archive, Building2, Wrench } from 'lucide-react';
 import { typeStyleOf } from '@/components/sprint/projectTypes';
 
-const ICONS = { bolt: Zap, headset: Headset, refresh: RefreshCw, archive: Archive, building: Building2 };
+const ICONS = { bolt: Zap, headset: Headset, refresh: RefreshCw, archive: Archive, building: Building2, wrench: Wrench };
 
 // Typ-Pill — zeigt auf jeder Projekt- und Sprintkarte an derselben Stelle, um welche Art Arbeit es geht.
 export default function TypPill({ project }) {
