@@ -1,5 +1,11 @@
 {
   "name": "Project",
+  "type": "object",
+  "required": [
+    "client_id",
+    "title",
+    "pm_email"
+  ],
   "properties": {
     "abrechnungsmodell": {
       "default": "sprint",
@@ -19,6 +25,15 @@
       "enum": [
         "support",
         "regie"
+      ],
+      "type": "string"
+    },
+    "retainer_art": {
+      "description": "Nur Retainer: Art des Vertrags \u2014 steuert Piktogramm und Farbe (Wartungsvertrag = eigene Kennzeichnung)",
+      "enum": [
+        "online_marketing",
+        "wartung",
+        "sonstiges"
       ],
       "type": "string"
     },
@@ -76,7 +91,9 @@
     },
     "laufzeit_historie": {
       "description": "Abgeschlossene Vorperioden des Retainers",
+      "type": "array",
       "items": {
+        "type": "object",
         "properties": {
           "abgeschlossen_am": {
             "type": "string"
@@ -105,10 +122,8 @@
           "verfuegbar": {
             "type": "number"
           }
-        },
-        "type": "object"
-      },
-      "type": "array"
+        }
+      }
     },
     "liquidity_project_id": {
       "description": "Verkn\u00fcpftes Projekt-Cockpit (LiquidityProject.id). Auftrag, Anweisungen, Rechnungen, Abrechnungsplan und Kundenakt h\u00e4ngen dort.",
@@ -182,11 +197,5 @@
       "description": "Netto in EUR \u00fcber alle Sprints",
       "type": "number"
     }
-  },
-  "required": [
-    "client_id",
-    "title",
-    "pm_email"
-  ],
-  "type": "object"
+  }
 }
