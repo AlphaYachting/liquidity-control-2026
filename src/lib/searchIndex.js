@@ -114,31 +114,3 @@ export function merkeGeoeffnet(zeile) {
   localStorage.setItem(ZULETZT, JSON.stringify(liste.slice(0, 5)));
 }
 
-// ── Index aktuell halten ──────────────────────────────────────────────────────────────────
-// Wird nach jeder gespeicherten Änderung aufgerufen (src/api/auditWrapper.js).
-// Sammelt 1,5 s lang und schickt dann EINEN Aufruf an touchSearchIndex. Fehler
-// werden verschluckt: die Bedienung darf davon nie blockiert werden; im
-// schlimmsten Fall holt der nächtliche Neuaufbau den Stand nach.
-export const SUCHRELEVANT = new Set([
-  'Client', 'Project', 'Ticket', 'Sprint', 'LiquidityProject', 'ConfirmedOrder',
-  'CrmProposal', 'InvoiceRecord', 'BillingInstruction', 'RecurringContract', 'ProjectFileEntry',
-]);
-const MAX_JE_AUFRUF = 50;
-let warteschlange = new Map();
-let zeitgeber = null;
-
-export function suchindexAuffrischen(entity, ids) {
-  if (!SUCHRELEVANT.has(entity)) return;
-  (Array.isArray(ids) ? ids : [ids]).filter(Boolean).forEach((id) => {
-    warteschlange.set(`${entity}:${id}`, { entity, id: String(id) });
-  });
-  if (!warteschlange.size || zeitgeber) return;
-  zeitgeber = setTimeout(() => {
-    const alle = Array.from(warteschlange.values());
-    warteschlange = new Map();
-    zeitgeber = null;
-    for (let i = 0; i < alle.length; i += MAX_JE_AUFRUF) {
-      base44.functions.invoke('touchSearchIndex', { eintraege: alle.slice(i, i + MAX_JE_AUFRUF) }).catch(() => {});
-    }
-  }, 1500);
-}
