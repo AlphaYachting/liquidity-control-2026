@@ -91,10 +91,10 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
       const user = await base44.auth.me().catch(() => null);
       const chosen = projects.find(p => p.id === form.project_id);
       const { project_id: projectId, milestone_id: milestoneId } = await resolveSupportProject(
-        chosen ? (chosen.title || '').replace(/^Support — /, '') || form.customer : form.customer,
+        chosen ? form.customer || (chosen.title || '').replace(/^Support — /, '') : form.customer,
         {
+          projectId: chosen?.id,
           pmEmail: chosen?.pm_email || user?.email || '',
-          contactEmail: item.sender_email || '',
           stundensatz: Number(form.stundensatz) || 0,
         },
       );
