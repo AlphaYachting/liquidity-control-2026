@@ -1,7 +1,10 @@
 // Gemeinsame Ladefilter: archivierte Tickets und abgeschlossene Projekte erreichen
 // die Arbeitsansichten gar nicht erst. `$ne: true` greift auch für Altdatensätze ohne Feld.
 export const NICHT_ARCHIVIERT = { archiviert: { $ne: true } };
-export const PROJEKT_LAUFEND = { status: { $in: ['aktiv', 'pausiert'] } };
+// aktiv oder pausiert — `$ne` statt `$in`, damit auch Projekte ohne gesetzten Status mitkommen
+export const PROJEKT_LAUFEND = { status: { $ne: 'abgeschlossen' } };
+// Nur aktive Projekte erzeugen Arbeit in „Heute" und neue Routinen-Durchläufe
+export const istAktiv = (project) => !!project && project.status !== 'abgeschlossen' && project.status !== 'pausiert';
 export const ohneArchiv = (q = {}) => ({ ...q, ...NICHT_ARCHIVIERT });
 
 export const ARCHIV_GRUENDE = [
