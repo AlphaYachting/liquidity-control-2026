@@ -67,6 +67,9 @@ export default function CrmInbox() {
   const passt = FILTER.find((f) => f.key === filter)?.passt || FILTER[0].passt;
   const imFilter = eintraege.filter(passt);
   const jungAnzahl = imFilter.filter((e) => !e.sichtbar).length;
+  // Im Support-Eingang zählt der Seitenkopf nur die Support-Anfragen
+  const kopfAnzahl = filter === 'support' ? imFilter.filter((e) => e.sichtbar).length : gesamt;
+  const kopfUeberfaellig = filter === 'support' ? imFilter.filter((e) => e.sichtbar && e.ueberfaellig).length : overdue;
   const gefilterte = imFilter
     .filter((e) => e.sichtbar || zeigeJung)
     .sort((a, b) => (neuesteZuerst ? b.eingang - a.eingang : a.eingang - b.eingang));
@@ -152,7 +155,7 @@ export default function CrmInbox() {
       <Seitenkopf
         bereich="CRM"
         titel={filter === 'support' ? 'Support-Eingang' : 'Posteingang'}
-        kontext={`${gesamt} unbeantwortet seit mindestens ${SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden${overdue > 0 ? ` · ${overdue} davon länger als 2 Tage` : ''}`}
+        kontext={`${kopfAnzahl} unbeantwortet seit mindestens ${SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden${kopfUeberfaellig > 0 ? ` · ${kopfUeberfaellig} davon länger als 2 Tage` : ''}`}
         aktionen={
           <>
             <Button variant="outline" asChild>
