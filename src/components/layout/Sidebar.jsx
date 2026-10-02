@@ -1,138 +1,76 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  LayoutDashboard, FolderKanban, Megaphone, Shield, Wrench, Server,
-  CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
-  Upload, ChevronLeft, ChevronRight, BarChart3, Menu, X, CheckSquare,
-  ClipboardList, GitMerge, CalendarCheck, Zap, Map, BrainCircuit, PieChart,
-  CalendarDays, Users, BarChart2, Clock, DatabaseZap, RefreshCw, Trash2, RotateCcw, Scale,
-  KanbanSquare, Inbox, History, Presentation, Mail, Sun, Siren,
-  Rocket, CalendarRange, Gauge, Layers, LifeBuoy, Sparkles, SlidersHorizontal, Timer
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/lib/AuthContext';
 import { useUnlinkedOrdersCount } from '@/hooks/useUnlinkedOrdersCount';
 import { usePendingDunningCount } from '@/hooks/usePendingDunningCount';
 import { usePosteingang } from '@/hooks/usePosteingang';
 import { useEscalationAlertCount } from '@/hooks/useEscalationAlertCount';
+import { useZugriff } from '@/lib/useZugriff';
+import { NAV_GRUPPEN } from '@/lib/navigation';
 
-const navSections = [
-  {
-    title: null,
-    items: [
-      { path: '/', label: 'Mein Tag', icon: Sun },
-      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban },
-      { path: '/next-month-forecast', label: 'Abrechnungsforecast', icon: CalendarCheck },
-      { path: '/invoice-ready', label: 'Abrechnungsanweisungen', icon: CheckSquare },
-      { path: '/support-billing', label: 'Support-Abrechnung', icon: LifeBuoy },
-      { path: '/customer-risk', label: 'Kundenrisiko', icon: Users },
-      { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock },
-      { path: '/escalation-alerts', label: 'Eskalations-Alerts', icon: AlertTriangle },
-    ],
-  },
-  {
-    title: 'CRM',
-    items: [
-      { path: '/crm', label: 'Pipeline', icon: KanbanSquare },
-      { path: '/crm/inbox', label: 'Posteingang', icon: Inbox },
-      { path: '/crm/emails', label: 'E-Mail-Zentrale', icon: Mail },
-      { path: '/crm/escalations', label: 'Kunden-Eskalationen', icon: Siren },
-      { path: '/crm/proposals', label: 'Angebots-Studio', icon: Presentation },
-    ],
-  },
-  {
-    title: 'Sprint-Modul',
-    items: [
-      { path: '/sprint/uebersicht', label: 'Übersicht', icon: Gauge },
-      { path: '/sprint', label: 'Heute', icon: Rocket },
-      { path: '/zeiten', label: 'Zeiten', icon: Timer },
-      { path: '/sprint/projekte', label: 'Projekte', icon: Layers },
-      { path: '/sprint/intelligence', label: 'Projekt-Intelligence', icon: BrainCircuit },
-      { path: '/sprint/planung', label: 'Planung', icon: CalendarRange },
-      { path: '/sprint/steuerung', label: 'Steuerung', icon: SlidersHorizontal },
-    ],
-  },
-  {
-    title: 'Cashflow',
-    items: [
-      { path: '/cashflow-advisor', label: 'KI-Analyse Cockpit', icon: Sparkles },
-      { path: '/weekly-cashflow', label: 'Wöchentl. Cashflow', icon: CalendarDays },
-      { path: '/variance-analysis', label: 'Abweichungsanalyse', icon: BarChart2 },
-      { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp },
-    ],
-  },
-  {
-    title: 'Einnahmen & Ausgaben',
-    items: [
-      { path: '/receivables', label: 'Offene Forderungen', icon: AlertTriangle },
-      { path: '/confirmed-orders', label: 'Auftragsabwicklung', icon: ClipboardList },
-      { path: '/online-marketing', label: 'Online-Marketing', icon: Megaphone },
-      { path: '/maintenance', label: 'Wartungsverträge', icon: Shield },
-      { path: '/hosting', label: 'Hosting & Domains', icon: Server },
-      { path: '/production', label: 'Produktion & Support', icon: Wrench },
-      { path: '/tools', label: 'Toolkosten', icon: CreditCard },
-      { path: '/payables', label: 'Eingangsrechnungen', icon: FileText },
-      { path: '/revenue-analysis', label: 'Umsatzbewertung', icon: PieChart },
-    ],
-  },
-];
-
-const adminNavItems = [
-  { path: '/audit-trail', label: 'Änderungsprotokoll', icon: History },
-  { path: '/restructuring', label: 'Sanierungs-Reporting', icon: Scale },
-  { path: '/invoice-matching', label: 'Rechnungszuordnung', icon: GitMerge },
-  { path: '/billing-reset', label: 'Verrechnungsdaten Reset', icon: RefreshCw },
-  { path: '/operational-reset', label: 'Operational Reset', icon: Trash2 },
-  { path: '/sevdesk-reimport', label: 'sevDesk Re-Import', icon: RotateCcw },
-  { path: '/master-import', label: 'Master-Datenimport', icon: DatabaseZap },
-  { path: '/import', label: 'Import Center', icon: Upload },
-  { path: '/settings', label: 'Settings', icon: Settings },
-  { path: '/awork-settings', label: 'awork Integration', icon: Zap },
-  { path: '/awork-mapping', label: 'awork Mapping', icon: Map },
-  { path: '/sevdesk-settings', label: 'sevDesk Integration', icon: BarChart3 },
-];
+// Welche einklappbaren Gruppen die Person offen hat — bleibt im Browser gemerkt.
+const SPEICHER = 'nav-gruppen-offen';
+function ladeOffen() {
+  try { return JSON.parse(window.localStorage.getItem(SPEICHER) || '{}') || {}; } catch (e) { return {}; }
+}
+function merkeOffen(offen) {
+  try { window.localStorage.setItem(SPEICHER, JSON.stringify(offen)); } catch (e) { /* ohne Speicher gilt der Standard */ }
+}
 
 export default function Sidebar() {
   const location = useLocation();
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const zugriff = useZugriff();
   // Die Zähler laden erst kurz nach dem Start: die geöffnete Seite bekommt den
-  // Server zuerst, statt ihn sich mit sechs Zählerabfragen zu teilen.
+  // Server zuerst. Und nur, wenn die Person den zugehörigen Punkt auch sieht.
   const [zaehlerBereit, setZaehlerBereit] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setZaehlerBereit(true), 4000);
     return () => clearTimeout(t);
   }, []);
-  const unlinkedCount = useUnlinkedOrdersCount({ enabled: zaehlerBereit });
-  const pendingDunningCount = usePendingDunningCount({ enabled: zaehlerBereit });
+  const bereit = zaehlerBereit && !zugriff.isLoading;
+  const unlinkedCount = useUnlinkedOrdersCount({ enabled: bereit && zugriff.darf('geld') });
+  const pendingDunningCount = usePendingDunningCount({ enabled: bereit && zugriff.darf('geld') });
   // Ein Zähler für den einen Posteingang — dieselbe Quelle wie die Liste
-  const posteingang = usePosteingang({ enabled: zaehlerBereit });
-  const crmInbox = { total: posteingang.gesamt, overdue: posteingang.ueberfaellig };
-  const escalationCount = useEscalationAlertCount({ enabled: zaehlerBereit });
+  const posteingang = usePosteingang({ enabled: bereit && zugriff.darf(['leitung', 'support']) });
+  const escalationCount = useEscalationAlertCount({ enabled: bereit && zugriff.darf('leitung') });
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [offen, setOffen] = useState(ladeOffen);
 
+  const supportUeberfaellig = (posteingang.eintraege || [])
+    .filter((e) => e.sichtbar && e.klasse === 'support' && e.ueberfaellig).length;
+
+  // anzahl = dunkler Zähler (rot, wenn etwas überfällig ist), alarm = roter Zähler
+  const zaehler = {
+    posteingang: { anzahl: posteingang.gesamt || 0, ueberfaellig: posteingang.ueberfaellig || 0 },
+    support: { anzahl: posteingang.zahlen?.support || 0, ueberfaellig: supportUeberfaellig },
+    auftraege: { anzahl: unlinkedCount || 0 },
+    mahnungen: { anzahl: pendingDunningCount || 0 },
+    eskalationen: { alarm: escalationCount || 0 },
+  };
+
+  const filter = new URLSearchParams(location.search).get('filter');
   const isActive = (path) => {
-    if (path === '/') return location.pathname === '/';
-    if (path === '/sprint') return location.pathname === '/sprint';
-    if (path === '/sprint/projekte') return /^\/sprint\/(projekte|katalog|neu|sprints|milestones)/.test(location.pathname);
+    const p = location.pathname;
+    // Posteingang und Support-Eingang sind dieselbe Seite mit anderem Filter
+    if (path === '/crm/inbox?filter=support') return p === '/crm/inbox' && filter === 'support';
+    if (path === '/crm/inbox') return p === '/crm/inbox' && filter !== 'support';
+    if (path === '/sprint') return p === '/sprint';
+    if (path === '/sprint/projekte') return /^\/sprint\/(projekte|katalog|neu|sprints|milestones)/.test(p);
     // Angebote und Deal-Details haben keinen eigenen Punkt — sie gehören zur Pipeline
-    if (path === '/crm') return location.pathname === '/crm'
-      || location.pathname.startsWith('/crm/deals') || location.pathname.startsWith('/crm/quotes');
-    return location.pathname === path || location.pathname.startsWith(path + '/');
+    if (path === '/crm') return p === '/crm' || p.startsWith('/crm/deals') || p.startsWith('/crm/quotes');
+    return p === path || p.startsWith(path + '/');
   };
 
   const renderNavLink = (item) => {
     const Icon = item.icon;
     const active = isActive(item.path);
-    const badgeCount = item.path === '/confirmed-orders' ? unlinkedCount
-      : item.path === '/receivables' ? pendingDunningCount
-      : item.path === '/crm/inbox' ? crmInbox.total : 0;
-    // roter Zähler = Kunden-Eskalationen, hat im eingeklappten Zustand Vorrang
-    const alertCount = item.path === '/crm/escalations' ? escalationCount : 0;
-    // überfällige Posteingangsanfragen färben den Zähler rot statt gelb
-    const badgeOverdue = item.path === '/crm/inbox' && crmInbox.overdue > 0;
+    const z = zaehler[item.zaehler] || {};
+    const badgeCount = z.anzahl || 0;
+    const alertCount = z.alarm || 0;
+    // überfällige Anfragen färben den Zähler rot statt dunkel
+    const badgeOverdue = (z.ueberfaellig || 0) > 0;
     return (
       <Link
         key={item.path}
@@ -157,7 +95,7 @@ export default function Sidebar() {
               {badgeCount > 0 && (
                 <span
                   className={`min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold flex items-center justify-center ${badgeOverdue ? 'bg-status-critical text-white' : 'bg-foreground text-background'}`}
-                  title={badgeOverdue ? `${crmInbox.overdue} überfällig (älter als 48 Stunden)` : undefined}
+                  title={badgeOverdue ? `${z.ueberfaellig} überfällig (älter als 48 Stunden)` : undefined}
                 >
                   {badgeCount}
                 </span>
@@ -174,17 +112,52 @@ export default function Sidebar() {
     );
   };
 
-  const renderSectionHeader = (title) => (
-    <div className={`pt-4 pb-1 ${collapsed ? 'px-0' : 'px-3'}`}>
-      {collapsed ? (
-        <div className="h-px bg-sidebar-border/60 mx-2" />
-      ) : (
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {title}
-        </p>
-      )}
-    </div>
-  );
+  const umschalten = (key, istOffen) => {
+    const neu = { ...offen, [key]: !istOffen };
+    setOffen(neu);
+    merkeOffen(neu);
+  };
+
+  const renderSectionHeader = (gruppe, istOffen) => {
+    if (collapsed) {
+      return (
+        <div className="pt-4 pb-1 px-0">
+          {gruppe.einklappbar ? (
+            <button
+              type="button"
+              onClick={() => umschalten(gruppe.key, istOffen)}
+              title={`${gruppe.titel} ${istOffen ? 'einklappen' : 'aufklappen'}`}
+              className="w-full flex items-center justify-center py-1 text-muted-foreground hover:text-sidebar-foreground border-t border-sidebar-border/60"
+            >
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${istOffen ? 'rotate-180' : ''}`} />
+            </button>
+          ) : (
+            <div className="h-px bg-sidebar-border/60 mx-2" />
+          )}
+        </div>
+      );
+    }
+    const titel = (
+      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {gruppe.titel}
+      </span>
+    );
+    return (
+      <div className="pt-4 pb-1 px-3">
+        {gruppe.einklappbar ? (
+          <button
+            type="button"
+            onClick={() => umschalten(gruppe.key, istOffen)}
+            aria-expanded={istOffen}
+            className="w-full flex items-center justify-between gap-2 hover:[&>span]:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+          >
+            {titel}
+            <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${istOffen ? 'rotate-180' : ''}`} />
+          </button>
+        ) : titel}
+      </div>
+    );
+  };
 
   const navContent = (
     <div className="flex flex-col h-full">
@@ -219,19 +192,19 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {navSections.map((section, idx) => (
-          <React.Fragment key={idx}>
-            {section.title && renderSectionHeader(section.title)}
-            {section.items.map(renderNavLink)}
-          </React.Fragment>
-        ))}
-
-        {isAdmin && (
-          <>
-            {renderSectionHeader('Administration')}
-            {adminNavItems.map(renderNavLink)}
-          </>
-        )}
+        {NAV_GRUPPEN.map((gruppe) => {
+          // Nur was die Person sehen darf; eine leere Gruppe erscheint gar nicht.
+          const items = gruppe.items.filter((i) => zugriff.darf(i.regel));
+          if (items.length === 0) return null;
+          // Liegt die geöffnete Seite in der Gruppe, ist sie immer aufgeklappt.
+          const istOffen = !gruppe.einklappbar || !!offen[gruppe.key] || items.some((i) => isActive(i.path));
+          return (
+            <React.Fragment key={gruppe.key}>
+              {gruppe.titel && renderSectionHeader(gruppe, istOffen)}
+              {istOffen && items.map(renderNavLink)}
+            </React.Fragment>
+          );
+        })}
       </nav>
 
       {!collapsed && (
