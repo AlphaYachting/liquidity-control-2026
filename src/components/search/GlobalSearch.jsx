@@ -5,7 +5,7 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { useUserScope } from '@/lib/useUserScope';
 import { RITTLER } from '@/components/sprint/sprintConfig';
-import { suche as sucheImIndex } from '@/lib/searchRank';
+import { suche as sucheImIndex, zweitZiel } from '@/lib/searchRank';
 import { ladeIndex, merkeGeoeffnet, zuletztGeoeffnet } from '@/lib/searchIndex';
 import TrefferFlaeche from './TrefferFlaeche';
 
@@ -134,6 +134,18 @@ export default function GlobalSearch() {
       setMarkiert((m) => (flach.length ? (m - 1 + flach.length) % flach.length : 0));
       return;
     }
+    if (e.key === 'ArrowRight' && eingabe) {
+      // → öffnet das Zweitziel des markierten Treffers (Cockpit bzw. Kundendaten) —
+      // aber nur, wenn der Cursor am Ende der Eingabe steht; sonst bleibt die
+      // Pfeiltaste zum Bewegen im Text.
+      const amEnde = e.target.selectionStart === e.target.value.length && e.target.selectionEnd === e.target.value.length;
+      const zw = amEnde ? zweitZiel(flach[markiert]) : null;
+      if (zw) {
+        e.preventDefault();
+        oeffnen(zw.zeile);
+      }
+      return;
+    }
     if (e.key === 'Enter') {
       e.preventDefault();
       const ziel = flach[markiert];
@@ -149,7 +161,7 @@ export default function GlobalSearch() {
   };
 
   return (
-    <div className="relative w-full max-w-[560px]">
+    <div className="relative w-full max-w-[720px]">
       <div
         className="flex items-center gap-2 px-3"
         style={{
