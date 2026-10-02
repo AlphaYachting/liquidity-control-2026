@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { kuerzelVorschlag } from '@/lib/zeit/useProjektSuche';
 import { finanzIdVon } from '@/lib/projekt/cockpitSicherstellen';
-import { PROJECT_TYPES, PROJECT_TYPE_ORDER, projectTypeOf } from '@/components/sprint/projectTypes';
+import { PROJECT_TYPES, PROJECT_TYPE_ORDER, RETAINER_ARTEN, projectTypeOf } from '@/components/sprint/projectTypes';
 import ProjectTypeFields from '@/components/sprint/ProjectTypeFields';
 import RundungsFelder from '@/components/sprint/RundungsFelder';
 
@@ -112,6 +112,7 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
       aufwand_art: type === 'support' || type === 'regie' ? type : undefined,
       support_kontingent_stunden: ['container', 'support', 'regie'].includes(type) ? Number(form.support_kontingent_stunden) || 0 : undefined,
       recurring_contract_id: type === 'container' ? (form.recurring_contract_id || '') : undefined,
+      retainer_art: type === 'container' && form.retainer_art ? form.retainer_art : undefined,
     };
     Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
 
@@ -171,6 +172,17 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
               </p>
             )}
           </div>
+          {type === 'container' && (
+            <div>
+              <Label>Art des Retainers</Label>
+              <Select value={form.retainer_art || ''} onValueChange={(v) => setForm((f) => ({ ...f, retainer_art: v }))}>
+                <SelectTrigger><SelectValue placeholder="Art wählen" /></SelectTrigger>
+                <SelectContent>
+                  {RETAINER_ARTEN.map((a) => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div>
             <Label>Kunde *</Label>
             <Select value={form.client_id} onValueChange={(v) => setForm((f) => ({ ...f, client_id: v }))}>
