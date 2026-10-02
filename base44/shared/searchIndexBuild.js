@@ -11,7 +11,7 @@ import { haystackVon, normalize } from './searchNormalize.js';
 import { NAV_TARGETS } from './navTargets.js';
 
 export const GEWICHT = {
-  kunde: 60, projekt: 45, auftrag: 35, seite: 34, rechnung: 30, cockpit: 30,
+  kunde: 60, projekt: 45, auftrag: 35, seite: 34, rechnung: 30, cockpit: 30, deal: 32,
   anweisung: 28, angebot: 28, ticket: 25, vertrag: 22, akte: 14,
 };
 
@@ -86,7 +86,7 @@ function sprintJeProjekt(sprints) {
 
 export async function ladeQuellen(sr) {
   const [clients, projekte, auftraege, rechnungen, anweisungen, angebote, vertraege,
-    tickets, sprints, akten, sprintProjekte, threads, meilensteine, profile] = await Promise.all([
+    tickets, sprints, akten, sprintProjekte, threads, meilensteine, profile, deals] = await Promise.all([
     alle(sr, 'Client', '-updated_date', 2000),
     alle(sr, 'LiquidityProject'),
     alle(sr, 'ConfirmedOrder'),
@@ -101,6 +101,7 @@ export async function ladeQuellen(sr) {
     alle(sr, 'EmailThreadIndex', '-last_message_at', 2000),
     alle(sr, 'Milestone', '-created_date', 6000),
     alle(sr, 'TeamMemberProfile', '-created_date', 200),
+    alle(sr, 'CrmDeal', '-updated_date', 2000),
   ]);
   const quelle = await zeitQuelle(sr);
   const seit = vorTagen(90);
@@ -109,6 +110,7 @@ export async function ladeQuellen(sr) {
     : (await alle(sr, 'AworkTimeEntry', '-entry_date', 4000)).filter((z) => (z.entry_date || '') >= seit);
 
   const kundeNachId = new Map(clients.map((c) => [c.id, c]));
+  const kundeNachName = new Map(clients.map((c) => [normalize(c.name), c]));
   const projektNachId = new Map(sprintProjekte.map((p) => [p.id, p]));
   const sprintNachId = new Map(sprints.map((s) => [s.id, s]));
   const sprintNachMeilenstein = new Map(meilensteine.map((m) => [m.id, m.sprint_id]));
@@ -119,9 +121,9 @@ export async function ladeQuellen(sr) {
 
   return {
     clients, projekte, auftraege, rechnungen, anweisungen, angebote, vertraege,
-    tickets: tickets.filter((t) => !t.archiviert), sprints, akten, sprintProjekte, threads, zeiten,
+    tickets: tickets.filter((t) => !t.archiviert), sprints, akten, sprintProjekte, threads, zeiten, deals,
     eigeneZeit: quelle.eigene,
-    kundeNachId, projektNachId, sprintNachId, sprintNachMeilenstein, nameNachMail, verknuepfteCockpits,
+    kundeNachId, kundeNachName, projektNachId, sprintNachId, sprintNachMeilenstein, nameNachMail, verknuepfteCockpits,
     sprintJe: sprintJeProjekt(sprints),
   };
 }
@@ -373,6 +375,40 @@ export function zeileTicket(t, q) {
   }, [projekt?.kuerzel, person]);
 }
 
+// ── CRM-Deal (Lead, Anfrage) — sichtbar für Vertrieb, Management und Verwaltung
+// (Freigabe in getSearchIndex). Offene Deals vorn, abgeschlossene treten zurück.
+const DEAL_STUFE = {
+  new_lead: 'Neuer Lead', contacted: 'Kontaktiert', meeting_scheduled: 'Termin vorgeschlagen',
+  meeting_confirmed: 'Termin bestätigt', proposal_sent: 'Angebot übermittelt', negotiation: 'Verhandlung',
+  won: 'Gewonnen', lost: 'Verloren', inquiry_received: 'Anfrage eingegangen', evaluated: 'Bewertet',
+  estimated: 'Aufwand geschätzt', ordered: 'Beauftragt', declined: 'Abgelehnt',
+};
+const DEAL_VERLOREN = ['lost', 'declined'];
+const DEAL_GEWONNEN = ['won', 'ordered'];
+
+export function zeileDeal(d, q) {
+  const kunde = q.kundeNachName.get(normalize(d.linked_customer_name || ''))
+    || q.kundeNachName.get(normalize(d.company_name || ''));
+  const firma = d.company_name || d.linked_customer_name || '';
+  const verloren = DEAL_VERLOREN.includes(d.stage);
+  const gewonnen = DEAL_GEWONNEN.includes(d.stage);
+  return mach({
+    entry_type: 'deal',
+    ref_entity: 'CrmDeal',
+    ref_id: d.id,
+    client_id: kunde?.id || '',
+    client_name: kunde?.name || firma,
+    title: d.title || firma || 'Deal',
+    subtitle: [d.title && firma ? firma : null, DEAL_STUFE[d.stage] || d.stage, d.contact_name].filter(Boolean).join(' · '),
+    side: d.value_net ? eur(d.value_net) : '',
+    side_note: !verloren && !gewonnen && d.next_step_date ? `nächster Schritt ${String(d.next_step_date).slice(0, 10)}` : '',
+    area: 'sales',
+    route: `/crm/deals/${d.id}`,
+    weight: verloren ? 8 : (gewonnen ? 12 : GEWICHT.deal),
+    activity_at: d.updated_date,
+  }, [firma, d.linked_customer_name, d.contact_name, d.contact_email, verloren ? null : 'lead']);
+}
+
 export function zeileAkte(a, q) {
   const projekt = q.projekte.find((p) => p.id === a.project_id);
   return mach({
@@ -413,6 +449,7 @@ export async function baueAlleZeilen(sr) {
     ...q.rechnungen.map(zeileRechnung),
     ...q.anweisungen.map(zeileAnweisung),
     ...q.angebote.map(zeileAngebot),
+    ...q.deals.map((d) => zeileDeal(d, q)),
     ...q.vertraege.map(zeileVertrag),
     ...q.tickets.map((t) => zeileTicket(t, q)),
     ...q.akten.map((a) => zeileAkte(a, q)),
@@ -431,6 +468,7 @@ const BAUER = {
   InvoiceRecord: (r) => zeileRechnung(r),
   BillingInstruction: (r) => zeileAnweisung(r),
   CrmProposal: (r) => zeileAngebot(r),
+  CrmDeal: zeileDeal,
   RecurringContract: (r) => zeileVertrag(r),
   Ticket: (r, q) => (r.archiviert ? null : zeileTicket(r, q)),
   ProjectFileEntry: zeileAkte,
