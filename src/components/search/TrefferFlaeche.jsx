@@ -12,7 +12,7 @@ const GruppenTitel = ({ titel, anzahl }) => (
 // Die Fläche zeigt Gruppen, Deckelung, Aufklapper, Fußzeile.
 export default function TrefferFlaeche({
   eingabe, gruppen, flach, markiert, setMarkiert, aufklappen, offen,
-  tiefLaeuft, anzahlImSpeicher, zuletzt, onOeffnen,
+  tiefLaeuft, darfTief, zuletzt, onOeffnen,
 }) {
   return (
     <div
@@ -42,7 +42,7 @@ export default function TrefferFlaeche({
               Nichts zu „{eingabe}" gefunden.
             </p>
             <p className="text-[11.5px] mt-0.5" style={{ color: RITTLER.textSecondary }}>
-              Andere Schreibweise, Kürzel oder Belegnummer versuchen.
+              Kunde, Projektkürzel, Vorname oder ein Wort weniger versuchen.
             </p>
           </div>
         )}
@@ -63,6 +63,9 @@ export default function TrefferFlaeche({
                     markiert={markiert === i}
                     onZeigen={() => setMarkiert(i)}
                     onWaehlen={() => onOeffnen(z)}
+                    onCockpit={z.route_cockpit
+                      ? () => onOeffnen({ ...z, entry_type: 'cockpit', title: `Cockpit · ${z.title}`, route: z.route_cockpit })
+                      : undefined}
                   />
                 );
               })}
@@ -93,7 +96,7 @@ export default function TrefferFlaeche({
         style={{ borderColor: RITTLER.line, color: RITTLER.textSecondary }}
       >
         <span>↑↓ wählen · ↵ öffnen · esc schließen</span>
-        <span>{anzahlImSpeicher} Einträge im Speicher</span>
+        {darfTief && <span>Mails & Kundenakt werden mitdurchsucht</span>}
       </div>
     </div>
   );
