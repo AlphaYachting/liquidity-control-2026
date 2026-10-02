@@ -58,7 +58,7 @@ export default async function (req) {
     const aufgaben = await alleSeiten((l, o) =>
       base44.asServiceRole.entities.AworkTaskSnapshot.list('-last_activity_at', l, o)
     );
-    const erledigt = aufgaben.filter(t => /verrechnung|verrechnen/i.test(t.task_status_name || ''));
+    const erledigt = aufgaben.filter(t => (t.task_status_name || '').trim().toLowerCase() === 'in verrechnung');
     const aufgabeById = {};
     erledigt.forEach(t => { aufgabeById[t.awork_task_id] = t; });
 
@@ -97,7 +97,22 @@ export default async function (req) {
     liquidity.forEach(lp => { if (lp.awork_project_id) liqByAwork[lp.awork_project_id] = lp; });
 
     // 6. Aufgaben gruppieren
+    // Jede Aufgabe „In Verrechnung" erscheint — auch ohne offene Zeit
     const perTask = {};
+    erledigt.forEach(t => {
+      if (abgerechneteTasks.has(t.awork_task_id)) return;
+      perTask[t.awork_task_id] = {
+        awork_task_id: t.awork_task_id,
+        task_title: t.task_title || '',
+        awork_project_id: t.awork_project_id,
+        assignee_name: t.assignee_name || '',
+        status_name: t.task_status_name || '',
+        last_activity_at: t.last_activity_at || null,
+        open_minutes: 0,
+        entries: 0,
+        last_entry_date: null,
+      };
+    });
     offeneBuchungen.forEach(b => {
       if (abgerechneteTasks.has(b.task_id)) return;
       const t = aufgabeById[b.task_id];
@@ -119,7 +134,7 @@ export default async function (req) {
     });
 
     // 7. Verrechnung nur in halben Stunden — je Aufgabe aufgerundet, Minimum 30 Minuten
-    const aufHalbeStunde = (min) => Math.max(30, Math.ceil((Number(min) || 0) / 30) * 30);
+    const aufHalbeStunde = (min) => !min ? 0 : Math.max(30, Math.ceil((Number(min) || 0) / 30) * 30);
     Object.values(perTask).forEach(t => { t.billable_minutes = aufHalbeStunde(t.open_minutes); });
 
     // 8. Kundenzuweisung je Anfrage (Support-Anfragen haben oft kein Projekt im Cockpit)
