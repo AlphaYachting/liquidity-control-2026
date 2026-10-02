@@ -131,7 +131,7 @@ export default function SprintHeute() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
-      <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Heute</h1>
+      <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Mein Tag</h1>
 
       {!istFocus && focusDay?.type !== 'abwesend' && routinenBlock}
 
