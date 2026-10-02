@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Pencil, LayoutTemplate, Plus } from 'lucide-react';
+import { Pencil, LayoutTemplate, Plus, X } from 'lucide-react';
 import ProjektZeile from '@/components/sprint/uebersicht/ProjektZeile';
 import ProjektZeileOhneSprint from '@/components/sprint/uebersicht/ProjektZeileOhneSprint';
 import ClientFormDialog from '@/components/sprint/ClientFormDialog';
@@ -22,6 +22,13 @@ export default function SprintProjekte() {
   const [clientDialog, setClientDialog] = useState({ open: false, client: null });
   const [projectDialog, setProjectDialog] = useState({ open: false, project: null });
   const [nurOhnePm, setNurOhnePm] = useState(false);
+  const [tab, setTab] = useState('projekte');
+
+  // Kundenfilter aus der Adresse (?kunde=<id>) — Ziel eines Kundentreffers in der
+  // Kopfsuche. ?kundendaten=1 öffnet zusätzlich gleich den Kundendatensatz.
+  const [params, setParams] = useSearchParams();
+  const kundeId = params.get('kunde') || '';
+  const kundendatenOeffnen = params.get('kundendaten') === '1';
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => base44.auth.me() });
 
@@ -46,6 +53,23 @@ export default function SprintProjekte() {
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['sprintProjekte'] });
 
+  useEffect(() => { if (kundeId) setTab('projekte'); }, [kundeId]);
+
+  useEffect(() => {
+    if (!kundendatenOeffnen || !data) return;
+    const kunde = data.clients.find((c) => c.id === kundeId);
+    if (kunde) setClientDialog({ open: true, client: kunde });
+    const naechste = new URLSearchParams(params);
+    naechste.delete('kundendaten');
+    setParams(naechste, { replace: true });
+  }, [kundendatenOeffnen, data, kundeId, params, setParams]);
+
+  const kundenfilterAufheben = () => {
+    const naechste = new URLSearchParams(params);
+    naechste.delete('kunde');
+    setParams(naechste, { replace: true });
+  };
+
   if (isLoading || !data) {
     return (
       <div className="max-w-[1200px] mx-auto space-y-4">
@@ -59,8 +83,10 @@ export default function SprintProjekte() {
   const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
   const contractById = Object.fromEntries(contracts.map((c) => [c.id, c]));
 
-  const ohnePmAnzahl = projects.filter((p) => !p.pm_email).length;
-  const sichtbar = nurOhnePm ? projects.filter((p) => !p.pm_email) : projects;
+  const filterKunde = kundeId ? clientById[kundeId] : null;
+  const basis = filterKunde ? projects.filter((p) => p.client_id === kundeId) : projects;
+  const ohnePmAnzahl = basis.filter((p) => !p.pm_email).length;
+  const sichtbar = nurOhnePm ? basis.filter((p) => !p.pm_email) : basis;
 
   const zeilen = sichtbar.map((project) => {
     const projectSprints = sprints.filter((s) => s.project_id === project.id);
@@ -126,13 +152,38 @@ export default function SprintProjekte() {
         </div>
       </div>
 
-      <Tabs defaultValue="projekte">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="projekte">Projekte ({projects.length})</TabsTrigger>
           <TabsTrigger value="kunden">Kunden ({clients.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="projekte" className="mt-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+          {filterKunde && (
+            <>
+              <span
+                className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide pl-2.5 pr-1 py-1 rounded border bg-primary text-white border-primary"
+              >
+                Kunde: {filterKunde.name}
+                <button
+                  type="button"
+                  onClick={kundenfilterAufheben}
+                  title="Kundenfilter aufheben"
+                  className="p-0.5 rounded hover:bg-white/20"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+              <button
+                type="button"
+                onClick={() => setClientDialog({ open: true, client: filterKunde })}
+                className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded border bg-white text-foreground border-border hover:bg-muted"
+              >
+                <Pencil className="w-3 h-3" /> Kundendaten
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={() => setNurOhnePm((v) => !v)}
@@ -142,6 +193,7 @@ export default function SprintProjekte() {
           >
             Ohne Projektmanager zugeordnet ({ohnePmAnzahl})
           </button>
+          </div>
           <div className="bg-white rounded-lg border border-border overflow-hidden">
             {zeilen.map((z) => (
               <div key={z.project.id} className="border-b border-[#eeeeee] last:border-0">
@@ -190,7 +242,9 @@ export default function SprintProjekte() {
             ))}
             {zeilen.length === 0 && (
               <p className="p-10 text-center text-sm text-muted-foreground">
-                {nurOhnePm
+                {filterKunde && !nurOhnePm
+                  ? 'Für diesen Kunden gibt es noch kein Projekt.'
+                  : nurOhnePm
                   ? 'Jedes Projekt hat einen Projektmanager.'
                   : 'Noch kein Projekt — oben rechts über „Neu anlegen" starten.'}
               </p>
