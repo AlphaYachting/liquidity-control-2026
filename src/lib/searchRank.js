@@ -50,7 +50,8 @@ export const GRUPPEN = [
   { key: 'kunden', titel: 'Kunden', typen: ['kunde'], max: 3 },
   { key: 'projekte', titel: 'Projekte', typen: ['projekt', 'auftrag'], max: 5 },
   { key: 'aufgaben', titel: 'Aufgaben', typen: ['ticket'], max: 6 },
-  { key: 'geld', titel: 'Geld', typen: ['cockpit', 'rechnung', 'anweisung', 'angebot', 'vertrag'], max: 3 },
+  { key: 'vertrieb', titel: 'Vertrieb', typen: ['deal', 'angebot'], max: 4 },
+  { key: 'geld', titel: 'Geld', typen: ['cockpit', 'rechnung', 'anweisung', 'vertrag'], max: 3 },
   { key: 'post', titel: 'Post & Akte', typen: ['akte'], max: 3 },
   { key: 'springe', titel: 'Springe zu', typen: ['seite'], max: 2 },
 ];
@@ -84,7 +85,7 @@ export function suche(zeilen, eingabe, meineEmail = '') {
 
   const bewertet = treffer.map(({ z, text }) => {
     let p = text + (z.weight || 0) + aktivitaetsBonus(z.activity_at);
-    if (baum.size && (z.entry_type === 'projekt' || z.entry_type === 'ticket') && baum.has(z.client_id)) p += BONUS_KUNDENBAUM;
+    if (baum.size && (z.entry_type === 'projekt' || z.entry_type === 'ticket' || z.entry_type === 'deal') && baum.has(z.client_id)) p += BONUS_KUNDENBAUM;
     if (kuerzel && z.kuerzel && z.kuerzel === kuerzel) p += z.entry_type === 'projekt' ? 2000 : 500;
     if (z.entry_type === 'ticket') {
       if (z.ist_erledigt) p -= ABZUG_ERLEDIGT;

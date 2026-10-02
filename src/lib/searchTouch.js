@@ -8,7 +8,7 @@
 
 export const SUCHRELEVANT = new Set([
   'Client', 'Project', 'Ticket', 'Sprint', 'LiquidityProject', 'ConfirmedOrder',
-  'CrmProposal', 'InvoiceRecord', 'BillingInstruction', 'RecurringContract', 'ProjectFileEntry',
+  'CrmProposal', 'CrmDeal', 'InvoiceRecord', 'BillingInstruction', 'RecurringContract', 'ProjectFileEntry',
 ]);
 
 const MAX_JE_AUFRUF = 50;

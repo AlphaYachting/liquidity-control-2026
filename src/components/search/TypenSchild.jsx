@@ -2,7 +2,7 @@ import React from 'react';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 
 const KURZ = {
-  kunde: 'Kunde', projekt: 'Projekt', cockpit: 'Cockpit', auftrag: 'Auftrag', angebot: 'Angebot',
+  kunde: 'Kunde', projekt: 'Projekt', cockpit: 'Cockpit', deal: 'Deal', auftrag: 'Auftrag', angebot: 'Angebot',
   vertrag: 'Vertrag', rechnung: 'Beleg', anweisung: 'Anweis.', sprint: 'Sprint',
   ticket: 'Aufgabe', zeit: 'Zeit', akte: 'Akte', seite: 'Seite',
 };
