@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Skeleton } from '@/components/ui/skeleton';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import { RITTLER, fmtEUR } from '@/components/sprint/sprintConfig';
+import { ohneArchiv } from '@/lib/sprint/aktivFilter';
 
 function weekStartIso() {
   const d = new Date();
@@ -22,7 +23,7 @@ export default function Wochenbilanz() {
     queryFn: async () => {
       const [approvals, tickets] = await Promise.all([
         base44.entities.Approval.filter({ approved_at: { $gte: since } }, '-approved_at', 200),
-        base44.entities.Ticket.filter({ status: 'erledigt', last_status_change: { $gte: since } }, '-last_status_change', 500),
+        base44.entities.Ticket.filter(ohneArchiv({ status: 'erledigt', last_status_change: { $gte: since } }), '-last_status_change', 500),
       ]);
       return {
         etappen: approvals.length,

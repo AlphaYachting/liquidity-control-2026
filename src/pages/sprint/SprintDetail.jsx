@@ -27,6 +27,7 @@ import { usePrefetchProjektKontext } from '@/lib/sprint/useProjektKontext';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import ModulHinzufuegenKnopf from '@/components/sprint/ModulHinzufuegenKnopf';
 import CockpitLeiste from '@/components/projekt/CockpitLeiste';
+import { ohneArchiv } from '@/lib/sprint/aktivFilter';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
 export default function SprintDetail() {
@@ -53,7 +54,7 @@ export default function SprintDetail() {
       const [client, tickets, timeEntries, focusDays, vertrag] = await Promise.all([
         project ? base44.entities.Client.get(project.client_id).catch(() => null) : Promise.resolve(null),
         milestoneIds.length
-          ? base44.entities.Ticket.filter({ milestone_id: { $in: milestoneIds } }, 'order', 1000)
+          ? base44.entities.Ticket.filter(ohneArchiv({ milestone_id: { $in: milestoneIds } }), 'order', 1000)
           : Promise.resolve([]),
         base44.entities.TimeEntry.filter({ project_id: sprint.project_id }, '-entry_date', 1000),
         base44.entities.FocusDay.filter({ project_id: sprint.project_id, type: 'focus' }, 'day', 500),

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import FocusDayDialog from '@/components/sprint/FocusDayDialog';
+import { PROJEKT_LAUFEND } from '@/lib/sprint/aktivFilter';
 
 const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
 
@@ -34,7 +35,7 @@ export default function SprintPlanung() {
     queryFn: async () => {
       const [members, projects, focusDays] = await Promise.all([
         base44.entities.TeamMember.filter({ active: true }, 'name', 100),
-        base44.entities.Project.list('-created_date', 200),
+        base44.entities.Project.filter(PROJEKT_LAUFEND, '-created_date', 500),
         base44.entities.FocusDay.filter({ day: { $gte: days[0], $lte: days[4] } }, 'day', 500),
       ]);
       return { members, projects, focusDays };

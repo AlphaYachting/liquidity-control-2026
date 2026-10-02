@@ -19,7 +19,7 @@ export default async function (req) {
       svc.entities.LiquidityProject.filter({ is_active_for_billing: true }, '-created_date', 2000),
       svc.entities.Project.list('-created_date', 2000),
       svc.entities.Client.list('-created_date', 1000),
-      svc.entities.Ticket.list('-created_date', 5000),
+      svc.entities.Ticket.filter({ archiviert: { $ne: true } }, '-created_date', 5000),
       svc.entities.ProjectFileEntry.list('-entry_date', 5000),
     ]);
 

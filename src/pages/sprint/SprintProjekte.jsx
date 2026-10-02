@@ -14,6 +14,7 @@ import { sprintStatus } from '@/lib/sprint/status';
 import BehaelterZeile from '@/components/sprint/uebersicht/BehaelterZeile';
 import { behaelterStatus } from '@/lib/sprint/behaelterStatus';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
+import { NICHT_ARCHIVIERT } from '@/lib/sprint/aktivFilter';
 
 // S3 — Projektliste + Stammdaten für Client und Project (gleicher Informationsgehalt wie die Übersicht)
 export default function SprintProjekte() {
@@ -32,7 +33,7 @@ export default function SprintProjekte() {
         base44.entities.Project.list('-created_date', 300),
         base44.entities.Sprint.list('-created_date', 500),
         base44.entities.Milestone.list('order', 1000),
-        base44.entities.Ticket.list('order', 3000),
+        base44.entities.Ticket.filter(NICHT_ARCHIVIERT, 'order', 3000),
         base44.entities.TeamMember.filter({ active: true }, 'name', 100),
         base44.entities.IntelligenceSignal.filter({ resolved: false }, '-triggered_at', 100),
         base44.entities.TimeEntry.list('-entry_date', 3000),

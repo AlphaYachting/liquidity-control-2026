@@ -1,6 +1,7 @@
 import { base44 } from '@/api/base44Client';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { ladeStammdaten } from './zeitDaten';
+import { ohneArchiv } from '@/lib/sprint/aktivFilter';
 
 // Leistungsbereich = Modul, nur bei Container-Projekten.
 export async function istContainerProjekt(projectId) {
@@ -14,7 +15,7 @@ export async function istContainerProjekt(projectId) {
 
 // Distinkte Module, aus denen dieses Projekt Tickets hat.
 export async function bereicheVonProjekt(projectId) {
-  const tickets = await base44.entities.Ticket.filter({ project_id: projectId }, 'order', 1000);
+  const tickets = await base44.entities.Ticket.filter(ohneArchiv({ project_id: projectId }), 'order', 1000);
   const ids = [...new Set(tickets.map((t) => t.module_template_id).filter(Boolean))];
   if (!ids.length) return [];
   const module = await base44.entities.ModuleTemplate.filter({ id: { $in: ids } }, 'name', 200);

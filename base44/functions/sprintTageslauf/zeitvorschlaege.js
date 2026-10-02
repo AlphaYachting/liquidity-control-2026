@@ -78,7 +78,7 @@ export async function schritt8(ctx) {
     sr.TeamMember.filter({ active: true }, 'name', 200),
     sr.User.list('-created_date', 500).catch(() => []),
     sr.Setting.filter({ key: 'standard_day_hours' }, 'key', 1).catch(() => []),
-    sr.Ticket.list('-created_date', 5000),
+    sr.Ticket.filter({ archiviert: { $ne: true } }, '-created_date', 5000),
     sr.Comment.list('-created_date', 5000),
     sr.Approval.list('-approved_at', 2000),
     sr.FocusDay.list('-day', 1000),

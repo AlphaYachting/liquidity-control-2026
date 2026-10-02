@@ -9,6 +9,7 @@ import ModulPaketEditor from '@/components/sprint/paket/ModulPaketEditor';
 import { zaehle } from '@/components/sprint/paket/paketZaehler';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { modulTicketsAnlegen } from '@/lib/sprint/ensureContainer';
+import { ohneArchiv } from '@/lib/sprint/aktivFilter';
 
 export default function SprintModuleHinzufuegen() {
   const { sprintId } = useParams();
@@ -29,7 +30,7 @@ export default function SprintModuleHinzufuegen() {
         base44.entities.TeamMember.filter({ active: true }, 'name', 200),
       ]);
       const milestone = milestones.find((m) => !m.released) || null;
-      const tickets = milestone ? await base44.entities.Ticket.filter({ milestone_id: milestone.id }, 'order', 1000) : [];
+      const tickets = milestone ? await base44.entities.Ticket.filter(ohneArchiv({ milestone_id: milestone.id }), 'order', 1000) : [];
       return { me, project, milestone, modules, ticketTemplates, members, tickets };
     },
   });

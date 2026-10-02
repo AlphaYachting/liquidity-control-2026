@@ -22,6 +22,7 @@ import StepZustaendigkeit from '@/components/sprint/assistent/StepZustaendigkeit
 import { buildTicketPlan, ticketValue, unresolvedTickets, OPEN } from '@/lib/sprint/ticketPlan';
 import { finishHandoff } from '@/lib/crm/finishHandoff';
 import { kundeAnlegen } from '@/lib/kunden/kundeAnlegen';
+import { PROJEKT_LAUFEND } from '@/lib/sprint/aktivFilter';
 
 const BLANK_CLIENT_FIELDS = { new_client_name: '', new_client_email: '' };
 
@@ -53,7 +54,7 @@ export default function SprintAssistent() {
       const [clients, contracts, projects, modules, addOns, members, settings, ticketTemplates, addOnTicketTemplates] = await Promise.all([
         base44.entities.Client.list('name', 300),
         base44.entities.RecurringContract.list('-created_date', 300),
-        base44.entities.Project.list('-created_date', 200),
+        base44.entities.Project.filter(PROJEKT_LAUFEND, '-created_date', 500),
         base44.entities.ModuleTemplate.list('-created_date', 200),
         base44.entities.AddOnBlock.list('-created_date', 200),
         base44.entities.TeamMember.filter({ active: true }, 'name', 100),

@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
 
     // d) Blockierende / lange wartende Tickets in aktiven Sprints
     const activeMsIds = new Set(activeMilestones.map((m: any) => m.id));
-    const waitingTickets = await svc.entities.Ticket.filter({ status: 'wartet' }, null, 500).catch(() => []);
+    const waitingTickets = await svc.entities.Ticket.filter({ status: 'wartet', archiviert: { $ne: true } }, null, 500).catch(() => []);
     const pmBlockedTickets = waitingTickets
       .filter((t: any) => activeMsIds.has(t.milestone_id) &&
         (t.blocks_others || !t.last_status_change || t.last_status_change.slice(0, 10) < twoWeeksAgo))

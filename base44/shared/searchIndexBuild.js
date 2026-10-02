@@ -79,7 +79,7 @@ export async function ladeQuellen(sr) {
     : (await alle(sr, 'AworkTimeEntry', '-entry_date', 4000)).filter((z) => (z.entry_date || '') >= seit);
   return {
     clients, projekte, auftraege, rechnungen, anweisungen, angebote, vertraege,
-    tickets, sprints, akten, sprintProjekte, threads, zeiten, eigeneZeit: quelle.eigene,
+    tickets: tickets.filter((t) => !t.archiviert), sprints, akten, sprintProjekte, threads, zeiten, eigeneZeit: quelle.eigene,
   };
 }
 
@@ -345,6 +345,7 @@ export async function baueEineZeile(sr, entity, id) {
   if (!bauer) return null;
   const datensatz = await sr.entities[entity].get(id);
   if (!datensatz) return null;
+  if (entity === 'Ticket' && datensatz.archiviert) return null;
   const q = await ladeQuellen(sr);
   return bauer(datensatz, q);
 }

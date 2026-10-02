@@ -43,7 +43,7 @@ export default async function (req: Request): Promise<Response> {
       await Promise.all([
         sr.Sprint.list('-created_date', 500),
         sr.Milestone.list('order', 2000),
-        sr.Ticket.list('order', 5000),
+        sr.Ticket.filter({ archiviert: { $ne: true } }, 'order', 5000),
         sr.Project.list('-created_date', 500),
         sr.Client.list('name', 500),
         sr.NotificationLog.list('-sent_at', 3000),

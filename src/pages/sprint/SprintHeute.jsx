@@ -14,6 +14,7 @@ import HeuteFristen from '@/components/sprint/HeuteFristen';
 import HeutePmBlock from '@/components/sprint/HeutePmBlock';
 import Fortschrittszaehler from '@/components/sprint/Fortschrittszaehler';
 import { todayIso } from '@/components/sprint/sprintConfig';
+import { ohneArchiv, PROJEKT_LAUFEND } from '@/lib/sprint/aktivFilter';
 
 // S1 — HEUTE: Focus-Tag-Ansicht des angemeldeten Nutzers
 export default function SprintHeute() {
@@ -28,10 +29,10 @@ export default function SprintHeute() {
     queryFn: async () => {
       const [focusDays, projects, clients, milestones, myTickets, settings, sprints, todayEntries, module] = await Promise.all([
         base44.entities.FocusDay.filter({ person_email: email, day: today }),
-        base44.entities.Project.list('-created_date', 200),
+        base44.entities.Project.filter(PROJEKT_LAUFEND, '-created_date', 500),
         base44.entities.Client.list('-created_date', 200),
         base44.entities.Milestone.list('-created_date', 500),
-        base44.entities.Ticket.filter({ assignee_email: email }, '-last_status_change', 1000),
+        base44.entities.Ticket.filter(ohneArchiv({ assignee_email: email }), '-last_status_change', 1000),
         base44.entities.Setting.filter({ group: 'kapazitaet' }, 'key', 50),
         base44.entities.Sprint.list('-created_date', 500),
         base44.entities.TimeEntry.filter({ person_email: email, entry_date: today }),
@@ -43,7 +44,7 @@ export default function SprintHeute() {
       const focusDay = focusDays[0] || null;
       let tickets = [];
       if (focusDay?.type === 'focus' && focusDay.project_id) {
-        const all = await base44.entities.Ticket.filter({ project_id: focusDay.project_id }, '-last_status_change', 1000);
+        const all = await base44.entities.Ticket.filter(ohneArchiv({ project_id: focusDay.project_id }), '-last_status_change', 1000);
         tickets = all.filter((t) => relevant(t) && (!t.assignee_email || t.assignee_email === email)).sort(nachOrder);
       } else if (focusDay?.type === 'reaktion') {
         tickets = meine;

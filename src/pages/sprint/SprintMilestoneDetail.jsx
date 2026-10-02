@@ -25,6 +25,7 @@ import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import ModulAnsicht from '@/components/sprint/ModulAnsicht';
 import ModulHinzufuegenKnopf from '@/components/sprint/ModulHinzufuegenKnopf';
+import { ohneArchiv } from '@/lib/sprint/aktivFilter';
 
 const PHASES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
 const WORK_PHASES = ['input', 'produktion', 'pruefung'];
@@ -44,7 +45,7 @@ export default function SprintMilestoneDetail() {
       const milestone = await base44.entities.Milestone.get(milestoneId);
       const [sprint, tickets, members, settings, siblings, notifications, feedbacks] = await Promise.all([
         base44.entities.Sprint.get(milestone.sprint_id).catch(() => null),
-        base44.entities.Ticket.filter({ milestone_id: milestoneId }, 'order', 1000),
+        base44.entities.Ticket.filter(ohneArchiv({ milestone_id: milestoneId }), 'order', 1000),
         base44.entities.TeamMember.filter({ active: true }, 'name', 100),
         base44.entities.Setting.filter({ group: 'fristen' }, 'key', 100),
         base44.entities.Milestone.filter({ sprint_id: milestone.sprint_id }, 'order', 50),

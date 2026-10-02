@@ -44,11 +44,11 @@ export async function ticketStatusSetzen(ticket, status, { folgetermin } = {}) {
   await base44.entities.Ticket.update(ticket.id, { status, last_status_change: new Date().toISOString() });
   if (!ticket.rhythmus) return;
   if (ticket.status === 'erledigt' && (status === 'offen' || status === 'in_arbeit')) {
-    const folge = await base44.entities.Ticket.filter({ vorgaenger_id: ticket.id }, 'order', 10);
+    const folge = await base44.entities.Ticket.filter({ vorgaenger_id: ticket.id, archiviert: { $ne: true } }, 'order', 10);
     await Promise.all(folge.filter((f) => f.status === 'offen').map((f) => base44.entities.Ticket.delete(f.id)));
     return;
   }
-  if (status !== 'erledigt') return;
+  if (status !== 'erledigt' || ticket.archiviert) return;
   // Routinen laufen nur in Container-Projekten weiter
   const project = await base44.entities.Project.get(ticket.project_id).catch(() => null);
   if (projectTypeOf(project) !== 'container') return;
