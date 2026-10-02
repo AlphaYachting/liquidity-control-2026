@@ -1,5 +1,6 @@
 import React from 'react';
 import { RITTLER } from '@/components/sprint/sprintConfig';
+import { zweitZiel } from '@/lib/searchRank';
 import TrefferZeile from './TrefferZeile';
 
 const GruppenTitel = ({ titel, anzahl }) => (
@@ -63,9 +64,10 @@ export default function TrefferFlaeche({
                     markiert={markiert === i}
                     onZeigen={() => setMarkiert(i)}
                     onWaehlen={() => onOeffnen(z)}
-                    onCockpit={z.route_cockpit
-                      ? () => onOeffnen({ ...z, entry_type: 'cockpit', title: `Cockpit · ${z.title}`, route: z.route_cockpit })
-                      : undefined}
+                    zweit={(() => {
+                      const zw = zweitZiel(z);
+                      return zw ? { label: zw.label, oeffnen: () => onOeffnen(zw.zeile) } : null;
+                    })()}
                   />
                 );
               })}
@@ -95,7 +97,7 @@ export default function TrefferFlaeche({
         className="flex items-center justify-between px-3.5 py-1.5 text-[10.5px] border-t"
         style={{ borderColor: RITTLER.line, color: RITTLER.textSecondary }}
       >
-        <span>↑↓ wählen · ↵ öffnen · esc schließen</span>
+        <span>↑↓ wählen · ↵ öffnen · → Cockpit/Kundendaten · esc schließen</span>
         {darfTief && <span>Mails & Kundenakt werden mitdurchsucht</span>}
       </div>
     </div>
