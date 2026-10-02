@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { resolveSupportProject, createSupportTicket, SUPPORT_MODELS, DEFAULT_SUPPORT_RATE } from '@/components/crm/support/supportTicket';
 import { descriptionFromThread } from '@/components/crm/support/threadDescription';
+import { kundenSchluessel } from '@/lib/kunden/kundeAnlegen';
+import { Link } from 'react-router-dom';
 
 const ROLES = ['Beratung', 'Konzept', 'Text', 'Grafik', 'Web', 'Media', 'QS'];
 
@@ -24,6 +26,12 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
       { abrechnungsmodell: { $in: SUPPORT_MODELS } }, 'title', 200),
     enabled: open,
   });
+  // Der Kunde wird nur gewählt — angelegt wird er ausschließlich im Kundenverzeichnis
+  const { data: clients = [] } = useQuery({
+    queryKey: ['support-clients'],
+    queryFn: () => base44.entities.Client.list('name', 2000),
+    enabled: open,
+  });
   const { data: team = [] } = useQuery({
     queryKey: ['team-members-active'],
     queryFn: () => base44.entities.TeamMember.filter({ active: true }, 'name', 100),
@@ -32,10 +40,14 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
 
   useEffect(() => {
     if (!open || !item) return;
-    const customer = item.matched_customer_name || item.sender_name || '';
-    const match = projects.find(p => p.title === `Support — ${customer}`);
+    const erkannt = item.matched_customer_name || item.sender_name || '';
+    const kunde = clients.find(c => kundenSchluessel(c.name) === kundenSchluessel(erkannt));
+    const customer = kunde?.name || '';
+    const match = projects.find(p => p.title === `Support — ${customer || erkannt}`);
     setForm({
       customer,
+      client_id: kunde?.id || '',
+      erkannt,
       title: (item.subject || 'Support-Anfrage').slice(0, 200),
       description: item.body || '',
       role: 'Web',
@@ -45,7 +57,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
       project_id: match?.id || '__new__',
     });
     setError(null);
-  }, [open, item, projects]);
+  }, [open, item, projects, clients]);
 
   // Kommt die Anfrage aus der E-Mail-Zentrale, fehlt der Text — Verlauf nachladen.
   useEffect(() => {
@@ -98,7 +110,22 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
         <div className="space-y-3">
           <div>
             <Label className="text-xs">Kunde</Label>
-            <Input value={form.customer} onChange={e => set('customer', e.target.value)} />
+            <Select
+              value={form.client_id}
+              onValueChange={v => setForm(f => ({ ...f, client_id: v, customer: clients.find(c => c.id === v)?.name || '' }))}
+            >
+              <SelectTrigger><SelectValue placeholder="Kunde wählen" /></SelectTrigger>
+              <SelectContent>
+                {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {!form.client_id && (
+              <p className="text-xs text-status-attention mt-1">
+                {form.erkannt ? `„${form.erkannt}" ist noch kein Kunde im Verzeichnis. ` : ''}
+                Bestehenden Kunden wählen oder zuerst im{' '}
+                <Link className="underline" to="/sprint/projekte?tab=kunden">Kundenverzeichnis</Link> anlegen.
+              </p>
+            )}
             {item?.customer_match === 'unsicher' && (
               <p className="text-xs text-status-attention mt-1">
                 Kundenzuordnung unsicher — bitte prüfen.
@@ -107,7 +134,14 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
           </div>
           <div>
             <Label className="text-xs">Ziel-Support-Projekt</Label>
-            <Select value={form.project_id} onValueChange={v => set('project_id', v)}>
+            <Select
+              value={form.project_id}
+              onValueChange={v => {
+                // Bestehendes Support-Projekt gewählt → dessen Kunde wird übernommen
+                const kunde = clients.find(c => c.id === projects.find(p => p.id === v)?.client_id);
+                setForm(f => ({ ...f, project_id: v, ...(kunde ? { client_id: kunde.id, customer: kunde.name } : {}) }));
+              }}
+            >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__new__">Support-Projekt des Kunden (neu anlegen)</SelectItem>
