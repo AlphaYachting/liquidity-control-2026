@@ -9,6 +9,7 @@ import { Pencil, LayoutTemplate, Plus, X } from 'lucide-react';
 import ProjektZeile from '@/components/sprint/uebersicht/ProjektZeile';
 import ProjektZeileOhneSprint from '@/components/sprint/uebersicht/ProjektZeileOhneSprint';
 import ClientFormDialog from '@/components/sprint/ClientFormDialog';
+import KundeAnlegenDialog from '@/components/kunden/KundeAnlegenDialog';
 import ProjectFormDialog from '@/components/sprint/ProjectFormDialog';
 import { sprintStatus } from '@/lib/sprint/status';
 import BehaelterZeile from '@/components/sprint/uebersicht/BehaelterZeile';
@@ -21,8 +22,11 @@ export default function SprintProjekte() {
   const qc = useQueryClient();
   const [clientDialog, setClientDialog] = useState({ open: false, client: null });
   const [projectDialog, setProjectDialog] = useState({ open: false, project: null });
+  // Neuanlage und sevDesk-Verknüpfung laufen über den Kunden-Baustein
+  const [kundeDialog, setKundeDialog] = useState({ open: false, client: null });
   const [nurOhnePm, setNurOhnePm] = useState(false);
-  const [tab, setTab] = useState('projekte');
+  // ?tab=kunden öffnet direkt das Kundenverzeichnis
+  const [tab, setTab] = useState(() => (new URLSearchParams(window.location.search).get('tab') === 'kunden' ? 'kunden' : 'projekte'));
 
   // Kundenfilter aus der Adresse (?kunde=<id>) — Ziel eines Kundentreffers in der
   // Kopfsuche. ?kundendaten=1 öffnet zusätzlich gleich den Kundendatensatz.
@@ -36,7 +40,7 @@ export default function SprintProjekte() {
     queryKey: ['sprintProjekte'],
     queryFn: async () => {
       const [clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays, contracts] = await Promise.all([
-        base44.entities.Client.list('name', 300),
+        base44.entities.Client.list('name', 2000),
         base44.entities.Project.list('-created_date', 300),
         base44.entities.Sprint.list('-created_date', 500),
         base44.entities.Milestone.list('order', 1000),
@@ -254,7 +258,7 @@ export default function SprintProjekte() {
 
         <TabsContent value="kunden" className="space-y-3 mt-4">
           <div className="flex justify-end">
-            <Button variant="outline" className="rounded" onClick={() => setClientDialog({ open: true, client: null })}>
+            <Button variant="outline" className="rounded" onClick={() => setKundeDialog({ open: true, client: null })}>
               <Plus className="w-4 h-4 mr-1" /> Kunde anlegen
             </Button>
           </div>
@@ -265,8 +269,14 @@ export default function SprintProjekte() {
                 <p className="text-xs text-muted-foreground">
                   {c.contact_person ? `${c.contact_person} · ` : ''}{c.contact_email}
                   {c.agb_version ? ` · ${c.agb_version}` : ''}
+                  {c.sevdesk_contact_id ? ` · sevDesk ${c.sevdesk_contact_id}` : ''}
                 </p>
               </div>
+              {!c.sevdesk_contact_id && (
+                <Button variant="outline" size="sm" className="rounded" onClick={() => setKundeDialog({ open: true, client: c })}>
+                  Mit sevDesk verknüpfen
+                </Button>
+              )}
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setClientDialog({ open: true, client: c })}>
                 <Pencil className="w-3.5 h-3.5" />
               </Button>
@@ -283,6 +293,10 @@ export default function SprintProjekte() {
       <ClientFormDialog
         open={clientDialog.open} client={clientDialog.client}
         onOpenChange={(o) => setClientDialog((d) => ({ ...d, open: o }))} onSaved={refresh}
+      />
+      <KundeAnlegenDialog
+        open={kundeDialog.open} client={kundeDialog.client}
+        onOpenChange={(o) => setKundeDialog((d) => ({ ...d, open: o }))} onSaved={refresh}
       />
       <ProjectFormDialog
         open={projectDialog.open} project={projectDialog.project} clients={clients}
