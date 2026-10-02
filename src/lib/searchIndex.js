@@ -109,7 +109,7 @@ export function merkeGeoeffnet(zeile) {
     entry_type: zeile.entry_type,
     title: zeile.title,
     subtitle: zeile.subtitle,
-    route: zeile.route,
+    route: String(zeile.route || '').replace(/[?&]kundendaten=1/, ''),
   });
   localStorage.setItem(ZULETZT, JSON.stringify(liste.slice(0, 5)));
 }
