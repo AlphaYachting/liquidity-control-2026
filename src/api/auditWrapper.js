@@ -3,6 +3,7 @@
 // Kein Einfluss auf bestehende Aufrufe — Ergebnisse werden unverändert durchgereicht.
 
 import { queryClientInstance } from '@/lib/query-client';
+import { suchindexAuffrischen, betroffeneIds } from '@/lib/searchTouch';
 
 const MUTATION_ACTIONS = {
   create: 'create',
@@ -72,6 +73,14 @@ export function withAuditLogging(client) {
       return async (...args) => {
         const result = await orig.apply(target, args);
         writeLog(buildEntry(prop, args, result, entityName)).catch(() => {});
+        // Suchindex: berührte Datensätze gebündelt auffrischen (nie blockierend).
+        try {
+          suchindexAuffrischen(
+            (name, payload) => client.functions.invoke(name, payload),
+            entityName,
+            betroffeneIds(prop, args, result),
+          );
+        } catch { /* Suche darf das Speichern nie stören */ }
         // Nach jeder Speicherung: Zwischenspeicher als veraltet markieren (ohne sofortiges
         // Neuladen) — der nächste Seitenwechsel holt dann frische Daten wie bisher.
         queryClientInstance.invalidateQueries({ refetchType: 'none' });
