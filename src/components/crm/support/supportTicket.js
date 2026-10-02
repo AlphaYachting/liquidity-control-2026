@@ -21,13 +21,14 @@ async function ensureSupportContainer(project) {
 
 // Ein dauerhaftes Support-Projekt je Kunde — bestehendes wird immer wiederverwendet.
 // Gesucht wird nach Kunde (Client) und Abrechnungsmodell 'aufwand' oder 'support',
-// erst danach wird angelegt.
+// erst danach wird das PROJEKT angelegt. Ein Kunde wird hier nie angelegt — neue
+// Kunden entstehen ausschließlich im Kundenverzeichnis (mit sevDesk-Verknüpfung).
 export async function resolveSupportProject(customerName, options = {}) {
   const customer = String(customerName || '').trim();
   if (!customer) throw new Error('Für ein Support-Ticket braucht es einen Kunden.');
 
-  const { pmEmail = '', contactEmail = '', stundensatz } = options;
-  let client = await findeKunde(customer);
+  const { pmEmail = '', stundensatz } = options;
+  const client = await findeKunde(customer);
 
   let project = null;
   if (client) {
@@ -44,11 +45,7 @@ export async function resolveSupportProject(customerName, options = {}) {
 
   if (!project) {
     if (!client) {
-      client = await base44.entities.Client.create({
-        name: customer,
-        contact_email: contactEmail || pmEmail,
-        agb_version: 'laufend',
-      });
+      throw new Error(`Den Kunden „${customer}" gibt es noch nicht — bitte einen bestehenden Kunden wählen oder ihn zuerst im Kundenverzeichnis anlegen.`);
     }
     project = await base44.entities.Project.create({
       client_id: client.id,
