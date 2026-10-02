@@ -11,6 +11,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import DataTable from '@/components/shared/DataTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { NAV_GRUPPEN } from '@/lib/navigation';
+import { RECHT_LABEL } from '@/lib/useZugriff';
+
+const regelText = (regel) => (Array.isArray(regel) ? regel : [regel]).map((r) => RECHT_LABEL[r] || r).join(' oder ');
 
 export default function Settings() {
   const { data: auditLogs = [] } = useQuery({
@@ -28,7 +32,7 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Settings & Mapping" subtitle="Systemkonfiguration" icon={SettingsIcon} />
+      <PageHeader title="Einstellungen" subtitle="Systemkonfiguration" icon={SettingsIcon} />
 
       <Tabs defaultValue="roster">
         <TabsList>
@@ -59,20 +63,25 @@ export default function Settings() {
 
         <TabsContent value="roles" className="mt-4">
           <Card>
-            <CardHeader><CardTitle className="text-base">Rollenberechtigung</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-base">Wer sieht welchen Navigationspunkt</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Die Sicht ergibt sich aus der Systemrolle und den Fachrollen (Reiter „Personen“) und den Aufgabenbereichen
+                (Reiter „Team &amp; Zuständigkeit“). Diese Tabelle zeigt die geltende Regel je Punkt.
+              </p>
+            </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {[
-                  { role: 'Admin', access: 'Vollzugriff auf alle Bereiche inkl. Import & Einstellungen', color: 'bg-red-100 text-red-700' },
-                  { role: 'Management', access: 'Dashboard, Forecast, alle Übersichten, keine Import-Funktion', color: 'bg-blue-100 text-blue-700' },
-                  { role: 'Project Management', access: 'Projekte, OM, Produktion & Support, keine Finanzdaten', color: 'bg-amber-100 text-amber-700' },
-                  { role: 'Finance', access: 'Forderungen, Verbindlichkeiten, Toolkosten, Forecast', color: 'bg-emerald-100 text-emerald-700' },
-                  { role: 'Read-only', access: 'Dashboard nur, keine Bearbeitung', color: 'bg-gray-100 text-gray-600' },
-                ].map(r => (
-                  <div key={r.role} className="flex items-center justify-between p-4 border rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <Badge className={r.color}>{r.role}</Badge>
-                      <span className="text-sm text-muted-foreground">{r.access}</span>
+              <div className="space-y-4">
+                {NAV_GRUPPEN.map((g) => (
+                  <div key={g.key}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-1.5">{g.titel || 'Tagesarbeit'}</p>
+                    <div className="divide-y border rounded-lg">
+                      {g.items.map((i) => (
+                        <div key={i.path} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                          <span className="font-medium">{i.label}</span>
+                          <span className="text-muted-foreground text-right">{regelText(i.regel)}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
