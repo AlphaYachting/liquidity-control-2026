@@ -183,9 +183,9 @@ export function zeileKunde(c, q) {
   const letzte = q.threads.filter((t) => t.customer === c.name).map((t) => t.last_message_at).sort().pop();
   const tageMail = tageSeit(letzte);
 
-  // Es gibt keine Kundenseite: genau ein aktives Projekt → dorthin, sonst die
-  // Projektübersicht. Die Projekte stehen ohnehin direkt darunter in der Liste.
-  const route = aktiv.length === 1 ? projektRoute(q, aktiv[0].id) : '/sprint/projekte';
+  // Es gibt keine eigene Kundenseite: der Kunde führt in die Projektliste,
+  // gefiltert auf seine Projekte; dort öffnet „Kundendaten“ den Datensatz.
+  const route = `/sprint/projekte?kunde=${c.id}`;
   // Interne Adressen (Import-Platzhalter) nicht anzeigen und nicht durchsuchbar
   // machen — sonst liefert „rittler“ jeden Kunden.
   const kontaktMail = /@rittler\.co$/i.test(String(c.contact_email || '')) ? '' : c.contact_email;
