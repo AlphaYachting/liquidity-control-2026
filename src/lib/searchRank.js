@@ -2,16 +2,35 @@ import { normalize } from '@/lib/searchNormalize';
 
 // Bewertung gegen die normalisierte Eingabe — synchron über das Array im
 // Speicher, ohne Netzaufruf und ohne Entprellung.
-export function punkte(zeile, q) {
+//
+// Mehrwortsuche: jedes Wort muss irgendwo vorkommen, Reihenfolge egal.
+// Einzelwortsuche verhält sich wie bisher.
+function wortPunkte(h, woerter, wort, erstes) {
+  if (woerter.includes(wort)) return 1000;
+  if (erstes && h.startsWith(wort)) return 700;
+  if (woerter.some((w) => w.startsWith(wort))) return 480;
+  if (h.includes(wort)) return 160;
+  return 0;
+}
+
+// Reine Textübereinstimmung (ohne Gewicht) — 0 = kein Treffer.
+function textPunkte(zeile, teile) {
   const h = zeile.haystack || '';
   if (!h) return 0;
   const woerter = h.split(' ');
-  let p = 0;
-  if (woerter.includes(q)) p = 1000;
-  else if (h.startsWith(q)) p = 700;
-  else if (woerter.some((w) => w.startsWith(q))) p = 480;
-  else if (h.includes(q)) p = 160;
-  else return 0;
+  let summe = 0;
+  for (let i = 0; i < teile.length; i++) {
+    const p = wortPunkte(h, woerter, teile[i], i === 0);
+    if (!p) return 0;
+    summe += p;
+  }
+  return summe / teile.length;
+}
+
+export function punkte(zeile, q) {
+  const teile = String(q || '').split(' ').filter(Boolean);
+  const p = textPunkte(zeile, teile);
+  if (!p) return 0;
   return p + (zeile.weight || 0) + aktivitaetsBonus(zeile.activity_at);
 }
 
@@ -22,23 +41,58 @@ function aktivitaetsBonus(activityAt) {
   return Math.max(0, Math.round(10 - tage / 18));
 }
 
+// Feste Hierarchie (entschieden 02.10.2026): Kunde → Projekt → Aufgaben.
+// Geld erscheint nur, wenn die Person Finanzrecht hat — das regelt bereits die
+// Auslieferung des Index (getSearchIndex). Sprints und Zeitbuchungen sind keine
+// eigenen Treffer mehr; ältere Zeilen dieser Art im Zwischenspeicher fallen so
+// aus der Anzeige.
 export const GRUPPEN = [
-  { key: 'kunden', titel: 'Kunden', typen: ['kunde'], max: 4 },
-  { key: 'projekte', titel: 'Projekte & Aufträge', typen: ['projekt', 'auftrag'], max: 3 },
-  { key: 'geld', titel: 'Geld', typen: ['rechnung', 'anweisung', 'angebot', 'vertrag'], max: 3 },
-  { key: 'arbeit', titel: 'Arbeit', typen: ['sprint', 'ticket', 'zeit'], max: 3 },
+  { key: 'kunden', titel: 'Kunden', typen: ['kunde'], max: 3 },
+  { key: 'projekte', titel: 'Projekte', typen: ['projekt', 'auftrag'], max: 5 },
+  { key: 'aufgaben', titel: 'Aufgaben', typen: ['ticket'], max: 6 },
+  { key: 'geld', titel: 'Geld', typen: ['cockpit', 'rechnung', 'anweisung', 'angebot', 'vertrag'], max: 3 },
   { key: 'post', titel: 'Post & Akte', typen: ['akte'], max: 3 },
   { key: 'springe', titel: 'Springe zu', typen: ['seite'], max: 2 },
 ];
 
-export function suche(zeilen, eingabe) {
+const ABZUG_ERLEDIGT = 400;
+const BONUS_EIGENE = 80;
+const BONUS_KUNDENBAUM = 300;
+
+export function suche(zeilen, eingabe, meineEmail = '') {
   const q = normalize(eingabe);
   if (!q) return { q, gruppen: [] };
-  const bewertet = [];
+  const teile = q.split(' ').filter(Boolean);
+  const ich = String(meineEmail || '').toLowerCase();
+
+  const treffer = [];
   for (const z of zeilen) {
-    const p = punkte(z, q);
-    if (p > 0) bewertet.push({ ...z, punkte: p });
+    const text = textPunkte(z, teile);
+    if (text > 0) treffer.push({ z, text });
   }
+
+  // Kundenbaum: trifft die Eingabe klar einen oder zwei Kunden (ganzes Wort oder
+  // Wortanfang), rücken deren Projekte und Aufgaben vor fremde Zufallstreffer.
+  const klareKunden = treffer.filter((t) => t.z.entry_type === 'kunde' && t.text >= 480);
+  const baum = klareKunden.length >= 1 && klareKunden.length <= 2
+    ? new Set(klareKunden.map((t) => t.z.client_id).filter(Boolean))
+    : new Set();
+
+  // Kürzel exakt: „wid", „jl", „per" — das Projekt steht vorne, seine offenen
+  // Aufgaben ebenso.
+  const kuerzel = teile.length === 1 ? teile[0] : '';
+
+  const bewertet = treffer.map(({ z, text }) => {
+    let p = text + (z.weight || 0) + aktivitaetsBonus(z.activity_at);
+    if (baum.size && (z.entry_type === 'projekt' || z.entry_type === 'ticket') && baum.has(z.client_id)) p += BONUS_KUNDENBAUM;
+    if (kuerzel && z.kuerzel && z.kuerzel === kuerzel) p += z.entry_type === 'projekt' ? 2000 : 500;
+    if (z.entry_type === 'ticket') {
+      if (z.ist_erledigt) p -= ABZUG_ERLEDIGT;
+      else if (ich && String(z.owner_email || '').toLowerCase() === ich) p += BONUS_EIGENE;
+    }
+    return { ...z, punkte: p };
+  });
+
   bewertet.sort((a, b) => b.punkte - a.punkte || String(b.activity_at || '').localeCompare(String(a.activity_at || '')));
 
   const gruppen = GRUPPEN.map((g) => {
