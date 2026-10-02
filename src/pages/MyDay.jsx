@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Loader2, ClipboardCheck, CalendarCheck, AlertTriangle, Gauge, Siren, Inbox, CreditCard } from 'lucide-react';
+import { Loader2, ClipboardCheck, CalendarCheck, AlertTriangle, Gauge, Siren, Inbox, CreditCard } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import WorkQueueCard from '@/components/myday/WorkQueueCard';
 import MyDayScopeBar from '@/components/myday/MyDayScopeBar';
@@ -28,7 +28,7 @@ export default function MyDay() {
       <PageHeader
         title="Freigaben"
         subtitle="Alles, was eine Entscheidung von dir braucht"
-        icon={Sun}
+        icon={ClipboardCheck}
       />
 
       <MyDayScopeBar scope={q.scope} projectCount={q.myProjectCount} totalOpen={totalOpen} />
