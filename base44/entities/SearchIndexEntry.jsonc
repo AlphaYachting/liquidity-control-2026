@@ -7,6 +7,7 @@
       "enum": [
         "kunde",
         "projekt",
+        "cockpit",
         "auftrag",
         "angebot",
         "vertrag",
@@ -67,10 +68,23 @@
     },
     "owner_email": {
       "type": "string",
-      "description": "nur bei zeit/ticket gesetzt"
+      "description": "zust\u00e4ndige Person (bei Aufgaben)"
     },
     "route": {
       "type": "string"
+    },
+    "route_cockpit": {
+      "type": "string",
+      "description": "Projekt: Sprungziel ins verkn\u00fcpfte Projekt-Cockpit \u2014 wird nur mit Finanzrecht ausgeliefert"
+    },
+    "kuerzel": {
+      "type": "string",
+      "description": "normalisiertes Projektk\u00fcrzel (Projekt und seine Aufgaben)"
+    },
+    "ist_erledigt": {
+      "type": "boolean",
+      "default": false,
+      "description": "Aufgabe erledigt \u2014 r\u00fcckt in der Trefferliste nach unten"
     },
     "activity_at": {
       "type": "string",
@@ -144,7 +158,11 @@
         "role": "admin"
       }
     },
-    "read": {},
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
     "update": {
       "user_condition": {
         "role": "admin"
