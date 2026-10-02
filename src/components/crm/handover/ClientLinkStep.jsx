@@ -6,11 +6,16 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Check, Link2, Plus, Search } from 'lucide-react';
 import AdressFelder from '@/components/crm/handover/AdressFelder';
 import { adresseAufteilen, adresseVollstaendig } from '@/lib/crm/adresse';
-import { kundeAnlegen, kundennameKlaeren } from '@/lib/kunden/kundeAnlegen';
+import { kundeAnlegen, kundennameKlaeren, findeKundeNachSevdesk, kundenSchluessel } from '@/lib/kunden/kundeAnlegen';
 
-// Pflichtschritt vor der Freigabe: der Kunde wird ausdrücklich gewählt oder angelegt.
+const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Der Kunden-Baustein — der einzige Weg, auf dem in der App ein Kunde entsteht
+// (CRM-Übergabe, Kundenverzeichnis, Assistent „Neu anlegen").
+// Der Kunde wird ausdrücklich gewählt, aus sevDesk übernommen oder neu angelegt.
 // Gültig ist er erst mit verknüpfter sevDesk-Kontakt-ID.
-export default function ClientLinkStep({ deal, kunde, client, onClient }) {
+// kontaktFelder: Ansprechperson, E-Mail und Telefon werden hier erfasst (ohne Deal im Hintergrund).
+export default function ClientLinkStep({ deal, kunde, client, onClient, kontaktFelder = false }) {
   const [query, setQuery] = useState(kunde || '');
   const [clients, setClients] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -22,7 +27,14 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
   const [manualId, setManualId] = useState('');
   const [warnungen, setWarnungen] = useState([]);
   // Rechnungsadresse: Vorschlag aus dem Deal, im Blatt sichtbar bestätigt
-  const [adresse, setAdresse] = useState(() => adresseAufteilen(deal?.company_address));
+  const [adresse, setAdresse] = useState(() => (client?.street || client?.city
+    ? { street: client.street || '', zip: client.zip || '', city: client.city || '', country_code: client.country_code || 'AT' }
+    : adresseAufteilen(deal?.company_address)));
+  const [kontakt, setKontakt] = useState(() => ({
+    person: deal?.contact_name || '',
+    email: deal?.contact_email || '',
+    phone: deal?.contact_phone || '',
+  }));
 
   useEffect(() => {
     const q = query.trim();
@@ -30,7 +42,7 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
     let cancelled = false;
     setLoading(true);
     const timer = setTimeout(async () => {
-      const all = await base44.entities.Client.list('-created_date', 500).catch(() => []);
+      const all = await base44.entities.Client.list('-created_date', 2000).catch(() => []);
       const hits = all.filter((c) => (c.name || '').toLowerCase().includes(q.toLowerCase())).slice(0, 10);
       const res = await base44.functions.invoke('fetchSevdeskContacts', { query: q }).catch(() => null);
       if (cancelled) return;
@@ -47,9 +59,22 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
     setBusy('');
   };
 
+  // Ohne Deal im Hintergrund ist die Kontakt-E-Mail Pflicht — kein Platzhalter
+  const kontaktPruefen = () => {
+    if (kontaktFelder && !EMAIL_OK.test(kontakt.email.trim())) {
+      throw new Error('Kontakt-E-Mail fehlt oder ist ungültig — bitte oben eintragen');
+    }
+  };
+
+  // Ein sevDesk-Kontakt gehört zu genau einem Kunden
+  const sevdeskFrei = async (id, ausserId) => {
+    const belegt = await findeKundeNachSevdesk(id, ausserId);
+    if (belegt) throw new Error(`Dieser sevDesk-Kontakt ist bereits mit dem Kunden „${belegt.name}" verknüpft`);
+  };
+
   const clientFields = () => ({
-    contact_person: deal?.contact_name || '',
-    contact_email: deal?.contact_email || 'unbekannt@example.com',
+    contact_person: kontakt.person.trim(),
+    contact_email: kontakt.email.trim() || 'unbekannt@example.com',
     agb_version: 'offen',
     street: adresse.street || '',
     zip: adresse.zip || '',
@@ -71,6 +96,7 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
   // (a) bestehender Client, dem noch die sevDesk-Verknüpfung fehlt
   const linkContact = (contact) => run(`link-${contact.sevdesk_contact_id}`, async () => {
     const id = contact.sevdesk_contact_id;
+    await sevdeskFrei(id, client.id);
     const felder = adresseAusKontakt(contact);
     const updated = await base44.entities.Client.update(client.id, { sevdesk_contact_id: id, ...felder });
     setAdresse(felder);
@@ -89,15 +115,22 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
   const saveManualId = () => run('manual', async () => {
     const id = manualId.trim();
     if (!id) throw new Error('Kontakt-ID fehlt');
-    const target = client || await kundeAnlegen({ name: query.trim(), ...clientFields() });
-    const updated = await base44.entities.Client.update(target.id, { sevdesk_contact_id: id });
-    onClient({ ...target, ...updated, sevdesk_contact_id: id });
+    if (client) {
+      await sevdeskFrei(id, client.id);
+      const updated = await base44.entities.Client.update(client.id, { sevdesk_contact_id: id });
+      onClient({ ...client, ...updated, sevdesk_contact_id: id });
+    } else {
+      if (!query.trim()) throw new Error('Kundenname fehlt');
+      kontaktPruefen();
+      onClient(await kundeAnlegen({ name: query.trim(), ...clientFields(), sevdesk_contact_id: id }));
+    }
     setManualHint(null);
     setLinkMode(false);
   });
 
   // (b) sevDesk-Kontakt ohne Client → Client anlegen und ID übernehmen
   const createFromContact = (contact) => run(`create-${contact.sevdesk_contact_id}`, async () => {
+    kontaktPruefen();
     const felder = adresseAusKontakt(contact);
     const created = await kundeAnlegen({
       name: contact.name, ...clientFields(), ...felder, sevdesk_contact_id: contact.sevdesk_contact_id,
@@ -110,15 +143,20 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
   // (c) weder Client noch sevDesk-Kontakt → beides neu anlegen
   const createBoth = () => run('new', async () => {
     if (!query.trim()) throw new Error('Kundenname fehlt');
+    kontaktPruefen();
+    // Gibt es den Kontakt in sevDesk schon, wird er übernommen — nie ein zweiter angelegt
+    if (contacts.some((k) => kundenSchluessel(k.name) === kundenSchluessel(query))) {
+      throw new Error('Diesen Kontakt gibt es in sevDesk bereits — bitte unten „Als Kunde übernehmen" wählen');
+    }
     const geklaert = await kundennameKlaeren(query);
     if (geklaert.bestehend) { onClient(geklaert.bestehend); setLinkMode(false); return; }
     const name = geklaert.name;
     if (!adresse.street || !adresse.zip || !adresse.city) throw new Error('Rechnungsadresse (Straße, PLZ, Ort) ausfüllen — sie wird in sevDesk mitangelegt');
     const res = await base44.functions.invoke('createSevdeskContact', {
       name,
-      contact_person: deal?.contact_name || '',
-      contact_email: deal?.contact_email || '',
-      contact_phone: deal?.contact_phone || '',
+      contact_person: kontakt.person.trim(),
+      contact_email: kontakt.email.trim(),
+      contact_phone: kontakt.phone.trim(),
       street: adresse.street || '',
       zip: adresse.zip || '',
       city: adresse.city || '',
@@ -129,7 +167,7 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
       setManualHint(res?.data?.error || 'sevDesk hat keine Kontakt-ID geliefert');
       return;
     }
-    const created = await base44.entities.Client.create({ name, ...clientFields(), sevdesk_contact_id: contactId });
+    const created = await kundeAnlegen({ name, ...clientFields(), sevdesk_contact_id: contactId });
     setWarnungen(res?.data?.warnings || []);
     onClient(created);
     setLinkMode(false);
@@ -188,6 +226,23 @@ export default function ClientLinkStep({ deal, kunde, client, onClient }) {
               <Input value={query} onChange={(e) => setQuery(e.target.value)} className="h-9 pl-8" placeholder="z. B. Timber-Moves" />
             </div>
           </div>
+
+          {kontaktFelder && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div>
+                <Label className="text-xs">Ansprechperson</Label>
+                <Input className="h-8 text-sm" value={kontakt.person} onChange={(e) => setKontakt((k) => ({ ...k, person: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Kontakt-E-Mail *</Label>
+                <Input className="h-8 text-sm" type="email" value={kontakt.email} onChange={(e) => setKontakt((k) => ({ ...k, email: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Telefon</Label>
+                <Input className="h-8 text-sm" value={kontakt.phone} onChange={(e) => setKontakt((k) => ({ ...k, phone: e.target.value }))} />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Rechnungsadresse</p>
