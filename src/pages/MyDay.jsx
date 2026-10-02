@@ -26,8 +26,8 @@ export default function MyDay() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Mein Tag"
-        subtitle="Alles, was heute eine Entscheidung von dir braucht"
+        title="Freigaben"
+        subtitle="Alles, was eine Entscheidung von dir braucht"
         icon={Sun}
       />
 
@@ -85,7 +85,7 @@ export default function MyDay() {
           tone="red"
           items={q.riskProjects}
           to="/escalation-alerts"
-          ctaLabel="Zu den Eskalations-Alerts"
+          ctaLabel="Zum Projekt-Risiko"
           renderItem={(p) => (
             <>
               <span className="font-medium">{p.customer}</span> · {p.project_name}
@@ -101,7 +101,7 @@ export default function MyDay() {
           items={q.escalations}
           loading={q.escalationsLoading}
           to="/crm/escalations"
-          ctaLabel="Zu den Kommunikations-Alerts"
+          ctaLabel="Zu den Kunden-Eskalationen"
           renderItem={(t) => (
             <>
               <span className="font-medium">{t.customer || 'Unbekannt'}</span>
