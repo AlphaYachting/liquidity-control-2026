@@ -59,6 +59,16 @@ export default function AufgabenBereinigen({ project, me, open, onOpenChange, on
     setMeldung(null);
   }, [open, reiter]);
 
+  const { data: etappen = [] } = useQuery({
+    queryKey: ['bereinigenEtappen', project?.id],
+    queryFn: async () => {
+      const sprints = await base44.entities.Sprint.filter({ project_id: project.id });
+      const listen = await Promise.all(sprints.map((s) => base44.entities.Milestone.filter({ sprint_id: s.id })));
+      return listen.flat();
+    },
+    enabled: Boolean(open && project?.id),
+  });
+  const etappeName = useMemo(() => Object.fromEntries(etappen.map((m) => [m.id, m.title])), [etappen]);
   const modulName = useMemo(() => Object.fromEntries(module.map((m) => [m.id, m.name])), [module]);
   const personName = useMemo(() => Object.fromEntries(team.map((m) => [m.email, m.name])), [team]);
 
@@ -266,6 +276,7 @@ export default function AufgabenBereinigen({ project, me, open, onOpenChange, on
               <input type="checkbox" className="mt-1" checked={auswahl.has(t.id)} onChange={() => umschalten(t.id)} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{t.title}</p>
+                {etappeName[t.milestone_id] && <p className="text-xs text-foreground/70 truncate">{etappeName[t.milestone_id]}</p>}
                 <p className="text-xs text-muted-foreground">
                   {reiter === 'aktiv'
                     ? [

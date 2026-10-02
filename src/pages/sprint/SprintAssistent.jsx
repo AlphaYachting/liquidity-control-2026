@@ -224,8 +224,14 @@ export default function SprintAssistent() {
       });
 
       // Zuweisung aus dem Zuständigkeiten-Schritt: Ticket-Override vor Rollen-Default
-      const tickets = ticketPlan
-        .filter((t) => t.milestoneIndex === i)
+      // Modul schon in einer früheren Etappe: Standard-Aufgaben nicht wiederholen,
+      // sondern eine Aufgabe mit dem Titel der Position anlegen.
+      const modulSchonDa = selected.slice(0, i).some((x) => x.module_template_id === sel.module_template_id);
+      const plan_i = ticketPlan.filter((t) => t.milestoneIndex === i);
+      const tickets = (modulSchonDa && plan_i.length
+        ? [{ ...plan_i.find((t) => t.milestone_state === 'produktion') || plan_i[0], title: sel.name,
+            target_hours: plan_i.reduce((s, t) => s + (Number(t.target_hours) || 0), 0) }]
+        : plan_i)
         .map((t, idx) => {
           const person = ticketValue(t, roleAssign, overrides, members);
           return {
