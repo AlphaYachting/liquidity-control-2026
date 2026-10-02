@@ -39,7 +39,7 @@ export default async function (req) {
         title: a.title || 'Kundenakt-Eintrag',
         subtitle: String(a.content || a.ai_summary || '').slice(0, 120),
         client_name: '',
-        route: `/projects/${a.project_id}/akte`,
+        route: `/projects/${a.project_id}`,
         activity_at: a.entry_date || a.updated_date,
         weight: 14,
       }));
