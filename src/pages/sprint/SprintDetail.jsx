@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AbrechnungSektion from '@/components/sprint/abrechnung/AbrechnungSektion';
 import { sprintStatus } from '@/lib/sprint/status';
 import { Button } from '@/components/ui/button';
-import { BrainCircuit, Plus } from 'lucide-react';
+import { BrainCircuit, Plus, ListChecks } from 'lucide-react';
 import BehaelterKopf from '@/components/sprint/projekt/BehaelterKopf';
 import ProjektBearbeitenKnopf from '@/components/sprint/projekt/ProjektBearbeitenKnopf';
 import BehaelterInhalt from '@/components/sprint/projekt/BehaelterInhalt';
@@ -28,6 +28,8 @@ import { projectTypeOf } from '@/components/sprint/projectTypes';
 import ModulHinzufuegenKnopf from '@/components/sprint/ModulHinzufuegenKnopf';
 import CockpitLeiste from '@/components/projekt/CockpitLeiste';
 import { ohneArchiv } from '@/lib/sprint/aktivFilter';
+import { darfBereinigen } from '@/lib/sprint/ticketBereinigen';
+import AufgabenBereinigen from '@/components/sprint/projekt/AufgabenBereinigen';
 
 // S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
 export default function SprintDetail() {
@@ -36,6 +38,7 @@ export default function SprintDetail() {
   const [schonGeoeffnet, setSchonGeoeffnet] = React.useState(false);
   if (intelligenzOffen && !schonGeoeffnet) setSchonGeoeffnet(true);
   const [addOpen, setAddOpen] = React.useState(false);
+  const [bereinigenOffen, setBereinigenOffen] = React.useState(false);
   const [intelligenzModus, setIntelligenzModus] = React.useState('frage');
   const oeffneIntelligenz = (modus) => { setIntelligenzModus(modus); setIntelligenzOffen(true); };
 
@@ -138,6 +141,11 @@ export default function SprintDetail() {
                 <Plus className="w-3.5 h-3.5 mr-1" /> Aufgabe hinzufügen
               </Button>
             )}
+            {darfBereinigen(me, project) && (
+              <Button variant="outline" size="sm" className="rounded" onClick={() => setBereinigenOffen(true)}>
+                <ListChecks className="w-3.5 h-3.5 mr-1" /> Aufgaben bereinigen
+              </Button>
+            )}
             <Button size="sm" className="shadow-sm shrink-0" onClick={() => oeffneIntelligenz('frage')}>
               <BrainCircuit className="w-4 h-4 mr-1.5" /> Projektintelligenz
             </Button>
@@ -216,6 +224,16 @@ export default function SprintDetail() {
           members={members}
           previousMilestone={null}
           onCreated={refetch}
+        />
+      )}
+
+      {darfBereinigen(me, project) && (
+        <AufgabenBereinigen
+          project={project}
+          me={me}
+          open={bereinigenOffen}
+          onOpenChange={setBereinigenOffen}
+          onDone={refetch}
         />
       )}
 
