@@ -8,12 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { kuerzelVorschlag } from '@/lib/zeit/useProjektSuche';
-import { kundeAnlegen } from '@/lib/kunden/kundeAnlegen';
+import { Link } from 'react-router-dom';
 
 // Das Projekt entsteht in der Zeile — schmaler Dialog, vorbelegt aus der Eingabe.
+// Der Kunde wird hier nur GEWÄHLT. Neue Kunden entstehen ausschließlich im
+// Kundenverzeichnis (Kunden-Baustein mit sevDesk-Verknüpfung).
 export default function SchnellProjektDialog({ open, onOpenChange, vorgabe = '', email, clients = [], onCreated }) {
   const [clientId, setClientId] = useState('');
-  const [neuerKunde, setNeuerKunde] = useState({ name: '', email: '' });
+  const [fehler, setFehler] = useState('');
   const [titel, setTitel] = useState('Laufende Arbeit');
   const [modell, setModell] = useState('regie');
   const [stundensatz, setStundensatz] = useState('');
@@ -33,14 +35,14 @@ export default function SchnellProjektDialog({ open, onOpenChange, vorgabe = '',
     if (!open) return;
     const treffer = clients.find((c) => (c.name || '').toLowerCase().includes(vorgabe.toLowerCase()));
     setClientId(treffer?.id || '');
-    setNeuerKunde({ name: treffer ? '' : vorgabe, email: '' });
+    setFehler('');
     setModell('regie');
     setKuerzel(kuerzelVorschlag(treffer?.name || vorgabe));
   }, [open, vorgabe, clients]);
 
   useEffect(() => { if (open) setStundensatz(standardsatz || ''); }, [open, standardsatz]);
 
-  const kundeName = clientId ? clients.find((c) => c.id === clientId)?.name : neuerKunde.name;
+  const kundeName = clientId ? clients.find((c) => c.id === clientId)?.name : '';
   const nachAufwand = modell !== 'intern';
 
   // Regie: Auftragstitel ist Pflicht und bleibt leer; Support: „Support — Kunde“
@@ -48,29 +50,29 @@ export default function SchnellProjektDialog({ open, onOpenChange, vorgabe = '',
     if (!open) return;
     setTitel(modell === 'support' ? `Support — ${kundeName || ''}` : modell === 'intern' ? 'Laufende Arbeit' : '');
   }, [open, modell, kundeName]);
-  const bereit = titel && kuerzel.length >= 2 && (clientId || (neuerKunde.name && neuerKunde.email));
+  const bereit = titel && kuerzel.length >= 2 && clientId;
 
   const anlegen = async () => {
+    if (!clientId) return;
     setSaving(true);
-    let id = clientId;
-    if (!id) {
-      const client = await kundeAnlegen({
-        name: neuerKunde.name,
-        contact_email: neuerKunde.email,
-        agb_version: 'offen',
+    setFehler('');
+    let project;
+    try {
+      project = await base44.entities.Project.create({
+        client_id: clientId,
+        title: titel,
+        kuerzel: kuerzel.toLowerCase(),
+        pm_email: email,
+        status: 'aktiv',
+        abrechnungsmodell: nachAufwand ? 'aufwand' : 'intern',
+        ...(nachAufwand ? { aufwand_art: modell, stundensatz: Number(stundensatz) || 0 } : {}),
       });
-      id = client.id;
+      await ensureContainer(project);
+    } catch (e) {
+      setSaving(false);
+      setFehler(`Projekt konnte nicht angelegt werden: ${e?.message || 'unbekannter Fehler'}`);
+      return;
     }
-    const project = await base44.entities.Project.create({
-      client_id: id,
-      title: titel,
-      kuerzel: kuerzel.toLowerCase(),
-      pm_email: email,
-      status: 'aktiv',
-      abrechnungsmodell: nachAufwand ? 'aufwand' : 'intern',
-      ...(nachAufwand ? { aufwand_art: modell, stundensatz: Number(stundensatz) || 0 } : {}),
-    });
-    await ensureContainer(project);
     setSaving(false);
     onOpenChange(false);
     onCreated({ ...project, clientName: kundeName, kuerzelAnzeige: kuerzel.toLowerCase() });
@@ -85,28 +87,22 @@ export default function SchnellProjektDialog({ open, onOpenChange, vorgabe = '',
         <div className="space-y-3">
           <div>
             <Label>Kunde</Label>
-            <Select value={clientId || 'neu'} onValueChange={(v) => setClientId(v === 'neu' ? '' : v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={clientId}
+              onValueChange={(v) => { setClientId(v); setKuerzel(kuerzelVorschlag(clients.find((c) => c.id === v)?.name || vorgabe)); }}
+            >
+              <SelectTrigger><SelectValue placeholder="Kunde wählen" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="neu">Neuen Kunden anlegen</SelectItem>
                 {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            {!clientId && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Kunde fehlt in der Liste? Neue Kunden werden im{' '}
+                <Link className="underline" to="/sprint/projekte?tab=kunden">Kundenverzeichnis</Link> angelegt.
+              </p>
+            )}
           </div>
-          {!clientId && (
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                placeholder="Kundenname"
-                value={neuerKunde.name}
-                onChange={(e) => { setNeuerKunde((k) => ({ ...k, name: e.target.value })); setKuerzel(kuerzelVorschlag(e.target.value)); }}
-              />
-              <Input
-                placeholder="E-Mail" type="email"
-                value={neuerKunde.email}
-                onChange={(e) => setNeuerKunde((k) => ({ ...k, email: e.target.value }))}
-              />
-            </div>
-          )}
           <div>
             <Label>Art</Label>
             <Select value={modell} onValueChange={setModell}>
@@ -129,6 +125,7 @@ export default function SchnellProjektDialog({ open, onOpenChange, vorgabe = '',
             <Label>Kürzel</Label>
             <Input maxLength={5} value={kuerzel} onChange={(e) => setKuerzel(e.target.value.slice(0, 5))} />
           </div>
+          {fehler && <p className="text-xs text-status-critical">{fehler}</p>}
           <Button
             className="w-full bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
             disabled={saving || !bereit}
