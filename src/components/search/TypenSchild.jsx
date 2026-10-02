@@ -2,9 +2,9 @@ import React from 'react';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 
 const KURZ = {
-  kunde: 'Kunde', projekt: 'Projekt', auftrag: 'Auftrag', angebot: 'Angebot',
+  kunde: 'Kunde', projekt: 'Projekt', cockpit: 'Cockpit', auftrag: 'Auftrag', angebot: 'Angebot',
   vertrag: 'Vertrag', rechnung: 'Beleg', anweisung: 'Anweis.', sprint: 'Sprint',
-  ticket: 'Ticket', zeit: 'Zeit', akte: 'Akte', seite: 'Seite',
+  ticket: 'Aufgabe', zeit: 'Zeit', akte: 'Akte', seite: 'Seite',
 };
 
 export default function TypenSchild({ typ }) {
