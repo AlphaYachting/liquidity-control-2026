@@ -186,6 +186,9 @@ export function zeileKunde(c, q) {
   // Es gibt keine Kundenseite: genau ein aktives Projekt → dorthin, sonst die
   // Projektübersicht. Die Projekte stehen ohnehin direkt darunter in der Liste.
   const route = aktiv.length === 1 ? projektRoute(q, aktiv[0].id) : '/sprint/projekte';
+  // Interne Adressen (Import-Platzhalter) nicht anzeigen und nicht durchsuchbar
+  // machen — sonst liefert „rittler“ jeden Kunden.
+  const kontaktMail = /@rittler\.co$/i.test(String(c.contact_email || '')) ? '' : c.contact_email;
 
   return mach({
     entry_type: 'kunde',
@@ -194,7 +197,7 @@ export function zeileKunde(c, q) {
     client_id: c.id,
     client_name: c.name,
     title: c.name,
-    subtitle: [c.contact_person, c.contact_email].filter(Boolean).join(' · '),
+    subtitle: [c.contact_person, kontaktMail].filter(Boolean).join(' · '),
     side: offen > 0 ? eur(offen) : '',
     side_note: offen > 0 ? 'offen' : '',
     is_due: offen > 0,
