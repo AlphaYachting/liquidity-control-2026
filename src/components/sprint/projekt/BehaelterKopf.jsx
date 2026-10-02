@@ -5,7 +5,7 @@ import KennzahlFeld from '@/components/sprint/KennzahlFeld';
 import TypPill from '@/components/sprint/TypPill';
 import KontingentFeld from '@/components/sprint/projekt/KontingentFeld';
 import LaufzeitSaldoFeld from '@/components/sprint/projekt/LaufzeitSaldoFeld';
-import { projectTypeOf } from '@/components/sprint/projectTypes';
+import { projectTypeOf, istWartung } from '@/components/sprint/projectTypes';
 import { RITTLER, STATUS_COLORS, fmtDate, fmtEUR, todayIso } from '@/components/sprint/sprintConfig';
 import { istFaellig, istUeberfaellig } from '@/lib/sprint/faelligkeit';
 import { laufenderMonat, monatsName, stundenVon, imMonat, h1, nachFaelligkeit } from '@/lib/sprint/behaelterZahlen';
@@ -25,7 +25,7 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
   const pmName = members.find((m) => m.email === project?.pm_email)?.name || project?.pm_email || '—';
 
   const typText = {
-    container: `Retainer · Betreuer ${pmName}`,
+    container: `${istWartung(project) ? 'Wartungsvertrag' : 'Retainer'} · Betreuer ${pmName}`,
     support: `Support · ${project?.stundensatz || 0} €/h`,
     regie: ['Regie', `${project?.stundensatz || 0} €/h`, client?.contact_person].filter(Boolean).join(' · '),
     intern: 'Intern',
