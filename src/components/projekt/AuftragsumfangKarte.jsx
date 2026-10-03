@@ -12,7 +12,7 @@ const Kennzeile = ({ label, wert }) => (
 );
 
 // Was ist beauftragt — reine Anzeige, bearbeitet wird in der AB
-export default function AuftragsumfangKarte({ order }) {
+export default function AuftragsumfangKarte({ order, ohneStatus = false }) {
   const { data: items = [] } = useQuery({
     queryKey: ['projektAbrechnung', 'umfangPositionen', order.id],
     queryFn: () => base44.entities.ConfirmedOrderItem.filter({ confirmed_order_id: order.id }),
@@ -42,7 +42,7 @@ export default function AuftragsumfangKarte({ order }) {
               <Kennzeile label="Liefertermin" wert={fmtTag(order.liefertermin) || null} />
             </div>
             {items.length > 0 && (
-              <div>{items.map((i) => <UmfangPositionZeile key={i.id} item={i} auftragSchleifen={order.korrekturschleifen} />)}</div>
+              <div>{items.map((i) => <UmfangPositionZeile key={i.id} item={i} auftragSchleifen={order.korrekturschleifen} ohneStatus={ohneStatus} />)}</div>
             )}
             {order.nicht_enthalten?.length > 0 && (
               <div>
