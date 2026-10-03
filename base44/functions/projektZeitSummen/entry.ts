@@ -16,9 +16,15 @@ export default async function (req) {
 
     const svc = base44.asServiceRole;
     const sprints = await svc.entities.Sprint.filter({ project_id: projectId }, 'delivery_date', 100);
+    // Laufender Sprint; läuft noch keiner, der nächste geplante — gleiche Regel wie
+    // in src/lib/sprint/buchungsfelder.js und zeitStoppen.
     const laufend = sprints
       .filter((s) => s.status === 'laufend')
-      .sort((a, b) => (a.delivery_date || '9999-12-31').localeCompare(b.delivery_date || '9999-12-31'))[0] || null;
+      .sort((a, b) => (a.delivery_date || '9999-12-31').localeCompare(b.delivery_date || '9999-12-31'))[0]
+      || sprints
+        .filter((s) => s.status === 'geplant')
+        .sort((a, b) => (a.start_date || '9999-12-31').localeCompare(b.start_date || '9999-12-31'))[0]
+      || null;
 
     const now = new Date();
     const monatPraefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
