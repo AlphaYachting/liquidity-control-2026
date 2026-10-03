@@ -18,6 +18,14 @@ import BehaelterZeile from '@/components/sprint/uebersicht/BehaelterZeile';
 import { behaelterStatus } from '@/lib/sprint/behaelterStatus';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { NICHT_ARCHIVIERT } from '@/lib/sprint/aktivFilter';
+import ProjektFilterLeiste from '@/components/sprint/uebersicht/ProjektFilterLeiste';
+import ProjektGruppe from '@/components/sprint/uebersicht/ProjektGruppe';
+import {
+  PROJEKT_GRUPPEN, gruppeVon, standVon, meineProjektIds, passtZurSuche, merkLesen, merkSchreiben,
+} from '@/lib/sprint/projektGruppen';
+
+const MERK_SICHT = 'projekte.sicht';
+const MERK_GRUPPEN = 'projekte.gruppenOffen';
 
 // S3 — Projektliste + Stammdaten für Client und Project (gleicher Informationsgehalt wie die Übersicht)
 export default function SprintProjekte() {
@@ -27,6 +35,11 @@ export default function SprintProjekte() {
   // Neuanlage und sevDesk-Verknüpfung laufen über den Kunden-Baustein
   const [kundeDialog, setKundeDialog] = useState({ open: false, client: null });
   const [nurOhnePm, setNurOhnePm] = useState(false);
+  // Projektliste: Meine/Alle (Wahl wird gemerkt), Stand, Suche, auf-/zugeklappte Typgruppen
+  const [sicht, setSicht] = useState(() => (merkLesen(MERK_SICHT, 'meine') === 'alle' ? 'alle' : 'meine'));
+  const [stand, setStand] = useState('laufend');
+  const [projektSuche, setProjektSuche] = useState('');
+  const [gruppenOffen, setGruppenOffen] = useState(() => merkLesen(MERK_GRUPPEN, {}) || {});
   // Kundenverzeichnis: Suche, Filter „ohne sevDesk" und Sammelabgleich
   const [kundenSuche, setKundenSuche] = useState('');
   const [nurOhneSevdesk, setNurOhneSevdesk] = useState(false);
@@ -104,8 +117,32 @@ export default function SprintProjekte() {
 
   const filterKunde = kundeId ? clientById[kundeId] : null;
   const basis = filterKunde ? projects.filter((p) => p.client_id === kundeId) : projects;
-  const ohnePmAnzahl = basis.filter((p) => !p.pm_email).length;
-  const sichtbar = nurOhnePm ? basis.filter((p) => !p.pm_email) : basis;
+
+  // Meine = Projektverantwortung oder offene Aufgabe. Beim Kundenfilter immer alle Projekte des Kunden.
+  const meineIds = meineProjektIds({ projects, tickets, email: me?.email });
+  const sichtWirksam = filterKunde ? 'alle' : sicht;
+  const anzahlSicht = { meine: basis.filter((p) => meineIds.has(p.id)).length, alle: basis.length };
+  const inSicht = sichtWirksam === 'meine' ? basis.filter((p) => meineIds.has(p.id)) : basis;
+
+  const anzahlStand = inSicht.reduce((acc, p) => {
+    const s = standVon(p);
+    acc[s] = (acc[s] || 0) + 1;
+    return acc;
+  }, {});
+  const imStand = inSicht.filter((p) => standVon(p) === stand);
+
+  const ohnePmAnzahl = imStand.filter((p) => !p.pm_email).length;
+  const sucheAktiv = projektSuche.trim().length > 0;
+  const sichtbar = imStand
+    .filter((p) => !nurOhnePm || !p.pm_email)
+    .filter((p) => passtZurSuche(p, clientById[p.client_id], projektSuche));
+
+  const sichtWaehlen = (wert) => { setSicht(wert); merkSchreiben(MERK_SICHT, wert); };
+  const gruppeUmschalten = (key, offenJetzt) => {
+    const naechste = { ...gruppenOffen, [key]: !offenJetzt };
+    setGruppenOffen(naechste);
+    merkSchreiben(MERK_GRUPPEN, naechste);
+  };
 
   const zeilen = sichtbar.map((project) => {
     const projectSprints = sprints.filter((s) => s.project_id === project.id);
@@ -154,8 +191,65 @@ export default function SprintProjekte() {
       if (!a.status) return 1;
       if (!b.status) return -1;
       return a.status.urgency - b.status.urgency
-        || (a.sprint?.delivery_date || '').localeCompare(b.sprint.delivery_date || '');
+        || (a.sprint?.delivery_date || '').localeCompare(b.sprint?.delivery_date || '');
     });
+
+  // Gliederung nach Projekttyp — innerhalb der Gruppe bleibt die Sortierung nach Dringlichkeit
+  const gruppen = PROJEKT_GRUPPEN
+    .map((g) => ({ gruppe: g, zeilen: zeilen.filter((z) => gruppeVon(z.project) === g.key) }))
+    .filter((g) => g.zeilen.length > 0);
+
+  const istOffen = (g) => {
+    if (sucheAktiv || nurOhnePm || gruppen.length === 1) return true;
+    if (typeof gruppenOffen[g.key] === 'boolean') return gruppenOffen[g.key];
+    return sichtWirksam === 'meine' || !g.anfangsZu;
+  };
+
+  const zeileRendern = (z) => (
+    <div key={z.project.id} className="border-b border-[#eeeeee] last:border-0">
+      {z.behaelter ? (
+        <BehaelterZeile
+          sprint={z.sprint}
+          project={z.project}
+          client={z.client}
+          status={z.status}
+          people={z.people}
+          currentUserEmail={me?.email}
+          onEdit={() => setProjectDialog({ open: true, project: z.project })}
+        />
+      ) : z.sprint ? (
+        <ProjektZeile
+          sprint={z.sprint}
+          project={z.project}
+          client={z.client}
+          milestones={z.milestones}
+          status={z.status}
+          people={z.people}
+          currentUserEmail={me?.email}
+          onEdit={() => setProjectDialog({ open: true, project: z.project })}
+        />
+      ) : (
+        <ProjektZeileOhneSprint
+          project={z.project}
+          client={z.client}
+          onEdit={() => setProjectDialog({ open: true, project: z.project })}
+        />
+      )}
+      {z.projectSprints.length > 1 && (
+        <div className="flex flex-wrap gap-2 px-4 pb-3 pl-12">
+          {z.projectSprints.map((s) => (
+            <Link
+              key={s.id}
+              to={`/sprint/sprints/${s.id}`}
+              className="text-[11px] px-2 py-0.5 rounded bg-muted text-foreground hover:bg-border"
+            >
+              {s.title || s.size} · {s.status}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
@@ -203,6 +297,7 @@ export default function SprintProjekte() {
               </button>
             </>
           )}
+          {(ohnePmAnzahl > 0 || nurOhnePm) && (
           <button
             type="button"
             onClick={() => setNurOhnePm((v) => !v)}
@@ -212,7 +307,14 @@ export default function SprintProjekte() {
           >
             Ohne Projektmanager zugeordnet ({ohnePmAnzahl})
           </button>
+          )}
           </div>
+          <ProjektFilterLeiste
+            sicht={sichtWirksam} onSicht={sichtWaehlen} anzahlSicht={anzahlSicht}
+            stand={stand} onStand={setStand} anzahlStand={anzahlStand}
+            suche={projektSuche} onSuche={setProjektSuche}
+            gesperrt={!!filterKunde}
+          />
           <div className="bg-white rounded-lg border border-border overflow-hidden">
             {zeilen.map((z) => (
               <div key={z.project.id} className="border-b border-[#eeeeee] last:border-0">
