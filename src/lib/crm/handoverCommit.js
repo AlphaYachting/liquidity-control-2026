@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
-import { positionsText, abKopfText, umfangText, kundenAdresse, gleichWieAngebot } from '@/lib/crm/umfangTexte';
+import { positionsText, abKopfText, kundenAdresse, gleichWieAngebot } from '@/lib/crm/umfangTexte';
+import { abTermine } from '@/lib/crm/abTermine';
 
 // Legt aus dem Übergabeblatt den Auftrag samt Positionen an und baut den
 // Startkeim für den Anlage-Wizard. Wird ausschließlich bei „Freigeben & anlegen" gerufen.
@@ -107,6 +108,9 @@ export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, 
     }
   }
 
+  // Termine der AB sind die Vorgabe für den Sprint — der Assistent füllt sie vor
+  const termine = abTermine(auftragUmfang);
+
   return {
     order,
     sevdeskFehler,
@@ -117,10 +121,12 @@ export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, 
         pm_email: pm,
         title: deal.title,
       },
-      sprint: { selected: matchModules(positions, modules) },
+      sprint: { selected: matchModules(positions, modules), start_date: termine.start, delivery_date: termine.lieferung },
       handoff: {
         confirmed_order_id: order.id,
         deal_id: deal.id,
+        ab_start: termine.start,
+        ab_liefertermin: termine.lieferung,
         customer: kunde,
         project_name: deal.title,
         total_net: total,
@@ -129,7 +135,6 @@ export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, 
         pm,
         context_text: contextText || '',
         email_thread_id: deal.email_thread_id || '',
-        umfang_text: umfangText(positions, auftragUmfang),
         angebot_url: auftragUmfang.angebot_url || '',
         angebot_nummer: auftragUmfang.angebot_nummer || '',
       },
