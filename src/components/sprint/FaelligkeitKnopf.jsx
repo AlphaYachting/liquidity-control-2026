@@ -34,7 +34,7 @@ export default function FaelligkeitKnopf({ ticket, disabled = false }) {
       )}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild disabled={disabled}>
-          <button className="inline-flex items-center gap-1 text-xs px-1 py-0.5 rounded hover:bg-muted" style={{ color: farbe }}>
+          <button className="inline-flex items-center gap-1 text-xs px-1 py-0.5 rounded hover:bg-muted whitespace-nowrap" style={{ color: farbe }}>
             {ueberfaellig && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: STATUS_COLORS.critical }} />}
             {ticket.planned_for ? fmtDate(ticket.planned_for).slice(0, 6) : 'ohne Termin'}
           </button>
