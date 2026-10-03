@@ -102,7 +102,10 @@ export default function SprintDetail() {
   const typ = projectTypeOf(project);
   const istSprint = typ === 'sprint';
   const istAdmin = me?.role === 'admin';
-  const darfAufraeumen = darfBereinigen(me, project);
+  // „Aufgaben bereinigen“ (Sammelfunktion) ist Führungskräften vorbehalten — Admins zählen dazu.
+  const darfAufraeumen = darf('fuehrung');
+  // Termine aus der AB übernehmen: Projektverantwortliche, Führung und Admins
+  const darfTermine = darfAufraeumen || darfBereinigen(me, project);
   const pmName = members.find((m) => m.email === project?.pm_email)?.name || project?.pm_email || '';
 
   const offenerMilestone = milestones.find((m) => !m.released);
@@ -156,7 +159,7 @@ export default function SprintDetail() {
       </div>
 
       {istSprint && (
-        <AbTerminHinweis sprint={sprint} project={project} milestones={milestones} darfAendern={darfAufraeumen} onChanged={refetch} />
+        <AbTerminHinweis sprint={sprint} project={project} milestones={milestones} darfAendern={darfTermine} onChanged={refetch} />
       )}
 
       <Tabs defaultValue={startReiter}>
