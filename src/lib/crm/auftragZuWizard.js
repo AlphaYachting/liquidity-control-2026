@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { matchModules, suggestModuleId } from '@/lib/crm/handoverCommit';
+import { abTermine } from '@/lib/crm/abTermine';
 
 // Findet das Projekt zu einem Auftrag: project_id ist die Cockpit-ID,
 // bei Altfällen direkt eine Project-ID.
@@ -23,12 +24,15 @@ export async function wizardAusAuftrag(order, deal) {
   ]);
   const typ = (order.notes || '').match(/Projekttyp:\s*(\w+)/)?.[1] || 'sprint';
   const positions = items.map((it) => ({ name: it.title, amount: it.total_price, module_template_id: suggestModuleId(it.title, modules) }));
+  const termine = abTermine(order);
   return {
     seed: { client_id: clients[0]?.id || '', type: typ, pm_email: order.responsible_project_manager || '', title: order.project_name },
-    sprint: { selected: matchModules(positions, modules) },
+    sprint: { selected: matchModules(positions, modules), start_date: termine.start, delivery_date: termine.lieferung },
     handoff: {
       confirmed_order_id: order.id,
       deal_id: deal.id,
+      ab_start: termine.start,
+      ab_liefertermin: termine.lieferung,
       customer: order.customer,
       project_name: order.project_name,
       total_net: Number(order.total_net_amount) || 0,
