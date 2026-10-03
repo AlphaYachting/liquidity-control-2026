@@ -12,8 +12,8 @@ const ersteZeile = (text) => (text || '').split('\n').map((z) => z.trim()).find(
 // Projektbeschreibung — der eine Platz für „was ist in diesem Projekt inkludiert".
 // Standardmäßig eingeklappt, damit die Arbeit (Etappen, Aufgaben) oben bleibt.
 // Aufgeklappt: Briefing, vereinbarter Umfang laut AB, aWork-Verlauf.
-export default function ProjektUebersicht({ project, client, members = [], onChanged, ohneStatus = false }) {
-  const [offen, setOffen] = useState(false);
+export default function ProjektUebersicht({ project, client, members = [], onChanged, ohneStatus = false, startOffen = false }) {
+  const [offen, setOffen] = useState(startOffen);
   const { data: orders = [] } = useProjektAuftraege(project);
   const order = orders[0] || null;
 
