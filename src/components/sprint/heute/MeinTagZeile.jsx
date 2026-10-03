@@ -182,6 +182,7 @@ export default function MeinTagZeile({
         </Link>
         {info && <span className="shrink-0 text-[12.5px] hidden sm:inline" style={{ color: RITTLER.textSecondary }}>{info}</span>}
         <Termin ticket={ticket} heute={heute} mitHeute />
+        {ticket.status === 'in_arbeit' && <TimerKnopfZeile ticket={ticket} project={project} client={client} />}
       </div>
     );
   }
