@@ -1,6 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { matchModules, suggestModuleId } from '@/lib/crm/handoverCommit';
-import { abTermine } from '@/lib/crm/abTermine';
+import { abTermine, sprintGroesseAus } from '@/lib/crm/abTermine';
 
 // Findet das Projekt zu einem Auftrag: project_id ist die Cockpit-ID,
 // bei Altfällen direkt eine Project-ID.
@@ -27,7 +27,7 @@ export async function wizardAusAuftrag(order, deal) {
   const termine = abTermine(order);
   return {
     seed: { client_id: clients[0]?.id || '', type: typ, pm_email: order.responsible_project_manager || '', title: order.project_name },
-    sprint: { selected: matchModules(positions, modules), start_date: termine.start, delivery_date: termine.lieferung },
+    sprint: { selected: matchModules(positions, modules), start_date: termine.start, delivery_date: termine.lieferung, size: sprintGroesseAus(termine) },
     handoff: {
       confirmed_order_id: order.id,
       deal_id: deal.id,
