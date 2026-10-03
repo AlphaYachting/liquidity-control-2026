@@ -46,9 +46,14 @@ export function nachProjekt(tickets, projectById, focusProjectId) {
     .map(([projectId, liste]) => ({
       projectId,
       project: projectById[projectId],
-      tickets: liste,
+      // Laufendes zuerst, dann in der Reihenfolge des Projekts
+      tickets: [...liste].sort((a, b) => (b.status === 'in_arbeit') - (a.status === 'in_arbeit')
+        || (a.order || 0) - (b.order || 0)),
+      inArbeit: liste.filter((t) => t.status === 'in_arbeit').length,
       stunden: liste.reduce((s, t) => s + (Number(t.target_hours) || 0), 0),
     }))
+    // Focus-Projekt vorne, dann Projekte mit laufender Arbeit, dann alphabetisch
     .sort((a, b) => (b.projectId === focusProjectId) - (a.projectId === focusProjectId)
+      || (b.inArbeit > 0) - (a.inArbeit > 0)
       || (a.project?.title || '').localeCompare(b.project?.title || ''));
 }
