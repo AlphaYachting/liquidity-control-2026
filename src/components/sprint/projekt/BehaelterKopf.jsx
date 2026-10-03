@@ -67,6 +67,31 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
         </>
       );
     }
+    if (typ === 'legacy') {
+      // Altprojekt: aWork-Stand bis zur Umstellung (awork_altstand_stunden) plus alle Buchungen in der App
+      const ausAwork = Number(project?.awork_altstand_stunden) || 0;
+      const inApp = Number(kontext?.summen?.gebucht_gesamt) || 0;
+      const gesamt = ausAwork + inApp;
+      const budgetH = Number(project?.target_hours) || 0;
+      const quote = budgetH ? gesamt / budgetH : 0;
+      const farbe = !budgetH ? undefined : quote > 1 ? STATUS_COLORS.critical : quote >= 0.8 ? STATUS_COLORS.attention : undefined;
+      const herkunft = project?.awork_altstand_stunden != null
+        ? `${h1(ausAwork)} h aus aWork · ${h1(inApp)} h in der App`
+        : `${h1(inApp)} h in der App`;
+      return (
+        <>
+          <KennzahlFeld
+            label={budgetH ? 'Budget gesamt' : 'Gebucht gesamt'}
+            value={!kontext ? '…' : budgetH ? `${h1(gesamt)} von ${h1(budgetH)} h` : `${h1(gesamt)} h`}
+            valueColor={farbe}
+            hint={kontext ? herkunft : undefined}
+            tooltip={budgetH && kontext ? `${Math.round(quote * 100)} % des Budgets verbraucht` : undefined}
+          />
+          <KennzahlFeld label={`Stunden ${mName}`} value={`${h1(gebucht)} h`} />
+          <KennzahlFeld label="Offene Aufgaben" value={offen.length} />
+        </>
+      );
+    }
     return (
       <>
         <KennzahlFeld label={`Stunden ${mName}`} value={`${h1(gebucht)} h`} />
