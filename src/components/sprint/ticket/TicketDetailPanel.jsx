@@ -38,7 +38,9 @@ const Feld = ({ children, htmlFor }) => (
 // Arbeitsplatz eines Tickets: Projektkontext (Projekt, Kunde, Etappe, Projektleitung) oben,
 // darunter Zuständigkeit, Status, Phase, Plan gegen Ist, Inhalt, Checkliste, Verweise, Kommentare.
 // Wer über „Mein Tag“ oder die Suche direkt in eine Aufgabe springt, sieht sofort, wohin sie gehört.
-export default function TicketDetailPanel({ ticket, members = [], open, onOpenChange, onSaved }) {
+// `nichtModal`: Die Seite dahinter bleibt bedienbar (kein Abdunkeln, Klick daneben schließt nicht) —
+// so lässt sich in „Mein Tag" von Aufgabe zu Aufgabe wechseln, ohne die Liste zu verlassen.
+export default function TicketDetailPanel({ ticket, members = [], open, onOpenChange, onSaved, nichtModal = false }) {
   const [form, setForm] = useState(ticket || {});
   const [saving, setSaving] = useState(false);
 
@@ -164,8 +166,12 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
   const uebergabe = kurz(etappe?.handover_date || etappe?.planned_handover);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+    <Sheet open={open} onOpenChange={onOpenChange} modal={!nichtModal}>
+      <SheetContent
+        className="w-full sm:max-w-xl overflow-y-auto"
+        overlay={!nichtModal}
+        onInteractOutside={nichtModal ? (e) => e.preventDefault() : undefined}
+      >
         <SheetHeader className="space-y-0">
           <SheetTitle className="text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Aufgabe</SheetTitle>
         </SheetHeader>
