@@ -66,7 +66,7 @@ export default function SprintKopf({ sprint, project, client, milestones, status
         </KopfKennzahl>
         <KopfKennzahl
           label="Zeit"
-          value={`${Math.round(status.hoursBooked)} h`}
+          value={`${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(status.hoursBooked || 0)} h`}
           von={`von ${status.hoursTarget} h`}
           farbe={overrun ? STATUS_COLORS.attention : undefined}
           hint={overrun ? 'Überzugsrisiko' : 'Nachkalkulation'}
