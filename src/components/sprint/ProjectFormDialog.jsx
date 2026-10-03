@@ -13,6 +13,7 @@ import { finanzIdVon } from '@/lib/projekt/cockpitSicherstellen';
 import { PROJECT_TYPES, PROJECT_TYPE_ORDER, RETAINER_ARTEN, projectTypeOf } from '@/components/sprint/projectTypes';
 import ProjectTypeFields from '@/components/sprint/ProjectTypeFields';
 import RundungsFelder from '@/components/sprint/RundungsFelder';
+import { useTeamMitglieder } from '@/components/sprint/projekt/ProjektleitungWahl';
 
 const EMPTY = {
   client_id: '', title: '', pm_email: '', status: 'aktiv', total_budget: '',
@@ -48,6 +49,8 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
     },
     enabled: open && !!project?.id,
   });
+
+  const { data: mitglieder = [] } = useTeamMitglieder(open);
 
   const { data: contracts = [] } = useQuery({
     queryKey: ['recurring-contracts-select'],
@@ -210,7 +213,21 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
               onChange={(e) => setForm((f) => ({ ...f, kuerzel: e.target.value.slice(0, 5) }))}
             />
           </div>
-          <div><Label>Projektmanager (E-Mail) *</Label><Input type="email" value={form.pm_email} onChange={(e) => setForm((f) => ({ ...f, pm_email: e.target.value }))} /></div>
+          <div>
+            <Label>Projektleitung *</Label>
+            <Select value={form.pm_email || ''} onValueChange={(v) => setForm((f) => ({ ...f, pm_email: v }))}>
+              <SelectTrigger><SelectValue placeholder="Teammitglied wählen" /></SelectTrigger>
+              <SelectContent>
+                {mitglieder.map((m) => (
+                  <SelectItem key={m.id || m.email} value={m.email}>{m.name || m.email}</SelectItem>
+                ))}
+                {/* Bisher eingetragene Adresse ohne aktives Teammitglied bleibt sichtbar, bis jemand gewählt wird */}
+                {form.pm_email && !mitglieder.some((m) => (m.email || '').toLowerCase() === form.pm_email.toLowerCase()) && (
+                  <SelectItem value={form.pm_email}>{form.pm_email} (nicht im Team)</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label>Status</Label>
             <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}>
