@@ -13,6 +13,15 @@ export function abTermine(auftrag) {
   return { start: kick ? ausText(kick[1]) : '', lieferung: alsIso(auftrag.liefertermin) };
 }
 
+// Sprintgröße aus der Spanne Kick-off bis Lieferung: bis 2 Wochen S, bis 4 Wochen M, darüber L.
+// Ohne beide Termine kein Vorschlag — dann wählt die Person im Assistenten.
+export function sprintGroesseAus({ start, lieferung }) {
+  if (!start || !lieferung) return '';
+  const tage = (new Date(`${lieferung}T00:00:00`) - new Date(`${start}T00:00:00`)) / 86400000;
+  if (!(tage > 0)) return '';
+  return tage <= 14 ? 'S' : tage <= 28 ? 'M' : 'L';
+}
+
 // Weicht der Sprint von der AB ab? Verglichen wird nur, was in der AB tatsächlich steht.
 export function terminAbweichung(sprint, auftrag) {
   const ab = abTermine(auftrag);
