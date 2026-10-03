@@ -46,6 +46,7 @@ export default function SprintDetail() {
   if (intelligenzOffen && !schonGeoeffnet) setSchonGeoeffnet(true);
   const [addOpen, setAddOpen] = React.useState(false);
   const [bereinigenOffen, setBereinigenOffen] = React.useState(false);
+  const [meldung, setMeldung] = React.useState('');
   const [intelligenzModus, setIntelligenzModus] = React.useState('frage');
   const oeffneIntelligenz = (modus) => { setIntelligenzModus(modus); setIntelligenzOffen(true); };
 
@@ -210,27 +211,22 @@ export default function SprintDetail() {
               aktionen={aufgabenAktionen}
             />
           ) : (
-          <div className="mt-5">
-            <SectionLabel className="mb-2">Etappen</SectionLabel>
-            <div className="bg-white rounded-lg border border-border overflow-hidden">
-              {milestones.map((m) => (
-                <EtappenZeile
-                  key={m.id}
-                  milestone={m}
-                  tickets={tickets.filter((t) => t.milestone_id === m.id)}
-                  people={peopleOf(m.id)}
-                  currentUserEmail={me?.email}
-                />
-              ))}
-              {milestones.length === 0 && (
-                <p className="p-10 text-center text-sm text-muted-foreground">Dieser Sprint hat keine Milestones.</p>
-              )}
-            </div>
-          </div>
+            <EtappenListe
+              project={project}
+              milestones={milestones}
+              tickets={tickets}
+              members={members}
+              timeEntries={timeEntries}
+              me={me}
+              startOffenId={status.activeMilestone?.id}
+              darfZusammenfuehren={darfAufraeumen}
+              onChanged={refetch}
+              onMeldung={setMeldung}
+            />
           )}
         </TabsContent>
 
-        <TabsContent value="kundenakt" className="mt-4">
+        <TabsContent value="kundenakt" className="mt-0">
           <KundenaktTab
             projectId={aktProjektId}
             projectName={project?.title}
@@ -239,17 +235,17 @@ export default function SprintDetail() {
           />
         </TabsContent>
 
-        <TabsContent value="abrechnung" className="mt-4">
+        <TabsContent value="abrechnung" className="mt-0">
           <AbrechnungSektion project={project} milestones={milestones} tickets={tickets} />
         </TabsContent>
 
-        <TabsContent value="kommentare" className="mt-4">
+        <TabsContent value="kommentare" className="mt-0">
           <div className="bg-white rounded-lg border border-border p-4">
             <KommentarStrang projectId={sprint.project_id} />
           </div>
         </TabsContent>
 
-        <TabsContent value="kommunikation" className="mt-4">
+        <TabsContent value="kommunikation" className="mt-0">
           {client?.name ? (
             <CustomerEmailSection customer={client.name} />
           ) : (
@@ -258,7 +254,7 @@ export default function SprintDetail() {
             </div>
           )}
         </TabsContent>
-      </Tabs>
+      </div>
 
       {!istSprint && offenerMilestone && (
         <NeueAufgabeDialog
@@ -294,6 +290,6 @@ export default function SprintDetail() {
           />
         </React.Suspense>
       )}
-    </div>
+    </Tabs>
   );
 }
