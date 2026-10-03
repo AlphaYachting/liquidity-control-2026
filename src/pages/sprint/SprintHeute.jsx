@@ -20,7 +20,7 @@ import { gliedereMeinTag, nachProjekt } from '@/lib/sprint/meinTag';
 const eindeutig = (liste) => [...new Set(liste.filter(Boolean))];
 // Über dieser Menge wird nicht mehr gezielt per ID geladen, sondern die Liste geholt.
 const MAX_IDS = 60;
-const fmtH = (v) => new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(v || 0);
+const fmtH = (v) => new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(v || 0);
 
 // MEIN TAG — alle eigenen Aufgaben auf einen Blick, unabhängig vom Focus-Tag.
 // Gliederung: überfällig → heute → diese Woche → in Arbeit → ohne Termin (je Projekt);
