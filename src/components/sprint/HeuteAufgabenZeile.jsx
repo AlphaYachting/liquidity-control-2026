@@ -14,7 +14,7 @@ export default function HeuteAufgabenZeile({ ticket, milestone, projectLabel, pr
     ticket.target_hours ? `${ticket.target_hours} h Ziel` : null,
   ].filter(Boolean) : [projectLabel, modulName].filter(Boolean);
   const ziel = istSprint || !milestone?.sprint_id
-    ? `/sprint/milestones/${ticket.milestone_id}`
+    ? `/sprint/milestones/${ticket.milestone_id}?aufgabe=${ticket.id}`
     : `/sprint/sprints/${milestone.sprint_id}${ticket.module_template_id ? `#modul-${ticket.module_template_id}` : ''}`;
 
   return (
