@@ -2,10 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import TypPill from '@/components/sprint/TypPill';
-import { initials, personColor } from '@/components/sprint/PersonenChip';
+import ProjektleitungWahl from '@/components/sprint/projekt/ProjektleitungWahl';
 
 // Titelblock des Projektkopfs: Typ, Projektname, Kunde mit Eckdaten, verantwortliche Person.
-export default function ProjektKopfTitel({ project, unterzeile, person, personRolle = 'Projektleitung' }) {
+// Die verantwortliche Person lässt sich per Klick direkt aus dem Team wählen.
+export default function ProjektKopfTitel({ project, unterzeile, personRolle = 'Projektleitung' }) {
   return (
     <div className="flex items-start gap-3 min-w-0 flex-[1_1_520px]">
       <Link
@@ -23,17 +24,7 @@ export default function ProjektKopfTitel({ project, unterzeile, person, personRo
           </h1>
         </div>
         {unterzeile && <p className="m-0 text-sm text-[#555555]">{unterzeile}</p>}
-        {person && (
-          <div className="flex items-center gap-2 text-[13px] text-[#555555]">
-            <span
-              className="inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[10px] font-bold uppercase text-white"
-              style={{ backgroundColor: personColor(person) }}
-            >
-              {initials(person.name || person.email)}
-            </span>
-            <span><span className="font-semibold text-foreground">{person.name || person.email}</span> · {personRolle}</span>
-          </div>
-        )}
+        {project && <ProjektleitungWahl project={project} rolle={personRolle} />}
       </div>
     </div>
   );
