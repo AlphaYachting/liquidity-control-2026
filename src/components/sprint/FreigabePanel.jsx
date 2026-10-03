@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import SectionLabel from '@/components/sprint/SectionLabel';
 import FreigabeCheckliste from '@/components/sprint/FreigabeCheckliste';
 import LieferstandFeld from '@/components/sprint/LieferstandFeld';
 import { freigabeVoraussetzungen } from '@/lib/sprint/freigabe';
@@ -31,8 +30,8 @@ export default function FreigabePanel({ milestone, tickets, notifications, feedb
   };
 
   return (
-    <div className="bg-white rounded-lg border border-border p-5 space-y-4">
-      <SectionLabel>Voraussetzungen für die Freigabe</SectionLabel>
+    <section className="bg-card rounded border border-border px-5 py-[18px] space-y-4">
+      <h2 className="m-0 text-section uppercase text-muted-foreground">Freigabe</h2>
       <FreigabeCheckliste items={items} />
 
       <LieferstandFeld
@@ -41,12 +40,13 @@ export default function FreigabePanel({ milestone, tickets, notifications, feedb
       />
 
       <div>
-        <p className="text-[13px] mb-1" style={{ color: RITTLER.textSecondary }}>Freigabequelle</p>
+        <label htmlFor="freigabe-quelle" className="block text-xs font-medium text-[#555555] mb-1">Freigabequelle</label>
         <Input
+          id="freigabe-quelle"
           value={source}
           onChange={(e) => setSource(e.target.value)}
           placeholder="z. B. Freigabe per Mail von Frau Muster am 12.08."
-          className="rounded"
+          className="rounded max-w-[520px]"
         />
       </div>
 
@@ -59,7 +59,7 @@ export default function FreigabePanel({ milestone, tickets, notifications, feedb
       <div>
         <Button
           disabled={!!blocker}
-          className="bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
+          className="h-[38px] rounded bg-foreground px-4 text-sm font-semibold text-white hover:bg-foreground/90"
           onClick={() => setAsk(true)}
         >
           <Lock className="w-4 h-4" /> Etappe freigeben
@@ -96,6 +96,6 @@ export default function FreigabePanel({ milestone, tickets, notifications, feedb
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </section>
   );
 }
