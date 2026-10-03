@@ -10,7 +10,7 @@ import HeutePmBlock from '@/components/sprint/HeutePmBlock';
 import useTicketStatus from '@/hooks/useTicketStatus';
 import { Abschnitt, KlappAbschnitt, KurzListe, Zaehlerleiste } from '@/components/sprint/heute/MeinTagBausteine';
 import MeinTagProjektgruppen from '@/components/sprint/heute/MeinTagProjektgruppen';
-import { MeinTagZeit, MeinTagEingang } from '@/components/sprint/heute/MeinTagSeitenleiste';
+import { MeinTagZeit, MeinTagEingang, stundenVon } from '@/components/sprint/heute/MeinTagSeitenleiste';
 import { RITTLER, STATUS_COLORS, todayIso } from '@/components/sprint/sprintConfig';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { ohneArchiv, PROJEKT_LAUFEND, istAktiv } from '@/lib/sprint/aktivFilter';
@@ -169,7 +169,7 @@ export default function SprintHeute() {
       };
     });
 
-  const gebucht = todayEntries.reduce((s, e) => s + (e.hours || 0), 0);
+  const gebucht = todayEntries.reduce((s, e) => s + stundenVon(e), 0);
   const zaehler = [
     { label: 'Überfällig', wert: g.ueberfaellig.length, zahl: g.ueberfaellig.length, farbe: STATUS_COLORS.critical },
     { label: 'Heute fällig', wert: g.heute.length },
