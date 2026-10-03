@@ -272,6 +272,7 @@ export default function SprintProjekte() {
         </TabsList>
 
         <TabsContent value="projekte" className="mt-4 space-y-3">
+          {(filterKunde || ohnePmAnzahl > 0 || nurOhnePm) && (
           <div className="flex flex-wrap items-center gap-2">
           {filterKunde && (
             <>
@@ -309,68 +310,52 @@ export default function SprintProjekte() {
           </button>
           )}
           </div>
+          )}
           <ProjektFilterLeiste
             sicht={sichtWirksam} onSicht={sichtWaehlen} anzahlSicht={anzahlSicht}
             stand={stand} onStand={setStand} anzahlStand={anzahlStand}
             suche={projektSuche} onSuche={setProjektSuche}
             gesperrt={!!filterKunde}
           />
-          <div className="bg-white rounded-lg border border-border overflow-hidden">
-            {zeilen.map((z) => (
-              <div key={z.project.id} className="border-b border-[#eeeeee] last:border-0">
-                {z.behaelter ? (
-                  <BehaelterZeile
-                    sprint={z.sprint}
-                    project={z.project}
-                    client={z.client}
-                    status={z.status}
-                    people={z.people}
-                    currentUserEmail={me?.email}
-                    onEdit={() => setProjectDialog({ open: true, project: z.project })}
-                  />
-                ) : z.sprint ? (
-                  <ProjektZeile
-                    sprint={z.sprint}
-                    project={z.project}
-                    client={z.client}
-                    milestones={z.milestones}
-                    status={z.status}
-                    people={z.people}
-                    currentUserEmail={me?.email}
-                    onEdit={() => setProjectDialog({ open: true, project: z.project })}
-                  />
-                ) : (
-                  <ProjektZeileOhneSprint
-                    project={z.project}
-                    client={z.client}
-                    onEdit={() => setProjectDialog({ open: true, project: z.project })}
-                  />
-                )}
-                {z.projectSprints.length > 1 && (
-                  <div className="flex flex-wrap gap-2 px-4 pb-3 pl-12">
-                    {z.projectSprints.map((s) => (
-                      <Link
-                        key={s.id}
-                        to={`/sprint/sprints/${s.id}`}
-                        className="text-[11px] px-2 py-0.5 rounded bg-muted text-foreground hover:bg-border"
-                      >
-                        {s.title || s.size} · {s.status}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-            {zeilen.length === 0 && (
-              <p className="p-10 text-center text-sm text-muted-foreground">
-                {filterKunde && !nurOhnePm
-                  ? 'Für diesen Kunden gibt es noch kein Projekt.'
-                  : nurOhnePm
-                  ? 'Jedes Projekt hat einen Projektmanager.'
-                  : 'Noch kein Projekt — oben rechts über „Neu anlegen" starten.'}
-              </p>
-            )}
-          </div>
+          {gruppen.map(({ gruppe, zeilen: gruppenZeilen }) => {
+            const offen = istOffen(gruppe);
+            return (
+              <ProjektGruppe
+                key={gruppe.key}
+                gruppe={gruppe}
+                anzahl={gruppenZeilen.length}
+                dringend={gruppenZeilen.filter((z) => z.status?.ampel === 'action').length}
+                offen={offen}
+                onToggle={() => gruppeUmschalten(gruppe.key, offen)}
+              >
+                {gruppenZeilen.map(zeileRendern)}
+              </ProjektGruppe>
+            );
+          })}
+          {zeilen.length === 0 && (
+            <div className="bg-white rounded-lg border border-border p-10 text-center text-sm text-muted-foreground">
+              {sucheAktiv ? (
+                'Kein Projekt passt zur Suche.'
+              ) : nurOhnePm ? (
+                'Jedes Projekt hat einen Projektmanager.'
+              ) : sichtWirksam === 'meine' && anzahlSicht.meine === 0 ? (
+                <>
+                  Dir ist aktuell kein Projekt zugeordnet.{' '}
+                  <button type="button" className="underline text-foreground" onClick={() => sichtWaehlen('alle')}>
+                    Alle Projekte anzeigen
+                  </button>
+                </>
+              ) : stand !== 'laufend' ? (
+                `Kein Projekt ist ${stand}.`
+              ) : filterKunde ? (
+                'Für diesen Kunden gibt es kein laufendes Projekt.'
+              ) : basis.length === 0 ? (
+                'Noch kein Projekt — oben rechts über „Neu anlegen" starten.'
+              ) : (
+                'Kein laufendes Projekt in dieser Auswahl.'
+              )}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="kunden" className="space-y-3 mt-4">
