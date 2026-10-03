@@ -158,7 +158,7 @@ export default function EtappeKopf({
                 to={`/sprint/milestones/${m.id}`}
                 title={`${m.title}${fertig ? ' · freigegeben' : ''}`}
                 aria-current={aktiv ? 'page' : undefined}
-                className={`inline-flex min-w-9 items-center justify-center px-2 pt-3 pb-[13px] text-sm ${
+                className={`inline-flex min-w-[36px] items-center justify-center px-2 pt-3 pb-[13px] text-sm ${
                   aktiv
                     ? 'font-bold text-foreground shadow-[inset_0_-2px_0_hsl(var(--foreground))]'
                     : `font-medium hover:text-foreground ${fertig ? 'text-status-done-text' : 'text-muted-foreground'}`
