@@ -47,7 +47,7 @@ export default function VereinbarterUmfang({ zustand, onChange, modules, summen,
           {abweichung.positionen > abweichung.angebot && (
             <p className="text-xs text-status-attention">
               Die Positionen ergeben {fmtEUR(abweichung.positionen - abweichung.angebot)} mehr als das Angebot — bitte prüfen, ob im Angebot ein Nachlass steht.
-              Er muss als eigene Position (negativer Betrag) erfasst werden, sonst geht die Auftragsbestätigung über dem Angebot hinaus.
+              Sonst liegt die Auftragsbestätigung über dem Angebot.
             </p>
           )}
           <label className="flex items-center gap-2 text-xs">
