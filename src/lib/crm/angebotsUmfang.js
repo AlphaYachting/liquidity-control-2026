@@ -15,6 +15,11 @@ export const STANDARD_MEHRKOSTEN = 'Leistungen über den vereinbarten Umfang hin
 
 const ABRECHNUNG = (s) => (/monat/i.test(s || '') ? 'monatlich' : /aufwand/i.test(s || '') ? 'nach_aufwand' : 'einmalig');
 
+// Das Einlesen externer PDFs liefert bei fehlender Angabe oft 0 statt „nicht genannt“.
+// 0 Korrekturschleifen wird daher als „nicht genannt“ behandelt — dann greift der Standard
+// laut Konditionen, sichtbar markiert im Übergabeblatt und dort änderbar.
+const schleifenAusPdf = (v) => (v === null || v === undefined || v === '' || Number(v) === 0 ? '' : Number(v));
+
 const position = (p) => ({
   name: '', amount: 0, description: '', lieferumfang: [], korrekturschleifen: '',
   leistungszeitraum: '', abrechnung: 'einmalig', optional_im_angebot: false, ...p,
@@ -26,7 +31,7 @@ function externPositionen(json) {
     amount: Number(p.amount) || 0,
     description: p.description || '',
     lieferumfang: Array.isArray(p.lieferumfang) ? p.lieferumfang : [],
-    korrekturschleifen: p.korrekturschleifen ?? '',
+    korrekturschleifen: schleifenAusPdf(p.korrekturschleifen),
     leistungszeitraum: p.leistungszeitraum || '',
     abrechnung: ABRECHNUNG(p.abrechnung),
     optional_im_angebot: Boolean(p.optional),
@@ -45,7 +50,7 @@ export function externesAngebot(json, url) {
     auftrag: {
       leistungszeitraum: json?.leistungszeitraum || '',
       liefertermin: deDatumZuIso(json?.liefertermin) || json?.liefertermin || '',
-      korrekturschleifen: json?.korrekturschleifen ?? '',
+      korrekturschleifen: schleifenAusPdf(json?.korrekturschleifen),
       mehrkosten_regel: json?.mehrkosten_regel || '',
       nicht_enthalten: json?.nicht_enthalten || [],
       zahlungsbedingungen: json?.zahlungsbedingungen || '',
