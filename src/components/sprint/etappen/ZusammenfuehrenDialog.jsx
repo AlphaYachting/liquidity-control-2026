@@ -23,7 +23,9 @@ export default function ZusammenfuehrenDialog({ open, onOpenChange, vorschlaege 
   const namen = modulNamen.filter(Boolean);
 
   const alt = vorschlaege.reduce((n, v) => n + v.alte.length, 0);
-  const titelliste = [...new Set(vorschlaege.flatMap((v) => v.alte.map((t) => t.title)))];
+  const titelliste = [...new Set(vorschlaege.flatMap((v) => [...v.alte]
+    .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0))
+    .map((t) => t.title)))];
 
   const ausfuehren = async () => {
     setLaeuft(true);
