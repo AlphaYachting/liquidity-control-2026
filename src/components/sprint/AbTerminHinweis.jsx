@@ -66,7 +66,7 @@ export default function AbTerminHinweis({ sprint, project, milestones = [], darf
       <span className="flex-[1_1_360px]">
         {frage
           ? 'Start, Lieferung und die Plantermine aller noch nicht übergebenen Etappen werden neu gerechnet. Wirklich umstellen?'
-          : <>Termine weichen von der {order.order_number || 'Auftragsbestätigung'} ab — laut AB <strong>{laut}</strong>, im Projekt {imProjekt}.</>}
+          : <>Termine weichen von der {order.order_number || 'Auftragsbestätigung'} ab — laut AB <strong>{laut}</strong>, im Projekt {imProjekt}</>}
         {fehler && <span className="block text-status-critical">{fehler}</span>}
       </span>
       <div className="flex gap-2">
