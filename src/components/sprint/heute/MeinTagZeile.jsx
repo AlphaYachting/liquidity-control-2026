@@ -61,9 +61,13 @@ function StatusPunkt({ status = 'offen', onChange }) {
 }
 
 // Termin rechts: Datum anzeigen und verschieben, oder „Termin setzen".
-function Termin({ ticket, heute }) {
+function Termin({ ticket, heute, mitHeute = false }) {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  const aufHeute = async () => {
+    await base44.entities.Ticket.update(ticket.id, { planned_for: heute });
+    ladeAnsichtenNachTicketAenderung(queryClient);
+  };
   const speichern = async (d) => {
     setOpen(false);
     if (!d && ticket.rhythmus) return;
@@ -79,16 +83,28 @@ function Termin({ ticket, heute }) {
   else if (p) { text = `${WOCHENTAG[new Date(`${p}T00:00:00`).getDay()]} ${kurz(p)}`; stil = { color: RITTLER.textSecondary, fontWeight: 600 }; }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button type="button" className="shrink-0 h-11 px-2 rounded text-[12.5px] whitespace-nowrap hover:bg-muted" style={stil} title="Termin ändern">
-          {text}
+    <>
+      {mitHeute && !p && (
+        <button
+          type="button"
+          onClick={aufHeute}
+          title="Für heute einplanen"
+          className="shrink-0 h-8 px-2.5 rounded border border-[#d4d4d4] bg-white text-[12.5px] font-semibold text-foreground whitespace-nowrap hover:bg-muted"
+        >
+          Heute
         </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="end">
-        <Calendar mode="single" selected={p ? new Date(`${p}T00:00:00`) : undefined} onSelect={speichern} initialFocus />
-      </PopoverContent>
-    </Popover>
+      )}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button type="button" className="shrink-0 h-11 px-2 rounded text-[12.5px] whitespace-nowrap hover:bg-muted" style={stil} title="Termin ändern">
+            {text}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="end">
+          <Calendar mode="single" selected={p ? new Date(`${p}T00:00:00`) : undefined} onSelect={speichern} initialFocus />
+        </PopoverContent>
+      </Popover>
+    </>
   );
 }
 
@@ -165,7 +181,7 @@ export default function MeinTagZeile({
           {ticket.title}
         </Link>
         {info && <span className="shrink-0 text-[12.5px] hidden sm:inline" style={{ color: RITTLER.textSecondary }}>{info}</span>}
-        <Termin ticket={ticket} heute={heute} />
+        <Termin ticket={ticket} heute={heute} mitHeute />
       </div>
     );
   }
