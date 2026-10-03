@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import CockpitAuswahl from '@/components/projekt/CockpitAuswahl';
 import ClientLinkStep from '@/components/crm/handover/ClientLinkStep';
+import KundenAuswahl from '@/components/kunden/KundenAuswahl';
 
 export const NEW_CLIENT = '__new__';
 
@@ -52,13 +53,12 @@ export default function StepRahmen({ seed, setSeed, clients: geladeneKunden = []
     <div className="space-y-5 max-w-xl">
       <div>
         <Label>Kunde *</Label>
-        <Select value={seed.client_id} onValueChange={(v) => { setBausteinKunde(null); set({ client_id: v, existing_project_id: '' }); }}>
-          <SelectTrigger><SelectValue placeholder="Kunde wählen" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NEW_CLIENT}>＋ neuer Kunde</SelectItem>
-            {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <KundenAuswahl
+          clients={clients}
+          value={seed.client_id}
+          neuWert={NEW_CLIENT}
+          onChange={(v) => { setBausteinKunde(null); set({ client_id: v, existing_project_id: '' }); }}
+        />
         {bausteinOffen && (
           <div className="mt-3">
             <ClientLinkStep kunde="" deal={null} client={bausteinKunde} onClient={kundeUebernehmen} kontaktFelder />
