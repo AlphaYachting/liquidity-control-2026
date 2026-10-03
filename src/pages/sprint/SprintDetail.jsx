@@ -3,9 +3,8 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Skeleton } from '@/components/ui/skeleton';
-import SectionLabel from '@/components/sprint/SectionLabel';
 import SprintKopf from '@/components/sprint/SprintKopf';
-import EtappenZeile from '@/components/sprint/EtappenZeile';
+import EtappenListe from '@/components/sprint/etappen/EtappenListe';
 import ProjektUebersicht from '@/components/sprint/uebersicht/ProjektUebersicht';
 import KommentarStrang from '@/components/sprint/kommentare/KommentarStrang';
 import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
@@ -13,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AbrechnungSektion from '@/components/sprint/abrechnung/AbrechnungSektion';
 import { sprintStatus } from '@/lib/sprint/status';
 import { Button } from '@/components/ui/button';
-import { BrainCircuit, Plus } from 'lucide-react';
+import { BrainCircuit, Plus, Check, X } from 'lucide-react';
 import BehaelterKopf from '@/components/sprint/projekt/BehaelterKopf';
 import ProjektVerwaltung from '@/components/sprint/projekt/ProjektVerwaltung';
 import BehaelterInhalt from '@/components/sprint/projekt/BehaelterInhalt';
@@ -106,17 +105,23 @@ export default function SprintDetail() {
   const darfAufraeumen = darf('fuehrung');
   // Termine aus der AB übernehmen: Projektverantwortliche, Führung und Admins
   const darfTermine = darfAufraeumen || darfBereinigen(me, project);
-  const pmName = members.find((m) => m.email === project?.pm_email)?.name || project?.pm_email || '';
+  const pm = members.find((m) => m.email === project?.pm_email)
+    || (project?.pm_email ? { email: project.pm_email, name: project.pm_email } : null);
 
   const offenerMilestone = milestones.find((m) => !m.released);
   const status = sprintStatus({ sprint, milestones, tickets, timeEntries, focusDays });
 
-  const peopleOf = (milestoneId) => {
-    const emails = [...new Set(
-      tickets.filter((t) => t.milestone_id === milestoneId && t.assignee_email).map((t) => t.assignee_email)
-    )];
-    return emails.map((e) => members.find((m) => m.email === e) || { email: e, name: e });
-  };
+  const verwaltung = (
+    <ProjektVerwaltung
+      project={project}
+      client={client}
+      istAdmin={istAdmin}
+      darfCockpit={darf('geld')}
+      darfAufraeumen={darfAufraeumen}
+      onBereinigen={() => setBereinigenOffen(true)}
+      onSaved={refetch}
+    />
+  );
 
   // Arbeitsknöpfe für Nicht-Sprint-Projekte — direkt über der Aufgabenliste
   const aufgabenAktionen = !istSprint && offenerMilestone ? (
@@ -131,56 +136,64 @@ export default function SprintDetail() {
   ) : null;
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-5">
-      <div className="relative">
-        <div className="absolute top-3 right-3 z-10">
-          <ProjektVerwaltung
-            project={project}
-            client={client}
-            istAdmin={istAdmin}
-            darfCockpit={darf('geld')}
-            darfAufraeumen={darfAufraeumen}
-            onBereinigen={() => setBereinigenOffen(true)}
-            onSaved={refetch}
-          />
+    <Tabs defaultValue={startReiter}>
+      {/* Kopf: eigene weiße Fläche über die volle Breite, Reiter an der Unterkante */}
+      <header className="-mx-4 md:-mx-6 lg:-mx-8 -mt-4 md:-mt-6 lg:-mt-8 border-b border-[#E2E2E2] bg-card px-4 md:px-6 lg:px-8">
+        <div className="max-w-[1200px] mx-auto pt-6 flex flex-col gap-[18px]">
+          {istSprint ? (
+            <SprintKopf
+              sprint={sprint}
+              project={project}
+              client={client}
+              milestones={milestones}
+              status={status}
+              pm={pm}
+              aktionen={verwaltung}
+            />
+          ) : (
+            <BehaelterKopf project={project} client={client} tickets={tickets} timeEntries={timeEntries} members={members} vertrag={vertrag} aktionen={verwaltung} />
+          )}
+
+          {istSprint && (
+            <AbTerminHinweis
+              sprint={sprint}
+              project={project}
+              milestones={milestones}
+              darfAendern={darfTermine}
+              onUmgestellt={(text) => { setMeldung(text); refetch(); }}
+            />
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TabsList className="bg-transparent p-0 h-auto rounded-none flex-wrap justify-start gap-0.5 [&>button]:rounded-none [&>button]:px-3 [&>button]:pt-3 [&>button]:pb-[13px] [&>button]:text-sm [&>button]:font-medium [&>button]:text-muted-foreground [&>button[data-state=active]]:bg-transparent [&>button[data-state=active]]:font-semibold [&>button[data-state=active]]:text-foreground [&>button[data-state=active]]:shadow-[inset_0_-2px_0_hsl(var(--foreground))]">
+              <TabsTrigger value="uebersicht">Projektübersicht</TabsTrigger>
+              <TabsTrigger value="kundenakt">Kundenakt</TabsTrigger>
+              <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
+              <TabsTrigger value="kommentare">Kommentare & Notizen</TabsTrigger>
+              <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
+            </TabsList>
+            <Button size="sm" className="mb-1.5 h-9 shrink-0 rounded bg-[#D6245A] px-4 font-semibold text-white hover:bg-[#C01F50]" onClick={() => oeffneIntelligenz('frage')}>
+              <BrainCircuit className="w-4 h-4 mr-1.5" /> Projektintelligenz
+            </Button>
+          </div>
         </div>
-        {istSprint ? (
-          <SprintKopf
-            sprint={sprint}
-            project={project}
-            client={client}
-            milestones={milestones}
-            status={status}
-            pmName={pmName}
-          />
-        ) : (
-          <BehaelterKopf project={project} client={client} tickets={tickets} timeEntries={timeEntries} members={members} vertrag={vertrag} />
+      </header>
+
+      <div className="max-w-[1200px] mx-auto pt-6 flex flex-col gap-4">
+        {meldung && (
+          <div role="status" className="flex items-center gap-3 rounded border border-[#BFE3CF] bg-status-done-surface px-3.5 py-2.5 text-[13px] text-[#1F5F41]">
+            <Check className="w-4 h-4 shrink-0" />
+            <span className="flex-1">{meldung}</span>
+            <button type="button" onClick={() => setMeldung('')} aria-label="Meldung schließen" className="p-1">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         )}
-      </div>
 
-      {istSprint && (
-        <AbTerminHinweis sprint={sprint} project={project} milestones={milestones} darfAendern={darfTermine} onChanged={refetch} />
-      )}
-
-      <Tabs defaultValue={startReiter}>
-        <div className="flex items-center justify-between gap-3 border-b border-border">
-          <TabsList className="bg-transparent p-0 h-auto rounded-none -mb-px [&>button]:rounded-none [&>button]:border-b-2 [&>button]:border-transparent [&>button]:px-3 [&>button]:pb-2 [&>button]:pt-1 [&>button[data-state=active]]:border-primary [&>button[data-state=active]]:bg-transparent [&>button[data-state=active]]:shadow-none">
-            <TabsTrigger value="uebersicht">Projektübersicht</TabsTrigger>
-            <TabsTrigger value="kundenakt">Kundenakt</TabsTrigger>
-            <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
-            <TabsTrigger value="kommentare">Kommentare & Notizen</TabsTrigger>
-            <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
-          </TabsList>
-          <Button size="sm" className="shadow-sm shrink-0" onClick={() => oeffneIntelligenz('frage')}>
-            <BrainCircuit className="w-4 h-4 mr-1.5" /> Projektintelligenz
-          </Button>
-        </div>
-
-        <TabsContent value="uebersicht" className="mt-4">
+        <TabsContent value="uebersicht" className="mt-0 flex flex-col gap-4">
           <ProjektUebersicht
             project={project}
             client={client}
-            members={members}
             onChanged={refetch}
             ohneStatus={istSprint}
             startOffen={suchParameter.get('beschreibung') === 'offen'}
