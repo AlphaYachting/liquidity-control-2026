@@ -9,7 +9,7 @@ const shortDate = (d) => (d ? fmtDate(d).slice(0, 6) : '—');
 
 // W1/X2 — Kunde ist die Überschrift, Projekt und Sprint stehen darunter.
 // Alle abgeleiteten Werte kommen aus sprintStatus (X1).
-export default function SprintKopf({ sprint, project, client, milestones, status }) {
+export default function SprintKopf({ sprint, project, client, milestones, status, pmName }) {
   const restDays = status.daysToDelivery;
   const next = status.nextDeadline;
   const overrun = status.ampel === 'attention' && status.hoursTarget > 0 && status.hoursBooked > 0.7 * status.hoursTarget;
@@ -27,7 +27,12 @@ export default function SprintKopf({ sprint, project, client, milestones, status
               {project?.title || 'Projekt'}
             </h1>
             <p className="text-[13px] uppercase tracking-[0.5px] truncate" style={{ color: RITTLER.textSecondary }}>
-              {client?.name || 'Kunde'} · {sprint.title || `Sprint ${sprint.size}`} · {SPRINT_SIZES[sprint.size]?.label || sprint.size} · {sprint.status}
+              {[
+                client?.name || 'Kunde',
+                `Sprint ${SPRINT_SIZES[sprint.size]?.label || sprint.size}`,
+                pmName ? `Projektleitung ${pmName}` : null,
+                sprint.status,
+              ].filter(Boolean).join(' · ')}
             </p>
           </div>
         </div>
