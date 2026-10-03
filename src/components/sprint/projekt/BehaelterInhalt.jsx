@@ -31,9 +31,9 @@ export default function BehaelterInhalt({ project, tickets, members, timeEntries
   };
 
   return (
-    <div className="mt-5 space-y-3">
+    <div className="space-y-3">
       {istContainer && <StundenNachBereich timeEntries={timeEntries} />}
-      <div className="bg-white rounded-lg border border-border p-5">
+      <div className="bg-card rounded border border-border p-5">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <SectionLabel>Aufgaben</SectionLabel>
           {aktionen}
