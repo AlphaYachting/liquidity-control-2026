@@ -1,66 +1,63 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
-import TypPill from '@/components/sprint/TypPill';
-import SectionLabel from '@/components/sprint/SectionLabel';
+import React, { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import ProjektBeschreibung from '@/components/sprint/uebersicht/ProjektBeschreibung';
 import AworkVerlaufPanel from '@/components/sprint/uebersicht/AworkVerlaufPanel';
 import { fmtEUR } from '@/components/sprint/sprintConfig';
 import AuftragsumfangKarte from '@/components/projekt/AuftragsumfangKarte';
-import { finanzIdVon } from '@/lib/projekt/cockpitSicherstellen';
+import useProjektAuftraege from '@/hooks/useProjektAuftraege';
+import { fmtTag } from '@/lib/crm/abStatus';
 
-const h1 = (v) => (v || 0).toLocaleString('de-AT', { maximumFractionDigits: 1 });
+const ersteZeile = (text) => (text || '').split('\n').map((z) => z.trim()).find(Boolean) || '';
 
-// Projekt-Übersicht über den Etappen: Briefing, Zuständigkeit, Plan gegen Ist, Auftrag, aWork-Verlauf
-export default function ProjektUebersicht({ project, client, sprint, timeEntries, onChanged, zeigeStunden = true }) {
-  const { data: orders = [] } = useQuery({
-    queryKey: ['projektAbrechnung', 'auftraege', finanzIdVon(project)],
-    enabled: Boolean(project?.id),
-    queryFn: () => base44.entities.ConfirmedOrder.filter({ project_id: finanzIdVon(project) }, '-created_date', 20),
-  });
+// Projektbeschreibung — der eine Platz für „was ist in diesem Projekt inkludiert".
+// Standardmäßig eingeklappt, damit die Arbeit (Etappen, Aufgaben) oben bleibt.
+// Aufgeklappt: Briefing, vereinbarter Umfang laut AB, aWork-Verlauf.
+export default function ProjektUebersicht({ project, client, members = [], onChanged, ohneStatus = false }) {
+  const [offen, setOffen] = useState(false);
+  const { data: orders = [] } = useProjektAuftraege(project);
   const order = orders[0] || null;
 
   if (!project) return null;
 
-  const plan = project.target_hours || sprint?.target_hours || 0;
-  const ist = (timeEntries || []).reduce((s, t) => s + (t.hours || 0), 0);
-  const pct = plan > 0 ? Math.min(100, Math.round((ist / plan) * 100)) : 0;
+  const pmName = members.find((m) => m.email === project.pm_email)?.name || project.pm_email || '—';
+  const kurz = order
+    ? [
+      order.order_number || 'Auftrag ohne Nummer',
+      `${fmtEUR(order.total_net_amount)} netto`,
+      order.liefertermin ? `Lieferung ${fmtTag(order.liefertermin)}` : null,
+    ].filter(Boolean).join(' · ')
+    : ersteZeile(project.description) || 'Noch kein Briefing erfasst';
 
   return (
-    <div>
-      <div className="bg-white rounded-lg border border-border p-4 space-y-4">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <div className="flex items-center gap-2">
-            <TypPill project={project} />
-            <span className="text-sm font-semibold">{client?.name || 'Kunde nicht verknüpft'}</span>
+    <div className="bg-white rounded-lg border border-border">
+      <button
+        type="button"
+        onClick={() => setOffen((o) => !o)}
+        aria-expanded={offen}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg hover:bg-muted/40"
+      >
+        <ChevronRight className={`w-4 h-4 shrink-0 text-muted-foreground transition-transform ${offen ? 'rotate-90' : ''}`} />
+        <span className="text-sm font-semibold shrink-0">Projektbeschreibung</span>
+        <span className="flex-1 min-w-0 truncate text-meta text-muted-foreground">{kurz}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">{offen ? 'einklappen' : 'aufklappen'}</span>
+      </button>
+
+      {offen && (
+        <div className="border-t border-border px-4 py-4 space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Projektleitung: <span className="font-medium text-foreground">{pmName}</span>
+          </p>
+
+          <div>
+            <p className="text-label text-muted-foreground mb-1">Briefing</p>
+            <ProjektBeschreibung project={project} onSaved={onChanged} />
           </div>
-          <div className="text-xs text-muted-foreground">
-            Projektmanagement: <span className="font-medium text-foreground">{project.pm_email || '—'}</span>
-          </div>
-          {order && (
-            <div className="text-xs text-muted-foreground">
-              Auftrag {order.order_number || '—'}:{' '}
-              <span className="font-medium text-foreground">{fmtEUR(order.total_net_amount)} netto</span>
-            </div>
-          )}
+
+          {orders.map((o) => <AuftragsumfangKarte key={o.id} order={o} ohneStatus={ohneStatus} />)}
+
+          <AworkVerlaufPanel clientName={client?.name} projectTitle={project.title} />
         </div>
-
-        <ProjektBeschreibung project={project} onSaved={onChanged} />
-
-        {orders.map((o) => <AuftragsumfangKarte key={o.id} order={o} />)}
-
-        {zeigeStunden && <div className="max-w-sm">
-          <div className="flex items-baseline justify-between text-xs">
-            <span className="text-muted-foreground">Stunden</span>
-            <span className="font-semibold">{h1(ist)} von {h1(plan)} h</span>
-          </div>
-          <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-            <div className="h-full rounded-full bg-foreground" style={{ width: `${pct}%` }} />
-          </div>
-        </div>}
-
-        <AworkVerlaufPanel clientName={client?.name} projectTitle={project.title} />
-      </div>
+      )}
     </div>
   );
 }
