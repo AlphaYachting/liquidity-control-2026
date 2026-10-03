@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import SectionLabel from '@/components/sprint/SectionLabel';
+import SprintTimerStart from '@/components/sprint/timer/SprintTimerStart';
+import { projectTypeOf } from '@/components/sprint/projectTypes';
 import TicketChecklist from '@/components/sprint/ticket/TicketChecklist';
 import TicketLinks from '@/components/sprint/ticket/TicketLinks';
 import KommentarStrang from '@/components/sprint/kommentare/KommentarStrang';
 import { schreibeSystemEintrag } from '@/lib/sprint/systemComment';
 import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
-import { ROLES, TICKET_STATUSES, TICKET_STATUS_LABELS, STATE_LABELS } from '@/components/sprint/sprintConfig';
+import { ROLES, TICKET_STATUSES, TICKET_STATUS_LABELS, STATE_LABELS, fmtDate } from '@/components/sprint/sprintConfig';
 import { RHYTHMUS_LABEL } from '@/components/sprint/paket/paketZaehler';
 import { ARCHIV_GRUENDE, ARCHIV_GRUND_LABEL } from '@/lib/sprint/aktivFilter';
 import { ticketBereinigen, darfBereinigen } from '@/lib/sprint/ticketBereinigen';
@@ -27,8 +28,16 @@ const ORIGIN_LABEL = {
   support: 'Support',
 };
 const h1 = (v) => (v || 0).toLocaleString('de-AT', { maximumFractionDigits: 1 });
+const kurz = (d) => (d ? fmtDate(d).slice(0, 6) : null);
 
-// Arbeitsplatz eines Tickets: Inhalt, Checkliste, Verweise, Zuständigkeit, Plan gegen Ist
+// Feldbezeichnung im Panel — wie in den Formularen, nicht als Sektionslabel
+const Feld = ({ children, htmlFor }) => (
+  <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-medium text-[#555555]">{children}</label>
+);
+
+// Arbeitsplatz eines Tickets: Projektkontext (Projekt, Kunde, Etappe, Projektleitung) oben,
+// darunter Zuständigkeit, Status, Phase, Plan gegen Ist, Inhalt, Checkliste, Verweise, Kommentare.
+// Wer über „Mein Tag“ oder die Suche direkt in eine Aufgabe springt, sieht sofort, wohin sie gehört.
 export default function TicketDetailPanel({ ticket, members = [], open, onOpenChange, onSaved }) {
   const [form, setForm] = useState(ticket || {});
   const [saving, setSaving] = useState(false);
@@ -51,11 +60,24 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
 
   // Archivieren / Routine beenden / Löschen — nur Projektverantwortliche und Admins
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => base44.auth.me(), enabled: Boolean(open) });
-  const { data: projekt } = useQuery({
-    queryKey: ['ticketProjekt', ticket?.project_id],
-    queryFn: () => base44.entities.Project.get(ticket.project_id),
-    enabled: Boolean(open && ticket?.project_id),
+  const { data: kontext } = useQuery({
+    queryKey: ['ticketKontext', ticket?.milestone_id, ticket?.project_id],
+    enabled: Boolean(open && ticket?.id),
+    queryFn: async () => {
+      const milestone = ticket.milestone_id
+        ? await base44.entities.Milestone.get(ticket.milestone_id).catch(() => null)
+        : null;
+      let projectId = ticket.project_id;
+      if (!projectId && milestone?.sprint_id) {
+        const sprint = await base44.entities.Sprint.get(milestone.sprint_id).catch(() => null);
+        projectId = sprint?.project_id;
+      }
+      const project = projectId ? await base44.entities.Project.get(projectId).catch(() => null) : null;
+      const client = project?.client_id ? await base44.entities.Client.get(project.client_id).catch(() => null) : null;
+      return { milestone, project, client };
+    },
   });
+  const projekt = kontext?.project || null;
   const [aktion, setAktion] = useState(null);
   const [grund, setGrund] = useState('nicht_mehr_relevant');
   const [pruefung, setPruefung] = useState(null);
