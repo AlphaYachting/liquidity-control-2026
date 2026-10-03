@@ -9,11 +9,19 @@ export const KATEGORIE_TEXT = {
   intern: 'Intern · nicht abrechenbar',
 };
 
-// Laufender Sprint des Projekts; bei mehreren der mit dem frühesten Liefertermin
-export const laufenderSprint = (sprints = []) =>
-  sprints
+// Sprint, dem eine Buchung zugeordnet wird: der laufende (bei mehreren der mit dem
+// frühesten Liefertermin). Läuft noch keiner, zählt die Zeit zum nächsten geplanten
+// Sprint — Arbeit vor dem Start darf nicht ohne Sprint-Zuordnung bleiben.
+// Dieselbe Regel gilt in den Funktionen zeitStoppen und projektZeitSummen.
+export const laufenderSprint = (sprints = []) => {
+  const laufend = sprints
     .filter((s) => s.status === 'laufend')
-    .sort((a, b) => (a.delivery_date || '9999-12-31').localeCompare(b.delivery_date || '9999-12-31'))[0] || null;
+    .sort((a, b) => (a.delivery_date || '9999-12-31').localeCompare(b.delivery_date || '9999-12-31'))[0];
+  if (laufend) return laufend;
+  return sprints
+    .filter((s) => s.status === 'geplant')
+    .sort((a, b) => (a.start_date || '9999-12-31').localeCompare(b.start_date || '9999-12-31'))[0] || null;
+};
 
 // Container, Support, Regie: liegt die Buchung über dem Monatskontingent bzw. -rahmen?
 // ohneId: bei Änderungen die ursprüngliche Buchung nicht mitzählen.
