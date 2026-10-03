@@ -8,8 +8,11 @@ import { RITTLER } from '@/components/sprint/sprintConfig';
 import { useOffenesTicket } from '@/lib/sprint/offenesTicket';
 
 // Timer direkt aus dem Sprintkontext — läuft auf das Projekt, bei offener Aufgabe auf deren Ticket.
-export default function SprintTimerStart({ project, client }) {
-  const ticketId = useOffenesTicket();
+// variante="kompakt": schmaler Knopf im Kopf der Etappenseite bzw. im Aufgabenpanel;
+// mit ticketId läuft der Timer fest auf diese Aufgabe.
+export default function SprintTimerStart({ project, client, ticketId: festeTicketId, variante = 'gross', label: knopfText = 'Timer starten' }) {
+  const offenesTicket = useOffenesTicket();
+  const ticketId = festeTicketId || offenesTicket;
   const { user } = useAuth();
   const { timer, running, label, start, stop } = useTimer(user?.email);
   const [busy, setBusy] = useState(false);
@@ -18,7 +21,8 @@ export default function SprintTimerStart({ project, client }) {
 
   if (!user?.email || !project?.id) return null;
 
-  const laeuftHier = running && timer?.project_id === project.id;
+  const laeuftHier = running && timer?.project_id === project.id
+    && (!festeTicketId || timer?.ticket_id === festeTicketId);
 
   const klick = async () => {
     setBusy(true);
@@ -33,6 +37,22 @@ export default function SprintTimerStart({ project, client }) {
     qc.invalidateQueries({ queryKey: ['sprintHeute'] });
     setBusy(false);
   };
+
+  if (variante === 'kompakt') {
+    return (
+      <button
+        type="button"
+        onClick={klick}
+        disabled={busy}
+        className={`inline-flex h-[34px] shrink-0 items-center gap-2 rounded px-3.5 text-[13px] font-semibold disabled:opacity-60 ${
+          laeuftHier ? 'bg-primary text-white hover:bg-primary/90' : 'border border-[#D4D4D4] bg-card text-foreground hover:bg-muted'
+        }`}
+      >
+        {laeuftHier ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+        {laeuftHier ? `${label} · stoppen` : knopfText}
+      </button>
+    );
+  }
 
   return (
     <button
