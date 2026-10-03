@@ -4,7 +4,7 @@ import ProjektBearbeitenKnopf from '@/components/sprint/projekt/ProjektBearbeite
 import CockpitLeiste from '@/components/projekt/CockpitLeiste';
 
 // Verwaltungsfunktionen oben rechts im Projektkopf — getrennt von der täglichen Arbeit:
-// Projekt bearbeiten (Admin), Projekt-Cockpit (Finanzrecht), Aufgaben bereinigen (Admin und Projektverantwortliche).
+// Projekt bearbeiten (Admin), Projekt-Cockpit (Finanzrecht), Aufgaben bereinigen (nur Führungskräfte).
 export default function ProjektVerwaltung({ project, client, istAdmin, darfCockpit, darfAufraeumen, onBereinigen, onSaved }) {
   if (!istAdmin && !darfCockpit && !darfAufraeumen) return null;
   return (
