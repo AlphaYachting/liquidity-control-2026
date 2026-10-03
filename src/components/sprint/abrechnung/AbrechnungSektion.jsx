@@ -50,6 +50,9 @@ export default function AbrechnungSektion({ project, milestones = [], tickets = 
   // Monatsleiste: nur zählende Rechnungen, Gutschriften negativ eingerechnet
   const fuerLeiste = zaehlend.map((i) => ({ ...i, net_amount: nettoVorzeichen(i), is_credit_note: false }));
   const pct = auftragswert > 0 ? (verrechnet / auftragswert) * 100 : 0;
+  // Sprintprojekt mit Etappenbeträgen: der Stand kommt aus den Etappen, nicht aus einem zweiten Positionsstatus
+  const standAusEtappen = (project?.abrechnungsmodell || 'sprint') === 'sprint'
+    && milestones.some((m) => Number(m.milestone_amount) > 0);
 
   if (orders.length === 0 && instructions.length === 0 && invoices.length === 0) {
     return (
@@ -82,7 +85,7 @@ export default function AbrechnungSektion({ project, milestones = [], tickets = 
       {orders.map((order) => (
         <ConfirmedOrderPanel key={order.id} projectId={projectId} order={order} project={{ ...project, id: projectId }} />
       ))}
-      {orders.length > 0 && <OrderItemsView linkedOrders={orders} />}
+      {orders.length > 0 && <OrderItemsView linkedOrders={orders} ohneStatus={standAusEtappen} />}
 
       {instructions.length > 0 && (
         <BillingInstructionList
