@@ -119,7 +119,6 @@ export default function EtappeKopf({
           value={k.zustand.label}
           farbe={k.zustand.erledigt ? STATUS_COLORS.doneText : undefined}
           hint={k.zustand.hint}
-          hintFarbe={k.zustand.erledigt ? undefined : undefined}
         />
         <KopfKennzahl
           label={k.frist.label}
