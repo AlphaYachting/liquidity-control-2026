@@ -330,7 +330,7 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
 
           {darf && !archiviert && (
             <div className="border-t border-border pt-4 pb-4 space-y-3">
-              <SectionLabel>Weitere Aktionen</SectionLabel>
+              <Feld>Weitere Aktionen</Feld>
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" className="rounded" onClick={() => waehle('archivieren')}>
                   <Archive className="w-3.5 h-3.5 mr-1" /> Archivieren
