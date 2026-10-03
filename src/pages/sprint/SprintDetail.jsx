@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,9 +33,14 @@ import { darfBereinigen } from '@/lib/sprint/ticketBereinigen';
 import AufgabenBereinigen from '@/components/sprint/projekt/AufgabenBereinigen';
 import { useZugriff } from '@/lib/useZugriff';
 
+const REITER = ['uebersicht', 'kundenakt', 'abrechnung', 'kommentare', 'kommunikation'];
+
 // S4 — Projektdetail: Kopf mit Kennzahlen, Verwaltung oben rechts, Reiter für die tägliche Arbeit.
+// Direktlinks: ?reiter=abrechnung öffnet einen Reiter, ?beschreibung=offen klappt die Projektbeschreibung auf.
 export default function SprintDetail() {
   const { sprintId } = useParams();
+  const [suchParameter] = useSearchParams();
+  const startReiter = REITER.includes(suchParameter.get('reiter')) ? suchParameter.get('reiter') : 'uebersicht';
   const { darf } = useZugriff();
   const [intelligenzOffen, setIntelligenzOffen] = React.useState(false);
   const [schonGeoeffnet, setSchonGeoeffnet] = React.useState(false);
@@ -154,7 +159,7 @@ export default function SprintDetail() {
         <AbTerminHinweis sprint={sprint} project={project} milestones={milestones} darfAendern={darfAufraeumen} onChanged={refetch} />
       )}
 
-      <Tabs defaultValue="uebersicht">
+      <Tabs defaultValue={startReiter}>
         <div className="flex items-center justify-between gap-3 border-b border-border">
           <TabsList className="bg-transparent p-0 h-auto rounded-none -mb-px [&>button]:rounded-none [&>button]:border-b-2 [&>button]:border-transparent [&>button]:px-3 [&>button]:pb-2 [&>button]:pt-1 [&>button[data-state=active]]:border-primary [&>button[data-state=active]]:bg-transparent [&>button[data-state=active]]:shadow-none">
             <TabsTrigger value="uebersicht">Projektübersicht</TabsTrigger>
@@ -175,6 +180,7 @@ export default function SprintDetail() {
             members={members}
             onChanged={refetch}
             ohneStatus={istSprint}
+            startOffen={suchParameter.get('beschreibung') === 'offen'}
           />
 
           {!istSprint ? (
