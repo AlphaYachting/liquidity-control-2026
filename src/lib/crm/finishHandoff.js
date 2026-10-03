@@ -1,21 +1,23 @@
 import { base44 } from '@/api/base44Client';
+import { fmtEUR, fmtDate } from '@/components/sprint/sprintConfig';
 
 // Schließt die Beauftragung ab, sobald der Wizard das Projekt angelegt hat:
 // Auftrag, Anzahlungs-Instruktion (nur bei AB-Pflicht) und Kundenakt hängen am
 // Projekt-Cockpit (Finanzsicht), Log am Deal.
+// Der vereinbarte Umfang hat genau einen Platz: strukturiert in der AB. Er wird
+// nicht mehr als Text in die Projektbeschreibung oder den Kundenakt kopiert.
 export async function finishHandoff(handoff, project, cockpit) {
   if (!handoff?.confirmed_order_id || !project?.id) return;
   const finanzId = cockpit?.id || project.id;
 
   await base44.entities.ConfirmedOrder.update(handoff.confirmed_order_id, { project_id: finanzId });
+  const order = await base44.entities.ConfirmedOrder.get(handoff.confirmed_order_id).catch(() => null);
 
-  const projektPatch = {};
-  if (!project.description && handoff.umfang_text) projektPatch.description = handoff.umfang_text;
-  if (!Number(project.total_budget) && Number(handoff.total_net)) projektPatch.total_budget = Number(handoff.total_net);
-  if (Object.keys(projektPatch).length) await base44.entities.Project.update(project.id, projektPatch);
+  if (!Number(project.total_budget) && Number(handoff.total_net)) {
+    await base44.entities.Project.update(project.id, { total_budget: Number(handoff.total_net) });
+  }
 
   if (cockpit) {
-    const order = await base44.entities.ConfirmedOrder.get(handoff.confirmed_order_id).catch(() => null);
     const patch = {};
     if (!cockpit.order_number && order?.order_number) patch.order_number = order.order_number;
     if (!Number(cockpit.total_net_amount) && Number(order?.total_net_amount)) {
@@ -54,14 +56,21 @@ export async function finishHandoff(handoff, project, cockpit) {
     });
   }
 
-  if (handoff.umfang_text) {
-    const nr = handoff.angebot_nummer || '';
+  // Kundenakt: ein kurzer Eintrag „Auftrag erteilt" mit dem Angebot als Dokument
+  if (order) {
+    const nr = order.order_number || '';
+    const angebotUrl = handoff.angebot_url || order.angebot_url || '';
+    const angebotNr = handoff.angebot_nummer || order.angebot_nummer || '';
+    const eckdaten = [
+      `Auftragswert ${fmtEUR(order.total_net_amount)} netto`,
+      order.liefertermin ? `Liefertermin ${fmtDate(order.liefertermin)}` : null,
+    ].filter(Boolean).join(' · ');
     await base44.entities.ProjectFileEntry.create({
       project_id: finanzId,
       entry_type: 'vereinbarung',
-      title: `Auftragsumfang laut Angebot${nr ? ` ${nr}` : ''}`,
-      content: handoff.umfang_text,
-      ...(handoff.angebot_url ? { file_url: handoff.angebot_url, file_name: `Angebot${nr ? ` ${nr}` : ''}.pdf` } : {}),
+      title: `Auftrag erteilt${nr ? ` · ${nr}` : ''}`,
+      content: `${eckdaten}.\nDer vereinbarte Umfang steht im Projekt unter „Projektbeschreibung“.`,
+      ...(angebotUrl ? { file_url: angebotUrl, file_name: `Angebot${angebotNr ? ` ${angebotNr}` : ''}.pdf` } : {}),
       entry_date: new Date().toISOString(),
     });
   }
