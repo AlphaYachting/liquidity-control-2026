@@ -13,9 +13,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AbrechnungSektion from '@/components/sprint/abrechnung/AbrechnungSektion';
 import { sprintStatus } from '@/lib/sprint/status';
 import { Button } from '@/components/ui/button';
-import { BrainCircuit, Plus, ListChecks } from 'lucide-react';
+import { BrainCircuit, Plus } from 'lucide-react';
 import BehaelterKopf from '@/components/sprint/projekt/BehaelterKopf';
-import ProjektBearbeitenKnopf from '@/components/sprint/projekt/ProjektBearbeitenKnopf';
+import ProjektVerwaltung from '@/components/sprint/projekt/ProjektVerwaltung';
 import BehaelterInhalt from '@/components/sprint/projekt/BehaelterInhalt';
 import NeueAufgabeDialog from '@/components/sprint/NeueAufgabeDialog';
 const ProjectIntelligenceSheet = React.lazy(() =>
@@ -24,16 +24,19 @@ import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import useKundenaktProjektId from '@/hooks/useKundenaktProjektId';
 import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
 import { usePrefetchProjektKontext } from '@/lib/sprint/useProjektKontext';
+import { usePrefetchCustomerEmails } from '@/hooks/useCustomerEmailThreads';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import ModulHinzufuegenKnopf from '@/components/sprint/ModulHinzufuegenKnopf';
-import CockpitLeiste from '@/components/projekt/CockpitLeiste';
+import AbTerminHinweis from '@/components/sprint/AbTerminHinweis';
 import { ohneArchiv } from '@/lib/sprint/aktivFilter';
 import { darfBereinigen } from '@/lib/sprint/ticketBereinigen';
 import AufgabenBereinigen from '@/components/sprint/projekt/AufgabenBereinigen';
+import { useZugriff } from '@/lib/useZugriff';
 
-// S4 — Sprint-Übersicht: ein Kopf mit Kennzahlen, Etappen als Zeilen in einer Karte.
+// S4 — Projektdetail: Kopf mit Kennzahlen, Verwaltung oben rechts, Reiter für die tägliche Arbeit.
 export default function SprintDetail() {
   const { sprintId } = useParams();
+  const { darf } = useZugriff();
   const [intelligenzOffen, setIntelligenzOffen] = React.useState(false);
   const [schonGeoeffnet, setSchonGeoeffnet] = React.useState(false);
   if (intelligenzOffen && !schonGeoeffnet) setSchonGeoeffnet(true);
@@ -78,6 +81,8 @@ export default function SprintDetail() {
 
   useMeldeZeitKontext({ project_id: data?.sprint?.project_id, quelle: 'sprint' });
   usePrefetchProjektKontext(data?.sprint?.project_id);
+  // E-Mails des Kunden kurz nach dem Öffnen vorladen — der Reiter „Kommunikation" öffnet dann ohne Wartezeit
+  usePrefetchCustomerEmails(data?.client?.name);
 
   if (isLoading || !data) {
     return (
@@ -89,7 +94,11 @@ export default function SprintDetail() {
   }
 
   const { sprint, project, client, milestones, tickets, members, timeEntries, focusDays, vertrag } = data;
-  const istSprint = projectTypeOf(project) === 'sprint';
+  const typ = projectTypeOf(project);
+  const istSprint = typ === 'sprint';
+  const istAdmin = me?.role === 'admin';
+  const darfAufraeumen = darfBereinigen(me, project);
+  const pmName = members.find((m) => m.email === project?.pm_email)?.name || project?.pm_email || '';
 
   const offenerMilestone = milestones.find((m) => !m.released);
   const status = sprintStatus({ sprint, milestones, tickets, timeEntries, focusDays });
@@ -101,27 +110,49 @@ export default function SprintDetail() {
     return emails.map((e) => members.find((m) => m.email === e) || { email: e, name: e });
   };
 
+  // Arbeitsknöpfe für Nicht-Sprint-Projekte — direkt über der Aufgabenliste
+  const aufgabenAktionen = !istSprint && offenerMilestone ? (
+    <div className="flex flex-wrap items-center gap-2">
+      {typ === 'container' && me?.email && me.email === project?.pm_email && (
+        <ModulHinzufuegenKnopf project={project} milestone={offenerMilestone} tickets={tickets} onAdded={refetch} />
+      )}
+      <Button variant="outline" size="sm" className="rounded" onClick={() => setAddOpen(true)}>
+        <Plus className="w-3.5 h-3.5 mr-1" /> Aufgabe hinzufügen
+      </Button>
+    </div>
+  ) : null;
+
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
       <div className="relative">
-      {me?.role === 'admin' && (
         <div className="absolute top-3 right-3 z-10">
-          <ProjektBearbeitenKnopf project={project} onSaved={refetch} />
+          <ProjektVerwaltung
+            project={project}
+            client={client}
+            istAdmin={istAdmin}
+            darfCockpit={darf('geld')}
+            darfAufraeumen={darfAufraeumen}
+            onBereinigen={() => setBereinigenOffen(true)}
+            onSaved={refetch}
+          />
         </div>
-      )}
-      {istSprint ? (
-        <SprintKopf
-          sprint={sprint}
-          project={project}
-          client={client}
-          milestones={milestones}
-          status={status}
-        />
-      ) : (
-        <BehaelterKopf project={project} client={client} tickets={tickets} timeEntries={timeEntries} members={members} vertrag={vertrag} />
-      )}
+        {istSprint ? (
+          <SprintKopf
+            sprint={sprint}
+            project={project}
+            client={client}
+            milestones={milestones}
+            status={status}
+            pmName={pmName}
+          />
+        ) : (
+          <BehaelterKopf project={project} client={client} tickets={tickets} timeEntries={timeEntries} members={members} vertrag={vertrag} />
+        )}
       </div>
-      <CockpitLeiste project={project} client={client} istAdmin={me?.role === 'admin'} onSaved={refetch} />
+
+      {istSprint && (
+        <AbTerminHinweis sprint={sprint} project={project} milestones={milestones} darfAendern={darfAufraeumen} onChanged={refetch} />
+      )}
 
       <Tabs defaultValue="uebersicht">
         <div className="flex items-center justify-between gap-3 border-b border-border">
@@ -132,38 +163,30 @@ export default function SprintDetail() {
             <TabsTrigger value="kommentare">Kommentare & Notizen</TabsTrigger>
             <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
           </TabsList>
-          <div className="flex items-center gap-2 shrink-0">
-            {projectTypeOf(project) === 'container' && me?.email && me.email === project?.pm_email && offenerMilestone && (
-              <ModulHinzufuegenKnopf project={project} milestone={offenerMilestone} tickets={tickets} onAdded={refetch} />
-            )}
-            {!istSprint && offenerMilestone && (
-              <Button variant="outline" size="sm" className="rounded" onClick={() => setAddOpen(true)}>
-                <Plus className="w-3.5 h-3.5 mr-1" /> Aufgabe hinzufügen
-              </Button>
-            )}
-            {darfBereinigen(me, project) && (
-              <Button variant="outline" size="sm" className="rounded" onClick={() => setBereinigenOffen(true)}>
-                <ListChecks className="w-3.5 h-3.5 mr-1" /> Aufgaben bereinigen
-              </Button>
-            )}
-            <Button size="sm" className="shadow-sm shrink-0" onClick={() => oeffneIntelligenz('frage')}>
-              <BrainCircuit className="w-4 h-4 mr-1.5" /> Projektintelligenz
-            </Button>
-          </div>
+          <Button size="sm" className="shadow-sm shrink-0" onClick={() => oeffneIntelligenz('frage')}>
+            <BrainCircuit className="w-4 h-4 mr-1.5" /> Projektintelligenz
+          </Button>
         </div>
 
         <TabsContent value="uebersicht" className="mt-4">
           <ProjektUebersicht
             project={project}
             client={client}
-            sprint={sprint}
-            timeEntries={timeEntries}
+            members={members}
             onChanged={refetch}
-            zeigeStunden={istSprint}
+            ohneStatus={istSprint}
           />
 
           {!istSprint ? (
-            <BehaelterInhalt project={project} tickets={tickets} members={members} timeEntries={timeEntries} myEmail={me?.email} onRefresh={refetch} />
+            <BehaelterInhalt
+              project={project}
+              tickets={tickets}
+              members={members}
+              timeEntries={timeEntries}
+              myEmail={me?.email}
+              onRefresh={refetch}
+              aktionen={aufgabenAktionen}
+            />
           ) : (
           <div className="mt-5">
             <SectionLabel className="mb-2">Etappen</SectionLabel>
@@ -227,7 +250,7 @@ export default function SprintDetail() {
         />
       )}
 
-      {darfBereinigen(me, project) && (
+      {darfAufraeumen && (
         <AufgabenBereinigen
           project={project}
           me={me}
