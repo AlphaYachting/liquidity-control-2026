@@ -1,18 +1,18 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
 import KennzahlFeld from '@/components/sprint/KennzahlFeld';
-import TypPill from '@/components/sprint/TypPill';
+import ProjektKopfTitel from '@/components/sprint/projekt/ProjektKopfTitel';
+import { KopfKennzahlLeiste } from '@/components/sprint/KopfKennzahl';
 import KontingentFeld from '@/components/sprint/projekt/KontingentFeld';
 import LaufzeitSaldoFeld from '@/components/sprint/projekt/LaufzeitSaldoFeld';
 import { projectTypeOf, istWartung } from '@/components/sprint/projectTypes';
-import { RITTLER, STATUS_COLORS, fmtDate, fmtEUR, todayIso } from '@/components/sprint/sprintConfig';
+import { STATUS_COLORS, fmtDate, fmtEUR, todayIso } from '@/components/sprint/sprintConfig';
 import { istFaellig, istUeberfaellig } from '@/lib/sprint/faelligkeit';
 import { laufenderMonat, monatsName, stundenVon, imMonat, h1, nachFaelligkeit } from '@/lib/sprint/behaelterZahlen';
 import { useProjektKontext } from '@/lib/sprint/useProjektKontext';
 
 // Kopf für Nicht-Sprint-Projekte: keine Etappen, keine Freigabebeträge.
-export default function BehaelterKopf({ project, client, tickets, timeEntries, members, vertrag }) {
+// Gleicher Aufbau wie beim Sprint: Titelblock mit Verwaltung rechts, darunter die Kennzahlenleiste.
+export default function BehaelterKopf({ project, client, tickets, timeEntries, members, vertrag, aktionen }) {
   const typ = projectTypeOf(project);
   const { data: kontext } = useProjektKontext(project?.id);
   const laufzeit = kontext?.summen?.laufzeit;
@@ -22,10 +22,11 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
   const monatsEintraege = imMonat(timeEntries, monat);
   const gebucht = monatsEintraege.reduce((s, e) => s + stundenVon(e), 0);
   const offen = tickets.filter((t) => t.status !== 'erledigt');
-  const pmName = members.find((m) => m.email === project?.pm_email)?.name || project?.pm_email || '—';
+  const pm = members.find((m) => m.email === project?.pm_email)
+    || (project?.pm_email ? { email: project.pm_email, name: project.pm_email } : null);
 
   const typText = {
-    container: `${istWartung(project) ? 'Wartungsvertrag' : 'Retainer'} · Betreuer ${pmName}`,
+    container: istWartung(project) ? 'Wartungsvertrag' : 'Retainer',
     support: `Support · ${project?.stundensatz || 0} €/h`,
     regie: ['Regie', `${project?.stundensatz || 0} €/h`, client?.contact_person].filter(Boolean).join(' · '),
     intern: 'Intern',
@@ -75,25 +76,19 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
   };
 
   return (
-    <div className="bg-white rounded-lg border border-border p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-2 min-w-0">
-          <Link to="/sprint/projekte" className="hover:text-foreground" style={{ color: RITTLER.textSecondary }}>
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <TypPill project={project} />
-          <div className="min-w-0">
-            <h1 className="text-xl font-medium truncate" style={{ color: RITTLER.black }}>{project?.title || 'Projekt'}</h1>
-            <p className="text-[13px] uppercase tracking-[0.5px] truncate" style={{ color: RITTLER.textSecondary }}>
-              {client?.name || 'Kunde'} · {typText}
-            </p>
-          </div>
-        </div>
-        <div className="hidden lg:block w-[160px] h-[56px] shrink-0" aria-hidden="true" />
+    <>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <ProjektKopfTitel
+          project={project}
+          unterzeile={`${client?.name || 'Kunde'} · ${typText}`}
+          person={pm}
+          personRolle={typ === 'container' ? 'Betreuer' : 'Projektleitung'}
+        />
+        {aktionen}
       </div>
-      <div className="flex flex-wrap mt-5 border rounded-md divide-x" style={{ borderColor: RITTLER.line }}>
+      <KopfKennzahlLeiste>
         {felder()}
-      </div>
-    </div>
+      </KopfKennzahlLeiste>
+    </>
   );
 }
