@@ -113,7 +113,13 @@ export default function SprintHeute() {
   const g = gliedereMeinTag(myTickets.filter((t) => aktiveIds.has(t.project_id)), today);
   const focusProjectId = focusDay?.type === 'focus' ? focusDay.project_id : null;
   const focusProject = focusProjectId ? projectById[focusProjectId] : null;
-  const gruppen = nachProjekt(g.ohneTermin, projectById, focusProjectId);
+  // Wenige laufende Aufgaben stehen als eigene Liste; sind es viele (z. B. nach einem Import),
+  // wandern sie in den Vorrat je Projekt — sonst wird die Seite endlos.
+  const MAX_IN_ARBEIT = 8;
+  const inArbeitEigen = g.inArbeit.length <= MAX_IN_ARBEIT;
+  const vorrat = inArbeitEigen ? g.ohneTermin : [...g.inArbeit, ...g.ohneTermin];
+  const gruppen = nachProjekt(vorrat, projectById, focusProjectId);
+  const nichtsGeplant = g.ueberfaellig.length === 0 && g.heute.length === 0 && vorrat.length > 0;
   const offenGesamt = myTickets.length - g.erledigt.length;
 
   // Kunde nur voranstellen, wenn er nicht schon im Projekttitel steht
@@ -245,14 +251,21 @@ export default function SprintHeute() {
             {g.woche.map(mitTimer)}
           </Abschnitt>
 
-          <Abschnitt titel="In Arbeit, ohne Termin" anzahl={g.inArbeit.length}>
+          {nichtsGeplant && (
+            <div className="bg-white rounded-lg border border-border px-5 py-4 text-sm" style={{ color: RITTLER.textSecondary }}>
+              <span className="font-semibold text-foreground">Für heute ist noch nichts eingeplant.</span>{' '}
+              Unten ein Projekt aufklappen und mit „Heute" einplanen, was heute dran ist.
+            </div>
+          )}
+
+          <Abschnitt titel="In Arbeit, ohne Termin" anzahl={inArbeitEigen ? g.inArbeit.length : 0}>
             {g.inArbeit.map(mitTimer)}
           </Abschnitt>
 
           <Abschnitt
-            titel="Offen, ohne Termin"
-            anzahl={g.ohneTermin.length}
-            hinweis="Nach Projekt gegliedert. Ein Termin lässt sich direkt in der Zeile setzen."
+            titel={inArbeitEigen ? 'Offen, ohne Termin' : 'Ohne Termin'}
+            anzahl={vorrat.length}
+            hinweis={`${gruppen.length} ${gruppen.length === 1 ? 'Projekt' : 'Projekte'} — aufklappen und Aufgaben mit „Heute" oder einem Termin einplanen.`}
           >
             <div className="mt-1">
               <MeinTagProjektgruppen
