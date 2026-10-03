@@ -9,12 +9,25 @@ const NEU = '__neu__';
 // Projekt-Cockpit: neu anlegen oder ein freies Cockpit dieses Kunden übernehmen.
 // value = '' bedeutet „Neu anlegen".
 export default function CockpitAuswahl({ customer, value, onChange }) {
+  // Belegt ist ein Cockpit auch dann, wenn ein Projekt über liquidity_project_id
+  // darauf zeigt, ohne dass project_ref_id gesetzt ist — beide Richtungen prüfen.
+  const { data: belegteIds } = useQuery({
+    queryKey: ['belegteCockpitIds'],
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const projekte = await base44.entities.Project.filter({}, 'id', 1000);
+      return new Set(projekte.map((p) => p.liquidity_project_id).filter(Boolean));
+    },
+  });
+
   const { data: cockpits = [] } = useQuery({
-    queryKey: ['freieCockpits', customer],
-    enabled: !!customer,
+    queryKey: ['freieCockpits', customer, belegteIds ? belegteIds.size : -1],
+    enabled: !!customer && !!belegteIds,
     queryFn: async () => {
       const rows = await base44.entities.LiquidityProject.filter({ customer }, 'project_name', 200);
-      return rows.filter((c) => c.status !== 'cancelled' && !c.project_ref_id);
+      return rows.filter(
+        (c) => c.status !== 'cancelled' && !c.project_ref_id && !belegteIds.has(c.id)
+      );
     },
   });
 
@@ -31,7 +44,9 @@ export default function CockpitAuswahl({ customer, value, onChange }) {
         </SelectContent>
       </Select>
       <p className="mt-1 text-xs text-muted-foreground">
-        Ein bestehendes Cockpit nur wählen, wenn ein laufendes Projekt umzieht.
+        {cockpits.length === 0
+          ? 'Keine freien Cockpits für diesen Kunden — es wird eines neu angelegt.'
+          : 'Ein bestehendes Cockpit nur wählen, wenn ein laufendes Projekt umzieht.'}
       </p>
     </div>
   );
