@@ -1,6 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { positionsText, abKopfText, kundenAdresse, gleichWieAngebot } from '@/lib/crm/umfangTexte';
-import { abTermine } from '@/lib/crm/abTermine';
+import { abTermine, sprintGroesseAus } from '@/lib/crm/abTermine';
 
 // Legt aus dem Übergabeblatt den Auftrag samt Positionen an und baut den
 // Startkeim für den Anlage-Wizard. Wird ausschließlich bei „Freigeben & anlegen" gerufen.
@@ -121,7 +121,7 @@ export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, 
         pm_email: pm,
         title: deal.title,
       },
-      sprint: { selected: matchModules(positions, modules), start_date: termine.start, delivery_date: termine.lieferung },
+      sprint: { selected: matchModules(positions, modules), start_date: termine.start, delivery_date: termine.lieferung, size: sprintGroesseAus(termine) },
       handoff: {
         confirmed_order_id: order.id,
         deal_id: deal.id,
