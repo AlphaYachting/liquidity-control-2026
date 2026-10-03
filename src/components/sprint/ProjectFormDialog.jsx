@@ -215,7 +215,9 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
           </div>
           <div>
             <Label>Projektleitung *</Label>
-            <Select value={form.pm_email || ''} onValueChange={(v) => setForm((f) => ({ ...f, pm_email: v }))}>
+            <Select
+              value={mitglieder.find((m) => (m.email || '').toLowerCase() === (form.pm_email || '').toLowerCase())?.email || form.pm_email || ''}
+              onValueChange={(v) => setForm((f) => ({ ...f, pm_email: v }))}>
               <SelectTrigger><SelectValue placeholder="Teammitglied wählen" /></SelectTrigger>
               <SelectContent>
                 {mitglieder.map((m) => (
