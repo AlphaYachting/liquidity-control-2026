@@ -34,17 +34,24 @@ export async function kundennameKlaeren(name, { ausserId, erlaubeVerwenden = tru
   for (;;) {
     const treffer = await findeKunde(aktuell, ausserId);
     if (!treffer) return { name: aktuell };
-    const bewusst = window.confirm(
-      `Den Kunden „${treffer.name}“ gibt es bereits.\n\n` +
-      'OK = bewusst ein Duplikat anlegen (mit Zusatzbezeichnung)\n' +
-      (erlaubeVerwenden ? 'Abbrechen = den bestehenden Kunden verwenden' : 'Abbrechen = nicht speichern')
-    );
-    if (!bewusst) {
-      if (erlaubeVerwenden) return { bestehend: treffer };
-      throw new Error(`Kunde „${treffer.name}“ existiert bereits — nicht gespeichert.`);
+    // Der sichere Weg ist der Standard: OK verwendet den bestehenden Kunden.
+    // Ein zweiter Kunde gleichen Namens entsteht nur mit ausdrücklich eingetippter Zusatzbezeichnung.
+    if (erlaubeVerwenden) {
+      const verwenden = window.confirm(
+        `Den Kunden „${treffer.name}“ gibt es bereits.\n\n` +
+        'OK = den bestehenden Kunden verwenden\n' +
+        'Abbrechen = es ist wirklich ein anderer Kunde (Zusatzbezeichnung folgt)'
+      );
+      if (verwenden) return { bestehend: treffer };
     }
-    const zusatz = window.prompt('Zusatzbezeichnung für das Duplikat (z. B. Standort, Abteilung):', 'Duplikat');
-    if (!zusatz || !zusatz.trim()) throw new Error('Ohne Zusatzbezeichnung wird kein Duplikat angelegt.');
+    const zusatz = window.prompt(
+      `„${treffer.name}“ gibt es bereits. Nur wenn es wirklich ein eigener Kunde ist: ` +
+      'Zusatzbezeichnung eingeben (z. B. Standort, Abteilung).\n\nLeer lassen = nichts speichern.',
+      ''
+    );
+    if (!zusatz || !zusatz.trim()) {
+      throw new Error(`Kunde „${treffer.name}“ existiert bereits — ${erlaubeVerwenden ? 'nichts angelegt' : 'nicht gespeichert'}.`);
+    }
     aktuell = `${String(name).trim()} (${zusatz.trim()})`;
   }
 }
