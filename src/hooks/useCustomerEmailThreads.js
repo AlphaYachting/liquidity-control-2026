@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { emailApi } from '@/components/crm/emails/emailApi';
 
 const STOPWORDS = new Set(['der', 'die', 'das', 'und', 'the']);
@@ -17,7 +18,22 @@ export function coreCustomerName(name) {
 // Zentraler, rein lesender Hook: E-Mail-Threads eines Kunden (letzte 90 Tage).
 // 1. Direkte Kundenzuordnung (KI-angereichert). 2. Fallback: Volltextsuche nach dem Firmennamen.
 export function useCustomerEmailThreads(customer) {
-  return useQuery({
+  return useQuery({ ...kundenMailQuery(customer), enabled: !!customer });
+}
+
+// Vorladen kurz nach dem Öffnen eines Projekts — erst nachdem die Seite selbst steht,
+// damit der Reiter „Kommunikation“ ohne Wartezeit öffnet. Ergebnis bleibt 5 Minuten gültig.
+export function usePrefetchCustomerEmails(customer) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!customer) return undefined;
+    const t = setTimeout(() => { qc.prefetchQuery(kundenMailQuery(customer)); }, 1200);
+    return () => clearTimeout(t);
+  }, [customer, qc]);
+}
+
+function kundenMailQuery(customer) {
+  return {
     queryKey: ['customer-emails', customer],
     queryFn: async () => {
       const direct = await emailApi('threads', { params: { customer, days: 90, limit: 20 } });
@@ -78,10 +94,9 @@ export function useCustomerEmailThreads(customer) {
       );
       return { mode: 'search', search_term: core, results: [...enriched.filter(Boolean), ...stubs.slice(8)] };
     },
-    enabled: !!customer,
     staleTime: 5 * 60 * 1000,
     retry: false,
-  });
+  };
 }
 
 // Leitet die Kommunikationsqualität aus den Threads ab (rein abgeleitet, keine Writes):
