@@ -177,7 +177,7 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
               value={form.title || ''}
               disabled={archiviert}
               onChange={(e) => set({ title: e.target.value })}
-              className="h-auto rounded border-transparent px-1.5 -mx-1.5 py-1 text-[20px] leading-[26px] font-bold shadow-none hover:border-border focus-visible:border-border"
+              className="h-auto rounded border-transparent px-1.5 -mx-1.5 py-1 text-[20px] md:text-[20px] leading-[26px] font-bold shadow-none hover:border-border focus-visible:border-border"
             />
             {projekt && (
               <div className="flex flex-col gap-1 rounded bg-[#F7F7F7] px-3 py-2.5 text-[13px] text-[#555555]">
