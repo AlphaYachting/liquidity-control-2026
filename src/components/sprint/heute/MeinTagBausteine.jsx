@@ -73,7 +73,7 @@ export function ticketZiel(ticket, milestone, project) {
 }
 
 // Schmale Liste für die rechte Spalte (Wartet, Kommt später).
-export function KurzListe({ titel, farbe, hinweis, tickets, max = 5, heute, projektName, milestoneById, projectById, terminVorne = false }) {
+export function KurzListe({ titel, farbe, hinweis, tickets, max = 5, heute, projektName, milestoneById, projectById, terminVorne = false, onOeffnen }) {
   const [alle, setAlle] = useState(false);
   if (!tickets.length) return null;
   const sichtbar = alle ? tickets : tickets.slice(0, max);
@@ -88,6 +88,11 @@ export function KurzListe({ titel, farbe, hinweis, tickets, max = 5, heute, proj
           <Link
             key={t.id}
             to={ticketZiel(t, milestoneById[t.milestone_id], projectById[t.project_id])}
+            onClick={(e) => {
+              if (!onOeffnen || e.metaKey || e.ctrlKey || e.shiftKey) return;
+              e.preventDefault();
+              onOeffnen(t);
+            }}
             className="flex gap-3 py-2 px-2 -mx-2 rounded border-b border-border last:border-0 hover:bg-muted"
           >
             {terminVorne && (
