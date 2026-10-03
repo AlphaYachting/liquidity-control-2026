@@ -7,6 +7,7 @@ import { useZugriff } from '@/lib/useZugriff';
 import { Skeleton } from '@/components/ui/skeleton';
 import MeinTagZeile from '@/components/sprint/heute/MeinTagZeile';
 import MeinTagNeueAufgabe from '@/components/sprint/heute/MeinTagNeueAufgabe';
+import TicketDetailPanel from '@/components/sprint/ticket/TicketDetailPanel';
 import HeuteFristen from '@/components/sprint/HeuteFristen';
 import HeutePmBlock from '@/components/sprint/HeutePmBlock';
 import useTicketStatus from '@/hooks/useTicketStatus';
@@ -32,13 +33,15 @@ export default function SprintHeute() {
   const email = user?.email;
   const today = todayIso();
   const [neueAufgabe, setNeueAufgabe] = useState(false);
+  // Aufgabe, die in der Ebene rechts geöffnet ist — die Liste bleibt dahinter bedienbar
+  const [panelTicketId, setPanelTicketId] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['sprintHeute', email, today],
     enabled: !!email,
     queryFn: async () => {
       const tagesbeginn = new Date(`${today}T00:00:00`).toISOString();
-      const [offene, erledigtHeute, focusDays, pmProjects, settings, todayEntries] = await Promise.all([
+      const [offene, erledigtHeute, focusDays, pmProjects, settings, todayEntries, members] = await Promise.all([
         base44.entities.Ticket.filter(ohneArchiv({ assignee_email: email, status: { $ne: 'erledigt' } }), 'order', 1000),
         base44.entities.Ticket.filter(
           ohneArchiv({ assignee_email: email, status: 'erledigt', last_status_change: { $gte: tagesbeginn } }),
@@ -48,6 +51,7 @@ export default function SprintHeute() {
         base44.entities.Project.filter({ ...PROJEKT_LAUFEND, pm_email: email }, 'title', 500),
         base44.entities.Setting.filter({ group: 'kapazitaet' }, 'key', 50),
         base44.entities.TimeEntry.filter({ person_email: email, entry_date: today }),
+        base44.entities.TeamMember.filter({ active: { $ne: false } }, 'name', 200),
       ]);
       const myTickets = [...offene, ...erledigtHeute];
       const focusDay = focusDays[0] || null;
@@ -83,7 +87,7 @@ export default function SprintHeute() {
           : await base44.entities.Milestone.filter({ sprint_id: { $in: sprintIds } }, '-created_date', 500);
 
       const standardHours = Number(settings.find((s) => s.key === 'standard_day_hours')?.value) || 8;
-      return { myTickets, focusDay, projects, clients, milestones, standardHours, sprints, todayEntries, module };
+      return { myTickets, focusDay, projects, clients, milestones, standardHours, sprints, todayEntries, module, members };
     },
   });
 
@@ -100,7 +104,9 @@ export default function SprintHeute() {
     );
   }
 
-  const { myTickets, focusDay, projects, clients, milestones, standardHours, sprints, todayEntries, module } = data;
+  const { myTickets, focusDay, projects, clients, milestones, standardHours, sprints, todayEntries, module, members } = data;
+  const panelTicket = panelTicketId ? myTickets.find((t) => t.id === panelTicketId) || null : null;
+  const oeffneTicket = (t) => setPanelTicketId(t.id);
   const moduleById = Object.fromEntries(module.map((m) => [m.id, m]));
   const projectById = Object.fromEntries(projects.map((p) => [p.id, p]));
   const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
@@ -152,6 +158,8 @@ export default function SprintHeute() {
         onStatusChange={handleStatusChange}
         variante={variante}
         mitTimer={mitTimer}
+        onOeffnen={oeffneTicket}
+        aktiv={t.id === panelTicketId}
       />
     );
   };
@@ -190,7 +198,7 @@ export default function SprintHeute() {
 
   const datum = new Date().toLocaleDateString('de-AT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const zeigeEingang = zugriff.darf(['leitung', 'support']);
-  const kurzListeProps = { heute: today, projektName, milestoneById, projectById };
+  const kurzListeProps = { heute: today, projektName, milestoneById, projectById, onOeffnen: oeffneTicket };
 
   return (
     <div className="max-w-[1280px] mx-auto space-y-5">
@@ -320,6 +328,14 @@ export default function SprintHeute() {
         </div>
       </div>
       {routineDialog}
+      <TicketDetailPanel
+        ticket={panelTicket}
+        members={members}
+        open={!!panelTicket}
+        onOpenChange={(o) => { if (!o) setPanelTicketId(null); }}
+        onSaved={refresh}
+        nichtModal
+      />
       <MeinTagNeueAufgabe
         open={neueAufgabe}
         onOpenChange={setNeueAufgabe}
