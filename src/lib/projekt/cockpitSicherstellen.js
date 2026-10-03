@@ -10,7 +10,7 @@ export async function cockpitSicherstellen({ project, clientName, typ, pmEmail, 
   let cockpit = null;
 
   if (bestehendesCockpitId) {
-    cockpit = await base44.entities.LiquidityProject.get(bestehendesCockpitId);
+    cockpit = await base44.entities.LiquidityProject.get(bestehendesCockpitId).catch(() => null);
   } else if (project.liquidity_project_id) {
     cockpit = await base44.entities.LiquidityProject.get(project.liquidity_project_id).catch(() => null);
   }
@@ -38,9 +38,22 @@ export async function cockpitSicherstellen({ project, clientName, typ, pmEmail, 
     });
   }
 
-  if (cockpit.project_ref_id && cockpit.project_ref_id !== project.id) {
+  // Belegt ist ein Cockpit in beide Richtungen: über project_ref_id oder weil ein
+  // anderes Projekt über liquidity_project_id darauf zeigt.
+  const fremde = (await base44.entities.Project.filter({ liquidity_project_id: cockpit.id }))
+    .filter((p) => p.id !== project.id);
+  if ((cockpit.project_ref_id && cockpit.project_ref_id !== project.id) || fremde.length > 0) {
     throw new Error(`Das Projekt-Cockpit „${cockpit.project_name}" ist bereits mit einem anderen Projekt verknüpft.`);
   }
+
+  // Umhängen: bisheriges Cockpit freigeben, damit es nicht verwaist zurückbleibt.
+  if (project.liquidity_project_id && project.liquidity_project_id !== cockpit.id) {
+    const alt = await base44.entities.LiquidityProject.get(project.liquidity_project_id).catch(() => null);
+    if (alt && alt.project_ref_id === project.id) {
+      await base44.entities.LiquidityProject.update(alt.id, { project_ref_id: null });
+    }
+  }
+
   if (cockpit.project_ref_id !== project.id) {
     await base44.entities.LiquidityProject.update(cockpit.id, { project_ref_id: project.id });
   }
@@ -48,4 +61,16 @@ export async function cockpitSicherstellen({ project, clientName, typ, pmEmail, 
     await base44.entities.Project.update(project.id, { liquidity_project_id: cockpit.id });
   }
   return { ...cockpit, project_ref_id: project.id };
+}
+
+// Trennt Projekt und Cockpit beidseitig. Beide Datensätze bleiben erhalten.
+export async function cockpitLoesen({ project }) {
+  if (!project?.id) return;
+  if (project.liquidity_project_id) {
+    const cockpit = await base44.entities.LiquidityProject.get(project.liquidity_project_id).catch(() => null);
+    if (cockpit && cockpit.project_ref_id === project.id) {
+      await base44.entities.LiquidityProject.update(cockpit.id, { project_ref_id: null });
+    }
+  }
+  await base44.entities.Project.update(project.id, { liquidity_project_id: null });
 }
