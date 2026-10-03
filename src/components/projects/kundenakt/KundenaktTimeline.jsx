@@ -4,6 +4,25 @@ import { Trash2, Loader2, Paperclip } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ENTRY_TYPES, formatEntryDate } from '@/components/projects/kundenakt/kundenaktConfig';
 
+const LANG = 320;
+
+// Langer Eintragstext startet eingeklappt (vier Zeilen) — die Timeline bleibt überschaubar.
+function EintragText({ text }) {
+  const [offen, setOffen] = useState(false);
+  const lang = text.length > LANG || text.split('\n').length > 4;
+  return (
+    <div className="mt-1">
+      <p className={`text-xs text-muted-foreground whitespace-pre-wrap ${lang && !offen ? 'line-clamp-4' : ''}`}>{text}</p>
+      {lang && (
+        <button type="button" onClick={() => setOffen((o) => !o)}
+          className="mt-0.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
+          {offen ? 'weniger anzeigen' : 'mehr anzeigen'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // Kundenakt als Timeline nach unten — je Eintrag Symbol, Titel, Zeitpunkt, Inhalt, Dokument.
 export default function KundenaktTimeline({ entries, onChanged }) {
   const [deletingId, setDeletingId] = useState(null);
@@ -59,7 +78,7 @@ export default function KundenaktTimeline({ entries, onChanged }) {
                 {e.recorded_by && <span className="text-[10px] text-muted-foreground">{e.recorded_by}</span>}
               </div>
               {e.ai_summary && <p className="text-xs mt-1.5">{e.ai_summary}</p>}
-              {e.content && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{e.content}</p>}
+              {e.content && <EintragText text={e.content} />}
               {e.file_url && (
                 <a href={e.file_url} target="_blank" rel="noopener noreferrer"
                   className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
