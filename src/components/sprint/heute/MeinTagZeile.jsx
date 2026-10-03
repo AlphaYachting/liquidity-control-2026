@@ -166,18 +166,25 @@ export function TypKuerzel({ project }) {
 //  variante "gruppe" — Statuspunkt · Titel · Sollstunden/Leistungsbereich · Termin setzen (Projekt steht im Gruppenkopf)
 export default function MeinTagZeile({
   ticket, project, client, milestone, modulName, projektName, heute, onStatusChange,
-  variante = 'voll', mitTimer = true,
+  variante = 'voll', mitTimer = true, onOeffnen, aktiv = false,
 }) {
   const ziel = ticketZiel(ticket, milestone, project);
+  // Klick öffnet die Aufgabe in der Ebene rechts; mit Strg/Cmd bleibt der normale Link (neuer Tab)
+  const oeffnen = (e) => {
+    if (!onOeffnen || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    onOeffnen(ticket);
+  };
+  const aktivStil = aktiv ? { backgroundColor: '#f5f5f5' } : undefined;
   const erledigt = ticket.status === 'erledigt';
   const istSprint = !!project && projectTypeOf(project) === 'sprint';
 
   if (variante === 'gruppe') {
     const info = ticket.target_hours ? `${fmtH(ticket.target_hours)} h Ziel` : modulName;
     return (
-      <div className="flex items-center gap-2 min-h-[48px] border-b border-border last:border-0">
+      <div className="flex items-center gap-2 min-h-[48px] border-b border-border last:border-0" style={aktivStil}>
         <StatusPunkt status={ticket.status} onChange={(s) => onStatusChange(ticket, s)} />
-        <Link to={ziel} className="flex-1 min-w-0 text-sm font-semibold truncate hover:underline" style={{ color: RITTLER.black }}>
+        <Link to={ziel} onClick={oeffnen} className="flex-1 min-w-0 text-sm font-semibold truncate hover:underline" style={{ color: RITTLER.black }}>
           {ticket.title}
         </Link>
         {info && <span className="shrink-0 text-[12.5px] hidden sm:inline" style={{ color: RITTLER.textSecondary }}>{info}</span>}
@@ -195,9 +202,9 @@ export default function MeinTagZeile({
   ].filter(Boolean);
 
   return (
-    <div className="flex items-center gap-2 sm:gap-3 min-h-[52px] py-1 border-b border-border last:border-0">
+    <div className="flex items-center gap-2 sm:gap-3 min-h-[52px] py-1 border-b border-border last:border-0" style={aktivStil}>
       <StatusPunkt status={ticket.status} onChange={(s) => onStatusChange(ticket, s)} />
-      <Link to={ziel} className="flex-1 min-w-0 group">
+      <Link to={ziel} onClick={oeffnen} className="flex-1 min-w-0 group">
         <span className="block text-sm font-semibold truncate group-hover:underline" style={{ color: RITTLER.black }}>{ticket.title}</span>
         {kontext.length > 0 && (
           <span className="block text-[12.5px] truncate" style={{ color: RITTLER.textSecondary }}>{kontext.join(' · ')}</span>
