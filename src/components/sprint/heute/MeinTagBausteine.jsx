@@ -4,11 +4,11 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { RITTLER, STATUS_COLORS, fmtDate } from '@/components/sprint/sprintConfig';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 
-const KARTE = 'bg-white rounded-lg shadow-sm p-5';
+export const KARTE = 'bg-white rounded-lg border border-border px-5 py-[18px]';
 
 export function Titel({ children, farbe = RITTLER.black, className = '' }) {
   return (
-    <p className={`text-[11px] font-bold uppercase tracking-[2px] ${className}`} style={{ color: farbe }}>
+    <p className={`text-xs font-bold uppercase tracking-[1.5px] ${className}`} style={{ color: farbe }}>
       {children}
     </p>
   );
@@ -20,7 +20,7 @@ export function Abschnitt({ titel, anzahl, farbe, hinweis, children }) {
   return (
     <div className={KARTE}>
       <Titel farbe={farbe} className="mb-1">{titel} ({anzahl})</Titel>
-      {hinweis && <p className="text-xs mb-1" style={{ color: RITTLER.textSecondary }}>{hinweis}</p>}
+      {hinweis && <p className="text-[12.5px] mb-2" style={{ color: RITTLER.textSecondary }}>{hinweis}</p>}
       {children}
     </div>
   );
@@ -45,15 +45,15 @@ export function KlappAbschnitt({ titel, anzahl, children }) {
 // Zählerleiste: der ganze Tag auf einen Blick.
 export function Zaehlerleiste({ werte }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="bg-white rounded-lg border border-border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
       {werte.map((w) => (
-        <div key={w.label} className="px-5 py-3.5 border-b lg:border-b-0 lg:border-r last:border-r-0 border-border">
-          <p className="text-2xl font-extrabold tabular-nums" style={{ color: w.zahl && w.farbe ? w.farbe : RITTLER.black }}>
+        <div key={w.label} className="px-[18px] py-3.5 border-b lg:border-b-0 lg:border-r last:border-r-0 border-border">
+          <p className="text-[26px] leading-tight font-extrabold tabular-nums" style={{ color: w.zahl && w.farbe ? w.farbe : RITTLER.black }}>
             {w.wert}
             {w.zusatz && <span className="text-sm font-semibold ml-1" style={{ color: RITTLER.textSecondary }}>{w.zusatz}</span>}
           </p>
           <p
-            className="text-[11px] font-bold uppercase tracking-[1px]"
+            className="text-xs font-bold uppercase tracking-[1px]"
             style={{ color: w.zahl && w.farbe ? w.farbe : RITTLER.textSecondary }}
           >
             {w.label}
@@ -81,7 +81,7 @@ export function KurzListe({ titel, farbe, hinweis, tickets, max = 5, heute, proj
   return (
     <div className={KARTE}>
       <Titel farbe={farbe} className="mb-1">{titel} ({tickets.length})</Titel>
-      {hinweis && <p className="text-xs mb-1" style={{ color: RITTLER.textSecondary }}>{hinweis}</p>}
+      {hinweis && <p className="text-[12.5px] mb-1" style={{ color: RITTLER.textSecondary }}>{hinweis}</p>}
       {sichtbar.map((t) => {
         const verpasst = !terminVorne && t.planned_for && t.planned_for < heute;
         return (
@@ -91,13 +91,13 @@ export function KurzListe({ titel, farbe, hinweis, tickets, max = 5, heute, proj
             className="flex gap-3 py-2 px-2 -mx-2 rounded border-b border-border last:border-0 hover:bg-muted"
           >
             {terminVorne && (
-              <span className="text-xs font-bold shrink-0 w-12 pt-0.5 tabular-nums" style={{ color: RITTLER.black }}>
+              <span className="text-[12.5px] font-bold shrink-0 w-[52px] pt-0.5 tabular-nums" style={{ color: RITTLER.black }}>
                 {fmtDate(t.planned_for).slice(0, 6)}
               </span>
             )}
             <span className="min-w-0">
-              <span className="block text-sm font-medium truncate" style={{ color: RITTLER.black }}>{t.title}</span>
-              <span className="block text-xs truncate" style={{ color: RITTLER.textSecondary }}>
+              <span className="block text-sm font-semibold truncate" style={{ color: RITTLER.black }}>{t.title}</span>
+              <span className="block text-[12.5px] truncate" style={{ color: RITTLER.textSecondary }}>
                 {projektName(projectById[t.project_id])}
                 {verpasst && (
                   <span className="font-bold" style={{ color: STATUS_COLORS.critical }}>
@@ -110,7 +110,7 @@ export function KurzListe({ titel, farbe, hinweis, tickets, max = 5, heute, proj
         );
       })}
       {rest > 0 && (
-        <button type="button" onClick={() => setAlle(true)} className="mt-1 text-xs font-semibold py-2" style={{ color: RITTLER.black }}>
+        <button type="button" onClick={() => setAlle(true)} className="mt-1 text-[13px] font-semibold py-2" style={{ color: RITTLER.black }}>
           + {rest} weitere anzeigen
         </button>
       )}
