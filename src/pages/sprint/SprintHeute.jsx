@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { useZugriff } from '@/lib/useZugriff';
 import { Skeleton } from '@/components/ui/skeleton';
-import HeuteAufgabenZeile from '@/components/sprint/HeuteAufgabenZeile';
+import MeinTagZeile from '@/components/sprint/heute/MeinTagZeile';
+import MeinTagNeueAufgabe from '@/components/sprint/heute/MeinTagNeueAufgabe';
 import HeuteFristen from '@/components/sprint/HeuteFristen';
 import HeutePmBlock from '@/components/sprint/HeutePmBlock';
 import useTicketStatus from '@/hooks/useTicketStatus';
@@ -12,9 +14,8 @@ import { Abschnitt, KlappAbschnitt, KurzListe, Zaehlerleiste } from '@/component
 import MeinTagProjektgruppen from '@/components/sprint/heute/MeinTagProjektgruppen';
 import { MeinTagZeit, MeinTagEingang, stundenVon } from '@/components/sprint/heute/MeinTagSeitenleiste';
 import { RITTLER, STATUS_COLORS, todayIso } from '@/components/sprint/sprintConfig';
-import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { ohneArchiv, PROJEKT_LAUFEND, istAktiv } from '@/lib/sprint/aktivFilter';
-import { gliedereMeinTag, nachProjekt, VORSCHAU_TAGE } from '@/lib/sprint/meinTag';
+import { gliedereMeinTag, nachProjekt } from '@/lib/sprint/meinTag';
 
 const eindeutig = (liste) => [...new Set(liste.filter(Boolean))];
 // Über dieser Menge wird nicht mehr gezielt per ID geladen, sondern die Liste geholt.
@@ -22,7 +23,7 @@ const MAX_IDS = 60;
 const fmtH = (v) => new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(v || 0);
 
 // MEIN TAG — alle eigenen Aufgaben auf einen Blick, unabhängig vom Focus-Tag.
-// Gliederung: überfällig → heute → nächste 7 Tage → in Arbeit → ohne Termin (je Projekt);
+// Gliederung: überfällig → heute → diese Woche → in Arbeit → ohne Termin (je Projekt);
 // rechts Zeit, Wartendes, Posteingang und was später kommt.
 export default function SprintHeute() {
   const { user } = useAuth();
@@ -30,6 +31,7 @@ export default function SprintHeute() {
   const queryClient = useQueryClient();
   const email = user?.email;
   const today = todayIso();
+  const [neueAufgabe, setNeueAufgabe] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['sprintHeute', email, today],
@@ -129,24 +131,25 @@ export default function SprintHeute() {
     return sprint ? `/sprint/sprints/${sprint.id}` : '/sprint/projekte';
   };
 
-  const zeile = ({ mitProjekt = true, mitTimer = false } = {}) => (t) => {
+  const zeile = ({ variante = 'voll', mitTimer = true } = {}) => (t) => {
     const p = projectById[t.project_id];
     return (
-      <HeuteAufgabenZeile
+      <MeinTagZeile
         key={t.id}
         ticket={t}
+        project={p}
+        client={p ? clientById[p.client_id] : null}
         milestone={milestoneById[t.milestone_id]}
-        projectLabel={mitProjekt ? projektName(p) : null}
-        projektTyp={p ? projectTypeOf(p) : 'sprint'}
         modulName={moduleById[t.module_template_id]?.name}
+        projektName={projektName(p)}
+        heute={today}
         onStatusChange={handleStatusChange}
-        typProjekt={mitProjekt ? p : null}
-        timerProjekt={mitTimer ? p : null}
-        timerKunde={p ? clientById[p.client_id] : null}
+        variante={variante}
+        mitTimer={mitTimer}
       />
     );
   };
-  const mitTimer = zeile({ mitTimer: true });
+  const mitTimer = zeile();
 
   // Fristen der Sprint-Etappen in den eigenen Projekten
   const myProjectIds = new Set(projects.map((p) => p.id));
@@ -173,31 +176,49 @@ export default function SprintHeute() {
   const zaehler = [
     { label: 'Überfällig', wert: g.ueberfaellig.length, zahl: g.ueberfaellig.length, farbe: STATUS_COLORS.critical },
     { label: 'Heute fällig', wert: g.heute.length },
-    { label: `Nächste ${VORSCHAU_TAGE} Tage`, wert: g.woche.length },
+    { label: 'Diese Woche', wert: g.woche.length },
     { label: 'In Arbeit', wert: g.inArbeit.length },
     { label: 'Wartet', wert: g.wartet.length, zahl: g.wartet.length, farbe: STATUS_COLORS.attention },
     { label: 'Heute gebucht', wert: fmtH(gebucht), zusatz: `von ${fmtH(standardHours)} h` },
   ];
 
   const datum = new Date().toLocaleDateString('de-AT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const nichtsFaellig = g.ueberfaellig.length === 0 && g.heute.length === 0;
   const zeigeEingang = zugriff.darf(['leitung', 'support']);
   const kurzListeProps = { heute: today, projektName, milestoneById, projectById };
 
   return (
     <div className="max-w-[1280px] mx-auto space-y-5">
-      <div>
-        <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Mein Tag</h1>
-        <p className="text-sm mt-0.5" style={{ color: RITTLER.textSecondary }}>{datum}</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold uppercase tracking-tight text-foreground">Mein Tag</h1>
+          <p className="text-sm mt-1" style={{ color: RITTLER.textSecondary }}>
+            {[datum, user?.full_name].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setNeueAufgabe(true)}
+            className="h-11 px-4 bg-white border border-[#d4d4d4] rounded text-sm font-semibold text-foreground hover:bg-muted"
+          >
+            Neue Aufgabe
+          </button>
+          <Link
+            to="/zeiten"
+            className="h-11 px-4 inline-flex items-center bg-white border border-foreground rounded text-sm font-semibold text-foreground hover:bg-muted"
+          >
+            Zeit erfassen
+          </Link>
+        </div>
       </div>
 
       {focusDay?.type === 'abwesend' && (
-        <div className="bg-white rounded-lg shadow-sm px-5 py-3 text-sm text-foreground">
+        <div className="bg-white rounded-lg border border-border px-5 py-3 text-sm text-foreground">
           Für heute bist du als abwesend eingetragen.
         </div>
       )}
       {focusProject && (
-        <div className="bg-white rounded-lg shadow-sm px-5 py-3 text-sm text-foreground">
+        <div className="bg-white rounded-lg border border-border px-5 py-3 text-sm text-foreground">
           <span className="font-bold">Focus heute:</span> {projektName(focusProject)}
         </div>
       )}
@@ -206,11 +227,9 @@ export default function SprintHeute() {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
         <div className="space-y-5 min-w-0">
-          {nichtsFaellig && (
-            <div className="bg-white rounded-lg shadow-sm px-5 py-4 text-sm" style={{ color: RITTLER.textSecondary }}>
-              {offenGesamt === 0
-                ? 'Dir sind aktuell keine offenen Aufgaben zugewiesen.'
-                : 'Heute ist nichts fällig und nichts überfällig.'}
+          {offenGesamt === 0 && (
+            <div className="bg-white rounded-lg border border-border px-5 py-4 text-sm" style={{ color: RITTLER.textSecondary }}>
+              Dir sind aktuell keine offenen Aufgaben zugewiesen.
             </div>
           )}
 
@@ -222,7 +241,7 @@ export default function SprintHeute() {
             {g.heute.map(mitTimer)}
           </Abschnitt>
 
-          <Abschnitt titel={`Nächste ${VORSCHAU_TAGE} Tage`} anzahl={g.woche.length}>
+          <Abschnitt titel="Diese Woche" anzahl={g.woche.length}>
             {g.woche.map(mitTimer)}
           </Abschnitt>
 
@@ -235,12 +254,12 @@ export default function SprintHeute() {
             anzahl={g.ohneTermin.length}
             hinweis="Nach Projekt gegliedert. Ein Termin lässt sich direkt in der Zeile setzen."
           >
-            <div className="mt-2">
+            <div className="mt-1">
               <MeinTagProjektgruppen
                 gruppen={gruppen}
                 projektName={projektName}
                 projektZiel={projektZiel}
-                zeile={zeile({ mitProjekt: false })}
+                zeile={zeile({ variante: 'gruppe' })}
                 focusProjectId={focusProjectId}
               />
             </div>
@@ -258,7 +277,7 @@ export default function SprintHeute() {
           {deadlines.length > 0 && <HeuteFristen deadlines={deadlines} />}
 
           <KlappAbschnitt titel="Heute erledigt" anzahl={g.erledigt.length}>
-            {g.erledigt.map(zeile())}
+            {g.erledigt.map(zeile({ mitTimer: false }))}
           </KlappAbschnitt>
         </div>
 
@@ -272,7 +291,7 @@ export default function SprintHeute() {
           <KurzListe
             titel="Wartet"
             farbe={STATUS_COLORS.attention}
-            hinweis="Liegt gerade nicht bei dir — nachfassen, wenn es zu lange dauert."
+            hinweis="Liegt nicht bei dir – nachfassen, wenn es zu lange dauert."
             tickets={g.wartet}
             max={6}
             {...kurzListeProps}
@@ -288,6 +307,16 @@ export default function SprintHeute() {
         </div>
       </div>
       {routineDialog}
+      <MeinTagNeueAufgabe
+        open={neueAufgabe}
+        onOpenChange={setNeueAufgabe}
+        email={email}
+        projects={projects.filter(istAktiv)}
+        sprints={sprints}
+        milestones={milestones}
+        projektName={projektName}
+        onCreated={refresh}
+      />
     </div>
   );
 }
