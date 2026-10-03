@@ -103,10 +103,13 @@ export default async function (req) {
     const projektIds = [...new Set(tickets.map((t) => t.project_id).filter(Boolean))];
     const projekte = await db.Project.filter({ id: { $in: projektIds } }, null, 500);
     const projektById = Object.fromEntries(projekte.map((p) => [p.id, p]));
-    const darf = (t) => istAdmin || (projektById[t.project_id]?.pm_email || '').toLowerCase() === (user.email || '').toLowerCase();
+    // Führungskräfte (Stufe „gf“ in der Personenliste) dürfen wie Admins in jedem Projekt archivieren
+    const person = istAdmin ? null : (await db.TeamMember.filter({ email: user.email }, 'name', 1))[0];
+    const istFuehrung = istAdmin || (person?.system_role === 'gf' && person?.active !== false);
+    const darf = (t) => istFuehrung || (projektById[t.project_id]?.pm_email || '').toLowerCase() === (user.email || '').toLowerCase();
     const verboten = tickets.filter((t) => !darf(t));
     if (verboten.length) {
-      return Response.json({ error: 'Verboten — nur Projektverantwortliche oder Admins', tickets: verboten.map((t) => t.title) }, { status: 403 });
+      return Response.json({ error: 'Verboten — nur Projektverantwortliche, Führungskräfte oder Admins', tickets: verboten.map((t) => t.title) }, { status: 403 });
     }
 
     const pruefung = await pruefe(db, tickets);
