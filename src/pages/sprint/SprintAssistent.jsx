@@ -15,7 +15,7 @@ import { PROJECT_TYPES, projectTypeOf } from '@/components/sprint/projectTypes';
 import { cockpitSicherstellen } from '@/lib/projekt/cockpitSicherstellen';
 import { readWizardSeed } from '@/lib/sprint/wizardSeed';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
-import { SPRINT_SIZES, fmtEUR, fmtDate, addWeeks } from '@/components/sprint/sprintConfig';
+import { SPRINT_SIZES, fmtEUR, fmtDate, addWeeks, todayIso } from '@/components/sprint/sprintConfig';
 import { planSprintDeadlines } from '@/lib/sprint/deadlines';
 import { verteileNachlass } from '@/lib/sprint/nachlass';
 import StepZustaendigkeit from '@/components/sprint/assistent/StepZustaendigkeit';
@@ -44,6 +44,19 @@ export default function SprintAssistent() {
   const [overrides, setOverrides] = useState({});
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+
+  // Termine laut Auftragsbestätigung sind die Vorgabe — weicht die Eingabe ab, wird es gezeigt
+  const abStart = handoff?.ab_start || '';
+  const abLieferung = handoff?.ab_liefertermin || '';
+  const abText = [abStart && `Kick-off ${fmtDate(abStart)}`, abLieferung && `Liefertermin ${fmtDate(abLieferung)}`]
+    .filter(Boolean).join(' · ');
+  const abWeichtAb = Boolean(
+    (abStart && startDate && abStart !== startDate) || (abLieferung && deliveryDate && abLieferung !== deliveryDate),
+  );
+  const abUebernehmen = () => {
+    if (abStart) setStartDate(abStart);
+    if (abLieferung) setDeliveryDate(abLieferung);
+  };
 
   const { data, refetch } = useQuery({
     queryKey: ['sprintAssistentData'],
@@ -327,6 +340,19 @@ export default function SprintAssistent() {
                 <Input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0" />
               </div>
             </div>
+            {abText && (
+              <p className={`max-w-2xl rounded border px-3 py-2 text-sm ${abWeichtAb ? 'border-status-attention/40 bg-status-attention-surface text-status-attention' : 'border-border text-muted-foreground'}`}>
+                Laut Auftragsbestätigung: <span className="font-semibold">{abText}</span>
+                {abWeichtAb && (
+                  <>
+                    {' '}— die Eingabe weicht ab.{' '}
+                    <button type="button" className="underline font-semibold" onClick={abUebernehmen}>
+                      Termine aus der AB übernehmen
+                    </button>
+                  </>
+                )}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               Der Sprintbetrag ergibt sich aus den gewählten Modulen und Bausteinen abzüglich Nachlass.
             </p>
@@ -369,6 +395,17 @@ export default function SprintAssistent() {
                   <p>{plan.reason} Frühester realistischer Liefertermin: {fmtDate(plan.suggestedDelivery)}.</p>
                 </div>
               </div>
+            )}
+
+            {abText && abWeichtAb && (
+              <p className="text-sm text-status-attention">
+                Die Termine weichen von der Auftragsbestätigung ab ({abText}).
+              </p>
+            )}
+            {plan?.deliverable && plan.plan[0]?.planned_handover < todayIso() && (
+              <p className="text-sm text-status-attention">
+                Die erste Übergabe ({fmtDate(plan.plan[0].planned_handover)}) liegt in der Vergangenheit — bitte das Startdatum prüfen.
+              </p>
             )}
 
             <div className="space-y-2">
