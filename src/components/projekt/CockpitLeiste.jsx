@@ -7,8 +7,11 @@ import CockpitAuswahl from '@/components/projekt/CockpitAuswahl';
 import { cockpitSicherstellen } from '@/lib/projekt/cockpitSicherstellen';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 
-// Projektkopf: Link zum Projekt-Cockpit oder Hinweis, wenn keines verknüpft ist.
-export default function CockpitLeiste({ project, client, istAdmin, onSaved }) {
+const LINK = 'inline-flex items-center gap-1.5 text-xs font-medium hover:underline';
+
+// Verwaltungszeile im Projektkopf: Link zum Projekt-Cockpit (nur mit Finanzrecht)
+// oder — nur für Admins — der Hinweis, dass keines verknüpft ist.
+export default function CockpitLeiste({ project, client, istAdmin, darfSehen = istAdmin, onSaved }) {
   const [offen, setOffen] = useState(false);
   const [auswahl, setAuswahl] = useState('');
   const [laeuft, setLaeuft] = useState(false);
@@ -17,8 +20,9 @@ export default function CockpitLeiste({ project, client, istAdmin, onSaved }) {
   if (!project || typ === 'intern') return null;
 
   if (project.liquidity_project_id) {
+    if (!darfSehen) return null;
     return (
-      <Link to={`/projects/${project.liquidity_project_id}`} className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
+      <Link to={`/projects/${project.liquidity_project_id}`} className={`${LINK} text-muted-foreground hover:text-foreground`}>
         <FolderKanban className="w-3.5 h-3.5" /> Projekt-Cockpit
       </Link>
     );
@@ -41,10 +45,10 @@ export default function CockpitLeiste({ project, client, istAdmin, onSaved }) {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded border border-status-attention/40 bg-status-attention-surface px-4 py-2 text-sm text-status-attention">
-      <AlertTriangle className="w-4 h-4 shrink-0" />
-      <span className="flex-1">Kein Projekt-Cockpit verknüpft</span>
-      <Button size="sm" variant="outline" onClick={() => setOffen(true)}>Cockpit anlegen oder verknüpfen</Button>
+    <>
+      <button type="button" onClick={() => setOffen(true)} className={`${LINK} text-status-attention`}>
+        <AlertTriangle className="w-3.5 h-3.5" /> Kein Projekt-Cockpit — verknüpfen
+      </button>
       <Dialog open={offen} onOpenChange={setOffen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Projekt-Cockpit</DialogTitle></DialogHeader>
@@ -55,6 +59,6 @@ export default function CockpitLeiste({ project, client, istAdmin, onSaved }) {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
