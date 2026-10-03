@@ -64,7 +64,10 @@ export default function AufgabensetDialog({ open, onOpenChange, milestones = [],
     setModulId((eigenes || sets[0]).id);
   }, [open, modulId, sets, etappe]);
 
-  const sichtbar = sets.filter((s) => !suche.trim() || norm(s.name).includes(norm(suche)));
+  // Das gewählte Set steht oben, damit es ohne Scrollen sichtbar ist
+  const sichtbar = sets
+    .filter((s) => !suche.trim() || norm(s.name).includes(norm(suche)))
+    .sort((a, b) => (a.id === modulId ? -1 : b.id === modulId ? 1 : 0));
   const set = sets.find((s) => s.id === modulId);
   const istChangeRequest = etappe?.released === true || etappe?.state === 'freigegeben';
 
@@ -161,7 +164,7 @@ export default function AufgabensetDialog({ open, onOpenChange, milestones = [],
                 >
                   <span>{s.name}</span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {s.vorlagen.length} Aufgaben · {h(s.vorlagen.reduce((n, v) => n + (Number(v.target_hours) || 0), 0))} h
+                    {s.vorlagen.length} {s.vorlagen.length === 1 ? 'Aufgabe' : 'Aufgaben'} · {h(s.vorlagen.reduce((n, v) => n + (Number(v.target_hours) || 0), 0))} h
                   </span>
                 </button>
               ))}
