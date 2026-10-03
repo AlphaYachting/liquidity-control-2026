@@ -8,12 +8,14 @@ import { Titel } from '@/components/sprint/heute/MeinTagBausteine';
 
 const KARTE = 'bg-white rounded-lg shadow-sm p-5';
 const fmtH = (v) => new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(v || 0);
+// Stunden einer Buchung — ältere Einträge tragen nur Minuten
+export const stundenVon = (e) => Number(e.hours) || (Number(e.duration_minutes) || 0) / 60;
 
 // Zeit heute: gebucht gegen Tagessoll, dazu der Hinweis auf nicht abgeschlossene Tage.
 export function MeinTagZeit({ email, entries = [], standardHours = 8, projectTitleById = {} }) {
   const [offen, setOffen] = useState(false);
   const { offeneTage, aeltester } = useOffeneTage(email);
-  const summe = entries.reduce((s, e) => s + (e.hours || 0), 0);
+  const summe = entries.reduce((s, e) => s + stundenVon(e), 0);
   const anteil = standardHours > 0 ? Math.min(100, (summe / standardHours) * 100) : 0;
   const Icon = offen ? ChevronDown : ChevronRight;
 
@@ -43,7 +45,7 @@ export function MeinTagZeit({ email, entries = [], standardHours = 8, projectTit
               {entries.map((e) => (
                 <div key={e.id} className="flex items-baseline gap-2 text-[13px]">
                   <span className="font-medium truncate" style={{ color: RITTLER.black }}>{projectTitleById[e.project_id] || 'Projekt'}</span>
-                  <span className="shrink-0" style={{ color: RITTLER.textSecondary }}>{fmtH(e.hours)} h</span>
+                  <span className="shrink-0" style={{ color: RITTLER.textSecondary }}>{fmtH(stundenVon(e))} h</span>
                 </div>
               ))}
             </div>
