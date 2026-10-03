@@ -2,17 +2,24 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import FaelligkeitKnopf from '@/components/sprint/FaelligkeitKnopf';
 import TicketStatusElement from '@/components/sprint/TicketStatusElement';
+import TypPill from '@/components/sprint/TypPill';
+import SprintTimerStart from '@/components/sprint/timer/SprintTimerStart';
 import { RITTLER, STATUS_COLORS, STATE_LABELS } from '@/components/sprint/sprintConfig';
 
 // Aufgabenzeile der Heute-Ansicht: Status direkt umschaltbar + Kontextzeile.
-export default function HeuteAufgabenZeile({ ticket, milestone, projectLabel, projektTyp = 'sprint', modulName, onStatusChange }) {
+// Optional: `typProjekt` zeigt die Typ-Pille, `timerProjekt` den Timer-Start auf diese Aufgabe.
+export default function HeuteAufgabenZeile({ ticket, milestone, projectLabel, projektTyp = 'sprint', modulName, onStatusChange, typProjekt, timerProjekt, timerKunde }) {
   const istSprint = projektTyp === 'sprint';
   const context = istSprint ? [
     projectLabel,
     milestone?.title,
     ticket.milestone_state ? STATE_LABELS[ticket.milestone_state] : null,
     ticket.target_hours ? `${ticket.target_hours} h Ziel` : null,
-  ].filter(Boolean) : [projectLabel, modulName].filter(Boolean);
+  ].filter(Boolean) : [
+    projectLabel,
+    modulName,
+    ticket.target_hours ? `${ticket.target_hours} h Ziel` : null,
+  ].filter(Boolean);
   const ziel = istSprint || !milestone?.sprint_id
     ? `/sprint/milestones/${ticket.milestone_id}?aufgabe=${ticket.id}`
     : `/sprint/sprints/${milestone.sprint_id}${ticket.module_template_id ? `#modul-${ticket.module_template_id}` : ''}`;
@@ -50,6 +57,10 @@ export default function HeuteAufgabenZeile({ ticket, milestone, projectLabel, pr
           </p>
         )}
       </Link>
+      {typProjekt && <span className="hidden lg:inline-flex"><TypPill project={typProjekt} /></span>}
+      {timerProjekt && ticket.status !== 'erledigt' && (
+        <SprintTimerStart project={timerProjekt} client={timerKunde} ticketId={ticket.id} variante="kompakt" label="Timer" />
+      )}
       <TicketStatusElement value={ticket.status} onChange={(s) => onStatusChange(ticket, s)} />
     </div>
   );
