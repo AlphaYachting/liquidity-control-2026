@@ -116,9 +116,15 @@ export default function SprintMilestoneDetail() {
     .map((phase) => ({ phase, count: offenProPhase(phase) }))
     .find((p) => p.count > 0) || null;
   const aufgabePhase = aufgabeId ? tickets.find((t) => t.id === aufgabeId)?.milestone_state || 'produktion' : null;
+  // Offen: aktuelle Phase, Phasen mit laufender Arbeit, frühere Phasen mit offenen Aufgaben,
+  // die Phase einer direkt angesprungenen Aufgabe.
+  const inArbeit = (phase) => tickets.some(
+    (t) => (t.milestone_state || 'produktion') === phase && ['in_arbeit', 'wartet'].includes(t.status),
+  );
   const phaseStartOffen = (phase, idx) =>
     phase === milestone.state
     || phase === aufgabePhase
+    || inArbeit(phase)
     || (idx < currentPhaseIdx && offenProPhase(phase) > 0)
     || (locked && phase === 'kundenfeedback');
 
