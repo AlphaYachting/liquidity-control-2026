@@ -1,17 +1,21 @@
 import { istUeberfaellig, istFaellig } from '@/lib/sprint/faelligkeit';
 import { addCalendarDays } from '@/lib/sprint/deadlines';
 
-export const VORSCHAU_TAGE = 7;
+// Sonntag der laufenden Woche — bis dahin reicht der Abschnitt „Diese Woche"
+export function wochenEnde(heute) {
+  const tag = new Date(`${heute}T00:00:00`).getDay();
+  return addCalendarDays(heute, tag === 0 ? 0 : 7 - tag);
+}
 
 const nachTermin = (a, b) => (a.planned_for || '').localeCompare(b.planned_for || '')
   || (a.order || 0) - (b.order || 0);
 const nachOrder = (a, b) => (a.order || 0) - (b.order || 0);
 
 // Gliedert die eigenen Aufgaben für „Mein Tag". Jede Aufgabe landet in genau einem Abschnitt:
-// wartet → überfällig → heute → nächste 7 Tage → später → in Arbeit ohne Termin → offen ohne Termin.
+// wartet → überfällig → heute → diese Woche → später → in Arbeit ohne Termin → offen ohne Termin.
 // Routinen und einmalige Aufgaben laufen gemeinsam.
 export function gliedereMeinTag(tickets, heute) {
-  const bisVorschau = addCalendarDays(heute, VORSCHAU_TAGE);
+  const bisVorschau = wochenEnde(heute);
   const g = {
     ueberfaellig: [], heute: [], woche: [], spaeter: [],
     inArbeit: [], ohneTermin: [], wartet: [], erledigt: [],
