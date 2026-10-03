@@ -8,8 +8,9 @@ import useTicketStatus from '@/hooks/useTicketStatus';
 import { base44 } from '@/api/base44Client';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 
-// Hauptinhalt der Projektseite für Nicht-Sprint-Projekte
-export default function BehaelterInhalt({ project, tickets, members, timeEntries, myEmail, onRefresh }) {
+// Hauptinhalt der Projektseite für Nicht-Sprint-Projekte.
+// aktionen: Knöpfe wie „Aufgabe hinzufügen“ — stehen direkt über der Aufgabenliste.
+export default function BehaelterInhalt({ project, tickets, members, timeEntries, myEmail, onRefresh, aktionen }) {
   const [filter, setFilter] = useState('alle');
   const { setStatus, dialog } = useTicketStatus(onRefresh);
   const istContainer = projectTypeOf(project) === 'container';
@@ -33,7 +34,10 @@ export default function BehaelterInhalt({ project, tickets, members, timeEntries
     <div className="mt-5 space-y-3">
       {istContainer && <StundenNachBereich timeEntries={timeEntries} />}
       <div className="bg-white rounded-lg border border-border p-5">
-        <SectionLabel className="mb-3">Aufgaben</SectionLabel>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <SectionLabel>Aufgaben</SectionLabel>
+          {aktionen}
+        </div>
         <AufgabenFilter value={filter} onChange={setFilter} counts={counts} />
         {istContainer ? (
           <div className="mt-4">
