@@ -4,7 +4,7 @@ import { ArrowLeft, Zap } from 'lucide-react';
 import KopfKennzahl, { KopfKennzahlLeiste } from '@/components/sprint/KopfKennzahl';
 import PersonenStapel from '@/components/sprint/PersonenStapel';
 import SprintTimerStart from '@/components/sprint/timer/SprintTimerStart';
-import { initials, personColor } from '@/components/sprint/PersonenChip';
+import ProjektleitungWahl from '@/components/sprint/projekt/ProjektleitungWahl';
 import { typeStyleOf } from '@/components/sprint/projectTypes';
 import { STATUS_COLORS, SPRINT_SIZES, fmtDate, fmtEUR } from '@/components/sprint/sprintConfig';
 import { etappeKennzahlen } from '@/lib/sprint/etappeKennzahlen';
@@ -22,7 +22,6 @@ export default function EtappeKopf({
   const stil = typeStyleOf(project);
 
   const personVon = (email) => members.find((m) => m.email === email) || { email, name: email };
-  const pm = project?.pm_email ? personVon(project.pm_email) : null;
   const beteiligte = [...new Set(tickets.map((t) => t.assignee_email).filter(Boolean))].map(personVon);
   const freigegeben = milestone.state === 'freigegeben';
 
@@ -77,19 +76,7 @@ export default function EtappeKopf({
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-x-[18px] gap-y-2 text-[13px] text-[#555555]">
-            {pm ? (
-              <span className="inline-flex items-center gap-2">
-                <span
-                  className="inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[10px] font-bold uppercase text-white"
-                  style={{ backgroundColor: personColor(pm) }}
-                >
-                  {initials(pm.name || pm.email)}
-                </span>
-                <span><span className="font-semibold text-foreground">{pm.name || pm.email}</span> · Projektleitung</span>
-              </span>
-            ) : (
-              <span>Keine Projektleitung eingetragen</span>
-            )}
+            {project && <ProjektleitungWahl project={project} />}
             <span className="inline-flex items-center gap-2">
               {beteiligte.length > 0 ? (
                 <>
