@@ -10,7 +10,7 @@ export default function AufgabenFilter({ value, onChange, counts }) {
   ];
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1.5">
       {chips.map((c) => {
         const active = value === c.key;
         return (
@@ -18,10 +18,11 @@ export default function AufgabenFilter({ value, onChange, counts }) {
             key={c.key}
             type="button"
             onClick={() => onChange(c.key)}
-            className="text-[13px] px-3 py-1 rounded-full"
+            aria-pressed={active}
+            className={`h-[30px] rounded-full px-3 text-[13px] ${active ? 'font-semibold' : ''}`}
             style={{
-              backgroundColor: active ? RITTLER.black : RITTLER.surface,
-              color: active ? RITTLER.white : RITTLER.textSecondary,
+              backgroundColor: active ? RITTLER.black : '#F0F0F0',
+              color: active ? RITTLER.white : '#444444',
             }}
           >
             {c.label} ({counts[c.key] || 0})
