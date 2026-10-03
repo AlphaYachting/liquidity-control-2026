@@ -4,9 +4,8 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { RITTLER, STATUS_COLORS, fmtDate } from '@/components/sprint/sprintConfig';
 import { usePosteingang } from '@/hooks/usePosteingang';
 import { useOffeneTage } from '@/lib/zeit/useOffeneTage';
-import { Titel } from '@/components/sprint/heute/MeinTagBausteine';
+import { Titel, KARTE } from '@/components/sprint/heute/MeinTagBausteine';
 
-const KARTE = 'bg-white rounded-lg shadow-sm p-5';
 const fmtH = (v) => new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(v || 0);
 // Stunden einer Buchung — ältere Einträge tragen nur Minuten
 export const stundenVon = (e) => Number(e.hours) || (Number(e.duration_minutes) || 0) / 60;
@@ -22,7 +21,7 @@ export function MeinTagZeit({ email, entries = [], standardHours = 8, projectTit
   return (
     <div className={KARTE}>
       <Titel className="mb-2">Zeit heute</Titel>
-      <p className="text-2xl font-extrabold tabular-nums" style={{ color: RITTLER.black }}>
+      <p className="text-[22px] font-extrabold tabular-nums" style={{ color: RITTLER.black }}>
         {fmtH(summe)} h
         <span className="text-sm font-medium ml-1.5" style={{ color: RITTLER.textSecondary }}>von {fmtH(standardHours)} h gebucht</span>
       </p>
@@ -31,8 +30,8 @@ export function MeinTagZeit({ email, entries = [], standardHours = 8, projectTit
       </div>
 
       {entries.length === 0 ? (
-        <p className="text-xs mt-2.5" style={{ color: RITTLER.textSecondary }}>
-          Noch nichts gebucht. Der Timer startet direkt an der Aufgabe.
+        <p className="text-[12.5px] mt-2.5" style={{ color: RITTLER.textSecondary }}>
+          Noch nichts gebucht. Der Timer startet direkt an jeder Aufgabe.
         </p>
       ) : (
         <>
@@ -88,14 +87,18 @@ export function MeinTagEingang({ nurSupport }) {
     <div className={KARTE}>
       <Titel className="mb-1">{titel} ({liste.length})</Titel>
       {liste.length === 0 ? (
-        <p className="text-xs" style={{ color: RITTLER.textSecondary }}>Nichts Unbeantwortetes.</p>
+        <p className="text-[12.5px]" style={{ color: RITTLER.textSecondary }}>Nichts Unbeantwortetes.</p>
       ) : (
         <>
-          <p className="text-xs mb-1" style={{ color: RITTLER.textSecondary }}>Unbeantwortet — die ältesten zuerst.</p>
+          <p className="text-[12.5px] mb-1" style={{ color: RITTLER.textSecondary }}>
+            {nurSupport
+              ? 'Unbeantwortete Support-Mails nach 4 Arbeitsstunden. Nur für Webentwicklung und Führung sichtbar.'
+              : 'Unbeantwortete Kundenpost nach 4 Arbeitsstunden — die ältesten zuerst.'}
+          </p>
           {liste.slice(0, 3).map((e) => (
             <Link key={e.key} to={ziel} className="block py-2 px-2 -mx-2 rounded border-b border-border last:border-0 hover:bg-muted">
-              <span className="block text-sm font-medium truncate" style={{ color: RITTLER.black }}>{e.betreff || '(ohne Betreff)'}</span>
-              <span className="block text-xs truncate" style={{ color: RITTLER.textSecondary }}>
+              <span className="block text-sm font-semibold truncate" style={{ color: RITTLER.black }}>{e.betreff || '(ohne Betreff)'}</span>
+              <span className="block text-[12.5px] truncate" style={{ color: RITTLER.textSecondary }}>
                 {e.absenderName || e.absender}
                 <span className="font-bold" style={{ color: e.ueberfaellig ? STATUS_COLORS.critical : RITTLER.textSecondary }}>
                   {' '}· {wartezeit(e.eingang)}
@@ -105,7 +108,7 @@ export function MeinTagEingang({ nurSupport }) {
           ))}
         </>
       )}
-      <Link to={ziel} className="inline-block mt-2 text-xs font-semibold underline" style={{ color: RITTLER.black }}>
+      <Link to={ziel} className="inline-block mt-2 py-1.5 text-[13px] font-semibold underline" style={{ color: RITTLER.black }}>
         Zum {titel}
       </Link>
     </div>
