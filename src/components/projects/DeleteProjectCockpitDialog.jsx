@@ -17,6 +17,15 @@ export default function DeleteProjectCockpitDialog({ project, allOrders, allBloc
     queryFn: () => base44.entities.MonthlyBillingPlan.filter({ project_id: project.id })
   });
 
+  // Projekte, die über liquidity_project_id auf dieses Cockpit zeigen — ihre
+  // Verknüpfung muss beim Löschen mit aufgehoben werden, sonst bleibt eine tote
+  // Referenz stehen und versteckt im Projektkopf die Verknüpfen-Funktion.
+  const { data: linkedProjects = [] } = useQuery({
+    queryKey: ['cockpitProjekte', project.id],
+    enabled: !!project.id,
+    queryFn: () => base44.entities.Project.filter({ liquidity_project_id: project.id })
+  });
+
   const linkedOrders = allOrders.filter(o => o.project_id === project.id);
   const linkedBlocks = allBlocks.filter(b => b.project_id === project.id);
   const linkedInstructions = allInstructions.filter(i => i.project_id === project.id);
@@ -40,7 +49,11 @@ export default function DeleteProjectCockpitDialog({ project, allOrders, allBloc
       await Promise.all(linkedPlans.map(p =>
         base44.entities.MonthlyBillingPlan.delete(p.id)
       ));
-      // 5. Delete the project itself
+      // 5. Unlink Projects pointing at this cockpit (beidseitige Verknüpfung lösen)
+      await Promise.all(linkedProjects.map(p =>
+        base44.entities.Project.update(p.id, { liquidity_project_id: null })
+      ));
+      // 6. Delete the project itself
       await base44.entities.LiquidityProject.delete(project.id);
     },
     onSuccess: () => {
@@ -49,6 +62,9 @@ export default function DeleteProjectCockpitDialog({ project, allOrders, allBloc
       queryClient.invalidateQueries({ queryKey: ['billingBlocks'] });
       queryClient.invalidateQueries({ queryKey: ['billingInstructions'] });
       queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlans', project.id] });
+      queryClient.invalidateQueries({ queryKey: ['cockpitProjekte', project.id] });
+      queryClient.invalidateQueries({ queryKey: ['projektKontext'] });
+      queryClient.invalidateQueries({ queryKey: ['sprintProjekte'] });
       onDeleted();
     }
   });
@@ -102,6 +118,11 @@ export default function DeleteProjectCockpitDialog({ project, allOrders, allBloc
             <li className="flex items-center gap-2">
               <span className={linkedPlans.length > 0 ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
                 {linkedPlans.length} Monatsplan-Einträge werden gelöscht
+              </span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className={linkedProjects.length > 0 ? 'text-amber-600 font-medium' : 'text-muted-foreground'}>
+                {linkedProjects.length} Verknüpfung(en) zum Projekt werden gelöst
               </span>
             </li>
           </ul>
