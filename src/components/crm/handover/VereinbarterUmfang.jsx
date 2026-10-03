@@ -44,6 +44,12 @@ export default function VereinbarterUmfang({ zustand, onChange, modules, summen,
           <p className="text-xs text-status-attention">
             Summe der angehakten Positionen {fmtEUR(abweichung.positionen)} weicht von der Angebotssumme {fmtEUR(abweichung.angebot)} ab.
           </p>
+          {abweichung.positionen > abweichung.angebot && (
+            <p className="text-xs text-status-attention">
+              Die Positionen ergeben {fmtEUR(abweichung.positionen - abweichung.angebot)} mehr als das Angebot — bitte prüfen, ob im Angebot ein Nachlass steht.
+              Er muss als eigene Position (negativer Betrag) erfasst werden, sonst geht die Auftragsbestätigung über dem Angebot hinaus.
+            </p>
+          )}
           <label className="flex items-center gap-2 text-xs">
             <Checkbox checked={geprueft} onCheckedChange={(v) => onGeprueft(v === true)} /> Abweichung geprüft
           </label>
