@@ -16,7 +16,8 @@ const STATUS_CONFIG = {
   blocked:      { label: 'Blockiert',       className: 'bg-red-100 text-red-700' },
 };
 
-export default function OrderItemsView({ linkedOrders }) {
+// ohneStatus: bei Sprintprojekten trägt die Etappe den Stand — kein zweiter Pflegepunkt je Position.
+export default function OrderItemsView({ linkedOrders, ohneStatus = false }) {
   const queryClient = useQueryClient();
   const orderIds = linkedOrders.map(o => o.id);
 
@@ -73,6 +74,7 @@ export default function OrderItemsView({ linkedOrders }) {
                     <p className="text-sm break-words">{item.title}</p>
                     <PositionBeschreibung text={item.description} />
                   </div>
+                  {!ohneStatus && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button className={`text-xs px-2 py-0.5 rounded-full border cursor-pointer hover:opacity-80 transition-opacity ${cfg.className}`}>
@@ -88,6 +90,7 @@ export default function OrderItemsView({ linkedOrders }) {
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  )}
                   <span className="text-sm font-medium flex-shrink-0 text-right w-24">
                     {formatCurrency(item.total_price)}
                   </span>
