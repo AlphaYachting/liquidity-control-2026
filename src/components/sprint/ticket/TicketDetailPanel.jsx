@@ -153,14 +153,61 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
     onOpenChange(false);
   };
 
+  // Projektkontext: Projekt, Kunde, Etappe (nur Sprintprojekte), Projektleitung
+  const etappe = kontext?.milestone || null;
+  const kunde = kontext?.client || null;
+  const istSprintProjekt = !!projekt && projectTypeOf(projekt) === 'sprint';
+  const pm = projekt?.pm_email
+    ? members.find((m) => m.email === projekt.pm_email) || { email: projekt.pm_email, name: projekt.pm_email }
+    : null;
+  const projektZiel = etappe?.sprint_id ? `/sprint/sprints/${etappe.sprint_id}` : null;
+  const uebergabe = kurz(etappe?.handover_date || etappe?.planned_handover);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="text-left text-base">Aufgabe</SheetTitle>
+        <SheetHeader className="space-y-0">
+          <SheetTitle className="text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Aufgabe</SheetTitle>
         </SheetHeader>
 
-        <div className="mt-4 space-y-5">
+        <div className="mt-2 space-y-5">
+          <div className="space-y-2.5 border-b border-[#EEEEEE] pb-4">
+            <Input
+              aria-label="Titel der Aufgabe"
+              value={form.title || ''}
+              disabled={archiviert}
+              onChange={(e) => set({ title: e.target.value })}
+              className="h-auto rounded border-transparent px-1.5 -mx-1.5 py-1 text-[20px] leading-[26px] font-bold shadow-none hover:border-border focus-visible:border-border"
+            />
+            {projekt && (
+              <div className="flex flex-col gap-1 rounded bg-[#F7F7F7] px-3 py-2.5 text-[13px] text-[#555555]">
+                {projektZiel ? (
+                  <Link to={projektZiel} onClick={() => onOpenChange(false)} className="w-max font-semibold text-foreground hover:underline">
+                    {projekt.title}
+                  </Link>
+                ) : (
+                  <span className="font-semibold text-foreground">{projekt.title}</span>
+                )}
+                {kunde?.name && <span>{kunde.name}</span>}
+                {istSprintProjekt && etappe && (
+                  <span>
+                    <Link to={`/sprint/milestones/${etappe.id}`} onClick={() => onOpenChange(false)} className="hover:text-foreground hover:underline">
+                      Etappe {etappe.order} · {etappe.title}
+                    </Link>
+                    {uebergabe ? ` · Übergabe ${uebergabe}` : ''}
+                  </span>
+                )}
+                <span>
+                  Projektleitung{' '}
+                  {pm ? <strong className="font-semibold text-foreground">{pm.name || pm.email}</strong> : 'nicht eingetragen'}
+                </span>
+              </div>
+            )}
+            {!archiviert && projekt && (
+              <SprintTimerStart project={projekt} client={kunde} ticketId={ticket.id} variante="kompakt" label="Timer für diese Aufgabe" />
+            )}
+          </div>
+
           {archiviert && (
             <div className="rounded border border-border bg-muted px-3 py-2 text-sm flex items-center justify-between gap-3">
               <span>
@@ -198,17 +245,9 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
             )}
           </div>
 
-          <Input value={form.title || ''} onChange={(e) => set({ title: e.target.value })} className="font-semibold" />
-
-          <div>
-            <SectionLabel className="mb-1.5">Beschreibung</SectionLabel>
-            <Textarea rows={5} value={form.description || ''} onChange={(e) => set({ description: e.target.value })}
-              placeholder="Was ist zu tun, worauf kommt es an?" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3.5">
             <div>
-              <SectionLabel className="mb-1.5">Person</SectionLabel>
+              <Feld>Zuständig</Feld>
               <Select value={form.assignee_email || 'none'}
                 onValueChange={(v) => set({ assignee_email: v === 'none' ? '' : v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -219,16 +258,16 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
               </Select>
             </div>
             <div>
-              <SectionLabel className="mb-1.5">Rolle</SectionLabel>
-              <Select value={form.role || ''} onValueChange={(v) => set({ role: v })}>
-                <SelectTrigger><SelectValue placeholder="Rolle wählen" /></SelectTrigger>
+              <Feld>Status</Feld>
+              <Select value={form.status || 'offen'} onValueChange={(v) => set({ status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  {TICKET_STATUSES.map((s) => <SelectItem key={s} value={s}>{TICKET_STATUS_LABELS[s]}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <SectionLabel className="mb-1.5">Etappe</SectionLabel>
+              <Feld>Phase</Feld>
               <Select value={form.milestone_state || 'produktion'} onValueChange={(v) => set({ milestone_state: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -237,18 +276,18 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
               </Select>
             </div>
             <div>
-              <SectionLabel className="mb-1.5">Status</SectionLabel>
-              <Select value={form.status || 'offen'} onValueChange={(v) => set({ status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Feld>Rolle</Feld>
+              <Select value={form.role || ''} onValueChange={(v) => set({ role: v })}>
+                <SelectTrigger><SelectValue placeholder="Rolle wählen" /></SelectTrigger>
                 <SelectContent>
-                  {TICKET_STATUSES.map((s) => <SelectItem key={s} value={s}>{TICKET_STATUS_LABELS[s]}</SelectItem>)}
+                  {ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div>
-            <SectionLabel className="mb-1.5">Stunden</SectionLabel>
+            <Feld>Stunden</Feld>
             <div className="flex items-center gap-3">
               <Input type="number" step="0.5" className="h-8 w-24" value={form.target_hours ?? ''}
                 onChange={(e) => set({ target_hours: e.target.value })} placeholder="Plan" />
@@ -262,17 +301,23 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
           </div>
 
           <div>
-            <SectionLabel className="mb-1.5">Checkliste</SectionLabel>
+            <Feld htmlFor="aufgabe-beschreibung">Beschreibung</Feld>
+            <Textarea id="aufgabe-beschreibung" rows={5} value={form.description || ''} onChange={(e) => set({ description: e.target.value })}
+              placeholder="Was ist zu tun, worauf kommt es an?" />
+          </div>
+
+          <div>
+            <Feld>Checkliste</Feld>
             <TicketChecklist items={form.checklist || []} onChange={(checklist) => set({ checklist })} />
           </div>
 
           <div>
-            <SectionLabel className="mb-1.5">Verweise</SectionLabel>
+            <Feld>Verweise</Feld>
             <TicketLinks items={form.links || []} onChange={(links) => set({ links })} />
           </div>
 
           <div>
-            <SectionLabel className="mb-1.5">Kommentare & Notizen</SectionLabel>
+            <Feld>Kommentare & Notizen</Feld>
             <KommentarStrang projectId={ticket.project_id} ticketId={ticket.id} milestoneId={ticket.milestone_id} compact />
           </div>
 
