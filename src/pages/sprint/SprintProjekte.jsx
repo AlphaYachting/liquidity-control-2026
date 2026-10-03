@@ -5,7 +5,9 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Pencil, LayoutTemplate, Plus, X } from 'lucide-react';
+import { Pencil, LayoutTemplate, Plus, X, Search, Link2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import SevdeskAbgleichDialog from '@/components/kunden/SevdeskAbgleichDialog';
 import ProjektZeile from '@/components/sprint/uebersicht/ProjektZeile';
 import ProjektZeileOhneSprint from '@/components/sprint/uebersicht/ProjektZeileOhneSprint';
 import ClientFormDialog from '@/components/sprint/ClientFormDialog';
@@ -25,6 +27,10 @@ export default function SprintProjekte() {
   // Neuanlage und sevDesk-Verknüpfung laufen über den Kunden-Baustein
   const [kundeDialog, setKundeDialog] = useState({ open: false, client: null });
   const [nurOhnePm, setNurOhnePm] = useState(false);
+  // Kundenverzeichnis: Suche, Filter „ohne sevDesk" und Sammelabgleich
+  const [kundenSuche, setKundenSuche] = useState('');
+  const [nurOhneSevdesk, setNurOhneSevdesk] = useState(false);
+  const [abgleichOffen, setAbgleichOffen] = useState(false);
   // ?tab=kunden öffnet direkt das Kundenverzeichnis
   const [tab, setTab] = useState(() => (new URLSearchParams(window.location.search).get('tab') === 'kunden' ? 'kunden' : 'projekte'));
 
@@ -86,6 +92,15 @@ export default function SprintProjekte() {
   const { clients, projects, sprints, milestones, tickets, members, signals, timeEntries, focusDays, contracts } = data;
   const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
   const contractById = Object.fromEntries(contracts.map((c) => [c.id, c]));
+
+  const ohneSevdeskAnzahl = clients.filter((c) => !c.sevdesk_contact_id).length;
+  const suchwort = kundenSuche.trim().toLowerCase();
+  const kundenSichtbar = clients.filter((c) => {
+    if (nurOhneSevdesk && c.sevdesk_contact_id) return false;
+    if (!suchwort) return true;
+    return [c.name, c.contact_person, c.contact_email, c.city, c.sevdesk_contact_id]
+      .some((f) => String(f || '').toLowerCase().includes(suchwort));
+  });
 
   const filterKunde = kundeId ? clientById[kundeId] : null;
   const basis = filterKunde ? projects.filter((p) => p.client_id === kundeId) : projects;
@@ -257,12 +272,40 @@ export default function SprintProjekte() {
         </TabsContent>
 
         <TabsContent value="kunden" className="space-y-3 mt-4">
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+              <Input
+                className="pl-8 bg-white"
+                placeholder="Kunde suchen — Name, Ansprechperson, E-Mail, Ort, sevDesk-Nr."
+                value={kundenSuche}
+                onChange={(e) => setKundenSuche(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setNurOhneSevdesk((v) => !v)}
+              className={`text-xs font-bold uppercase tracking-wide px-2.5 py-2 rounded border ${
+                nurOhneSevdesk ? 'bg-primary text-white border-primary' : 'bg-white text-muted-foreground border-border'
+              }`}
+            >
+              Ohne sevDesk ({ohneSevdeskAnzahl})
+            </button>
+            {ohneSevdeskAnzahl > 0 && (
+              <Button variant="outline" className="rounded" onClick={() => setAbgleichOffen(true)}>
+                <Link2 className="w-4 h-4 mr-1" /> sevDesk-Abgleich
+              </Button>
+            )}
             <Button variant="outline" className="rounded" onClick={() => setKundeDialog({ open: true, client: null })}>
               <Plus className="w-4 h-4 mr-1" /> Kunde anlegen
             </Button>
           </div>
-          {clients.map((c) => (
+          {clients.length > 0 && kundenSichtbar.length === 0 && (
+            <div className="bg-white rounded-lg shadow-sm p-8 text-center text-sm text-muted-foreground">
+              Kein Kunde passt zur Suche.
+            </div>
+          )}
+          {kundenSichtbar.map((c) => (
             <div key={c.id} className="bg-white rounded-lg shadow-sm p-4 flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-foreground">{c.name}</p>
@@ -297,6 +340,10 @@ export default function SprintProjekte() {
       <KundeAnlegenDialog
         open={kundeDialog.open} client={kundeDialog.client}
         onOpenChange={(o) => setKundeDialog((d) => ({ ...d, open: o }))} onSaved={refresh}
+      />
+      <SevdeskAbgleichDialog
+        open={abgleichOffen} clients={clients}
+        onOpenChange={setAbgleichOffen} onSaved={refresh}
       />
       <ProjectFormDialog
         open={projectDialog.open} project={projectDialog.project} clients={clients}
