@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import Sektion from '@/components/projects/Sektion';
 import PositionBeschreibung from '@/components/projects/PositionBeschreibung';
-import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { ExternalLink, ListOrdered } from 'lucide-react';
 import { formatCurrency } from '@/lib/liquidityUtils';
