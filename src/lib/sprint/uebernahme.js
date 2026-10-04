@@ -31,12 +31,42 @@ export const imUmfang = (t) => !t.archiviert && !t.rhythmus && String(t.created_
 export const istBestaetigt = (t) => !!t.uebernahme_am;
 export const brauchtAntwort = (t) => imUmfang(t) && t.status !== 'erledigt' && !istBestaetigt(t);
 
+// Herkunft eines importierten Tickets aus der Importzeile der Beschreibung lesen:
+// „Import aus aWork „Projekt“ · Liste: X · Status dort: Y · ursprünglich zugewiesen: A, B“
+export function herkunft(ticket) {
+  const d = ticket.description || '';
+  const i = d.indexOf('Import aus aWork');
+  if (i < 0) return { importiert: false, text: d.trim(), liste: '', statusDort: '', zugewiesen: [] };
+  const teile = d.slice(i).split('\n')[0].split(' · ');
+  const teil = (name) => {
+    const s = teile.find((x) => x.trim().startsWith(name));
+    return s ? s.trim().slice(name.length).trim() : '';
+  };
+  return {
+    importiert: true,
+    text: d.slice(0, i).trim(),
+    liste: teil('Liste:'),
+    statusDort: teil('Status dort:'),
+    zugewiesen: teil('ursprünglich zugewiesen:').split(',').map((s) => s.trim()).filter(Boolean),
+  };
+}
+
+// Lag das Ticket schon in aWork bei dieser Person? Sonst ist es geerbt:
+// von ausgeschiedenen Kolleg:innen oder in aWork niemandem zugeteilt.
+export function warSchonMeins(ticket, name) {
+  const h = herkunft(ticket);
+  if (!h.importiert) return true;
+  const n = (name || '').trim().toLowerCase();
+  return !!n && h.zugewiesen.some((z) => z.toLowerCase() === n);
+}
+
 // Meine Übernahme: was mir zugeteilt ist, plus was ich schon beantwortet habe (auch Zurückgegebenes).
 export async function ladeMeineUebernahme(email) {
-  const [zugeteilt, beantwortet, projekte] = await Promise.all([
+  const [zugeteilt, beantwortet, projekte, members] = await Promise.all([
     base44.entities.Ticket.filter(ohneArchiv({ assignee_email: email, status: { $ne: 'erledigt' } }), 'order', 2000),
     base44.entities.Ticket.filter(ohneArchiv({ uebernahme_von: email }), 'order', 2000),
     base44.entities.Project.filter(PROJEKT_LAUFEND, 'title', 500),
+    base44.entities.TeamMember.filter({ active: { $ne: false } }, 'name', 200),
   ]);
   const projektById = Object.fromEntries(projekte.map((p) => [p.id, p]));
   const nachId = new Map();
@@ -48,7 +78,7 @@ export async function ladeMeineUebernahme(email) {
   const clients = clientIds.length
     ? await base44.entities.Client.filter({ id: { $in: clientIds.slice(0, 200) } }, 'name', 500)
     : [];
-  return { tickets, projekte, clients };
+  return { tickets, projekte, clients, members };
 }
 
 // Eine Antwort speichern. Gibt das geänderte Ticket zurück.
