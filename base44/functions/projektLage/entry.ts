@@ -64,13 +64,20 @@ export default async function (req) {
     if (!project && !liq) return Response.json({ error: 'Projekt nicht gefunden' }, { status: 404 });
 
     const aworkId = project?.awork_project_id || liq?.awork_project_id || null;
-    const [stichtag, finanz] = await Promise.all([ladeStichtag(db), hatFinanzrecht(svc, user)]);
+    // Messbeginn der Projektintelligenz: Was davor war, ist Vergangenheit (Sanierungsverfahren ab 24.07.2026).
+    const [stichtag, finanz, messRows] = await Promise.all([
+      ladeStichtag(db), hatFinanzrecht(svc, user),
+      db.Setting.filter({ key: 'projektintelligenz_messbeginn' }, 'key', 1).catch(() => []),
+    ]);
+    const messWert = String(messRows[0]?.value || '').slice(0, 10);
+    const messbeginn = /^\d{4}-\d{2}-\d{2}$/.test(messWert) ? messWert : '2026-08-01';
+    const messText = messbeginn.split('-').reverse().join('.');
     const heute = heuteWien();
 
     // 2. Daten laden
     const [archiv, aworkAufgabenRoh, aworkZeiten, snapshotRows, appZeitenAlle, tickets, sprints, auftraegeRoh, satzRows, changeRequests, client] = await Promise.all([
       // Vollständige Summen aus der externen aWork-Sicherung — fällt sie aus, tragen die Kopien in der App
-      aworkId && aworkDbBereit() ? aworkLageSummen(aworkId).catch(() => null) : null,
+      aworkId && aworkDbBereit() ? aworkLageSummen(aworkId, messbeginn).catch(() => null) : null,
       aworkId ? db.AworkTaskSnapshot.filter({ awork_project_id: aworkId }, '-last_synced_at', 1000).catch(() => []) : [],
       aworkId ? alleSeiten((l, s) => db.AworkTimeEntry.filter({ awork_project_id: aworkId }, '-entry_date', l, s)) : [],
       aworkId ? db.AworkProjectSnapshot.filter({ awork_project_id: aworkId }, '-last_synced_at', 1) : [],
@@ -344,8 +351,10 @@ export default async function (req) {
       };
     }
 
-    // Blick nach vorn: Was vor der Umstellung war, ist Vergangenheit. Ab dem Stichtag zählt,
+    // Blick nach vorn: Was vor dem Messbeginn war, ist Vergangenheit. Ab dem Messbeginn zählt,
     // ob der Rest wirtschaftlich fertig wird — was ist noch zu tun, und was ist dafür noch zu bekommen.
+    // Restbudget = was zum Messbeginn noch nicht abgerechnet war; dagegen stehen alle Stunden seit dem Messbeginn
+    // (aWork bis zum Umstellungsstichtag, danach die App).
     if (istPauschal && auftragNetto > 0) {
       const auftragIds = auftraege.map((o) => o.id);
       const rechnungen = (await Promise.all([
@@ -354,15 +363,23 @@ export default async function (req) {
       ])).flat().filter((r, i, a) => a.findIndex((x) => x.id === r.id) === i)
         .filter((r) => r.is_sent === true && !['draft', 'cancelled'].includes(r.payment_status));
       const abgerechnet = rechnungen.reduce((s, r) => s + (Number(r.net_amount) || 0), 0);
+      const abgerechnetVorher = rechnungen.filter((r) => String(r.invoice_date || '').slice(0, 10) < messbeginn)
+        .reduce((s, r) => s + (Number(r.net_amount) || 0), 0);
       const offenNetto = Math.max(0, auftragNetto - abgerechnet);
-      const restBudgetStd = offenNetto / satz;
-      const seitUmstellungStd = appMin / 60;
+      const restBudgetStd = Math.max(0, auftragNetto - abgerechnetVorher) / satz;
+      const tagVon = (e) => String(e.entry_date || '').slice(0, 10);
+      const aworkSeitMin = archiv
+        ? (Number(archiv.sekunden_ab_messbeginn) || 0) / 60
+          + aworkZeiten.filter((e) => sicherungBis && tagVon(e) > sicherungBis).reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0)
+        : aworkZeiten.filter((e) => tagVon(e) >= messbeginn).reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0);
+      const appSeitMin = appZeiten.filter((e) => tagVon(e) >= messbeginn).reduce((s, e) => s + minApp(e), 0);
+      const seitUmstellungStd = (aworkSeitMin + appSeitMin) / 60;
       const offeneTickets = arbeitsTickets.filter((t) => t.status !== 'erledigt');
       const offeneSollStd = offeneTickets.reduce((s, t) => s + (Number(t.target_hours) || 0), 0);
       const offeneMitSoll = offeneTickets.filter((t) => Number(t.target_hours) > 0).length;
       const verbleibend = restBudgetStd - seitUmstellungStd;
       let restAmpel = 'gruen';
-      let restSatz = `Für den Rest stehen ${r1(restBudgetStd)} Std. zur Verfügung, davon seit der Umstellung ${r1(seitUmstellungStd)} Std. verbraucht.`;
+      let restSatz = `Für den Rest stehen ${r1(restBudgetStd)} Std. zur Verfügung, davon seit ${messText} ${r1(seitUmstellungStd)} Std. verbraucht.`;
       if (!offeneTickets.length) {
         restSatz = offenNetto > 0 ? 'Keine offenen Aufgaben mehr — der Rest kann abgerechnet werden.' : 'Keine offenen Aufgaben, alles abgerechnet.';
       } else if (offenNetto <= 0) {
@@ -370,7 +387,7 @@ export default async function (req) {
         restSatz = `Der Auftrag ist vollständig abgerechnet, es sind aber noch ${offeneTickets.length} Aufgaben offen. Jede weitere Stunde ist nicht mehr gedeckt — knapp fertigstellen oder Mehraufwand kennzeichnen.`;
       } else if (verbleibend < 0) {
         restAmpel = 'rot';
-        restSatz = `Das Restbudget seit der Umstellung ist aufgebraucht (${r1(seitUmstellungStd)} von ${r1(restBudgetStd)} Std.), noch ${offeneTickets.length} Aufgaben offen.`;
+        restSatz = `Das Restbudget seit ${messText} ist aufgebraucht (${r1(seitUmstellungStd)} von ${r1(restBudgetStd)} Std.), noch ${offeneTickets.length} Aufgaben offen.`;
       } else if (offeneSollStd > 0 && offeneSollStd > verbleibend) {
         restAmpel = 'gelb';
         restSatz = `Die offenen Aufgaben sind mit ${r1(offeneSollStd)} Std. geplant, gedeckt sind noch ${r1(verbleibend)} Std. — Umfang prüfen oder Mehraufwand klären.`;
@@ -379,7 +396,7 @@ export default async function (req) {
         restSatz = `${pct(seitUmstellungStd, restBudgetStd)} % des Restbudgets verbraucht, noch ${offeneTickets.length} Aufgaben offen.`;
       }
       ergebnis.rest = {
-        stichtag: stichtag,
+        stichtag: messbeginn, messbeginn,
         offene_aufgaben: offeneTickets.length,
         offene_aufgaben_soll_stunden: offeneSollStd ? r1(offeneSollStd) : null,
         offene_aufgaben_mit_sollstunden: offeneMitSoll,
@@ -387,8 +404,13 @@ export default async function (req) {
         seit_umstellung_gebucht_stunden: r1(seitUmstellungStd),
         rest_verbleibend_stunden: r1(verbleibend),
         ampel: restAmpel, aussage: restSatz,
-        hinweis: 'Restbudget = noch nicht abgerechneter Auftragswert ÷ Stundensatz. Gezählt werden nur Buchungen nach dem Umstellungsstichtag.',
-        ...(finanz ? { auftrag_netto: Math.round(auftragNetto), abgerechnet_netto: Math.round(abgerechnet), noch_zu_bekommen_netto: Math.round(offenNetto) } : {}),
+        hinweis: `Restbudget = Auftragswert, der am ${messText} noch nicht abgerechnet war, ÷ Stundensatz. Gezählt werden alle Buchungen ab ${messText}: aWork bis zum Umstellungsstichtag, danach die App.`,
+        ...(finanz ? {
+          auftrag_netto: Math.round(auftragNetto), abgerechnet_netto: Math.round(abgerechnet),
+          abgerechnet_vor_messbeginn_netto: Math.round(abgerechnetVorher),
+          abgerechnet_seit_messbeginn_netto: Math.round(abgerechnet - abgerechnetVorher),
+          noch_zu_bekommen_netto: Math.round(offenNetto),
+        } : {}),
       };
     }
 
