@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { sprintZuordnung } from '../../shared/projektTyp.js';
+import { ladeStichtag } from '../../shared/kontingentLaufzeit.js';
 
 // Handlungsorientierte Projektintelligenz: wo muss jemand etwas TUN.
 // Kein Geldfokus — Feedback einfordern, Zusagen einhalten, Projekte am Leben halten.
@@ -31,6 +32,21 @@ export default async function (req) {
       if (!letzteBuchungNachAwork[id] || e.entry_date > letzteBuchungNachAwork[id]) {
         letzteBuchungNachAwork[id] = e.entry_date;
       }
+    }
+
+    // Seit der Umstellung kommen neue Buchungen nur noch aus der App.
+    const stichtag = await ladeStichtag(svc.entities);
+    const appProjektNachLiq = {};
+    const appProjektNachAwork = {};
+    for (const sp of sprintProjekte) {
+      if (sp.liquidity_project_id && !appProjektNachLiq[sp.liquidity_project_id]) appProjektNachLiq[sp.liquidity_project_id] = sp;
+      if (sp.awork_project_id && !appProjektNachAwork[sp.awork_project_id]) appProjektNachAwork[sp.awork_project_id] = sp;
+    }
+    const letzteBuchungNachApp = {};
+    for (const e of await svc.entities.TimeEntry.list('-entry_date', 4000)) {
+      const d = String(e.entry_date || '').slice(0, 10);
+      if (!e.project_id || !d || d <= stichtag || e.abrechnungsstatus === 'verworfen') continue;
+      if (!letzteBuchungNachApp[e.project_id] || d > letzteBuchungNachApp[e.project_id]) letzteBuchungNachApp[e.project_id] = d;
     }
 
     const { liqNachSprintProjekt, typNachLiq } = sprintZuordnung({ liqProjekte, sprintProjekte, clients });
@@ -115,7 +131,11 @@ export default async function (req) {
       }
 
       // Nur Projekte, an denen aktuell gearbeitet wird, aber niemand den Stand festhält.
-      const letzteBuchung = p.awork_project_id ? (letzteBuchungNachAwork[p.awork_project_id] || null) : null;
+      const appProjekt = appProjektNachLiq[p.id] || (p.awork_project_id ? appProjektNachAwork[p.awork_project_id] : null) || null;
+      const letzteBuchung = [
+        p.awork_project_id ? letzteBuchungNachAwork[p.awork_project_id] : null,
+        appProjekt ? letzteBuchungNachApp[appProjekt.id] : null,
+      ].filter(Boolean).sort().pop() || null;
       const tageOhneBuchung = tageSeit(letzteBuchung);
       const laeuft = tageOhneBuchung !== null && tageOhneBuchung <= 30;
       const letzterAkt = letzterAktNachProjekt[p.id] || null;
