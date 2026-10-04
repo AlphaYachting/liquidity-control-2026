@@ -90,7 +90,17 @@ export default async function (req) {
     const minApp = (e) => Number(e.duration_minutes) || (Number(e.hours) || 0) * 60;
 
     // 3. Ist-Stunden
-    const aworkMin = aworkZeiten.reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0);
+    // Die aWork-Zeitbuchungen in der App beginnen erst im April 2026. Für ältere Projekte trägt der
+    // Aufgabenstand (gebuchte Minuten je Aufgabe) die vollständigere Summe — es zählt der höhere Wert.
+    const aworkBuchungenMin = aworkZeiten.reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0);
+    const aufgabenStandTag = aworkAufgabenRoh.reduce((max, t) => ((t.last_synced_at || '') > max ? t.last_synced_at : max), '').slice(0, 10);
+    const aufgabenMin = aworkAufgabenRoh.reduce((s, t) => s + (Number(t.tracked_duration_minutes) || 0), 0)
+      + (aufgabenStandTag ? aworkZeiten.filter((e) => String(e.entry_date || '').slice(0, 10) > aufgabenStandTag)
+        .reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0) : 0);
+    const projektstandMin = Number(snapshot?.tracked_duration_minutes) || 0;
+    const aworkMin = Math.max(aworkBuchungenMin, aufgabenMin, projektstandMin);
+    const aworkQuelle = aworkMin === aworkBuchungenMin ? 'aWork-Zeitbuchungen'
+      : aworkMin === aufgabenMin ? `aWork-Aufgabenstand vom ${aufgabenStandTag} plus Buchungen danach` : 'aWork-Projektstand';
     const appMin = appZeiten.reduce((s, e) => s + minApp(e), 0);
     const istStunden = (aworkMin + appMin) / 60;
 
@@ -258,7 +268,9 @@ export default async function (req) {
       datenstand: {
         stichtag_awork: stichtag,
         regel: aworkId ? `aWork-Buchungen bis ${stichtag} (eingefroren), App-Buchungen danach` : 'nur App-Buchungen (kein aWork-Altstand)',
-        awork_stunden: r1(aworkMin / 60), app_stunden: r1(appMin / 60),
+        awork_stunden: r1(aworkMin / 60), awork_stunden_quelle: aworkId ? aworkQuelle : null, app_stunden: r1(appMin / 60),
+        awork_einzelbuchungen_stunden: r1(aworkBuchungenMin / 60),
+        hinweis_altdaten: aworkId ? 'aWork-Einzelbuchungen liegen in der App erst ab April 2026 vor. Ältere Stunden sind nur als Summe je Aufgabe enthalten; Einzelnachweise davor stehen in der externen aWork-Sicherung.' : null,
         awork_aufgaben_stand: aworkAufgabenStand,
         erste_buchung: ersteBuchung, letzte_buchung: letzteBuchung, tage_seit_letzter_buchung: tageSeitBuchung,
       },
