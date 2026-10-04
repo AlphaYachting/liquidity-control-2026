@@ -198,7 +198,7 @@ export default function Zeiten() {
   return (
     <div className="max-w-[1200px] mx-auto space-y-4">
       <div>
-        <h1 className="text-2xl font-extrabold uppercase tracking-tight" style={{ color: RITTLER.black }}>Zeiten</h1>
+        <h1 className="text-2xl font-extrabold uppercase tracking-tight" style={{ color: RITTLER.black }}>Meine Zeiten</h1>
         <p className="text-sm" style={{ color: RITTLER.textSecondary }}>{user?.full_name || email}</p>
       </div>
 
