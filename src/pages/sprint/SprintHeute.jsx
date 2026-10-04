@@ -7,6 +7,7 @@ import { useZugriff } from '@/lib/useZugriff';
 import { Skeleton } from '@/components/ui/skeleton';
 import MeinTagZeile from '@/components/sprint/heute/MeinTagZeile';
 import MeinTagNeueAufgabe from '@/components/sprint/heute/MeinTagNeueAufgabe';
+import MeinTagUebernahme from '@/components/sprint/heute/MeinTagUebernahme';
 import TicketDetailPanel from '@/components/sprint/ticket/TicketDetailPanel';
 import HeuteFristen from '@/components/sprint/HeuteFristen';
 import HeutePmBlock from '@/components/sprint/HeutePmBlock';
@@ -217,6 +218,7 @@ export default function SprintHeute() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <MeinTagUebernahme email={email} />
           <button
             type="button"
             onClick={() => setNeueAufgabe(true)}
