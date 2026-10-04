@@ -24,14 +24,23 @@ export default function SprintTimerStart({ project, client, ticketId: festeTicke
   const laeuftHier = running && timer?.project_id === project.id
     && (!festeTicketId || timer?.ticket_id === festeTicketId);
 
+  // Grundsatz: Eine Erfolgsmeldung erscheint nur, wenn der Aufruf erfolgreich war.
   const klick = async () => {
     setBusy(true);
     if (laeuftHier) {
       const res = await stop();
-      if (res) toast({ description: `${res.hours} h auf ${res.projekt || project.title} gebucht.` });
+      if (res?.fehler) {
+        toast({ variant: 'destructive', description: `Nicht gebucht: ${res.fehler} — der Timer läuft weiter.` });
+      } else if (res) {
+        toast({ description: `${res.hours} h auf ${res.projekt || project.title} gebucht.` });
+      }
     } else {
-      await start(project, (client?.name || project.title).slice(0, 3).toUpperCase(), '', { force: true, ticketId });
-      toast({ description: 'Timer läuft.' });
+      const res = await start(project, (client?.name || project.title).slice(0, 3).toUpperCase(), '', { force: true, ticketId });
+      if (res?.fehler) {
+        toast({ variant: 'destructive', description: `Nicht umgeschaltet: ${res.fehler} — der bisherige Timer läuft weiter.` });
+      } else {
+        toast({ description: 'Timer läuft.' });
+      }
     }
     qc.invalidateQueries({ queryKey: ['ticketHours'] });
     qc.invalidateQueries({ queryKey: ['sprintHeute'] });
