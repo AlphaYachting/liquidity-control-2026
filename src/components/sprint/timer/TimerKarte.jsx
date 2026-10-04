@@ -54,7 +54,7 @@ export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzoge
       <ProjektKopf
         kunde={kontext?.client?.name}
         titel={kontext?.project?.title || timer.projekt_titel}
-        kategorie={kontext?.kategorie}
+        kategorie={kontext?.kategorieText || kontext?.kategorie}
       />
 
       <p className="text-[40px] font-bold leading-none mt-3 tabular-nums" style={{ color: RITTLER.black }}>
