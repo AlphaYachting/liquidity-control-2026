@@ -286,7 +286,7 @@ export default function SprintDetail() {
             onClose={() => setIntelligenzOffen(false)}
             projectId={aktProjektId}
             appProjektId={sprint.project_id}
-            cockpitId={project?.liquidity_project_id || null}
+            cockpitId={project?.liquidity_project_id || (aktProjektId && aktProjektId !== sprint.project_id ? aktProjektId : null)}
             projectName={project?.title}
             customer={client?.name}
           />
