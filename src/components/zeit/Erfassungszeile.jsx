@@ -9,6 +9,7 @@ import { useProjektSuche } from '@/lib/zeit/useProjektSuche';
 import { merkeTaetigkeit } from '@/lib/zeit/taetigkeit';
 import TaetigkeitWahl from './TaetigkeitWahl';
 import BereichChips from './BereichChips';
+import MehraufwandSchalter from './MehraufwandSchalter';
 import { vorbelegeBereich } from '@/lib/zeit/leistungsbereich';
 import HauptKnopf from './HauptKnopf';
 import FussVerweise from './FussVerweise';
@@ -35,6 +36,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
   // Vorbelegt ist immer Umsetzung — Beratung und Vertrieb werden bewusst gewählt.
   const [taetigkeit, setTaetigkeit] = useState('umsetzung');
   const [listeOffen, setListeOffen] = useState(true);
+  const [mehraufwand, setMehraufwand] = useState(false);
   const { suche, clients } = useProjektSuche(email);
 
   // Ein Klick auf ein Loch im Tagesstreifen setzt dessen Zeitfenster hierher.
@@ -84,7 +86,9 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
       taetigkeit: taetigkeit || undefined,
       quelle: fenster ? 'zeile' : 'luecke',
       moduleTemplateId: bereich || undefined,
+      mehrleistung: mehraufwand,
     });
+    setMehraufwand(false);
     merkeTaetigkeit(taetigkeit);
     setBusy(false);
     setText('');
@@ -145,6 +149,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
       )}
 
       {projekt && <div className="mt-2"><TaetigkeitWahl wert={taetigkeit} onWaehlen={setTaetigkeit} /></div>}
+      {projekt && <div className="mt-1.5"><MehraufwandSchalter wert={mehraufwand} onWechsel={setMehraufwand} /></div>}
       {projekt && <BereichChips projectId={projekt.id} wert={bereich} onWaehlen={setBereich} />}
 
       <HauptKnopf
