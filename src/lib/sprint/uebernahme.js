@@ -57,8 +57,17 @@ export function warSchonMeins(ticket, name) {
   const h = herkunft(ticket);
   if (!h.importiert || !h.zugewiesen.length) return true;
   const n = (name || '').trim().toLowerCase();
-  return !!n && h.zugewiesen.some((z) => z.toLowerCase() === n);
+  if (!n) return false;
+  // Schreibweisen aus aWork weichen ab („Gehard“ statt „Gerhard“) — der Nachname entscheidet mit.
+  const nachname = n.split(/\s+/).pop();
+  return h.zugewiesen.some((z) => {
+    const zl = z.toLowerCase();
+    return zl === n || zl.split(/\s+/).pop() === nachname;
+  });
 }
+
+// Vorschlag für die Antwort: der Stand, mit dem das Ticket aus aWork gekommen ist.
+export const vorschlag = (ticket) => (['offen', 'in_arbeit', 'wartet'].includes(ticket.status) ? ticket.status : null);
 
 // Meine Übernahme: was mir zugeteilt ist, plus was ich schon beantwortet habe (auch Zurückgegebenes).
 export async function ladeMeineUebernahme(email) {
