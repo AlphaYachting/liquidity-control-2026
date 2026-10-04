@@ -63,7 +63,7 @@ export async function tagBestaetigt(email, tag) {
 export async function bucheZeit({
   projectId, email, durationMinutes, note = '', entryDate,
   startedAt, endedAt, taetigkeit, verrechenbar, nichtVerrechenbarGrund,
-  ueberKontingent, quelle = 'timer', korrekturZu, ticketId, ausCrm, moduleTemplateId,
+  ueberKontingent, quelle = 'timer', korrekturZu, ticketId, ausCrm, moduleTemplateId, mehrleistung,
 }) {
   const felder = await ermittleBuchungsfelder(projectId);
   const minuten = Math.round(Number(durationMinutes) || 0);
@@ -89,6 +89,7 @@ export async function bucheZeit({
     ...(ticketId ? { ticket_id: ticketId } : {}),
     ...(moduleTemplateId ? { module_template_id: moduleTemplateId } : {}),
     ...(korrekturZu ? { korrektur_zu: korrekturZu } : {}),
+    ...(mehrleistung ? { mehrleistung: true } : {}),
     person_email: email,
     entry_date: tag,
     started_at: startedAt,
