@@ -36,6 +36,9 @@ export default function ThreadActionBar({ thread, messages = [], onChanged }) {
     sender_email: lastInbound?.from || '',
     matched_customer_name: t.matched_customer_name || t.customer || '',
     customer_match: t.customer_match || '',
+    // für die Fälligkeit des Support-Tickets (Störung/Eskalation = sofort fällig)
+    request_nature: t.request_nature || '',
+    eskalation: Number(t.eskalation) === 1,
   };
 
   const variantFor = (key) => (suggested === key ? 'default' : 'outline');
