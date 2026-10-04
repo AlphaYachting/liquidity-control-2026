@@ -109,7 +109,7 @@ export default function Uebernahme() {
   const gruppen = useMemo(() => {
     if (!data) return [];
     const projektById = Object.fromEntries(data.projekte.map((p) => [p.id, p]));
-    const clientById = Object.fromEntries(data.clients.map((c) => [c.id, c]));
+    const clientById = Object.fromEntries((data.clients || []).map((c) => [c.id, c]));
     const nach = {};
     data.tickets.forEach((t) => { (nach[t.project_id] = nach[t.project_id] || []).push(t); });
     // Kundenprojekte zuerst, Internes und Wartungsverträge zuletzt; innerhalb nach Menge.
@@ -135,7 +135,7 @@ export default function Uebernahme() {
     );
   }
 
-  const andere = data.members.filter((m) => !gleich(m.email, email));
+  const andere = (data.members || []).filter((m) => !gleich(m.email, email));
   const gesamt = data.tickets.length;
   const bestaetigt = data.tickets.filter((t) => istBestaetigt(t) || t.status === 'erledigt').length;
   const offenGesamt = data.tickets.filter(brauchtAntwort).length;
