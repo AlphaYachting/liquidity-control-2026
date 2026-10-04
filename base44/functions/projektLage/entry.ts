@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { ladeStichtag, heuteWien } from '../../shared/kontingentLaufzeit.js';
+import { aworkDbBereit, aworkLageSummen } from '../../shared/aworkDb.ts';
 
 // Projektlage — die eine Rechenstelle der Projektintelligenz.
 // Führt den eingefrorenen aWork-Altstand (bis Stichtag) mit den Buchungen und
@@ -66,7 +67,9 @@ export default async function (req) {
     const heute = heuteWien();
 
     // 2. Daten laden
-    const [aworkAufgabenRoh, aworkZeiten, snapshotRows, appZeitenAlle, tickets, sprints, auftraegeRoh, satzRows, changeRequests, client] = await Promise.all([
+    const [archiv, aworkAufgabenRoh, aworkZeiten, snapshotRows, appZeitenAlle, tickets, sprints, auftraegeRoh, satzRows, changeRequests, client] = await Promise.all([
+      // Vollständige Summen aus der externen aWork-Sicherung — fällt sie aus, tragen die Kopien in der App
+      aworkId && aworkDbBereit() ? aworkLageSummen(aworkId).catch(() => null) : null,
       aworkId ? db.AworkTaskSnapshot.filter({ awork_project_id: aworkId }, '-last_synced_at', 1000).catch(() => []) : [],
       aworkId ? alleSeiten((l, s) => db.AworkTimeEntry.filter({ awork_project_id: aworkId }, '-entry_date', l, s)) : [],
       aworkId ? db.AworkProjectSnapshot.filter({ awork_project_id: aworkId }, '-last_synced_at', 1) : [],
@@ -98,8 +101,14 @@ export default async function (req) {
       + (aufgabenStandTag ? aworkZeiten.filter((e) => String(e.entry_date || '').slice(0, 10) > aufgabenStandTag)
         .reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0) : 0);
     const projektstandMin = Number(snapshot?.tracked_duration_minutes) || 0;
-    const aworkMin = Math.max(aworkBuchungenMin, aufgabenMin, projektstandMin);
-    const aworkQuelle = aworkMin === aworkBuchungenMin ? 'aWork-Zeitbuchungen'
+    // Sicherung: alle Buchungen bis zu ihrem letzten Tag, dazu aus der App-Kopie, was danach noch in aWork gebucht wurde
+    const sicherungBis = archiv?.sicherung_bis ? String(archiv.sicherung_bis).slice(0, 10) : null;
+    const archivMin = archiv ? (Number(archiv.sekunden) || 0) / 60
+      + aworkZeiten.filter((e) => sicherungBis && String(e.entry_date || '').slice(0, 10) > sicherungBis)
+        .reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0) : 0;
+    const aworkMin = Math.max(archivMin, aworkBuchungenMin, aufgabenMin, projektstandMin);
+    const aworkQuelle = archiv && aworkMin === archivMin ? `aWork-Sicherung (Buchungen bis ${sicherungBis}) plus spätere aWork-Buchungen aus der App-Kopie`
+      : aworkMin === aworkBuchungenMin ? 'aWork-Zeitbuchungen (App-Kopie)'
       : aworkMin === aufgabenMin ? `aWork-Aufgabenstand vom ${aufgabenStandTag} plus Buchungen danach` : 'aWork-Projektstand';
     const appMin = appZeiten.reduce((s, e) => s + minApp(e), 0);
     const istStunden = (aworkMin + appMin) / 60;
@@ -109,7 +118,9 @@ export default async function (req) {
       ...appZeiten.map((e) => ({ d: String(e.entry_date || '').slice(0, 10), m: minApp(e) })),
     ].filter((x) => x.d);
     const letzteBuchung = tage.reduce((max, x) => (x.d > max ? x.d : max), '') || null;
-    const ersteBuchung = tage.reduce((min, x) => (!min || x.d < min ? x.d : min), '') || null;
+    const ersteApp = tage.reduce((min, x) => (!min || x.d < min ? x.d : min), '') || null;
+    const ersteArchiv = archiv?.erste ? String(archiv.erste).slice(0, 10) : null;
+    const ersteBuchung = [ersteApp, ersteArchiv].filter(Boolean).sort()[0] || null;
     const tageSeitBuchung = letzteBuchung ? Math.floor((new Date(heute) - new Date(letzteBuchung)) / TAG) : null;
     const vor = (n) => new Date(new Date(heute).getTime() - n * TAG).toISOString().slice(0, 10);
     const d28 = vor(28), d56 = vor(56);
@@ -152,22 +163,26 @@ export default async function (req) {
     const aworkAufgaben = aworkAufgabenRoh.filter((t) => !/verrechnung|organisation/i.test(t.task_list_name || ''));
     const aworkErledigt = aworkAufgaben.filter((t) => t.is_done === true);
     const aworkAufgabenStand = aworkAufgabenRoh.reduce((max, t) => ((t.last_synced_at || '') > max ? t.last_synced_at : max), '').slice(0, 10) || null;
-    if (aworkAufgaben.length) {
-      const altSoll = (rows) => rows.reduce((s, t) => s + (Number(t.planned_duration_minutes) || 0), 0) / 60;
+    // Die Sicherung kennt den vollständigen Aufgabenstand; die App-Kopie ist nur der Rückfall.
+    const ausArchiv = !!archiv && Number(archiv.aufgaben) > 0;
+    const altErledigtN = ausArchiv ? Number(archiv.erledigt) || 0 : aworkErledigt.length;
+    const altGesamtN = ausArchiv ? Number(archiv.aufgaben) : aworkAufgaben.length;
+    const altErledigtSoll = ausArchiv ? (Number(archiv.erledigt_plan_sekunden) || 0) / 3600
+      : aworkErledigt.reduce((s, t) => s + (Number(t.planned_duration_minutes) || 0), 0) / 60;
+    const altStand = ausArchiv ? `aWork-Sicherung, Stand ${sicherungBis}` : `App-Kopie, Stand ${aworkAufgabenStand}`;
+    if (altGesamtN) {
       if (arbeitsTickets.length) {
-        aufgabenErledigt = aworkErledigt.length + erledigt.length;
-        aufgabenGesamt = aworkErledigt.length + arbeitsTickets.length;
-        const sE = altSoll(aworkErledigt) + sollErledigt;
-        const sG = altSoll(aworkErledigt) + sollGesamt;
+        aufgabenErledigt = altErledigtN + erledigt.length;
+        aufgabenGesamt = altErledigtN + arbeitsTickets.length;
+        const sE = altErledigtSoll + sollErledigt;
+        const sG = altErledigtSoll + sollGesamt;
         fortschritt = gewichtet && sG > 0 ? sE / sG : aufgabenErledigt / aufgabenGesamt;
-        fortschrittQuelle = `${gewichtet ? 'Sollstunden' : 'Anzahl'}: in aWork erledigt (Stand ${aworkAufgabenStand}) + Aufgaben der App`;
+        fortschrittQuelle = `${gewichtet ? 'Sollstunden' : 'Anzahl'}: in aWork erledigt (${altStand}) + Aufgaben der App`;
       } else {
-        aufgabenErledigt = aworkErledigt.length;
-        aufgabenGesamt = aworkAufgaben.length;
-        const sG = altSoll(aworkAufgaben);
-        const gew = sG > 0 && aworkAufgaben.filter((t) => Number(t.planned_duration_minutes) > 0).length >= aworkAufgaben.length * 0.6;
-        fortschritt = gew ? altSoll(aworkErledigt) / sG : aufgabenErledigt / aufgabenGesamt;
-        fortschrittQuelle = `aWork-Altstand (eingefroren, Stand ${aworkAufgabenStand})`;
+        aufgabenErledigt = altErledigtN;
+        aufgabenGesamt = altGesamtN;
+        fortschritt = aufgabenErledigt / aufgabenGesamt;
+        fortschrittQuelle = `aWork-Altstand (eingefroren; ${altStand})`;
       }
     } else if (fortschritt === null && Number(snapshot?.tasks_count) > 0) {
       fortschritt = Number(snapshot.tasks_done_count) / Number(snapshot.tasks_count);
@@ -181,11 +196,11 @@ export default async function (req) {
     const auftraege = auftraegeRoh.flat().filter((o, i, a) => o.status !== 'cancelled' && a.findIndex((x) => x.id === o.id) === i);
     const auftragNetto = auftraege.reduce((s, o) => s + (Number(o.total_net_amount) || 0), 0)
       || Number(project?.total_budget) || Number(liq?.total_net_amount) || 0;
-    const satz = Number(project?.stundensatz) || Number(satzRows[0]?.value) || 100;
-    const satzQuelle = Number(project?.stundensatz) ? 'Projekt' : Number(satzRows[0]?.value) ? 'Standard-Stundensatz' : 'Annahme 100 EUR';
+    const satz = Number(project?.stundensatz) || Number(satzRows[0]?.value) || 120;
+    const satzQuelle = Number(project?.stundensatz) ? 'Projekt' : 'Standard-Stundensatz';
 
     const sprintSoll = sprints.reduce((s, sp) => s + (Number(sp.target_hours) || 0), 0);
-    const snapshotSoll = (Number(snapshot?.time_budget_minutes) || 0) / 60;
+    const snapshotSoll = (Number(snapshot?.time_budget_minutes) || 0) / 60 || (Number(archiv?.budget_sekunden) || 0) / 3600;
     let planStunden = 0, planQuelle = null;
     if (Number(project?.target_hours) > 0) { planStunden = Number(project.target_hours); planQuelle = 'Planstunden am Projekt'; }
     else if (sprintSoll > 0) { planStunden = sprintSoll; planQuelle = 'Sollstunden der Sprints'; }
@@ -270,7 +285,10 @@ export default async function (req) {
         regel: aworkId ? `aWork-Buchungen bis ${stichtag} (eingefroren), App-Buchungen danach` : 'nur App-Buchungen (kein aWork-Altstand)',
         awork_stunden: r1(aworkMin / 60), awork_stunden_quelle: aworkId ? aworkQuelle : null, app_stunden: r1(appMin / 60),
         awork_einzelbuchungen_stunden: r1(aworkBuchungenMin / 60),
-        hinweis_altdaten: aworkId ? 'aWork-Einzelbuchungen liegen in der App erst ab April 2026 vor. Ältere Stunden sind nur als Summe je Aufgabe enthalten; Einzelnachweise davor stehen in der externen aWork-Sicherung.' : null,
+        awork_sicherung_genutzt: !!archiv, awork_sicherung_bis: sicherungBis,
+        hinweis_altdaten: !aworkId ? null : archiv
+          ? 'aWork-Stunden und Aufgabenstand stammen aus der vollständigen aWork-Sicherung. Einzelnachweise (Buchungen, Kommentare, Aufgabenverlauf) liefert die Funktion aworkArchivApi.'
+          : 'aWork-Sicherung nicht erreichbar — Rückfall auf die Kopien in der App: Einzelbuchungen erst ab April 2026, ältere Stunden nur als Summe je Aufgabe. Der Altstand kann zu niedrig sein.',
         awork_aufgaben_stand: aworkAufgabenStand,
         erste_buchung: ersteBuchung, letzte_buchung: letzteBuchung, tage_seit_letzter_buchung: tageSeitBuchung,
       },
