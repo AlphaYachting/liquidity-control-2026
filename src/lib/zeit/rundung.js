@@ -111,3 +111,12 @@ export function beispielSatz(regeln) {
   });
   return `Drei Buchungen von je 7 Minuten werden zu ${verrechnet} Minuten.`;
 }
+
+// Support-Abrechnung je Ticket: offene Minuten summiert, Minimum 30 Minuten,
+// darüber auf volle 15 Minuten aufgerundet. 0 bleibt 0.
+// Identische Kopie: base44/functions/supportBillingCheck/appTickets.js
+export function supportVerrechnungsMinuten(minuten) {
+  const m = Number(minuten) || 0;
+  if (m <= 0) return 0;
+  return Math.max(30, Math.ceil(m / 15) * 15);
+}

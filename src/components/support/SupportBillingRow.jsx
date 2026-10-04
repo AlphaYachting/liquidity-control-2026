@@ -6,8 +6,9 @@ import SupportInvoiceDialog from '@/components/support/SupportInvoiceDialog';
 import SupportTaskLine from '@/components/support/SupportTaskLine';
 import CustomerAssignDialog from '@/components/support/CustomerAssignDialog';
 import SupportInstructionBadge from '@/components/support/SupportInstructionBadge';
+import { supportVerrechnungsMinuten } from '@/lib/zeit/rundung';
 
-const halb = (min) => Math.max(0.5, Math.ceil((Number(min) || 0) / 30) / 2);
+const halb = (min) => supportVerrechnungsMinuten(min) / 60;
 
 export default function SupportBillingRow({ row, onDone }) {
   const [offen, setOffen] = useState(true);
@@ -32,7 +33,7 @@ export default function SupportBillingRow({ row, onDone }) {
           <p className="text-xs text-muted-foreground truncate">{row.project_name}</p>
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <Badge className="bg-slate-100 text-slate-700">{row.tasks.length} Anfragen in Verrechnung</Badge>
-            <Badge className="bg-amber-100 text-amber-700">{stunden.toFixed(1)} h zu verrechnen</Badge>
+            <Badge className="bg-amber-100 text-amber-700">{stunden.toFixed(2)} h zu verrechnen</Badge>
             {!zugewiesen && <Badge className="bg-red-100 text-red-700">Kunde zuweisen</Badge>}
             {zugewiesen && row.instructions.length === 0 && (
               <Badge className="bg-red-100 text-red-700">Rechnung noch zu erstellen</Badge>

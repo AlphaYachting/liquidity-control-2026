@@ -1,9 +1,10 @@
 import React from 'react';
 import { FilePlus2, UserPlus, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supportVerrechnungsMinuten } from '@/lib/zeit/rundung';
 
 const std = (min) => Math.round((min / 60) * 100) / 100;
-const halb = (min) => Math.max(0.5, Math.ceil((Number(min) || 0) / 30) / 2);
+const halb = (min) => supportVerrechnungsMinuten(min) / 60;
 
 // Ein Support-Ticket als eigener Vorgang — einzeln abrechenbar oder Teil der Kundenrechnung
 export default function SupportTaskLine({ task, kundeZugewiesen, onInvoice, onAssign }) {
@@ -12,7 +13,7 @@ export default function SupportTaskLine({ task, kundeZugewiesen, onInvoice, onAs
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium truncate">{task.task_title}</p>
         <p className="text-xs text-muted-foreground truncate">
-          {task.assignee_name || '—'} · letzte Buchung {task.last_entry_date || '—'} · gebucht {std(task.open_minutes).toFixed(2)} h · verrechnet {halb(task.open_minutes).toFixed(1)} h
+          {task.assignee_name || '—'} · letzte Buchung {task.last_entry_date || '—'} · gebucht {std(task.open_minutes).toFixed(2)} h · verrechnet {halb(task.open_minutes).toFixed(2)} h
         </p>
       </div>
       <a

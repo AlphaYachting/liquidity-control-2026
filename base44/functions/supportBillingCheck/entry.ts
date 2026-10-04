@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { secrets } from 'base44:runtime';
+import { appZeilen, supportVerrechnungsMinuten } from './appTickets.js';
 
 const SEVDESK_BASE = 'https://my.sevdesk.de/api/v1';
 
@@ -133,9 +134,8 @@ export default async function (req) {
       perTask[b.task_id] = eintrag;
     });
 
-    // 7. Verrechnung nur in halben Stunden — je Aufgabe aufgerundet, Minimum 30 Minuten
-    const aufHalbeStunde = (min) => !min ? 0 : Math.max(30, Math.ceil((Number(min) || 0) / 30) * 30);
-    Object.values(perTask).forEach(t => { t.billable_minutes = aufHalbeStunde(t.open_minutes); });
+    // 7. Verrechnung je Aufgabe: Minimum 0,5 h, danach in 15-Minuten-Schritten aufgerundet
+    Object.values(perTask).forEach(t => { t.key = t.awork_task_id; t.billable_minutes = supportVerrechnungsMinuten(t.open_minutes); });
 
     // 8. Kundenzuweisung je Anfrage (Support-Anfragen haben oft kein Projekt im Cockpit)
     const zuweisungen = await alleSeiten((l, o) =>
@@ -235,8 +235,14 @@ export default async function (req) {
 
     const rows = Object.values(gruppen).sort((a, b) => b.open_minutes - a.open_minutes);
 
+    // Hauptteil: erledigte Support-Tickets der App
+    const app = await appZeilen(base44.asServiceRole, alleSeiten, liveStatus, anweisungen);
+
     return Response.json({
       success: true,
+      app_rows: app.rows,
+      app_support_projects: app.support_projects,
+      app_billable_minutes: app.rows.reduce((s, r) => s + r.billable_minutes, 0),
       support_projects_checked: supportProjekte.length,
       since,
       rows,

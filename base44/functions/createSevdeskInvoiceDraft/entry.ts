@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
     const additionalPct = instr.additional_billing_percent > 0 ? ` (${Math.round(instr.additional_billing_percent)}%)` : '';
 
     // Support-Rechnungen tragen eine eigene Betreff- und Anschreibensformel
-    const istSupport = Boolean(snapshot?.invoice_header || (snapshot?.support_task_ids || []).length);
+    const istSupport = Boolean(snapshot?.invoice_header || (snapshot?.support_task_ids || []).length || (snapshot?.support_ticket_ids || []).length);
 
     // Header: "Verrechnung Supportauftrag" bzw. "Teilrechnung: Projektname (20%)"
     const headerText = istSupport

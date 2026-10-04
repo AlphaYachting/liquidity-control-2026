@@ -13,8 +13,12 @@ export default function SupportInstructionBadge({ instruction, onDone }) {
     if (!window.confirm('Abrechnung zurücknehmen? Die Anfragen erscheinen dann wieder. Den Entwurf in sevDesk bitte dort löschen.')) return;
     setBusy(true);
     try {
-      await base44.entities.BillingInstruction.delete(instruction.id);
+      // Setzt enthaltene Zeitbuchungen und Vorleistungen wieder auf offen und löscht dann die Anweisung
+      const res = await base44.functions.invoke('supportAbrechnungMarkieren', { aktion: 'zuruecknehmen', billing_instruction_id: instruction.id });
+      if (res.data?.error) throw new Error(res.data.error);
       onDone();
+    } catch (e) {
+      window.alert(e?.response?.data?.error || e.message);
     } finally {
       setBusy(false);
     }
