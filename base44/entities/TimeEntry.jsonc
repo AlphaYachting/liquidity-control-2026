@@ -97,6 +97,11 @@
       "type": "boolean",
       "default": false
     },
+    "mehrleistung": {
+      "type": "boolean",
+      "default": false,
+      "description": "Mehraufwand: Zusatzwunsch des Kunden ausserhalb des Auftragsumfangs \u2014 tr\u00e4gt die Begr\u00fcndung f\u00fcr Mehrkosten"
+    },
     "korrektur_zu": {
       "type": "string",
       "description": "Id der Buchung, die diese Buchung korrigiert"
