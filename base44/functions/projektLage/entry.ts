@@ -344,6 +344,54 @@ export default async function (req) {
       };
     }
 
+    // Blick nach vorn: Was vor der Umstellung war, ist Vergangenheit. Ab dem Stichtag zählt,
+    // ob der Rest wirtschaftlich fertig wird — was ist noch zu tun, und was ist dafür noch zu bekommen.
+    if (istPauschal && auftragNetto > 0) {
+      const auftragIds = auftraege.map((o) => o.id);
+      const rechnungen = (await Promise.all([
+        liq ? db.InvoiceRecord.filter({ project_id: liq.id }, '-invoice_date', 500).catch(() => []) : [],
+        auftragIds.length ? db.InvoiceRecord.filter({ confirmed_order_id: { $in: auftragIds } }, '-invoice_date', 500).catch(() => []) : [],
+      ])).flat().filter((r, i, a) => a.findIndex((x) => x.id === r.id) === i)
+        .filter((r) => r.is_sent === true && !['draft', 'cancelled'].includes(r.payment_status));
+      const abgerechnet = rechnungen.reduce((s, r) => s + (Number(r.net_amount) || 0), 0);
+      const offenNetto = Math.max(0, auftragNetto - abgerechnet);
+      const restBudgetStd = offenNetto / satz;
+      const seitUmstellungStd = appMin / 60;
+      const offeneTickets = arbeitsTickets.filter((t) => t.status !== 'erledigt');
+      const offeneSollStd = offeneTickets.reduce((s, t) => s + (Number(t.target_hours) || 0), 0);
+      const offeneMitSoll = offeneTickets.filter((t) => Number(t.target_hours) > 0).length;
+      const verbleibend = restBudgetStd - seitUmstellungStd;
+      let restAmpel = 'gruen';
+      let restSatz = `Für den Rest stehen ${r1(restBudgetStd)} Std. zur Verfügung, davon seit der Umstellung ${r1(seitUmstellungStd)} Std. verbraucht.`;
+      if (!offeneTickets.length) {
+        restSatz = offenNetto > 0 ? 'Keine offenen Aufgaben mehr — der Rest kann abgerechnet werden.' : 'Keine offenen Aufgaben, alles abgerechnet.';
+      } else if (offenNetto <= 0) {
+        restAmpel = 'gelb';
+        restSatz = `Der Auftrag ist vollständig abgerechnet, es sind aber noch ${offeneTickets.length} Aufgaben offen. Jede weitere Stunde ist nicht mehr gedeckt — knapp fertigstellen oder Mehraufwand kennzeichnen.`;
+      } else if (verbleibend < 0) {
+        restAmpel = 'rot';
+        restSatz = `Das Restbudget seit der Umstellung ist aufgebraucht (${r1(seitUmstellungStd)} von ${r1(restBudgetStd)} Std.), noch ${offeneTickets.length} Aufgaben offen.`;
+      } else if (offeneSollStd > 0 && offeneSollStd > verbleibend) {
+        restAmpel = 'gelb';
+        restSatz = `Die offenen Aufgaben sind mit ${r1(offeneSollStd)} Std. geplant, gedeckt sind noch ${r1(verbleibend)} Std. — Umfang prüfen oder Mehraufwand klären.`;
+      } else if (restBudgetStd > 0 && seitUmstellungStd > 0.7 * restBudgetStd) {
+        restAmpel = 'gelb';
+        restSatz = `${pct(seitUmstellungStd, restBudgetStd)} % des Restbudgets verbraucht, noch ${offeneTickets.length} Aufgaben offen.`;
+      }
+      ergebnis.rest = {
+        stichtag: stichtag,
+        offene_aufgaben: offeneTickets.length,
+        offene_aufgaben_soll_stunden: offeneSollStd ? r1(offeneSollStd) : null,
+        offene_aufgaben_mit_sollstunden: offeneMitSoll,
+        rest_budget_stunden: r1(restBudgetStd),
+        seit_umstellung_gebucht_stunden: r1(seitUmstellungStd),
+        rest_verbleibend_stunden: r1(verbleibend),
+        ampel: restAmpel, aussage: restSatz,
+        hinweis: 'Restbudget = noch nicht abgerechneter Auftragswert ÷ Stundensatz. Gezählt werden nur Buchungen nach dem Umstellungsstichtag.',
+        ...(finanz ? { auftrag_netto: Math.round(auftragNetto), abgerechnet_netto: Math.round(abgerechnet), noch_zu_bekommen_netto: Math.round(offenNetto) } : {}),
+      };
+    }
+
     return Response.json(ergebnis);
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
