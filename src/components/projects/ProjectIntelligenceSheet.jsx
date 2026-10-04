@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { QUICK_FRAGEN } from '@/components/projects/projektIntelligenzFragen';
 import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntryDialog';
 
-import { faktenBlock } from '@/components/projects/intelligenzFakten';
+import { faktenBlock, lageBlock } from '@/components/projects/intelligenzFakten';
 
 const MARKER = '[FESTHALTEN_ANGEBOTEN]';
 const GESPEICHERT_HINWEIS = 'Soeben wurde folgender Eintrag im Kundenakt gespeichert:';
@@ -20,7 +20,11 @@ const GESPEICHERT_HINWEIS = 'Soeben wurde folgender Eintrag im Kundenakt gespeic
 // Projektintelligenz als begleitendes Panel — die Seite dahinter bleibt sichtbar und bedienbar.
 export default function ProjectIntelligenceSheet({
   open, onClose, projectId, projectName, customer, kennzahlen, finanzen, kontext, startModus = 'frage',
+  // appProjektId = Project.id (Arbeitsprojekt). Wird es übergeben, ist cockpitId die verknüpfte LiquidityProject.id oder leer.
+  // Ohne appProjektId kommt der Aufruf aus dem Projekt-Cockpit — dann ist projectId die LiquidityProject.id.
+  appProjektId, cockpitId,
 }) {
+  const [lage, setLage] = useState(null);
   const [gespraech, setGespraech] = useState(null); // gespeicherter Datensatz je Projekt
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -39,7 +43,26 @@ export default function ProjectIntelligenceSheet({
 
   const projectLabel = [customer, projectName].filter(Boolean).join(' · ') || 'Projekt';
 
-  const contextPrefix = `Kontext: Ausgangspunkt ist das Projekt "${projectName || ''}" des Kunden "${customer || ''}" (LiquidityProject.id = ${projectId}). Hat der Kunde weitere Aufträge oder Projekte, nenne sie und sage, ob deine Antwort sie abdeckt. Triff keine Aussage über einen Auftrag, den du nicht geladen hast. Lade dazu auch den digitalen Kundenakt (ProjectFileEntry nach project_id) und gewichte dokumentierte Vereinbarungen am stärksten.\n\n${faktenBlock(kennzahlen, finanzen, kontext)}Frage: `;
+  const ausCockpit = appProjektId === undefined;
+  const liqId = ausCockpit ? projectId : (cockpitId || null);
+  const arbeitsId = appProjektId || lage?.projekt?.project_id || null;
+  const idZeile = [
+    arbeitsId ? `Project.id = ${arbeitsId}` : null,
+    liqId ? `LiquidityProject.id = ${liqId}`
+      : 'kein Projekt-Cockpit verknüpft — Auftrags- und Rechnungsdaten gibt es am Projekt nicht, suche sie über den Kundennamen',
+  ].filter(Boolean).join('; ');
+
+  const contextPrefix = `Kontext: Ausgangspunkt ist das Projekt "${projectName || ''}" des Kunden "${customer || ''}" (${idZeile}). Hat der Kunde weitere Aufträge oder Projekte, nenne sie und sage, ob deine Antwort sie abdeckt. Triff keine Aussage über einen Auftrag, den du nicht geladen hast. Lade dazu auch den digitalen Kundenakt (ProjectFileEntry nach project_id = ${projectId}) und gewichte dokumentierte Vereinbarungen am stärksten.\n\n${lageBlock(lage)}${faktenBlock(kennzahlen, finanzen, kontext)}Frage: `;
+
+  // Projektlage beim Öffnen laden — aWork-Altstand und App-Daten in einer Rechnung
+  useEffect(() => {
+    if (!open || !projectId) return;
+    let aktiv = true;
+    base44.functions.invoke('projektLage', appProjektId ? { project_id: appProjektId } : { liquidity_project_id: projectId })
+      .then((res) => { if (aktiv && res?.data && !res.data.error) setLage(res.data); })
+      .catch(() => {});
+    return () => { aktiv = false; };
+  }, [open, projectId, appProjektId]);
 
   // Dauerhaft gespeichertes Gespräch beim Öffnen wiederherstellen
   useEffect(() => {
@@ -195,7 +218,7 @@ Bestätige den Eintrag in einem Satz und nenne dann höchstens zwei Konsequenzen
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
                   Frag zu diesem Projekt oder halte fest, was passiert ist — die Projektintelligenz
-                  kennt Auftrag, awork-Daten, Rechnungen, Kommunikation und den Kundenakt.
+                  kennt Auftrag, Aufgaben und Zeiten der App, den aWork-Altstand, Rechnungen, Kommunikation und den Kundenakt.
                 </p>
                 <ProjektupdateEinstieg onStart={() => { setModus('erfassung'); feldRef.current?.focus(); }} />
                 {QUICK_FRAGEN.map((q, i) => (
