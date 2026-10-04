@@ -59,7 +59,8 @@ export function vorschau(daten, rb, offen, { pauschal, neu }) {
     const datenMonate = rb.personen[k]?.datenMonate || 0;
     const unsicher = datenMonate < 3 || (fix.tickets > 0 && fix.ohne / fix.tickets > 0.5);
     const istWeb = (namen[k]?.roles || []).includes('Web');
-    const supportAnteil = gesichert ? (avg.support || 0) / Math.max(1, Object.values(rb.personen).reduce((s, p) => s + (p.avg.support || 0), 0)) : 0;
+    const supportGesamt = Object.values(rb.personen).reduce((s, p) => s + (p.avg.support || 0), 0);
+    const supportAnteil = supportGesamt ? (avg.support || 0) / supportGesamt : 0;
     return {
       key: k, name: namen[k]?.name || k, istWeb, reihe, rueckstand, rate, bis, gesichert, unsicher,
       supportTickets: rb.supportNeuProMonat * supportAnteil, satz: satzFuer({ rueckstand, rate, bis, gesichert, avg }),

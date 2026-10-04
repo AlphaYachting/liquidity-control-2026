@@ -31,7 +31,7 @@ export const NAV_GRUPPEN = [
       { path: '/sprint/planung', label: 'Wochenplanung', icon: CalendarRange, regel: 'leitung' },
       { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban, regel: 'geld' },
       { path: '/sprint/steuerung', label: 'Steuerung', icon: SlidersHorizontal, regel: 'fuehrung' },
-      { path: '/sprint/auslastung', label: 'Auslastungsforecast', icon: BarChart3, regel: 'admin' },
+      { path: '/sprint/auslastung', label: 'Auslastungsforecast', icon: BarChart3, regel: 'admin', nurEmail: 'a.rittler@rittler.co' },
     ],
   },
   {

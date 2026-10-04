@@ -2,10 +2,12 @@ import React from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { fmtH, fmtTag, rolleLabel } from '@/lib/auslastung/auslastungRechnung';
 import PersonDetail from '@/components/auslastung/PersonDetail';
+import { ARTEN } from '@/lib/auslastung/arbeitsart';
 
 const td = 'px-3 py-2.5 text-body align-top';
 
-export default function PersonZeile({ person, offen, onToggle }) {
+// arten: offene Reststunden je Arbeitsart; schnitt: ø gebuchte Stunden pro Monat (letzte sechs Monate)
+export default function PersonZeile({ person, offen, onToggle, arten, schnitt }) {
   const { projekt, routine, support } = person;
   const Pfeil = offen ? ChevronDown : ChevronRight;
   return (
@@ -33,8 +35,15 @@ export default function PersonZeile({ person, offen, onToggle }) {
         <td className={td}>{fmtTag(person.bis)}</td>
         <td className={td}>{fmtH(routine.rest)} h / {routine.tickets}</td>
         <td className={td}>{fmtH(support.rest)} h / {support.tickets}</td>
+        {ARTEN.map((a) => (
+          <td key={a.key} className={td}>
+            {fmtH(arten?.[a.key]?.rest)} h
+            <p className="text-meta text-muted-foreground">ø {fmtH(schnitt?.[a.key])} h</p>
+          </td>
+        ))}
+        <td className={td}>ø {fmtH(schnitt?.unklar)} h</td>
       </tr>
-      {offen && <tr className="border-b border-[#eeeeee]"><td colSpan={9} className="p-0"><PersonDetail person={person} /></td></tr>}
+      {offen && <tr className="border-b border-[#eeeeee]"><td colSpan={16} className="p-0"><PersonDetail person={person} /></td></tr>}
     </>
   );
 }

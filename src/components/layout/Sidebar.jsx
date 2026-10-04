@@ -7,6 +7,7 @@ import { usePendingDunningCount } from '@/hooks/usePendingDunningCount';
 import { usePosteingang } from '@/hooks/usePosteingang';
 import { useEscalationAlertCount } from '@/hooks/useEscalationAlertCount';
 import { useZugriff } from '@/lib/useZugriff';
+import { useAuth } from '@/lib/AuthContext';
 import { NAV_GRUPPEN } from '@/lib/navigation';
 
 // Welche einklappbaren Gruppen die Person offen hat — bleibt im Browser gemerkt.
@@ -21,6 +22,7 @@ function merkeOffen(offen) {
 export default function Sidebar() {
   const location = useLocation();
   const zugriff = useZugriff();
+  const { user } = useAuth();
   // Die Zähler laden erst kurz nach dem Start: die geöffnete Seite bekommt den
   // Server zuerst. Und nur, wenn die Person den zugehörigen Punkt auch sieht.
   const [zaehlerBereit, setZaehlerBereit] = useState(false);
@@ -194,7 +196,8 @@ export default function Sidebar() {
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {NAV_GRUPPEN.map((gruppe) => {
           // Nur was die Person sehen darf; eine leere Gruppe erscheint gar nicht.
-          const items = gruppe.items.filter((i) => zugriff.darf(i.regel));
+          const items = gruppe.items.filter((i) => zugriff.darf(i.regel)
+            && (!i.nurEmail || (user?.email || '').toLowerCase() === i.nurEmail));
           if (items.length === 0) return null;
           // Liegt die geöffnete Seite in der Gruppe, ist sie immer aufgeklappt.
           const istOffen = !gruppe.einklappbar || !!offen[gruppe.key] || items.some((i) => isActive(i.path));
