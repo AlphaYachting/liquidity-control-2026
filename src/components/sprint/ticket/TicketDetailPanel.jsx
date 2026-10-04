@@ -277,6 +277,19 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
                 </SelectContent>
               </Select>
             </div>
+            <div className="col-span-2">
+              <Feld htmlFor="aufgabe-faellig">Fällig am</Feld>
+              <Input
+                id="aufgabe-faellig"
+                type="date"
+                className="w-[200px]"
+                value={form.planned_for || ''}
+                onChange={(e) => set({ planned_for: e.target.value })}
+              />
+              {ticket.rhythmus && (
+                <p className="mt-1 text-xs text-muted-foreground">Routine · nächster Durchlauf. Leeren ist nicht möglich.</p>
+              )}
+            </div>
             <div>
               <Feld>Phase</Feld>
               <Select value={form.milestone_state || 'produktion'} onValueChange={(v) => set({ milestone_state: v })}>
@@ -285,18 +298,6 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
                   {STATES.map((s) => <SelectItem key={s} value={s}>{STATE_LABELS[s]}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Feld htmlFor="aufgabe-faellig">Fällig am</Feld>
-              <Input
-                id="aufgabe-faellig"
-                type="date"
-                value={form.planned_for || ''}
-                onChange={(e) => set({ planned_for: e.target.value })}
-              />
-              {ticket.rhythmus && (
-                <p className="mt-1 text-xs text-muted-foreground">Routine · nächster Durchlauf. Leeren ist nicht möglich.</p>
-              )}
             </div>
             <div>
               <Feld>Rolle</Feld>
