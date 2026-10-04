@@ -66,7 +66,8 @@ export default async function (req) {
     const heute = heuteWien();
 
     // 2. Daten laden
-    const [aworkZeiten, snapshotRows, appZeitenAlle, tickets, sprints, auftraegeRoh, satzRows, changeRequests, client] = await Promise.all([
+    const [aworkAufgabenRoh, aworkZeiten, snapshotRows, appZeitenAlle, tickets, sprints, auftraegeRoh, satzRows, changeRequests, client] = await Promise.all([
+      aworkId ? db.AworkTaskSnapshot.filter({ awork_project_id: aworkId }, '-last_synced_at', 1000).catch(() => []) : [],
       aworkId ? alleSeiten((l, s) => db.AworkTimeEntry.filter({ awork_project_id: aworkId }, '-entry_date', l, s)) : [],
       aworkId ? db.AworkProjectSnapshot.filter({ awork_project_id: aworkId }, '-last_synced_at', 1) : [],
       project ? alleSeiten((l, s) => db.TimeEntry.filter({ project_id: project.id }, '-entry_date', l, s)) : [],
@@ -133,9 +134,35 @@ export default async function (req) {
     let fortschritt = gewichtet ? sollErledigt / sollGesamt
       : arbeitsTickets.length ? erledigt.length / arbeitsTickets.length : null;
     let fortschrittQuelle = gewichtet ? 'Aufgaben nach Sollstunden' : arbeitsTickets.length ? 'Anzahl erledigter Aufgaben' : null;
-    if (fortschritt === null && Number(snapshot?.tasks_count) > 0) {
+    let aufgabenErledigt = erledigt.length;
+    let aufgabenGesamt = arbeitsTickets.length;
+
+    // Altprojekte: in die App wurden nur die noch offenen aWork-Aufgaben übernommen.
+    // Was in aWork schon erledigt war, zählt als Altstand mit — ohne Verwaltungslisten (Verrechnung, Organisation).
+    const aworkAufgaben = aworkAufgabenRoh.filter((t) => !/verrechnung|organisation/i.test(t.task_list_name || ''));
+    const aworkErledigt = aworkAufgaben.filter((t) => t.is_done === true);
+    const aworkAufgabenStand = aworkAufgabenRoh.reduce((max, t) => ((t.last_synced_at || '') > max ? t.last_synced_at : max), '').slice(0, 10) || null;
+    if (aworkAufgaben.length) {
+      const altSoll = (rows) => rows.reduce((s, t) => s + (Number(t.planned_duration_minutes) || 0), 0) / 60;
+      if (arbeitsTickets.length) {
+        aufgabenErledigt = aworkErledigt.length + erledigt.length;
+        aufgabenGesamt = aworkErledigt.length + arbeitsTickets.length;
+        const sE = altSoll(aworkErledigt) + sollErledigt;
+        const sG = altSoll(aworkErledigt) + sollGesamt;
+        fortschritt = gewichtet && sG > 0 ? sE / sG : aufgabenErledigt / aufgabenGesamt;
+        fortschrittQuelle = `${gewichtet ? 'Sollstunden' : 'Anzahl'}: in aWork erledigt (Stand ${aworkAufgabenStand}) + Aufgaben der App`;
+      } else {
+        aufgabenErledigt = aworkErledigt.length;
+        aufgabenGesamt = aworkAufgaben.length;
+        const sG = altSoll(aworkAufgaben);
+        const gew = sG > 0 && aworkAufgaben.filter((t) => Number(t.planned_duration_minutes) > 0).length >= aworkAufgaben.length * 0.6;
+        fortschritt = gew ? altSoll(aworkErledigt) / sG : aufgabenErledigt / aufgabenGesamt;
+        fortschrittQuelle = `aWork-Altstand (eingefroren, Stand ${aworkAufgabenStand})`;
+      }
+    } else if (fortschritt === null && Number(snapshot?.tasks_count) > 0) {
       fortschritt = Number(snapshot.tasks_done_count) / Number(snapshot.tasks_count);
-      fortschrittQuelle = 'aWork-Altstand (eingefroren)';
+      aufgabenErledigt = Number(snapshot.tasks_done_count); aufgabenGesamt = Number(snapshot.tasks_count);
+      fortschrittQuelle = 'aWork-Projektstand (eingefroren)';
     }
 
     // 6. Massstab: Planstunden und Auftragswert
@@ -232,13 +259,14 @@ export default async function (req) {
         stichtag_awork: stichtag,
         regel: aworkId ? `aWork-Buchungen bis ${stichtag} (eingefroren), App-Buchungen danach` : 'nur App-Buchungen (kein aWork-Altstand)',
         awork_stunden: r1(aworkMin / 60), app_stunden: r1(appMin / 60),
+        awork_aufgaben_stand: aworkAufgabenStand,
         erste_buchung: ersteBuchung, letzte_buchung: letzteBuchung, tage_seit_letzter_buchung: tageSeitBuchung,
       },
       plan: {
         plan_stunden: planStunden ? r1(planStunden) : null, plan_quelle: planQuelle, plan_ungepflegt: planUngepflegt,
         ist_stunden: r1(istStunden), auslastung_pct: auslastung, rest_stunden: rest === null ? null : r1(rest),
         fortschritt_pct: fPct, fortschritt_quelle: fortschrittQuelle,
-        aufgaben_erledigt: erledigt.length, aufgaben_gesamt: arbeitsTickets.length,
+        aufgaben_erledigt: aufgabenErledigt, aufgaben_gesamt: aufgabenGesamt,
       },
       prognose: {
         stunden_letzte_4_wochen: r1(std28), stunden_4_wochen_davor: r1(std28davor), stunden_pro_woche: r1(wochenTempo),
