@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { resolveSupportProject, createSupportTicket, SUPPORT_MODELS, DEFAULT_SUPPORT_RATE } from '@/components/crm/support/supportTicket';
 import { descriptionFromThread } from '@/components/crm/support/threadDescription';
 import { kundenSchluessel } from '@/lib/kunden/kundeAnlegen';
+import { dringlichkeit, faelligAm, SUPPORT_FRIST_TAGE } from '@/components/crm/support/faelligkeit';
 import { Link } from 'react-router-dom';
 
 const ROLES = ['Beratung', 'Konzept', 'Text', 'Grafik', 'Web', 'Media', 'QS'];
@@ -49,7 +50,12 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
     const kunde = nachName || clients.find(c => c.id === match?.client_id) || null;
     const customer = kunde?.name || '';
     const itemKey = String(item.id || item.thread_id || '');
+    const dring = dringlichkeit(item);
     setForm((vorher) => ({
+      // Fälligkeit: 4 Tage, bei dringender Störung sofort — eine händische Änderung bleibt erhalten
+      ...(vorher?.item_key === itemKey && vorher.faellig_manuell
+        ? { planned_for: vorher.planned_for, faellig_manuell: true, dringend_grund: vorher.dringend_grund }
+        : { planned_for: faelligAm(dring.dringend), faellig_manuell: false, dringend_grund: dring.grund }),
       customer,
       client_id: kunde?.id || '',
       erkannt,
@@ -76,7 +82,15 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
     descriptionFromThread(threadId)
       .then((text) => {
         if (cancelled || !text) return;
-        setForm((f) => (f && !f.description ? { ...f, description: text } : f));
+        setForm((f) => {
+          if (!f) return f;
+          const neu = f.description ? f : { ...f, description: text };
+          // Dringlichkeit auch im nachgeladenen Verlauf prüfen
+          const dring = dringlichkeit(item, text);
+          return dring.dringend && !neu.faellig_manuell && !neu.dringend_grund
+            ? { ...neu, planned_for: faelligAm(true), dringend_grund: dring.grund }
+            : neu;
+        });
       })
       .finally(() => { if (!cancelled) setLoadingThread(false); });
     return () => { cancelled = true; };
@@ -194,6 +208,18 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
               <Input type="number" value={form.stundensatz}
                 onChange={e => set('stundensatz', e.target.value)} />
             </div>
+          </div>
+          <div>
+            <Label className="text-xs">Fällig am</Label>
+            <Input type="date" value={form.planned_for || ''}
+              onChange={e => setForm(f => ({ ...f, planned_for: e.target.value, faellig_manuell: true }))} />
+            <p className={`text-xs mt-1 ${form.dringend_grund && !form.faellig_manuell ? 'text-status-attention' : 'text-muted-foreground'}`}>
+              {form.faellig_manuell
+                ? 'Händisch gesetzt.'
+                : form.dringend_grund
+                  ? `Dringend erkannt (${form.dringend_grund}) — sofort fällig. Bei Bedarf ändern.`
+                  : `Standard: ${SUPPORT_FRIST_TAGE} Tage ab heute.`}
+            </p>
           </div>
           <div>
             <Label className="text-xs">Zuständig</Label>
