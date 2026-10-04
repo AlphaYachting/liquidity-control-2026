@@ -6,6 +6,7 @@ import { aworkDbBereit, aworkLageSummen } from '../../shared/aworkDb.ts';
 // Führt den eingefrorenen aWork-Altstand (bis Stichtag) mit den Buchungen und
 // Aufgaben der App (nach dem Stichtag) zusammen und sagt: läuft das Projekt im Plan,
 // wohin läuft es beim aktuellen Tempo, und was davon ist Mehrleistung.
+// Der aWork-Altstand kommt vollständig aus der externen aWork-Sicherung, ersatzweise aus den Kopien in der App.
 // Schreibt nichts. Eurowerte nur für Personen mit Finanzrecht.
 const TAG = 86400000;
 const r1 = (v) => Math.round((Number(v) || 0) * 10) / 10;
