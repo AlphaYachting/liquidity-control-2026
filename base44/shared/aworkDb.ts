@@ -28,13 +28,15 @@ export const sqlZahl = (v, standard, max) => {
 // Für die Projektlage: vollständige Stunden- und Aufgabensummen eines aWork-Projekts in einer Abfrage.
 // Verwaltungslisten (Verrechnung, Organisation) zählen nicht als Leistungsaufgaben.
 const VERWALTUNG = `(coalesce(l.name,'') ~* 'verrechnung|organisation')`;
-export async function aworkLageSummen(aworkProjektId) {
+export async function aworkLageSummen(aworkProjektId, messbeginn = '2026-08-01') {
   const id = sqlUuid(aworkProjektId);
+  const ab = sqlDatum(messbeginn);
   const aufgaben = `from awork.tasks t left join awork.task_lists l on l.id = t.primary_task_list_id
             left join awork.task_statuses s on s.id = t.task_status_id
             where t.project_id = ${id} and not coalesce(t.is_subtask, false) and not ${VERWALTUNG}`;
   const rows = await aworkDbQuery(
     `select (select coalesce(sum(e.duration_sec),0) from awork.time_entries e where e.project_id = ${id}) as sekunden,
+            (select coalesce(sum(e.duration_sec),0) from awork.time_entries e where e.project_id = ${id} and e.start_date_local >= ${ab}) as sekunden_ab_messbeginn,
             (select min(e.start_date_local) from awork.time_entries e where e.project_id = ${id}) as erste,
             (select max(e.start_date_local) from awork.time_entries e where e.project_id = ${id}) as letzte,
             (select max(e.start_date_local) from awork.time_entries e) as sicherung_bis,
