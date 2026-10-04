@@ -35,7 +35,17 @@ function projektKontextQuery(projectId) {
         : null;
 
       let budget = null;
-      if (kategorie === 'sprint' && summen.sprint_id) {
+      let kategorieText = null;
+      if (project.is_legacy && kategorie === 'sprint') {
+        // Altprojekt aus aWork: dieselbe Rechnung wie im Projektkopf — aWork-Stand bis zur Umstellung
+        // plus alle Buchungen in der App gegen die Planstunden des Projekts. Der Behälter-Sprint hat kein Budget.
+        budget = {
+          label: 'Budget gesamt',
+          gebucht: (Number(project.awork_altstand_stunden) || 0) + (Number(summen.gebucht_gesamt) || 0),
+          gesamt: Number(project.target_hours) || 0,
+        };
+        kategorieText = 'Altprojekt · zählt gegen das Gesamtbudget';
+      } else if (kategorie === 'sprint' && summen.sprint_id) {
         budget = {
           label: `Sprint ${summen.sprint_titel || 'laufend'}`,
           gebucht: summen.gebucht_sprint || 0,
@@ -58,7 +68,7 @@ function projektKontextQuery(projectId) {
         budget = { label: 'Bisher gebucht', gebucht: summen.gebucht_gesamt || 0, gesamt: 0 };
       }
 
-      return { project, client, kategorie, budget, summen };
+      return { project, client, kategorie, kategorieText, budget, summen };
     },
   };
 }
