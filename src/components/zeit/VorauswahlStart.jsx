@@ -52,7 +52,7 @@ export default function VorauswahlStart({ kontext, ortProjektId, ausOrt, onStart
 
   return (
     <div className="px-4 pt-[14px] pb-4">
-      <ProjektKopf kunde={kunde} titel={projekt?.title} kategorie={pk?.kategorie} aufgabe={aufgabe}>
+      <ProjektKopf kunde={kunde} titel={projekt?.title} kategorie={pk?.kategorieText || pk?.kategorie} aufgabe={aufgabe}>
         <HerkunftEtikett
           ausOrt={ausOrt}
           ortKunde={dazu?.ortKunde}
