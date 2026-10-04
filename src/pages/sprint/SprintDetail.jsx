@@ -285,6 +285,8 @@ export default function SprintDetail() {
             startModus={intelligenzModus}
             onClose={() => setIntelligenzOffen(false)}
             projectId={aktProjektId}
+            appProjektId={sprint.project_id}
+            cockpitId={project?.liquidity_project_id || null}
             projectName={project?.title}
             customer={client?.name}
           />
