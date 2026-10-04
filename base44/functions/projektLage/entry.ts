@@ -265,8 +265,15 @@ export default async function (req) {
       ampel, gruende,
     };
 
+    // Deckung zählt für die Ampel bei allen gleich — Eurobeträge sehen nur Personen mit Finanzrecht.
+    const istWert = istStunden * satz;
+    if (istPauschal && auftragNetto > 0 && istWert > auftragNetto && !planUngepflegt) {
+      ergebnis.ampel = 'rot';
+      ergebnis.gruende.push(finanz
+        ? `Bewerteter Aufwand ${Math.round(istWert)} EUR netto liegt über dem Auftragswert ${Math.round(auftragNetto)} EUR netto (${satz} EUR/Std.).`
+        : 'Der bewertete Aufwand liegt über dem Auftragswert.');
+    }
     if (finanz) {
-      const istWert = istStunden * satz;
       ergebnis.euro = {
         auftragswert_netto: Math.round(auftragNetto), stundensatz: satz, stundensatz_quelle: satzQuelle,
         ist_aufwand_bewertet_netto: Math.round(istWert),
@@ -276,10 +283,6 @@ export default async function (req) {
           ? 'Pauschalprojekt: bewerteter Aufwand über dem Auftragswert ist Margenverlust, solange keine Mehrleistung beauftragt ist.'
           : 'Kein Pauschalprojekt — Deckung nicht bewertet.',
       };
-      if (istPauschal && auftragNetto > 0 && istWert > auftragNetto) {
-        if (ampel !== 'rot') ergebnis.ampel = 'rot';
-        ergebnis.gruende.push(`Bewerteter Aufwand ${Math.round(istWert)} EUR netto liegt über dem Auftragswert ${Math.round(auftragNetto)} EUR netto (${satz} EUR/Std.).`);
-      }
     }
 
     return Response.json(ergebnis);
