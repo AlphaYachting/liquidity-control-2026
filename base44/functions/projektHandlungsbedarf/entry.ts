@@ -55,7 +55,8 @@ export default async function (req) {
     const wartendNachProjekt = {};
     for (const t of tickets) {
       if (t.status === 'erledigt') continue;
-      const wartetAufKunde = t.milestone_state === 'kundenfeedback';
+      // Aus der Übernahme: wer wartet, sagt auch auf wen und seit wann
+      const wartetAufKunde = t.milestone_state === 'kundenfeedback' || (t.status === 'wartet' && t.wartet_auf === 'kunde');
       const wartetIntern = t.status === 'wartet' || t.milestone_state === 'pruefung';
       if (!wartetAufKunde && !wartetIntern) continue;
       const pid = liqNachSprintProjekt[t.project_id];
@@ -65,7 +66,8 @@ export default async function (req) {
         title: t.title,
         auf_kunde: wartetAufKunde,
         assignee: t.assignee_email || null,
-        tage: tageSeit(t.last_status_change) ?? null,
+        worauf: t.wartet_worauf || null,
+        tage: tageSeit(t.wartet_seit || t.last_status_change) ?? null,
       });
     }
 
