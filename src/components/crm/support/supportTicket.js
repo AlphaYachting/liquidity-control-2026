@@ -4,6 +4,7 @@ import { emailApi } from '@/components/crm/emails/emailApi';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { findeKunde } from '@/lib/kunden/kundeAnlegen';
 import { threadTranscript } from '@/components/crm/support/threadDescription';
+import { faelligAm } from '@/components/crm/support/faelligkeit';
 
 export const SUPPORT_MODELS = ['aufwand', 'support'];
 export const DEFAULT_SUPPORT_RATE = 130;
@@ -100,6 +101,8 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
     assignee_email: values.assignee_email || '',
     origin: 'support',
     status: 'offen',
+    // Jedes Support-Ticket hat eine Fälligkeit: 4 Tage, bei dringender Störung sofort
+    planned_for: values.planned_for || faelligAm(false),
     source_thread_id: threadId ? String(threadId) : '',
     customer_name: values.customer || '',
   });
