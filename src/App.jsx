@@ -71,6 +71,7 @@ const RestructuringCoverage = lazy(() => import('@/pages/RestructuringCoverage')
 const RestructuringSetup = lazy(() => import('@/pages/RestructuringSetup'));
 const SprintHeute = lazy(() => import('@/pages/sprint/SprintHeute'));
 const Uebernahme = lazy(() => import('@/pages/sprint/Uebernahme'));
+const Auslastungsforecast = lazy(() => import('@/pages/sprint/Auslastungsforecast'));
 const SprintUebersicht = lazy(() => import('@/pages/sprint/SprintUebersicht'));
 const SprintProjekte = lazy(() => import('@/pages/sprint/SprintProjekte'));
 const SprintIntelligence = lazy(() => import('@/pages/sprint/SprintIntelligence'));
@@ -194,6 +195,7 @@ const AuthenticatedApp = () => {
         <Route path="/sprint" element={<SprintHeute />} />
         <Route path="/sprint/uebernahme" element={<Uebernahme />} />
         <Route path="/sprint/uebersicht" element={<SprintUebersicht />} />
+        <Route path="/sprint/auslastung" element={<AdminRoute><Auslastungsforecast /></AdminRoute>} />
         <Route path="/zeiten" element={<Zeiten />} />
         <Route path="/sprint/projekte" element={<SprintProjekte />} />
         <Route path="/sprint/intelligence" element={<SprintIntelligence />} />
