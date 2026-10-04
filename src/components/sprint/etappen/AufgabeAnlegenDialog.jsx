@@ -17,6 +17,7 @@ export default function AufgabeAnlegenDialog({ open, onOpenChange, milestones = 
   const [titel, setTitel] = useState('');
   const [person, setPerson] = useState(OFFEN);
   const [stunden, setStunden] = useState('');
+  const [faellig, setFaellig] = useState('');
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState('');
 
@@ -45,10 +46,11 @@ export default function AufgabeAnlegenDialog({ open, onOpenChange, milestones = 
         status: 'offen',
         origin: istChangeRequest ? 'change_request' : 'pflicht',
         target_hours: Number(stunden) || 0,
+        ...(faellig ? { planned_for: faellig } : {}),
         last_status_change: new Date().toISOString(),
       });
       onCreated?.(`„${titel.trim()}" in ${etappe.title} angelegt.`, etappe.id);
-      setTitel(''); setPerson(OFFEN); setStunden('');
+      setTitel(''); setPerson(OFFEN); setStunden(''); setFaellig('');
       onOpenChange(false);
     } catch (e) {
       setFehler(e?.message || 'Aufgabe konnte nicht angelegt werden.');
@@ -96,6 +98,10 @@ export default function AufgabeAnlegenDialog({ open, onOpenChange, milestones = 
             <div className="space-y-1.5 flex-[1_1_100px]">
               <Label htmlFor="aufgabe-stunden">Planstunden</Label>
               <Input id="aufgabe-stunden" type="number" min="0" step="0.5" value={stunden} onChange={(e) => setStunden(e.target.value)} placeholder="0" />
+            </div>
+            <div className="space-y-1.5 flex-[1_1_140px]">
+              <Label htmlFor="aufgabe-faellig-neu">Fällig am</Label>
+              <Input id="aufgabe-faellig-neu" type="date" value={faellig} onChange={(e) => setFaellig(e.target.value)} />
             </div>
           </div>
           {fehler && <p className="text-sm text-status-critical">{fehler}</p>}
