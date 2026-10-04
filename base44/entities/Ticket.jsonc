@@ -191,6 +191,53 @@
       "description": "Status vor dem Archivieren \u2014 f\u00fcr Wiederherstellen",
       "type": "string"
     },
+    "uebernahme_antwort": {
+      "description": "Antwort aus der einmaligen \u00dcbernahme der Alttickets \u2014 leer = noch nicht best\u00e4tigt",
+      "enum": [
+        "offen",
+        "in_arbeit",
+        "wartet",
+        "erledigt",
+        "zurueck",
+        "entfaellt"
+      ],
+      "type": "string"
+    },
+    "uebernahme_am": {
+      "description": "Zeitpunkt der Best\u00e4tigung in der \u00dcbernahme",
+      "format": "date-time",
+      "type": "string"
+    },
+    "uebernahme_von": {
+      "description": "Wer das Ticket in der \u00dcbernahme best\u00e4tigt oder zur\u00fcckgegeben hat",
+      "type": "string"
+    },
+    "wartet_auf": {
+      "description": "Bei Status wartet: auf wen gewartet wird",
+      "enum": [
+        "kunde",
+        "intern",
+        "lieferant"
+      ],
+      "type": "string"
+    },
+    "wartet_seit": {
+      "description": "Seit wann gewartet wird",
+      "format": "date",
+      "type": "string"
+    },
+    "wartet_worauf": {
+      "description": "Worauf genau gewartet wird (Freigabe, Texte, Zugangsdaten \u2026)",
+      "type": "string"
+    },
+    "rest_stunden": {
+      "description": "Noch n\u00f6tige Stunden laut Einsch\u00e4tzung der zust\u00e4ndigen Person",
+      "type": "number"
+    },
+    "zurueck_hinweis": {
+      "description": "Hinweis beim Zur\u00fcckgeben: zu wem das Ticket geh\u00f6rt",
+      "type": "string"
+    },
     "awork_task_id": {
       "description": "aus aWork \u00fcbernommene Support-Aufgabe \u2014 verhindert doppelte \u00dcbernahme",
       "type": "string"
