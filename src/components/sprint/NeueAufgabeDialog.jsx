@@ -19,6 +19,7 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
   const [phase, setPhase] = useState(milestone.state === 'freigegeben' ? 'produktion' : milestone.state || 'produktion');
   const [assignee, setAssignee] = useState('');
   const [hours, setHours] = useState('');
+  const [faellig, setFaellig] = useState('');
   const [saving, setSaving] = useState(false);
 
   const isChangeRequest = milestone.released === true;
@@ -40,10 +41,11 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
       status: 'offen',
       origin: isChangeRequest ? 'change_request' : 'pflicht',
       target_hours: Number(hours) || 0,
+      ...(faellig ? { planned_for: faellig } : {}),
       last_status_change: new Date().toISOString(),
     });
     setSaving(false);
-    setTitle(''); setRole(''); setAssignee(''); setHours('');
+    setTitle(''); setRole(''); setAssignee(''); setHours(''); setFaellig('');
     onOpenChange(false);
     onCreated?.();
   };
@@ -106,6 +108,10 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
             <div>
               <Label>Sollstunden</Label>
               <Input type="number" value={hours} onChange={(e) => setHours(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <Label htmlFor="neue-aufgabe-faellig">Fällig am</Label>
+              <Input id="neue-aufgabe-faellig" type="date" value={faellig} onChange={(e) => setFaellig(e.target.value)} />
             </div>
           </div>
         </div>
