@@ -14,6 +14,7 @@ import useTicketStatus from '@/hooks/useTicketStatus';
 import { Abschnitt, KlappAbschnitt, KurzListe, Zaehlerleiste } from '@/components/sprint/heute/MeinTagBausteine';
 import MeinTagProjektgruppen from '@/components/sprint/heute/MeinTagProjektgruppen';
 import { MeinTagZeit, MeinTagEingang, stundenVon } from '@/components/sprint/heute/MeinTagSeitenleiste';
+import MeinTagSupportTickets, { SUPPORT_TICKETS_KEY } from '@/components/sprint/heute/MeinTagSupportTickets';
 import { RITTLER, STATUS_COLORS, todayIso } from '@/components/sprint/sprintConfig';
 import { ohneArchiv, PROJEKT_LAUFEND, istAktiv } from '@/lib/sprint/aktivFilter';
 import { gliedereMeinTag, nachProjekt } from '@/lib/sprint/meinTag';
@@ -35,6 +36,7 @@ export default function SprintHeute() {
   const [neueAufgabe, setNeueAufgabe] = useState(false);
   // Aufgabe, die in der Ebene rechts geöffnet ist — die Liste bleibt dahinter bedienbar
   const [panelTicketId, setPanelTicketId] = useState(null);
+  const [supportTicket, setSupportTicket] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['sprintHeute', email, today],
@@ -91,7 +93,10 @@ export default function SprintHeute() {
     },
   });
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['sprintHeute'] });
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['sprintHeute'] });
+    queryClient.invalidateQueries({ queryKey: SUPPORT_TICKETS_KEY });
+  };
   const { setStatus: handleStatusChange, dialog: routineDialog } = useTicketStatus(refresh);
 
   if (isLoading || !data) {
@@ -105,7 +110,9 @@ export default function SprintHeute() {
   }
 
   const { myTickets, focusDay, projects, clients, milestones, standardHours, sprints, todayEntries, module, members } = data;
-  const panelTicket = panelTicketId ? myTickets.find((t) => t.id === panelTicketId) || null : null;
+  const panelTicket = panelTicketId
+    ? myTickets.find((t) => t.id === panelTicketId) || (supportTicket?.id === panelTicketId ? supportTicket : null)
+    : null;
   const oeffneTicket = (t) => setPanelTicketId(t.id);
   const moduleById = Object.fromEntries(module.map((m) => [m.id, m]));
   const projectById = Object.fromEntries(projects.map((p) => [p.id, p]));
@@ -318,6 +325,15 @@ export default function SprintHeute() {
             {...kurzListeProps}
           />
           {zeigeEingang && <MeinTagEingang nurSupport={!zugriff.darf('leitung')} />}
+          {zugriff.darf('support') && (
+            <MeinTagSupportTickets
+              email={email}
+              istFuehrung={zugriff.darf('fuehrung')}
+              members={members}
+              onOeffnen={(t) => { setSupportTicket(t); setPanelTicketId(t.id); }}
+              onUebernommen={refresh}
+            />
+          )}
           <KurzListe
             titel="Kommt später"
             tickets={g.spaeter}

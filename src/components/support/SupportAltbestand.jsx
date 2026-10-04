@@ -1,16 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { DownloadCloud, Wand2, ArrowDownToLine } from 'lucide-react';
+import { DownloadCloud, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SupportBillingRow from '@/components/support/SupportBillingRow';
-import AworkUebernahmeDialog from '@/components/support/AworkUebernahmeDialog';
-import { useZugriff } from '@/lib/useZugriff';
 
 // Altbestand aus aWork (Status „In Verrechnung") — läuft aus, sobald alles abgerechnet ist
 export default function SupportAltbestand({ rows, onDone }) {
-  const { darf } = useZugriff();
-  const [uebernahme, setUebernahme] = useState(false);
 
   const offeneTasks = rows
     .filter(r => !r.customer_name)
@@ -32,11 +28,6 @@ export default function SupportAltbestand({ rows, onDone }) {
       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t">
         <p className="text-sm font-semibold">Altbestand aus aWork</p>
         <div className="flex flex-wrap items-center gap-2">
-          {darf('fuehrung') && (
-            <Button size="sm" variant="outline" onClick={() => setUebernahme(true)}>
-              <ArrowDownToLine className="w-3.5 h-3.5" /> Offene aWork-Support-Aufgaben übernehmen
-            </Button>
-          )}
           <Button size="sm" onClick={() => autoMutation.mutate()} disabled={autoMutation.isPending || offeneTasks.length === 0}>
             <Wand2 className={`w-3.5 h-3.5 ${autoMutation.isPending ? 'animate-pulse' : ''}`} />
             {autoMutation.isPending ? 'Kunden werden zugewiesen...' : `Kunden automatisch zuweisen${offeneTasks.length ? ` (${offeneTasks.length})` : ''}`}
@@ -69,7 +60,6 @@ export default function SupportAltbestand({ rows, onDone }) {
         rows.map(r => <SupportBillingRow key={r.group_key} row={r} onDone={onDone} />)
       )}
 
-      {uebernahme && <AworkUebernahmeDialog open={true} onOpenChange={setUebernahme} onDone={onDone} />}
     </div>
   );
 }
