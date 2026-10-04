@@ -128,6 +128,9 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
   const plan = Number(form.target_hours) || 0;
   const pct = plan > 0 ? Math.min(100, Math.round((gebucht / plan) * 100)) : 0;
 
+  const faelligNeu = form.planned_for || '';
+  const faelligGeaendert = faelligNeu !== (ticket.planned_for || '') && !(ticket.rhythmus && !faelligNeu);
+
   const speichern = async () => {
     setSaving(true);
     await base44.entities.Ticket.update(ticket.id, {
@@ -140,6 +143,8 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
       milestone_state: form.milestone_state,
       status: form.status,
       target_hours: plan || undefined,
+      // Fälligkeit: bei Routinen bleibt der nächste Termin stehen, wenn das Feld geleert wird
+      ...(faelligGeaendert ? { planned_for: form.planned_for || null, faellig_manuell: true } : {}),
       ...(form.status !== ticket.status ? { last_status_change: new Date().toISOString() } : {}),
     });
     if (form.status !== ticket.status) {
@@ -280,6 +285,18 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
                   {STATES.map((s) => <SelectItem key={s} value={s}>{STATE_LABELS[s]}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Feld htmlFor="aufgabe-faellig">Fällig am</Feld>
+              <Input
+                id="aufgabe-faellig"
+                type="date"
+                value={form.planned_for || ''}
+                onChange={(e) => set({ planned_for: e.target.value })}
+              />
+              {ticket.rhythmus && (
+                <p className="mt-1 text-xs text-muted-foreground">Routine · nächster Durchlauf. Leeren ist nicht möglich.</p>
+              )}
             </div>
             <div>
               <Feld>Rolle</Feld>
