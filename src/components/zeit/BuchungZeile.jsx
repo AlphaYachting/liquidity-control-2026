@@ -4,6 +4,7 @@ import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { minuteVonIso, uhr, dauerText, MODELL_TEXT, MODELL_FARBE } from '@/lib/zeit/tagesAuswertung';
 import { verrechnetJeBuchung } from '@/lib/zeit/rundung';
 import VerrechenbarSchalter from './VerrechenbarSchalter';
+import MehraufwandSchalter from './MehraufwandSchalter';
 import TaetigkeitEtikett from './TaetigkeitEtikett';
 import { useBereichNamen } from '@/lib/zeit/useBereichNamen';
 
@@ -99,6 +100,11 @@ export default function BuchungZeile({
       {!istKorrektur && (
         <div className="pl-4 mt-1.5">
           <VerrechenbarSchalter eintrag={e} gesperrt={gesperrt} onSaved={onGeaendert} />
+          {e.kategorie !== 'intern' && (
+            <div className="mt-1.5">
+              <MehraufwandSchalter eintrag={e} gesperrt={gesperrt} onSaved={onGeaendert} />
+            </div>
+          )}
         </div>
       )}
     </div>
