@@ -4,7 +4,6 @@ import { aworkDbQuery, aworkDbBereit, sqlText, sqlUuid, sqlDatum, sqlZahl } from
 // Lesender Zugang zur eingefrorenen aWork-Sicherung — für die Projektintelligenz und die Projektansicht.
 // Feste Aktionen statt freiem SQL: jede Abfrage ist begrenzt und holt nie die Spalte `raw`.
 // Aktionen: health | projekt_suchen | projekt | stunden | aufgaben | aufgabe | akte | suche
-const VERWALTUNG = `(coalesce(l.name,'') ~* 'verrechnung|organisation')`;
 
 const AKTIONEN = {
   // Stand der Sicherung
@@ -120,22 +119,6 @@ const AKTIONEN = {
        order by i.at desc nulls last limit ${sqlZahl(p.limit, 40, 100)}`);
   },
 };
-
-// Für die Projektlage: vollständige Stunden- und Aufgabensummen eines Projekts in einer Abfrage
-export const LAGE_SQL = (aworkId) =>
-  `select (select coalesce(sum(e.duration_sec),0) from awork.time_entries e where e.project_id = ${aworkId}) as sekunden,
-          (select min(e.start_date_local) from awork.time_entries e where e.project_id = ${aworkId}) as erste,
-          (select max(e.start_date_local) from awork.time_entries e where e.project_id = ${aworkId}) as letzte,
-          (select max(e.start_date_local) from awork.time_entries e) as sicherung_bis,
-          (select count(*) from awork.tasks t left join awork.task_lists l on l.id = t.primary_task_list_id
-            where t.project_id = ${aworkId} and not t.is_subtask and not ${VERWALTUNG}) as aufgaben,
-          (select count(*) from awork.tasks t left join awork.task_lists l on l.id = t.primary_task_list_id
-            left join awork.task_statuses s on s.id = t.task_status_id
-            where t.project_id = ${aworkId} and not t.is_subtask and not ${VERWALTUNG} and s.type = 'done') as erledigt,
-          (select coalesce(sum(t.planned_duration_sec),0) from awork.tasks t left join awork.task_lists l on l.id = t.primary_task_list_id
-            left join awork.task_statuses s on s.id = t.task_status_id
-            where t.project_id = ${aworkId} and not t.is_subtask and not ${VERWALTUNG} and s.type = 'done') as erledigt_plan_sekunden,
-          (select time_budget_sec from awork.projects p where p.id = ${aworkId}) as budget_sekunden`;
 
 export default async function (req) {
   try {
