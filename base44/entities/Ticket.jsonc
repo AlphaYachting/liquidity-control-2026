@@ -190,6 +190,19 @@
     "archiv_status_vorher": {
       "description": "Status vor dem Archivieren \u2014 f\u00fcr Wiederherstellen",
       "type": "string"
+    },
+    "awork_task_id": {
+      "description": "aus aWork \u00fcbernommene Support-Aufgabe \u2014 verhindert doppelte \u00dcbernahme",
+      "type": "string"
+    },
+    "awork_vorleistung_minuten": {
+      "description": "in aWork gebuchte, noch nicht verrechnete Minuten (ab 24.07.2026)",
+      "type": "number"
+    },
+    "awork_vorleistung_abgerechnet": {
+      "default": false,
+      "description": "Vorleistung aus aWork wurde in einer Support-Rechnung verrechnet",
+      "type": "boolean"
     }
   }
 }
