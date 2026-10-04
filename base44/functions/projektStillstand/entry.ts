@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { sprintZuordnung } from '../../shared/projektTyp.js';
+import { ladeStichtag } from '../../shared/kontingentLaufzeit.js';
 
 // Stehende Übersicht der Projektintelligenz: Stillstand, Budget-Risiko,
 // Abrechnungslücke und ungepflegte Planwerte.
@@ -76,6 +77,32 @@ export default async function (req) {
       if (skip > 20000) break;
     }
 
+    // Seit der Umstellung zählen die Buchungen der App: nach dem Stichtag kommt aus aWork nichts mehr.
+    // Zuordnung Cockpit -> Projekt über die feste Verknüpfung, ersatzweise über die aWork-Projekt-Id.
+    const stichtag = await ladeStichtag(svc.entities);
+    const appProjektNachLiq = {};
+    const appProjektNachAwork = {};
+    for (const sp of sprintProjekte) {
+      if (sp.liquidity_project_id && !appProjektNachLiq[sp.liquidity_project_id]) appProjektNachLiq[sp.liquidity_project_id] = sp;
+      if (sp.awork_project_id && !appProjektNachAwork[sp.awork_project_id]) appProjektNachAwork[sp.awork_project_id] = sp;
+    }
+    const appMinutenNachProjekt = {};
+    const appLetzteNachProjekt = {};
+    skip = 0;
+    while (true) {
+      const page = await svc.entities.TimeEntry.list('-entry_date', 1000, skip);
+      for (const e of page) {
+        const d = String(e.entry_date || '').slice(0, 10);
+        if (!e.project_id || !d || d <= stichtag || e.abrechnungsstatus === 'verworfen') continue;
+        appMinutenNachProjekt[e.project_id] = (appMinutenNachProjekt[e.project_id] || 0)
+          + (Number(e.duration_minutes) || (Number(e.hours) || 0) * 60);
+        if (!appLetzteNachProjekt[e.project_id] || d > appLetzteNachProjekt[e.project_id]) appLetzteNachProjekt[e.project_id] = d;
+      }
+      if (page.length < 1000) break;
+      skip += 1000;
+      if (skip > 20000) break;
+    }
+
     const heute = Date.now();
     const stillstand = [];
     const budget = [];
@@ -85,8 +112,13 @@ export default async function (req) {
     for (const p of projekte) {
       const snapshot = p.awork_project_id ? snapshotNachId.get(p.awork_project_id) : null;
       const qualitaet = planqualitaet(snapshot);
-      const minuten = p.awork_project_id ? (minutenNachId[p.awork_project_id] || 0) : 0;
-      const letzte = p.awork_project_id ? (letzteNachId[p.awork_project_id] || null) : null;
+      const appProjekt = appProjektNachLiq[p.id] || (p.awork_project_id ? appProjektNachAwork[p.awork_project_id] : null) || null;
+      const appMinuten = appProjekt ? (appMinutenNachProjekt[appProjekt.id] || 0) : 0;
+      const appLetzte = appProjekt ? (appLetzteNachProjekt[appProjekt.id] || null) : null;
+      const aworkMinuten = p.awork_project_id ? (minutenNachId[p.awork_project_id] || 0) : 0;
+      const aworkLetzte = p.awork_project_id ? (letzteNachId[p.awork_project_id] || null) : null;
+      const minuten = aworkMinuten + appMinuten;
+      const letzte = [aworkLetzte, appLetzte].filter(Boolean).sort().pop() || null;
       const tage = letzte ? Math.floor((heute - new Date(letzte).getTime()) / TAG) : null;
 
       // Auftrag schlägt Excel-Altwert; abgerechnet ist ausschliesslich der sevDesk-Belegstand.
@@ -101,8 +133,9 @@ export default async function (req) {
       const aufgabenGesamt = Number(snapshot?.tasks_count) || 0;
       const aufgabenErledigt = Number(snapshot?.tasks_done_count) || 0;
       const aufgabenPct = aufgabenGesamt > 0 ? Math.round((aufgabenErledigt / aufgabenGesamt) * 100) : null;
+      // Der aWork-Projektstand ist eingefroren und teils älter als die Einzelbuchungen — es zählt der höhere aWork-Wert plus die App.
       const auslastung = qualitaet === 'ok'
-        ? Math.round((Number(snapshot.tracked_duration_minutes) / Number(snapshot.time_budget_minutes)) * 100)
+        ? Math.round(((Math.max(Number(snapshot.tracked_duration_minutes) || 0, aworkMinuten) + appMinuten) / Number(snapshot.time_budget_minutes)) * 100)
         : null;
 
       const basis = {
