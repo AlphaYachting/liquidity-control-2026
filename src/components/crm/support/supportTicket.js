@@ -3,6 +3,7 @@ import { threadIdOf } from '@/components/crm/inboxDecision';
 import { emailApi } from '@/components/crm/emails/emailApi';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { findeKunde } from '@/lib/kunden/kundeAnlegen';
+import { threadTranscript } from '@/components/crm/support/threadDescription';
 
 export const SUPPORT_MODELS = ['aufwand', 'support'];
 export const DEFAULT_SUPPORT_RATE = 130;
@@ -73,11 +74,27 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
   const threadId = threadIdOf(item);
   const threadLink = threadId ? `/crm/emails?thread=${threadId}` : '';
 
+  // Entsteht das Ticket aus einer E-Mail, wandert der GESAMTE Verlauf ungekürzt ins Ticket —
+  // wer das Ticket bearbeitet, darf nicht in die E-Mail-Zentrale wechseln müssen.
+  let verlauf = '';
+  if (threadId) {
+    verlauf = await threadTranscript(threadId).catch(() => '');
+    if (!verlauf && item.source === 'email' && item.body) verlauf = String(item.body).trim();
+    if (!verlauf && (item.source === 'email' || !item.id)) {
+      throw new Error('Der E-Mail-Verlauf konnte nicht geladen werden — das Ticket wurde nicht angelegt. Bitte noch einmal versuchen.');
+    }
+  }
+  const beschreibung = [
+    String(values.description || '').trim(),
+    verlauf ? `— Vollständiger E-Mail-Verlauf —\n\n${verlauf}` : '',
+    threadLink ? `Konversation: ${threadLink}` : '',
+  ].filter(Boolean).join('\n\n');
+
   const ticket = await base44.entities.Ticket.create({
     project_id: projectId,
     milestone_id: milestoneId,
     title: values.title,
-    description: `${values.description || ''}${threadLink ? `\n\nKonversation: ${threadLink}` : ''}`.trim(),
+    description: beschreibung,
     role: values.role,
     target_hours: Number(values.target_hours) || 0,
     assignee_email: values.assignee_email || '',
