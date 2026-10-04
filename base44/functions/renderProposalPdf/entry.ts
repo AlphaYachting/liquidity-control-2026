@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { secrets } from 'base44:runtime';
+import { assertSafeFileUrl } from '../../shared/safeFileUrl.ts';
 
 // Rendert ein Angebots-PDF ausschliesslich ueber den externen Python-Render-Service
 // (generate_proposal.py aus dem Skill-Paket). Es gibt bewusst KEINEN Fallback-Renderer:
@@ -34,7 +35,7 @@ export default async function (req) {
     // Config aufloesen: inline oder aus der Datei-URL nachladen
     let configRaw = proposal.config_json;
     if (!configRaw && proposal.config_json_url) {
-      const cfgRes = await fetch(proposal.config_json_url);
+      const cfgRes = await fetch(assertSafeFileUrl(proposal.config_json_url));
       if (!cfgRes.ok) throw new Error(`Config-Datei nicht lesbar (HTTP ${cfgRes.status})`);
       configRaw = await cfgRes.text();
     }

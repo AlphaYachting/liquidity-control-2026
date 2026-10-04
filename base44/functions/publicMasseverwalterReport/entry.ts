@@ -3,13 +3,20 @@ import { fetchLiveReceivablesWithPaid } from '../../shared/sevdeskLiveReceivable
 
 // Öffentlicher Bericht für den Masseverwalter — KEIN Login, Zugriff nur über
 // den unerratbaren Schlüssel im Link. Nur Rechnungen ab dem Stichtag 24.07.
-const ACCESS_KEY = 'mv-9k3xq7t2rf84';
 const CUTOFF_DATE = '2026-07-24';
+
+function gleich(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 export default async function(req: Request): Promise<Response> {
   try {
     const body = await req.json().catch(() => ({}));
-    if (body.key !== ACCESS_KEY) {
+    const accessKey = Deno.env.get('MASSEVERWALTER_ACCESS_KEY') || '';
+    if (accessKey.length < 32 || typeof body.key !== 'string' || !gleich(body.key, accessKey)) {
       return Response.json({ error: 'Ungültiger Zugriffsschlüssel' }, { status: 403 });
     }
 
