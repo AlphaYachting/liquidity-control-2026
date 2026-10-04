@@ -128,9 +128,11 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Support-Ticket anlegen</DialogTitle></DialogHeader>
-        <div className="space-y-3">
+      {/* Kopf und Fuß stehen fest, nur der Formularteil scrollt — die Knöpfe bleiben immer erreichbar */}
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0">
+        <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0"><DialogTitle>Support-Ticket anlegen</DialogTitle></DialogHeader>
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-xs">Kunde</Label>
             <Select
@@ -172,6 +174,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
               </SelectContent>
             </Select>
           </div>
+          </div>
           <div>
             <Label className="text-xs">Titel</Label>
             <Input value={form.title} onChange={e => set('title', e.target.value)} />
@@ -179,7 +182,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
           <div>
             <Label className="text-xs">Beschreibung</Label>
             <Textarea
-              rows={5}
+              rows={6}
               value={form.description}
               onChange={e => set('description', e.target.value)}
               placeholder={loadingThread ? 'Verlauf wird geladen…' : 'Anliegen des Kunden kurz beschreiben'}
@@ -211,6 +214,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
                 onChange={e => set('stundensatz', e.target.value)} />
             </div>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-xs">Fällig am</Label>
             <Input type="date" value={form.planned_for || ''}
@@ -234,12 +238,13 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
               </SelectContent>
             </Select>
           </div>
+          </div>
           <p className="text-xs text-muted-foreground">
             Es wird keine Rechnung ausgelöst. Der gesamte E-Mail-Verlauf wird ins Ticket übernommen. Sobald das Ticket erledigt ist, erscheint die gebuchte Zeit in der Support-Abrechnung.
           </p>
-          {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
-        <DialogFooter>
+        <DialogFooter className="px-6 py-3 border-t shrink-0 sm:items-center">
+          {error && <p className="text-xs text-destructive sm:mr-auto sm:max-w-[60%]">{error}</p>}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Abbrechen</Button>
           <Button onClick={submit} disabled={busy || loadingThread || !form.customer || !form.title || !form.description.trim()}>
             {busy ? 'Wird angelegt…' : 'Ticket anlegen'}
