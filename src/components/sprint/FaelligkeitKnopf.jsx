@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, CalendarDays } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -34,8 +34,15 @@ export default function FaelligkeitKnopf({ ticket, disabled = false }) {
       )}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild disabled={disabled}>
-          <button className="inline-flex items-center gap-1 text-xs px-1 py-0.5 rounded hover:bg-muted whitespace-nowrap" style={{ color: farbe }}>
-            {ueberfaellig && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: STATUS_COLORS.critical }} />}
+          <button
+            type="button"
+            title={disabled ? undefined : ticket.planned_for ? 'Fälligkeit ändern' : 'Fälligkeit setzen'}
+            className="inline-flex items-center gap-1 text-xs px-1 py-0.5 rounded hover:bg-muted hover:text-foreground whitespace-nowrap"
+            style={{ color: farbe }}
+          >
+            {ueberfaellig
+              ? <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: STATUS_COLORS.critical }} />
+              : <CalendarDays className="w-3 h-3 shrink-0" />}
             {ticket.planned_for ? fmtDate(ticket.planned_for).slice(0, 6) : 'ohne Termin'}
           </button>
         </PopoverTrigger>
