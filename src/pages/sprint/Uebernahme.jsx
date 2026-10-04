@@ -8,7 +8,7 @@ import UebernahmeTicket from '@/components/sprint/uebernahme/UebernahmeTicket';
 import UebernahmeTeam from '@/components/sprint/uebernahme/UebernahmeTeam';
 import {
   ANTWORTEN, UEBERNAHME_KEY, UEBERNAHME_TEAM_KEY, antworte, antworteAlle, brauchtAntwort, herkunft, istBestaetigt,
-  ladeMeineUebernahme, ladeUebernahmeTeam, meldeHinweis, speichereDetail, verteileNeu, warSchonMeins,
+  ladeMeineUebernahme, ladeUebernahmeTeam, meldeHinweis, speichereDetail, verteileNeu, vorschlag, warSchonMeins,
 } from '@/lib/sprint/uebernahme';
 
 const gleich = (a, b) => (a || '').toLowerCase() === (b || '').toLowerCase();
@@ -45,7 +45,7 @@ function HinweisFeld({ label, placeholder, onSenden }) {
 }
 
 // Mehrere Tickets auf einmal: eine Antwort für alle oder alle an eine Person weitergeben.
-function Sammel({ tickets, members, onAusfuehren }) {
+function Sammel({ tickets, members, onAusfuehren, mitVorschlag = false }) {
   const [wahl, setWahl] = useState('');
   const [stand, setStand] = useState('');
   const offen = tickets.filter(brauchtAntwort);
@@ -63,6 +63,7 @@ function Sammel({ tickets, members, onAusfuehren }) {
         className="h-9 rounded border border-[#d4d4d4] bg-white px-2 text-[13px] text-foreground"
       >
         <option value="">Alle {offen.length} offenen …</option>
+        {mitVorschlag && <option value="vorschlag">Stand aus aWork stimmt — alle so bestätigen</option>}
         <optgroup label="Weitergeben an">
           {members.map((m) => <option key={m.email} value={`an:${m.email}`}>{m.name}</option>)}
         </optgroup>
@@ -206,6 +207,19 @@ export default function Uebernahme() {
         n += 1;
         setStand(`${n} von ${ziel.length} …`);
       }
+    } else if (wahl === 'vorschlag') {
+      // Jedes Ticket mit dem Stand bestätigen, mit dem es aus aWork gekommen ist.
+      const kontext = { email, darfArchivieren: false };
+      let n = 0;
+      for (const wert of ['offen', 'in_arbeit', 'wartet']) {
+        const teil = ziel.filter((t) => vorschlag(t) === wert);
+        if (!teil.length) continue;
+        const basis = n;
+        const res = await antworteAlle(teil, wert, kontext, (k) => setStand(`${basis + k} von ${ziel.length} …`));
+        res.ergebnis.forEach(ersetze);
+        fehlgeschlagen += res.fehler.length;
+        n += teil.length;
+      }
     } else {
       const res = await antworteAlle(
         ziel, wahl, { email, darfArchivieren: darfArchivieren(aktiv?.projekt) },
@@ -275,8 +289,8 @@ export default function Uebernahme() {
       {ansicht === 'meine' && geerbtGesamt > 0 && (
         <div className="rounded-lg border border-border bg-white px-5 py-4 text-sm text-foreground">
           <span className="font-semibold">{geerbtGesamt} dieser Tickets lagen in aWork nicht bei dir.</span>{' '}
-          Sie stammen von Kolleg:innen, die nicht mehr da sind, und sind beim Import bei dir als
-          Projektverantwortlichem gelandet. Gib sie je Liste an die richtige Person weiter.
+          Sie stammen von Kolleg:innen, die nicht mehr da sind, und wurden dir vorläufig zugeteilt.
+          Was zu dir passt, bestätigst du. Den Rest gibst du weiter oder zurück in den Topf.
         </div>
       )}
 
@@ -322,7 +336,10 @@ export default function Uebernahme() {
                     {aktiv.tickets.length - aktiv.offen} von {aktiv.tickets.length} bestätigt
                   </p>
                 </div>
-                <Sammel key={`alle-${aktiv.id}`} tickets={aktiv.tickets} members={andere} onAusfuehren={sammelAusfuehren} />
+                <Sammel
+                  key={`alle-${aktiv.id}`} tickets={aktiv.tickets} members={andere} onAusfuehren={sammelAusfuehren}
+                  mitVorschlag={abschnitte.length === 1 && !abschnitte[0].geerbt}
+                />
               </div>
 
               {abschnitte.map((a) => (
@@ -335,7 +352,7 @@ export default function Uebernahme() {
                       {a.geerbt && <p className="text-xs text-muted-foreground">{a.vorher}</p>}
                     </div>
                     {abschnitte.length > 1 && (
-                      <Sammel tickets={a.tickets} members={andere} onAusfuehren={sammelAusfuehren} />
+                      <Sammel tickets={a.tickets} members={andere} onAusfuehren={sammelAusfuehren} mitVorschlag={!a.geerbt} />
                     )}
                   </div>
                   {a.tickets.map((t) => (
