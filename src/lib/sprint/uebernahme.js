@@ -40,7 +40,7 @@ export async function ladeMeineUebernahme(email) {
   ]);
   const projektById = Object.fromEntries(projekte.map((p) => [p.id, p]));
   const nachId = new Map();
-  [...zugeteilt, ...beantwortet].forEach((t) => {
+  [...zugeteilt, ...beantwortet.filter(istBestaetigt)].forEach((t) => {
     if (imUmfang(t) && projektById[t.project_id]) nachId.set(t.id, t);
   });
   const tickets = [...nachId.values()];
@@ -161,14 +161,14 @@ export const istArchivVorschlag = (t) => t.uebernahme_antwort === 'entfaellt' &&
 
 // Neu verteilen: die neue Person bestätigt das Ticket selbst in ihrer Übernahme.
 export async function verteileNeu(ticket, email) {
-  const patch = { assignee_email: email, uebernahme_antwort: null, uebernahme_am: null };
+  const patch = { assignee_email: email, uebernahme_antwort: null, uebernahme_am: null, uebernahme_von: null };
   await base44.entities.Ticket.update(ticket.id, patch);
   return { ...ticket, ...patch };
 }
 
 // Archiv-Vorschlag ablehnen: das Ticket bleibt und geht zurück an die zuständige Person.
 export async function vorschlagAblehnen(ticket) {
-  const patch = { uebernahme_antwort: null, uebernahme_am: null };
+  const patch = { uebernahme_antwort: null, uebernahme_am: null, uebernahme_von: null };
   await base44.entities.Ticket.update(ticket.id, patch);
   return { ...ticket, ...patch };
 }
