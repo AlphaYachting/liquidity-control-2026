@@ -1,6 +1,7 @@
 // Schnellfragen der Projektintelligenz — Inhalte unverändert aus dem Panel ausgelagert.
 export const QUICK_FRAGEN = [
-  { label: 'Vollständige Projektanalyse', text: 'Führe die vollständige Einzelprojekt-Analyse für dieses Projekt durch — inklusive Kundenakt, Kommunikation und konkreter Empfehlung.' },
+  { label: 'Wie steht das Projekt? (Kurzlage)', text: 'Wie steht dieses Projekt: Was ist noch zu tun, was bekommen wir noch, und was sind die nächsten Schritte — wer macht was bis wann?' },
+  { label: 'Vollständige Projektanalyse (ausführlich)', text: 'Führe die vollständige Einzelprojekt-Analyse für dieses Projekt durch — inklusive Kundenakt, Kommunikation und konkreter Empfehlung.' },
   { label: 'Was kann ich abrechnen?', text: 'Was kann bei diesem Projekt jetzt abgerechnet werden? Begründe mit Fortschritt, Budget, offenen verrechenbaren Stunden und den dokumentierten Vereinbarungen.' },
   { label: 'Risiken & Blockaden', text: 'Welche Risiken, Blockaden oder offenen Zusagen gibt es bei diesem Projekt?' },
   {
