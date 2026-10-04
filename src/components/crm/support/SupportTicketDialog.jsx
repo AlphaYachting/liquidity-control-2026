@@ -53,8 +53,8 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
     const dring = dringlichkeit(item);
     setForm((vorher) => ({
       // Fälligkeit: 4 Tage, bei dringender Störung sofort — eine händische Änderung bleibt erhalten
-      ...(vorher?.item_key === itemKey && vorher.faellig_manuell
-        ? { planned_for: vorher.planned_for, faellig_manuell: true, dringend_grund: vorher.dringend_grund }
+      ...(vorher?.item_key === itemKey && vorher.planned_for
+        ? { planned_for: vorher.planned_for, faellig_manuell: vorher.faellig_manuell, dringend_grund: vorher.dringend_grund }
         : { planned_for: faelligAm(dring.dringend), faellig_manuell: false, dringend_grund: dring.grund }),
       customer,
       client_id: kunde?.id || '',
