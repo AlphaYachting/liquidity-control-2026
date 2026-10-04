@@ -75,7 +75,9 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
   // Kommt die Anfrage aus der E-Mail-Zentrale, fehlt der Text — Verlauf nachladen.
   useEffect(() => {
     if (!open || !item) return;
-    const threadId = item.thread_id || item.id;
+    // Nur eine echte Thread-Id zählt — die Id eines Posteingangs-Eintrags ist kein Thread
+    const threadId = item.thread_id
+      || (String(item.email_message_id || '').startsWith('thread:') ? item.email_message_id.slice(7) : null);
     if (item.body || !threadId) return;
     let cancelled = false;
     setLoadingThread(true);
