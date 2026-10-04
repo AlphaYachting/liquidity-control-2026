@@ -18,7 +18,7 @@ export const NAV_GRUPPEN = [
     titel: null,
     items: [
       { path: '/sprint', label: 'Mein Tag', icon: Sun, regel: 'alle' },
-      { path: '/zeiten', label: 'Zeiten', icon: Timer, regel: 'alle' },
+      { path: '/zeiten', label: 'Meine Zeiten', icon: Timer, regel: 'alle' },
       { path: '/freigaben', label: 'Freigaben', icon: ClipboardCheck, regel: ['leitung', 'geld'] },
     ],
   },
