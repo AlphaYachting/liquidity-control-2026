@@ -7,8 +7,8 @@ import Seitenkopf from '@/components/shared/Seitenkopf';
 import UebernahmeTicket from '@/components/sprint/uebernahme/UebernahmeTicket';
 import UebernahmeTeam from '@/components/sprint/uebernahme/UebernahmeTeam';
 import {
-  ANTWORTEN, UEBERNAHME_KEY, UEBERNAHME_TEAM_KEY, antworte, antworteAlle, brauchtAntwort, istBestaetigt,
-  ladeMeineUebernahme, ladeUebernahmeTeam, meldeHinweis, speichereDetail,
+  ANTWORTEN, UEBERNAHME_KEY, UEBERNAHME_TEAM_KEY, antworte, antworteAlle, brauchtAntwort, herkunft, istBestaetigt,
+  ladeMeineUebernahme, ladeUebernahmeTeam, meldeHinweis, speichereDetail, verteileNeu, warSchonMeins,
 } from '@/lib/sprint/uebernahme';
 
 const gleich = (a, b) => (a || '').toLowerCase() === (b || '').toLowerCase();
@@ -44,8 +44,45 @@ function HinweisFeld({ label, placeholder, onSenden }) {
   );
 }
 
+// Mehrere Tickets auf einmal: eine Antwort für alle oder alle an eine Person weitergeben.
+function Sammel({ tickets, members, onAusfuehren }) {
+  const [wahl, setWahl] = useState('');
+  const [stand, setStand] = useState('');
+  const offen = tickets.filter(brauchtAntwort);
+  if (offen.length < 2) return null;
+  const los = async () => {
+    if (!wahl) return;
+    await onAusfuehren(offen, wahl, setStand);
+    setWahl('');
+  };
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <select
+        aria-label={`Alle ${offen.length} offenen auf einmal`}
+        value={wahl} onChange={(e) => setWahl(e.target.value)}
+        className="h-9 rounded border border-[#d4d4d4] bg-white px-2 text-[13px] text-foreground"
+      >
+        <option value="">Alle {offen.length} offenen …</option>
+        <optgroup label="Weitergeben an">
+          {members.map((m) => <option key={m.email} value={`an:${m.email}`}>{m.name}</option>)}
+        </optgroup>
+        <optgroup label="Antwort für alle">
+          {ANTWORTEN.map((a) => <option key={a.wert} value={a.wert}>{a.label}</option>)}
+        </optgroup>
+      </select>
+      <button
+        type="button" onClick={los} disabled={!wahl || stand.endsWith('…')}
+        className="min-h-[36px] rounded border border-foreground bg-white px-3 text-[13px] font-semibold hover:bg-muted disabled:opacity-50"
+      >
+        Übernehmen
+      </button>
+      {stand && <span className="text-xs text-muted-foreground">{stand}</span>}
+    </span>
+  );
+}
+
 // ÜBERNAHME — einmalig nach dem Umstieg: jede Person bestätigt ihre Alttickets,
-// gibt zurück, was nicht zu ihr gehört, und meldet, was fehlt.
+// gibt weiter oder zurück, was nicht zu ihr gehört, und meldet, was fehlt.
 export default function Uebernahme() {
   const { user } = useAuth();
   const zugriff = useZugriff();
@@ -55,8 +92,6 @@ export default function Uebernahme() {
   const [gewaehlt, setGewaehlt] = useState(null);
   const [laeuft, setLaeuft] = useState({});
   const [fehler, setFehler] = useState({});
-  const [sammel, setSammel] = useState('');
-  const [sammelStand, setSammelStand] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: UEBERNAHME_KEY(email),
@@ -68,6 +103,8 @@ export default function Uebernahme() {
     enabled: !!email && ansicht === 'team',
     queryFn: ladeUebernahmeTeam,
   });
+
+  const meinName = data?.members?.find((m) => gleich(m.email, email))?.name || user?.full_name || '';
 
   const gruppen = useMemo(() => {
     if (!data) return [];
@@ -98,21 +135,43 @@ export default function Uebernahme() {
     );
   }
 
+  const andere = data.members.filter((m) => !gleich(m.email, email));
   const gesamt = data.tickets.length;
   const bestaetigt = data.tickets.filter((t) => istBestaetigt(t) || t.status === 'erledigt').length;
   const offenGesamt = data.tickets.filter(brauchtAntwort).length;
+  const geerbtGesamt = data.tickets.filter((t) => brauchtAntwort(t) && !warSchonMeins(t, meinName)).length;
   const aktiv = gruppen.find((g) => g.id === gewaehlt) || gruppen.find((g) => g.offen > 0) || gruppen[0] || null;
   const naechste = aktiv ? gruppen.find((g) => g.id !== aktiv.id && g.offen > 0) : null;
   const istFuehrung = zugriff.darf('fuehrung');
   const darfArchivieren = (p) => istFuehrung || gleich(p?.pm_email, email);
 
-  const ersetze = (neu) => queryClient.setQueryData(UEBERNAHME_KEY(email), (alt) => (
-    alt ? { ...alt, tickets: alt.tickets.map((t) => (t.id === neu.id ? neu : t)) } : alt
-  ));
+  // Das aktive Projekt gliedern: was schon in aWork bei mir lag, danach Geerbtes je aWork-Liste.
+  const abschnitte = [];
+  if (aktiv) {
+    const eigene = aktiv.tickets.filter((t) => warSchonMeins(t, meinName));
+    if (eigene.length) abschnitte.push({ key: '__eigene', titel: 'Lag schon in aWork bei dir', geerbt: false, tickets: eigene });
+    const nachListe = {};
+    aktiv.tickets.filter((t) => !warSchonMeins(t, meinName)).forEach((t) => {
+      const liste = herkunft(t).liste || 'Ohne Liste';
+      (nachListe[liste] = nachListe[liste] || []).push(t);
+    });
+    Object.entries(nachListe).forEach(([liste, tickets]) => {
+      const namen = [...new Set(tickets.flatMap((t) => herkunft(t).zugewiesen))];
+      abschnitte.push({
+        key: liste, titel: liste, geerbt: true, tickets,
+        vorher: namen.length ? `in aWork bei ${namen.join(', ')}` : 'in aWork niemandem zugeteilt',
+      });
+    });
+  }
+
+  const setze = (fn) => queryClient.setQueryData(UEBERNAHME_KEY(email), (alt) => (alt ? { ...alt, tickets: fn(alt.tickets) } : alt));
+  const ersetze = (neu) => setze((liste) => liste.map((t) => (t.id === neu.id ? neu : t)));
+  const entferne = (id) => setze((liste) => liste.filter((t) => t.id !== id));
   const nachAenderung = () => {
     queryClient.invalidateQueries({ queryKey: ['sprintHeute'] });
     queryClient.invalidateQueries({ queryKey: UEBERNAHME_TEAM_KEY });
   };
+  const merkeFehler = (id, e) => setFehler((f) => ({ ...f, [id]: `Nicht gespeichert: ${e?.message || 'unbekannter Fehler'}` }));
 
   const beiAntwort = async (ticket, wert) => {
     setLaeuft((l) => ({ ...l, [ticket.id]: true }));
@@ -121,33 +180,42 @@ export default function Uebernahme() {
       const projekt = data.projekte.find((p) => p.id === ticket.project_id);
       ersetze(await antworte(ticket, wert, { email, darfArchivieren: darfArchivieren(projekt) }));
       nachAenderung();
-    } catch (e) {
-      setFehler((f) => ({ ...f, [ticket.id]: `Nicht gespeichert: ${e?.message || 'unbekannter Fehler'}` }));
-    }
+    } catch (e) { merkeFehler(ticket.id, e); }
     setLaeuft((l) => ({ ...l, [ticket.id]: false }));
   };
 
   const beiDetail = async (ticket, patch) => {
-    try {
-      ersetze(await speichereDetail(ticket, patch));
-      nachAenderung();
-    } catch (e) {
-      setFehler((f) => ({ ...f, [ticket.id]: `Nicht gespeichert: ${e?.message || 'unbekannter Fehler'}` }));
-    }
+    try { ersetze(await speichereDetail(ticket, patch)); nachAenderung(); } catch (e) { merkeFehler(ticket.id, e); }
   };
 
-  const sammelAntwort = async () => {
-    if (!aktiv || !sammel) return;
-    const ziel = aktiv.tickets.filter(brauchtAntwort);
-    setSammelStand(`0 von ${ziel.length} …`);
-    const { ergebnis, fehler: fehlgeschlagen } = await antworteAlle(
-      ziel, sammel, { email, darfArchivieren: darfArchivieren(aktiv.projekt) },
-      (n, von) => setSammelStand(`${n} von ${von} …`),
-    );
-    ergebnis.forEach(ersetze);
+  // Weitergeben: das Ticket liegt danach unbestätigt bei der gewählten Person und verschwindet hier.
+  const beiWeitergeben = async (ticket, an) => {
+    setLaeuft((l) => ({ ...l, [ticket.id]: true }));
+    try { await verteileNeu(ticket, an); entferne(ticket.id); nachAenderung(); } catch (e) { merkeFehler(ticket.id, e); }
+    setLaeuft((l) => ({ ...l, [ticket.id]: false }));
+  };
+
+  const sammelAusfuehren = async (ziel, wahl, setStand) => {
+    setStand(`0 von ${ziel.length} …`);
+    let fehlgeschlagen = 0;
+    if (wahl.startsWith('an:')) {
+      const an = wahl.slice(3);
+      let n = 0;
+      for (const t of ziel) {
+        try { await verteileNeu(t, an); entferne(t.id); } catch (_) { fehlgeschlagen += 1; }
+        n += 1;
+        setStand(`${n} von ${ziel.length} …`);
+      }
+    } else {
+      const res = await antworteAlle(
+        ziel, wahl, { email, darfArchivieren: darfArchivieren(aktiv?.projekt) },
+        (n, von) => setStand(`${n} von ${von} …`),
+      );
+      res.ergebnis.forEach(ersetze);
+      fehlgeschlagen = res.fehler.length;
+    }
     nachAenderung();
-    setSammel('');
-    setSammelStand(fehlgeschlagen.length ? `${fehlgeschlagen.length} konnten nicht gespeichert werden.` : '');
+    setStand(fehlgeschlagen ? `${fehlgeschlagen} konnten nicht gespeichert werden.` : '');
   };
 
   const reiter = (key, label) => (
@@ -204,6 +272,14 @@ export default function Uebernahme() {
         </div>
       )}
 
+      {ansicht === 'meine' && geerbtGesamt > 0 && (
+        <div className="rounded-lg border border-border bg-white px-5 py-4 text-sm text-foreground">
+          <span className="font-semibold">{geerbtGesamt} dieser Tickets lagen in aWork nicht bei dir.</span>{' '}
+          Sie stammen von Kolleg:innen, die nicht mehr da sind, oder waren niemandem zugeteilt und sind beim Import
+          bei dir als Projektverantwortlichem gelandet. Gib sie je Liste an die richtige Person weiter.
+        </div>
+      )}
+
       {ansicht === 'meine' && gesamt > 0 && (
         <div className="flex flex-wrap items-start gap-8">
           <nav aria-label="Deine Projekte" className="flex min-w-0 flex-1 basis-60 flex-col gap-2">
@@ -212,7 +288,7 @@ export default function Uebernahme() {
               const an = aktiv?.id === g.id;
               return (
                 <button
-                  key={g.id} type="button" onClick={() => { setGewaehlt(g.id); setSammel(''); setSammelStand(''); }}
+                  key={g.id} type="button" onClick={() => setGewaehlt(g.id)}
                   aria-current={an ? 'true' : undefined}
                   className={`rounded border px-3.5 py-2.5 text-left ${an ? 'border-foreground' : 'border-border hover:bg-muted'} bg-white`}
                 >
@@ -237,48 +313,53 @@ export default function Uebernahme() {
 
           {aktiv && (
             <main className="flex min-w-0 flex-[999] basis-[560px] flex-col gap-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-xl font-bold text-foreground">
-                  {[aktiv.kunde, aktiv.projekt.title].filter(Boolean).join(' · ')}
-                </h2>
-                <p className="text-[13px] text-muted-foreground">
-                  {aktiv.tickets.length - aktiv.offen} von {aktiv.tickets.length} bestätigt
-                </p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">
+                    {[aktiv.kunde, aktiv.projekt.title].filter(Boolean).join(' · ')}
+                  </h2>
+                  <p className="text-[13px] text-muted-foreground">
+                    {aktiv.tickets.length - aktiv.offen} von {aktiv.tickets.length} bestätigt
+                  </p>
+                </div>
+                <Sammel key={`alle-${aktiv.id}`} tickets={aktiv.tickets} members={andere} onAusfuehren={sammelAusfuehren} />
               </div>
 
-              {aktiv.offen > 1 && (
-                <div className="flex flex-wrap items-center gap-2 rounded border border-border bg-white px-4 py-3">
-                  <label className="flex items-center gap-2 text-[13px] font-semibold text-foreground">
-                    Alle {aktiv.offen} offenen auf einmal:
-                    <select
-                      value={sammel} onChange={(e) => setSammel(e.target.value)}
-                      className="h-10 rounded border border-[#d4d4d4] bg-white px-2 text-sm font-normal"
-                    >
-                      <option value="">Antwort wählen</option>
-                      {ANTWORTEN.map((a) => <option key={a.wert} value={a.wert}>{a.label}</option>)}
-                    </select>
-                  </label>
-                  <button
-                    type="button" onClick={sammelAntwort} disabled={!sammel || sammelStand.endsWith('…')}
-                    className="min-h-[40px] rounded border border-foreground bg-white px-3 text-[13px] font-semibold hover:bg-muted disabled:opacity-50"
-                  >
-                    Übernehmen
-                  </button>
-                  {sammelStand && <span className="text-xs text-muted-foreground">{sammelStand}</span>}
-                </div>
-              )}
-
-              {aktiv.tickets.map((t) => (
-                <UebernahmeTicket
-                  key={t.id}
-                  ticket={t}
-                  laeuft={!!laeuft[t.id]}
-                  fehler={fehler[t.id]}
-                  darfArchivieren={darfArchivieren(aktiv.projekt)}
-                  onAntwort={beiAntwort}
-                  onDetail={beiDetail}
-                />
+              {abschnitte.map((a) => (
+                <section key={`${aktiv.id}-${a.key}`} className="overflow-hidden rounded-lg border border-border bg-white">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted px-4 py-2.5">
+                    <div className="min-w-0">
+                      <h3 className="text-[11px] font-bold uppercase tracking-[1.6px] text-foreground">
+                        {a.titel} · {a.tickets.length}
+                      </h3>
+                      {a.geerbt && <p className="text-xs text-muted-foreground">{a.vorher}</p>}
+                    </div>
+                    {abschnitte.length > 1 && (
+                      <Sammel tickets={a.tickets} members={andere} onAusfuehren={sammelAusfuehren} />
+                    )}
+                  </div>
+                  {a.tickets.map((t) => (
+                    <UebernahmeTicket
+                      key={t.id}
+                      ticket={t}
+                      geerbt={a.geerbt}
+                      laeuft={!!laeuft[t.id]}
+                      fehler={fehler[t.id]}
+                      darfArchivieren={darfArchivieren(aktiv.projekt)}
+                      members={andere}
+                      onAntwort={beiAntwort}
+                      onDetail={beiDetail}
+                      onWeitergeben={beiWeitergeben}
+                    />
+                  ))}
+                </section>
               ))}
+
+              {aktiv.tickets.length === 0 && (
+                <p className="rounded-lg border border-border bg-white px-5 py-4 text-sm text-muted-foreground">
+                  In diesem Projekt liegt nichts mehr bei dir.
+                </p>
+              )}
 
               <div className="flex flex-wrap gap-4 border-t border-border pt-5">
                 <HinweisFeld
@@ -304,7 +385,7 @@ export default function Uebernahme() {
                 {naechste && (
                   <button
                     type="button"
-                    onClick={() => { setGewaehlt(naechste.id); setSammel(''); setSammelStand(''); window.scrollTo({ top: 0 }); }}
+                    onClick={() => { setGewaehlt(naechste.id); window.scrollTo({ top: 0 }); }}
                     className="min-h-[48px] rounded bg-primary px-5 text-sm font-bold uppercase tracking-wide text-white hover:bg-primary/90"
                   >
                     Weiter zum nächsten Projekt
