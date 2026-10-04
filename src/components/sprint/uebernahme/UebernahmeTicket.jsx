@@ -1,5 +1,5 @@
-import React from 'react';
-import { ANTWORTEN, WARTET_AUF, herkunft, istBestaetigt } from '@/lib/sprint/uebernahme';
+import React, { useState } from 'react';
+import { ANTWORTEN, WARTET_AUF, herkunft, istBestaetigt, vorschlag } from '@/lib/sprint/uebernahme';
 
 const feld = 'h-10 rounded border border-[#d4d4d4] bg-white px-3 text-sm text-foreground';
 const beschriftung = 'flex flex-col gap-1 text-xs font-semibold text-muted-foreground';
@@ -12,6 +12,9 @@ export default function UebernahmeTicket({
 }) {
   const antwort = istBestaetigt(ticket) ? ticket.uebernahme_antwort : null;
   const meins = antwort === 'offen' || antwort === 'in_arbeit';
+  const [ganz, setGanz] = useState(false);
+  // Bei eigenen Tickets ist der Stand aus aWork als Vorschlag markiert — ein Klick bestätigt ihn.
+  const tipp = !antwort && !geerbt ? vorschlag(ticket) : null;
   const h = herkunft(ticket);
   // „Oberaufgabe › Unteraufgabe" — die Unteraufgabe ist das, was zu tun ist
   const teile = (ticket.title || '').split(' › ');
@@ -31,7 +34,16 @@ export default function UebernahmeTicket({
           {ober && <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{ober}</p>}
           <p className="text-[15px] font-semibold leading-snug text-foreground">{titel}</p>
           {meta && <p className="mt-0.5 text-xs text-muted-foreground">{meta}</p>}
-          {h.text && <p className="mt-1 text-[13px] leading-snug text-foreground/80">{kurz(h.text, 180)}</p>}
+          {h.text && (
+            <p className="mt-1 whitespace-pre-line text-[13px] leading-snug text-foreground/80">
+              {ganz ? h.text : kurz(h.text, 180)}
+              {h.text.length > 180 && (
+                <button type="button" onClick={() => setGanz(!ganz)} className="ml-2 font-semibold underline">
+                  {ganz ? 'weniger' : 'alles lesen'}
+                </button>
+              )}
+            </p>
+          )}
         </div>
         <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
           Weitergeben an
@@ -58,9 +70,11 @@ export default function UebernahmeTicket({
               onClick={() => onAntwort(ticket, a.wert)}
               className={`min-h-[36px] px-3 rounded border text-[13px] disabled:opacity-60 ${an
                 ? 'bg-foreground text-background border-foreground font-semibold'
-                : 'bg-white text-foreground border-[#d4d4d4] font-medium hover:bg-muted'}`}
+                : tipp === a.wert
+                  ? 'bg-white text-foreground border-foreground font-semibold hover:bg-muted'
+                  : 'bg-white text-foreground border-[#d4d4d4] font-medium hover:bg-muted'}`}
             >
-              {a.label}
+              {a.label}{tipp === a.wert ? ' · Stand aus aWork' : ''}
             </button>
           );
         })}
