@@ -2,6 +2,32 @@ const std = (min) => Math.round((min || 0) / 60);
 const eur = (v) => Math.round(v || 0).toLocaleString('de-AT');
 const kurz = (iso) => iso ? new Date(iso).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' }) : 'kein Termin gesetzt';
 
+// Projektlage aus der Funktion projektLage — aWork-Altstand und App-Daten in einer Rechnung.
+// Diese Zahlen gelten seit der Umstellung als massgeblich für Stunden, Tempo und Stillstand.
+export function lageBlock(lage) {
+  if (!lage || lage.error) return '';
+  const d = lage.datenstand || {};
+  const p = lage.plan || {};
+  const g = lage.prognose || {};
+  const m = lage.mehrleistung || {};
+  const e = lage.euro;
+  const wert = (v, einheit = '') => (v === null || v === undefined ? '—' : `${v}${einheit}`);
+  return `Projektlage (Funktion projektLage, Stand heute — massgeblich für Stunden, Tempo und Stillstand):
+Datenregel: ${d.regel || '—'}
+Ist-Stunden: ${wert(p.ist_stunden)} (aWork-Altstand ${wert(d.awork_stunden)} + App ${wert(d.app_stunden)})
+Planstunden: ${wert(p.plan_stunden)} (${p.plan_quelle || 'kein Planwert'})${p.plan_ungepflegt ? ' — Planwert offensichtlich ungepflegt' : ''}
+Auslastung: ${wert(p.auslastung_pct, ' %')} | Fortschritt: ${wert(p.fortschritt_pct, ' %')} (${p.fortschritt_quelle || 'nicht bestimmbar'}; ${wert(p.aufgaben_erledigt)} von ${wert(p.aufgaben_gesamt)} Aufgaben)
+letzte Zeitbuchung: ${d.letzte_buchung || 'keine'}${d.tage_seit_letzter_buchung !== null && d.tage_seit_letzter_buchung !== undefined ? ` (vor ${d.tage_seit_letzter_buchung} Tagen)` : ''}
+Tempo: ${wert(g.stunden_letzte_4_wochen)} Std. in den letzten 4 Wochen, ${wert(g.stunden_4_wochen_davor)} Std. in den 4 Wochen davor
+Hochrechnung (Schätzung): ${wert(g.hochrechnung_gesamt_stunden, ' Std. gesamt')}${g.hochrechnung_ueber_plan_stunden > 0 ? `, das wären ${g.hochrechnung_ueber_plan_stunden} Std. über Plan` : ''}
+Liefertermin: ${g.liefertermin || 'keiner hinterlegt'}${g.tage_bis_liefertermin !== null && g.tage_bis_liefertermin !== undefined ? ` (in ${g.tage_bis_liefertermin} Tagen)` : ''}
+Mehrleistung: ${wert(m.stunden_als_mehrleistung_gebucht)} Std. als Mehrleistung gebucht, ${(m.zusatzwunsch_tickets || []).length} Zusatzwunsch-Aufgaben, ${wert(m.nicht_verrechenbar_stunden)} Std. nicht verrechenbar
+${e ? `Auftragswert netto: ${wert(e.auftragswert_netto, ' EUR')} | bewerteter Aufwand netto: ${wert(e.ist_aufwand_bewertet_netto, ' EUR')} (${e.stundensatz} EUR/Std., ${e.stundensatz_quelle}) | Deckung: ${wert(e.deckung_pct, ' %')}\n` : ''}Ampel: ${lage.ampel}
+${(lage.gruende || []).map((x) => `  - ${x}`).join('\n')}
+
+`;
+}
+
 // Faktenblock für die Projektintelligenz — getrennt beschriftet nach netto/brutto,
 // inklusive der bekannten Datenprobleme und der Kundenklammer.
 export function faktenBlock(kennzahlen, finanzen, kontext) {
