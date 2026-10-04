@@ -207,7 +207,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
             </Select>
           </div>
           <p className="text-xs text-muted-foreground">
-            Es wird keine Rechnung ausgelöst. Gebuchte Zeit läuft über das Support-Projekt in „Unverrechnete Leistung".
+            Es wird keine Rechnung ausgelöst. Der gesamte E-Mail-Verlauf wird ins Ticket übernommen. Sobald das Ticket erledigt ist, erscheint die gebuchte Zeit in der Support-Abrechnung.
           </p>
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
