@@ -144,7 +144,7 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
       status: form.status,
       target_hours: plan || undefined,
       // Fälligkeit: bei Routinen bleibt der nächste Termin stehen, wenn das Feld geleert wird
-      ...(faelligGeaendert ? { planned_for: form.planned_for || null, faellig_manuell: true } : {}),
+      ...(faelligGeaendert ? { planned_for: form.planned_for || null } : {}),
       ...(form.status !== ticket.status ? { last_status_change: new Date().toISOString() } : {}),
     });
     if (form.status !== ticket.status) {
