@@ -332,6 +332,8 @@ export default function SprintMilestoneDetail() {
             startModus="frage"
             onClose={() => setIntelligenzOffen(false)}
             projectId={aktProjektId}
+            appProjektId={data?.sprint?.project_id}
+            cockpitId={project?.liquidity_project_id || (aktProjektId && aktProjektId !== data?.sprint?.project_id ? aktProjektId : null)}
             projectName={project?.title}
             customer={client?.name}
           />
