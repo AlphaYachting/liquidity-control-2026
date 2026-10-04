@@ -1,0 +1,34 @@
+{
+  "name": "UebernahmeHinweis",
+  "type": "object",
+  "properties": {
+    "person_email": {
+      "type": "string",
+      "description": "Wer den Hinweis gegeben hat"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Betroffenes Projekt \u2014 leer bei einem fehlenden Projekt"
+    },
+    "art": {
+      "type": "string",
+      "enum": [
+        "fehlende_aufgabe",
+        "projekt_stimmt_nicht",
+        "fehlendes_projekt"
+      ]
+    },
+    "text": {
+      "type": "string"
+    },
+    "erledigt": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "person_email",
+    "art",
+    "text"
+  ]
+}
