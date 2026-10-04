@@ -51,11 +51,11 @@ export function herkunft(ticket) {
   };
 }
 
-// Lag das Ticket schon in aWork bei dieser Person? Sonst ist es geerbt:
-// von ausgeschiedenen Kolleg:innen oder in aWork niemandem zugeteilt.
+// Geerbt ist ein Ticket nur, wenn der Import ausdrücklich andere Personen als ursprünglich
+// zugewiesen nennt (ausgeschiedene Kolleg:innen). Ohne diese Angabe gilt es als eigenes.
 export function warSchonMeins(ticket, name) {
   const h = herkunft(ticket);
-  if (!h.importiert) return true;
+  if (!h.importiert || !h.zugewiesen.length) return true;
   const n = (name || '').trim().toLowerCase();
   return !!n && h.zugewiesen.some((z) => z.toLowerCase() === n);
 }
