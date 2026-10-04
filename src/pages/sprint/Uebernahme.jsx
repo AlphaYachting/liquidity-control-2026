@@ -149,7 +149,7 @@ export default function Uebernahme() {
   const abschnitte = [];
   if (aktiv) {
     const eigene = aktiv.tickets.filter((t) => warSchonMeins(t, meinName));
-    if (eigene.length) abschnitte.push({ key: '__eigene', titel: 'Lag schon in aWork bei dir', geerbt: false, tickets: eigene });
+    if (eigene.length) abschnitte.push({ key: '__eigene', titel: 'Deine Tickets', geerbt: false, tickets: eigene });
     const nachListe = {};
     aktiv.tickets.filter((t) => !warSchonMeins(t, meinName)).forEach((t) => {
       const liste = herkunft(t).liste || 'Ohne Liste';
@@ -275,8 +275,8 @@ export default function Uebernahme() {
       {ansicht === 'meine' && geerbtGesamt > 0 && (
         <div className="rounded-lg border border-border bg-white px-5 py-4 text-sm text-foreground">
           <span className="font-semibold">{geerbtGesamt} dieser Tickets lagen in aWork nicht bei dir.</span>{' '}
-          Sie stammen von Kolleg:innen, die nicht mehr da sind, oder waren niemandem zugeteilt und sind beim Import
-          bei dir als Projektverantwortlichem gelandet. Gib sie je Liste an die richtige Person weiter.
+          Sie stammen von Kolleg:innen, die nicht mehr da sind, und sind beim Import bei dir als
+          Projektverantwortlichem gelandet. Gib sie je Liste an die richtige Person weiter.
         </div>
       )}
 
