@@ -9,7 +9,8 @@ const clip = (s, max = 1200) => {
 // Vollständiger Verlauf als Text — Quelldokument für das Angebots-Studio.
 export async function threadTranscript(threadId) {
   if (!threadId) return '';
-  const data = await emailApi('thread', { thread_id: threadId }).catch(() => null);
+  // Gleicher Aufruf wie in der E-Mail-Zentrale: Parameter liegen unter params, full=1 liefert den ganzen Text
+  const data = await emailApi('thread', { params: { id: threadId, msgs: 50, full: 1 } }).catch(() => null);
   const messages = data?.messages || [];
   if (messages.length === 0) return '';
   const subject = data?.thread?.subject ? `Betreff: ${data.thread.subject}\n\n` : '';
@@ -22,7 +23,7 @@ export async function threadTranscript(threadId) {
 // Baut die Ticket-Beschreibung aus dem echten E-Mail-Verlauf (jüngste Kundennachricht zuerst).
 export async function descriptionFromThread(threadId) {
   if (!threadId) return '';
-  const data = await emailApi('thread', { thread_id: threadId }).catch(() => null);
+  const data = await emailApi('thread', { params: { id: threadId, msgs: 15, full: 1 } }).catch(() => null);
   const messages = data?.messages || [];
   if (messages.length === 0) return '';
 
