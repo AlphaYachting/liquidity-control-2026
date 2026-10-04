@@ -15,14 +15,15 @@ import AuslastungKennzahlen from '@/components/auslastung/AuslastungKennzahlen';
 import PersonZeile from '@/components/auslastung/PersonZeile';
 import VorschauDiagramm from '@/components/auslastung/VorschauDiagramm';
 import VorschauSaetze from '@/components/auslastung/VorschauSaetze';
+import BudgetVerbraucht from '@/components/auslastung/BudgetVerbraucht';
 
-const SPALTEN = ['Person', 'Offene Tickets', 'Geschätzt', 'Ohne Schätzung', 'Hochrechnung', 'Projekte', 'Gebunden bis', 'Routinen', 'Support',
+const SPALTEN = ['Person', 'Offene Tickets', 'Plan', 'Bereits geleistet', 'Rest', 'Ohne Schätzung', 'Hochrechnung', 'Projekte', 'Gebunden bis', 'Routinen', 'Support',
   ...ARTEN.map((a) => a.label), 'Nicht zuordenbar'];
 
 export default function Auslastungsforecast() {
   const { user } = useAuth();
   const darf = istInhaber(user);
-  const [pauschal, setPauschal] = useState(2);
+  const [pauschal, setPauschal] = useState(0);
   const [rolle, setRolle] = useState('alle');
   const [typ, setTyp] = useState('alle');
   const [offen, setOffen] = useState(null);
@@ -66,6 +67,7 @@ export default function Auslastungsforecast() {
               </tbody>
             </table>
           </div>
+          <BudgetVerbraucht liste={ergebnis.verbraucht} />
           <div className="text-meta text-muted-foreground">
             <button type="button" className="hover:underline" onClick={() => setZeigePausiert(!zeigePausiert)}>
               {zeigePausiert ? 'Pausierte Projekte ausblenden' : 'Pausierte Projekte anzeigen'}

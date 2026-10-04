@@ -1,5 +1,5 @@
 import { artVon, LAUFEND, ART_LABEL } from '@/lib/auslastung/arbeitsart';
-import { fmtH } from '@/lib/auslastung/auslastungRechnung';
+import { fmtH, appGebucht, ticketStand } from '@/lib/auslastung/auslastungRechnung';
 
 export function naechsteMonate(n = 6) {
   const d = new Date();
@@ -12,20 +12,18 @@ export function naechsteMonate(n = 6) {
 // Offene Reststunden je Person und Arbeitsart (aWork-Vorleistung abgezogen)
 export function offenJeArt(daten) {
   const projById = Object.fromEntries(daten.projects.map((p) => [p.id, p]));
-  const gebucht = {};
-  daten.entries.forEach((e) => { gebucht[e.ticket_id] = (gebucht[e.ticket_id] || 0) + (e.duration_minutes || 0) / 60; });
+  const gebucht = appGebucht(daten.entries);
   const out = {};
   daten.tickets.forEach((t) => {
     const p = projById[t.project_id];
     if (!p || (p.status && p.status !== 'aktiv') || !t.assignee_email) return;
     const art = artVon(p, t);
     if (!art) return;
-    const vor = (t.awork_vorleistung_minuten || 0) / 60;
-    const basis = t.rest_stunden != null ? t.rest_stunden : t.target_hours != null ? t.target_hours - (gebucht[t.id] || 0) : null;
+    const basis = ticketStand(t, gebucht[t.id], daten.aworkMinuten).rest;
     const ps = out[t.assignee_email.toLowerCase()] || (out[t.assignee_email.toLowerCase()] = {});
     const a = ps[art] || (ps[art] = { tickets: 0, rest: 0, ohne: 0 });
     a.tickets += 1;
-    if (basis == null) a.ohne += 1; else a.rest += Math.max(0, basis - vor);
+    if (basis == null) a.ohne += 1; else a.rest += basis;
   });
   return out;
 }

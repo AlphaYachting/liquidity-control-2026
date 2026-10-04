@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { PROJECT_TYPES } from '@/components/sprint/projectTypes';
-import { fmtH, fmtTag } from '@/lib/auslastung/auslastungRechnung';
+import { fmtH, fmtTag, fmtEUR, STUNDENSATZ } from '@/lib/auslastung/auslastungRechnung';
 
 const th = 'text-left text-label uppercase text-muted-foreground font-medium px-2 py-1.5';
 const td = 'px-2 py-1.5 text-meta';
@@ -22,7 +22,7 @@ export default function PersonDetail({ person }) {
       <div className="bg-white rounded border border-border overflow-x-auto">
         <table className="w-full">
           <thead><tr className="border-b border-border">
-            {['Kunde', 'Projekt', 'Projekttyp', 'Tickets', 'Reststunden', 'Ohne Schätzung', 'Spätester Termin'].map((h) => <th key={h} className={th}>{h}</th>)}
+            {['Kunde', 'Projekt', 'Projekttyp', 'Tickets', 'Plan', 'Bereits geleistet', 'Rest', 'Rest × 120 €', 'Noch abrechenbar', 'Ohne Schätzung', 'Spätester Termin'].map((h) => <th key={h} className={th}>{h}</th>)}
           </tr></thead>
           <tbody>
             {projekte.map((p) => (
@@ -31,12 +31,19 @@ export default function PersonDetail({ person }) {
                 <td className={td}>{p.link ? <Link to={p.link} className="hover:underline font-medium">{p.titel}</Link> : p.titel}</td>
                 <td className={td}>{PROJECT_TYPES[p.typ]?.style?.short || p.typ}</td>
                 <td className={td}>{p.tickets}</td>
+                <td className={td}>{fmtH(p.plan)} h</td>
+                <td className={td}>
+                  {fmtH(p.geleistet)} h
+                  {p.unbekannt > 0 && <span className="block text-status-attention">{p.unbekannt} × aWork-Stand unbekannt</span>}
+                </td>
                 <td className={td}>{fmtH(p.rest)} h</td>
+                <td className={td}>{fmtEUR(p.rest * STUNDENSATZ)}</td>
+                <td className={td}>{p.abrechenbar == null ? '—' : fmtEUR(p.abrechenbar)}</td>
                 <td className={td}>{p.ohne}</td>
                 <td className={td}>{fmtTag(p.bis)}</td>
               </tr>
             ))}
-            {projekte.length === 0 && <tr><td className={td} colSpan={7}>Keine Projektarbeit offen.</td></tr>}
+            {projekte.length === 0 && <tr><td className={td} colSpan={12}>Keine Projektarbeit offen.</td></tr>}
           </tbody>
         </table>
       </div>

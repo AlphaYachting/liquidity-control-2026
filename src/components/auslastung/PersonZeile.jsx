@@ -25,6 +25,11 @@ export default function PersonZeile({ person, offen, onToggle, arten, schnitt })
           </div>
         </td>
         <td className={td}>{projekt.tickets}</td>
+        <td className={td}>{fmtH(projekt.plan)} h</td>
+        <td className={td}>
+          {fmtH(projekt.geleistet)} h
+          {projekt.unbekannt > 0 && <p className="text-meta text-status-attention">{projekt.unbekannt} × aWork-Stand unbekannt</p>}
+        </td>
         <td className={td}>{fmtH(projekt.rest)} h</td>
         <td className={td}>{projekt.ohne}</td>
         <td className={td}>
@@ -43,7 +48,7 @@ export default function PersonZeile({ person, offen, onToggle, arten, schnitt })
         ))}
         <td className={td}>ø {fmtH(schnitt?.unklar)} h</td>
       </tr>
-      {offen && <tr className="border-b border-[#eeeeee]"><td colSpan={16} className="p-0"><PersonDetail person={person} /></td></tr>}
+      {offen && <tr className="border-b border-[#eeeeee]"><td colSpan={18} className="p-0"><PersonDetail person={person} /></td></tr>}
     </>
   );
 }
