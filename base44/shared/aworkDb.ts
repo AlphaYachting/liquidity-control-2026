@@ -25,6 +25,27 @@ export const sqlZahl = (v, standard, max) => {
   return Number.isFinite(n) && n > 0 ? Math.min(n, max) : standard;
 };
 
+// Für die Projektlage: vollständige Stunden- und Aufgabensummen eines aWork-Projekts in einer Abfrage.
+// Verwaltungslisten (Verrechnung, Organisation) zählen nicht als Leistungsaufgaben.
+const VERWALTUNG = `(coalesce(l.name,'') ~* 'verrechnung|organisation')`;
+export async function aworkLageSummen(aworkProjektId) {
+  const id = sqlUuid(aworkProjektId);
+  const aufgaben = `from awork.tasks t left join awork.task_lists l on l.id = t.primary_task_list_id
+            left join awork.task_statuses s on s.id = t.task_status_id
+            where t.project_id = ${id} and not coalesce(t.is_subtask, false) and not ${VERWALTUNG}`;
+  const rows = await aworkDbQuery(
+    `select (select coalesce(sum(e.duration_sec),0) from awork.time_entries e where e.project_id = ${id}) as sekunden,
+            (select min(e.start_date_local) from awork.time_entries e where e.project_id = ${id}) as erste,
+            (select max(e.start_date_local) from awork.time_entries e where e.project_id = ${id}) as letzte,
+            (select max(e.start_date_local) from awork.time_entries e) as sicherung_bis,
+            (select count(*) ${aufgaben}) as aufgaben,
+            (select count(*) ${aufgaben} and s.type = 'done') as erledigt,
+            (select coalesce(sum(t.planned_duration_sec),0) ${aufgaben} and s.type = 'done') as erledigt_plan_sekunden,
+            (select time_budget_sec from awork.projects p where p.id = ${id}) as budget_sekunden`,
+    { timeoutMs: 12000 });
+  return rows[0] || null;
+}
+
 export async function aworkDbQuery(sql, { timeoutMs = 25000 } = {}) {
   const token = Deno.env.get('AWORK_DB_API_TOKEN');
   if (!token) throw new Error('AWORK_DB_API_TOKEN nicht gesetzt');
