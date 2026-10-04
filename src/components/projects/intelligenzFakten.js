@@ -11,6 +11,7 @@ export function lageBlock(lage) {
   const g = lage.prognose || {};
   const m = lage.mehrleistung || {};
   const e = lage.euro;
+  const r = lage.rest;
   const wert = (v, einheit = '') => (v === null || v === undefined ? '—' : `${v}${einheit}`);
   return `Projektlage (Funktion projektLage, Stand heute — massgeblich für Stunden, Tempo und Stillstand):
 Datenregel: ${d.regel || '—'}
@@ -22,7 +23,7 @@ Tempo: ${wert(g.stunden_letzte_4_wochen)} Std. in den letzten 4 Wochen, ${wert(g
 Hochrechnung (Schätzung): ${wert(g.hochrechnung_gesamt_stunden, ' Std. gesamt')}${g.hochrechnung_ueber_plan_stunden > 0 ? `, das wären ${g.hochrechnung_ueber_plan_stunden} Std. über Plan` : ''}
 Liefertermin: ${g.liefertermin || 'keiner hinterlegt'}${g.tage_bis_liefertermin !== null && g.tage_bis_liefertermin !== undefined ? ` (in ${g.tage_bis_liefertermin} Tagen)` : ''}
 Mehrleistung: ${wert(m.stunden_als_mehrleistung_gebucht)} Std. als Mehrleistung gebucht, ${(m.zusatzwunsch_tickets || []).length} Zusatzwunsch-Aufgaben, ${wert(m.nicht_verrechenbar_stunden)} Std. nicht verrechenbar
-${e ? `Auftragswert netto: ${wert(e.auftragswert_netto, ' EUR')} | bewerteter Aufwand netto: ${wert(e.ist_aufwand_bewertet_netto, ' EUR')} (${e.stundensatz} EUR/Std., ${e.stundensatz_quelle}) | Deckung: ${wert(e.deckung_pct, ' %')}\n` : ''}Ampel: ${lage.ampel}
+${e ? `Auftragswert netto: ${wert(e.auftragswert_netto, ' EUR')} | bewerteter Aufwand netto: ${wert(e.ist_aufwand_bewertet_netto, ' EUR')} (${e.stundensatz} EUR/Std., ${e.stundensatz_quelle}) | Deckung: ${wert(e.deckung_pct, ' %')}\n` : ''}${r ? `Blick nach vorn (ab Umstellung ${r.stichtag}): ${r.offene_aufgaben} offene Aufgaben${r.offene_aufgaben_soll_stunden ? `, geplant mit ${r.offene_aufgaben_soll_stunden} Std.` : ''} | Restbudget ${r.rest_budget_stunden} Std., seither gebucht ${r.seit_umstellung_gebucht_stunden} Std., verbleibend ${r.rest_verbleibend_stunden} Std.${r.noch_zu_bekommen_netto !== undefined ? ` | noch zu bekommen ${r.noch_zu_bekommen_netto} EUR netto (Auftrag ${r.auftrag_netto}, abgerechnet ${r.abgerechnet_netto})` : ''}\nRest-Ampel: ${r.ampel} — ${r.aussage}\n` : ''}Ampel Gesamtprojekt (inkl. Vergangenheit): ${lage.ampel}
 ${(lage.gruende || []).map((x) => `  - ${x}`).join('\n')}
 
 `;
