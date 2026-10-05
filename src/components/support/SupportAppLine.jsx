@@ -8,21 +8,24 @@ import { supportVerrechnungsMinuten } from '@/lib/zeit/rundung';
 const std = (min) => ((Number(min) || 0) / 60).toFixed(2);
 
 // Ein erledigtes App-Ticket (oder „Zeit ohne Ticket") als eigene Rechnungsposition
-export default function SupportAppLine({ task, abrechenbar, darfAendern, onInvoice, onNichtVerrechnen, onAworkZeit }) {
+export default function SupportAppLine({ task, abrechenbar, darfAendern, onInvoice, onNichtVerrechnen, onAworkZeit, regie = false }) {
   const ohneZeit = task.ohne_zeit;
+  // Verrechnete Stunden kommen vom Server (Support: Minimum 0,5 h je Ticket; Regie: Projektregel)
+  const verrechnetMin = task.billable_minutes ?? supportVerrechnungsMinuten(task.open_minutes);
   return (
     <div className="flex items-center gap-3 border rounded-lg px-3 py-2 bg-background">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 min-w-0">
           <p className="text-xs font-medium truncate">{task.task_title}</p>
           {ohneZeit && <Badge className="bg-amber-100 text-amber-800 flex-shrink-0">keine Zeit gebucht</Badge>}
+          {task.vorbehalt && <Badge className="bg-amber-100 text-amber-800 flex-shrink-0">mit aWork abgleichen</Badge>}
         </div>
         <p className="text-xs text-muted-foreground truncate">
           {task.assignee_name || '—'}
           {task.erledigt_am ? ` · erledigt ${new Date(task.erledigt_am).toLocaleDateString('de-AT')}` : ` · letzte Buchung ${task.last_entry_date || '—'}`}
           {ohneZeit
             ? (task.target_hours ? ` · Plan ${task.target_hours} h` : '')
-            : ` · gebucht ${std(task.open_minutes)} h · verrechnet ${std(supportVerrechnungsMinuten(task.open_minutes))} h`}
+            : ` · gebucht ${std(task.open_minutes)} h · verrechnet ${std(verrechnetMin)} h`}
           {task.vorleistung_minutes > 0 && ` · davon aus aWork ${std(task.vorleistung_minutes)} h`}
         </p>
       </div>
@@ -31,7 +34,7 @@ export default function SupportAppLine({ task, abrechenbar, darfAendern, onInvoi
           <ExternalLink className="w-3.5 h-3.5" />
         </Link>
       )}
-      {darfAendern && task.ticket_id && (
+      {darfAendern && task.ticket_id && !regie && (
         <>
           <Button size="sm" variant="ghost" className="flex-shrink-0" onClick={() => onAworkZeit(task)} title="Zeit aus aWork übernehmen">
             <Clock className="w-3.5 h-3.5" /> {task.awork_task_id ? 'aWork-Zeit' : 'aWork-Zeit zuordnen'}
