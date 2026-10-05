@@ -42,11 +42,18 @@ export async function schliesseZeitenAb({ projectId, instructionId, stichtag }) 
 
   const betroffen = offene.filter((e) => String(e.entry_date || '') <= grenze && wirdNachZeitVerrechnet(e));
   if (!betroffen.length) return 0;
-  await base44.entities.TimeEntry.bulkUpdate(betroffen.map((e) => ({
-    id: e.id,
-    abrechnungsstatus: 'abgerechnet',
-    billing_instruction_id: instructionId,
-    abgerechnet_am: new Date().toISOString(),
-  })));
+  // Die Anweisung ist zu diesem Zeitpunkt schon angelegt — ein Fehler beim Markieren
+  // darf sie nicht blockieren, er wird nur protokolliert.
+  try {
+    await base44.entities.TimeEntry.bulkUpdate(betroffen.map((e) => ({
+      id: e.id,
+      abrechnungsstatus: 'abgerechnet',
+      billing_instruction_id: instructionId,
+      abgerechnet_am: new Date().toISOString(),
+    })));
+  } catch (err) {
+    console.warn('schliesseZeitenAb: Stunden konnten nicht markiert werden', err);
+    return 0;
+  }
   return betroffen.length;
 }
