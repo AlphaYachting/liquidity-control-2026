@@ -1,7 +1,7 @@
 // Erkennt Stille nach einer Angebotsübermittlung — ohne neue Entity, ohne Hintergrundlauf.
 // Liefert null oder { tage, gesendet_am, titel, summe }.
-const STAGES = ['proposal_sent', 'negotiation', 'estimated'];
 import { alsDatum } from '@/lib/zeitpunkt';
+const STAGES = ['proposal_sent', 'negotiation', 'estimated'];
 
 const istAngebotsmail = (a) =>
   a.channel === 'email' && a.direction === 'ausgehend' && a.intent === 'angebot';
