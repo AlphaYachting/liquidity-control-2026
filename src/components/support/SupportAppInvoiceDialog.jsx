@@ -11,19 +11,39 @@ import { supportVerrechnungsMinuten } from '@/lib/zeit/rundung';
 // Rechnung aus erledigten App-Tickets: je Ticket eine Position mit Leistungsbeschreibung aus dem Ticket.
 // Stunden: gebuchte Zeit nach Support-Regel (Minimum 0,5 h, danach 15-Minuten-Schritte);
 // ohne gebuchte Zeit von Hand einzutragen (ebenfalls auf 0,25 aufgerundet, Minimum 0,5).
+// Regie (row.art === 'regie'): Stunden wie gebucht, gerundet nach der Projektregel (vom Server
+// als billable_minutes geliefert), kein Minimum je Position. Positionen „vor der Umstellung"
+// sind nicht vorausgewählt — sie können schon in aWork gebucht und verrechnet sein.
 const datum = (d) => (d ? new Date(d).toLocaleDateString('de-AT') : '—');
+const zweiStellen = (n) => Math.round(n * 100) / 100;
 const ausGebucht = (min) => supportVerrechnungsMinuten(min) / 60;
-const regel = (h) => {
+const regelSupport = (h) => {
   const n = Number(String(h).replace(',', '.'));
   if (!Number.isFinite(n) || n <= 0) return 0;
   return Math.max(0.5, Math.ceil(n * 4) / 4);
 };
+const regelRegie = (h) => {
+  const n = Number(String(h).replace(',', '.'));
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return zweiStellen(n);
+};
 
 export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDone }) {
+  const regie = row.art === 'regie';
+  const regel = regie ? regelRegie : regelSupport;
+  const startStunden = (t) => {
+    if (regie) return t.billable_minutes > 0 ? String(zweiStellen(t.billable_minutes / 60)) : '';
+    return t.open_minutes > 0 ? String(ausGebucht(t.open_minutes)) : '';
+  };
+  const startText = (t) => {
+    if (t.ticket_id) return '';
+    if (!regie) return 'Supportleistungen ohne Ticketzuordnung';
+    return (t.notizen || []).join(', ') || 'Regieleistungen';
+  };
   const [rate, setRate] = useState(row.stundensatz || 130);
-  const [selected, setSelected] = useState(() => row.tasks.map((t) => t.key));
-  const [stunden, setStunden] = useState(() => Object.fromEntries(row.tasks.map((t) => [t.key, t.open_minutes > 0 ? String(ausGebucht(t.open_minutes)) : ''])));
-  const [texte, setTexte] = useState(() => Object.fromEntries(row.tasks.map((t) => [t.key, t.ticket_id ? '' : 'Supportleistungen ohne Ticketzuordnung'])));
+  const [selected, setSelected] = useState(() => row.tasks.filter((t) => !t.vorbehalt).map((t) => t.key));
+  const [stunden, setStunden] = useState(() => Object.fromEntries(row.tasks.map((t) => [t.key, startStunden(t)])));
+  const [texte, setTexte] = useState(() => Object.fromEntries(row.tasks.map((t) => [t.key, startText(t)])));
   const [laedtTexte, setLaedtTexte] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fehler, setFehler] = useState('');
@@ -62,7 +82,10 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
   const positionen = gewaehlt.map((t) => {
     const menge = regel(stunden[t.key]);
     const leistung = String(texte[t.key] || '').trim();
-    const fusszeile = [t.erledigt_am ? `erledigt am ${datum(t.erledigt_am)}` : (t.last_entry_date ? `geleistet am ${datum(t.last_entry_date)}` : ''), t.assignee_name].filter(Boolean).join(' · ');
+    const zeitraum = regie && t.first_entry_date && t.last_entry_date && t.first_entry_date !== t.last_entry_date
+      ? `geleistet ${datum(t.first_entry_date)} bis ${datum(t.last_entry_date)}`
+      : (t.last_entry_date ? `geleistet am ${datum(t.last_entry_date)}` : '');
+    const fusszeile = [t.erledigt_am ? `erledigt am ${datum(t.erledigt_am)}` : zeitraum, t.assignee_name].filter(Boolean).join(' · ');
     return {
       key: t.key,
       ticket_id: t.ticket_id || null,
@@ -84,9 +107,14 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
     setBusy(true);
     setFehler('');
     try {
-      const header = positionen.length === 1
-        ? `Verrechnung Supportauftrag: ${positionen[0].name}`
-        : `Verrechnung Supportauftrag: ${positionen.map((p) => p.name).join(', ')}`;
+      const header = regie
+        ? `Verrechnung Regieleistungen: ${row.project_name}`
+        : positionen.length === 1
+          ? `Verrechnung Supportauftrag: ${positionen[0].name}`
+          : `Verrechnung Supportauftrag: ${positionen.map((p) => p.name).join(', ')}`;
+      const rundungText = row.rundung?.rundung_minuten
+        ? `auf ${row.rundung.rundung_minuten} Minuten je ${row.rundung.rundung_basis === 'buchung' ? 'Buchung' : 'Tag'} gerundet`
+        : 'minutengenau';
       const mitVorleistung = gewaehlt.filter((t) => t.vorleistung_minutes > 0 && t.ticket_id);
       const instr = await base44.entities.BillingInstruction.create({
         project_id: row.liquidity_project_id || '',
@@ -96,15 +124,24 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
         invoice_type: 'partial_invoice',
         status: 'ready_for_backoffice',
         instruction_amount_net: netto,
-        invoice_reason: positionen.length === 1
-          ? `Verrechnung Supportauftrag: ${positionen[0].name} (${summeStunden.toFixed(2)} h)`
-          : `Verrechnung Supportauftrag — ${positionen.length} Anfragen, ${summeStunden.toFixed(2)} h`,
-        internal_note: `Support-Abrechnung aus Agency-Manager-Tickets (Status erledigt) — ${positionen.length} Positionen à ${rate} €/h, Minimum 0,5 h, danach in 15-Minuten-Schritten aufgerundet`,
+        invoice_reason: regie
+          ? `Verrechnung Regie: ${row.project_name} — ${positionen.length} Position(en), ${summeStunden.toFixed(2)} h`
+          : positionen.length === 1
+            ? `Verrechnung Supportauftrag: ${positionen[0].name} (${summeStunden.toFixed(2)} h)`
+            : `Verrechnung Supportauftrag — ${positionen.length} Anfragen, ${summeStunden.toFixed(2)} h`,
+        internal_note: regie
+          ? `Regie-Abrechnung aus Agency-Manager-Zeitbuchungen — ${positionen.length} Positionen à ${rate} €/h, ${rundungText}`
+          : `Support-Abrechnung aus Agency-Manager-Tickets (Status erledigt) — ${positionen.length} Positionen à ${rate} €/h, Minimum 0,5 h, danach in 15-Minuten-Schritten aufgerundet`,
         source_snapshot_json: JSON.stringify({
-          quelle: 'app',
+          quelle: regie ? 'regie' : 'app',
+          ...(regie ? {
+            regie_project_id: row.project_id,
+            head_text: 'Sehr geehrte Damen und Herren,\n\nbeiliegend erhalten Sie die Verrechnung der nach Aufwand erbrachten Leistungen.',
+          } : {}),
           client_id: row.client_id,
           project_id: row.tasks[0]?.project_id || null,
-          support_ticket_ids: gewaehlt.filter((t) => t.ticket_id).map((t) => t.ticket_id),
+          // Regie: Aufgaben bleiben offen — nur die Zeitbuchungen gelten als verrechnet
+          support_ticket_ids: regie ? [] : gewaehlt.filter((t) => t.ticket_id).map((t) => t.ticket_id),
           time_entry_ids: gewaehlt.flatMap((t) => t.time_entry_ids || []),
           vorleistung_ticket_ids: mitVorleistung.map((t) => t.ticket_id),
           awork_vorleistung_task_ids: mitVorleistung.map((t) => t.awork_task_id).filter(Boolean),
@@ -140,8 +177,18 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
           <p className="text-xs text-muted-foreground">
-            Jedes Ticket wird eine eigene Rechnungsposition. Die Leistungsbeschreibung steht so auf der Rechnung — bitte prüfen.
-            Stunden: Minimum 0,5 h, danach in 15-Minuten-Schritten aufgerundet.
+            {regie ? (
+              <>
+                Jede Aufgabe wird eine eigene Rechnungsposition. Die Leistungsbeschreibung steht so auf der Rechnung — bitte prüfen.
+                Stunden wie gebucht ({row.rundung?.rundung_minuten ? `auf ${row.rundung.rundung_minuten} Minuten je ${row.rundung.rundung_basis === 'buchung' ? 'Buchung' : 'Tag'} gerundet` : 'minutengenau, keine Rundung am Projekt hinterlegt'}).
+                Buchungen vor der Umstellung sind nicht vorausgewählt — erst mit aWork abgleichen.
+              </>
+            ) : (
+              <>
+                Jedes Ticket wird eine eigene Rechnungsposition. Die Leistungsbeschreibung steht so auf der Rechnung — bitte prüfen.
+                Stunden: Minimum 0,5 h, danach in 15-Minuten-Schritten aufgerundet.
+              </>
+            )}
           </p>
 
           <div className="space-y-3">
