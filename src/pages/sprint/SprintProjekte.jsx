@@ -158,7 +158,7 @@ export default function SprintProjekte() {
           timeEntries: timeEntries.filter((t) => t.project_id === project.id),
           contract: contractById[project.recurring_contract_id],
         }),
-        people: emails.map((e) => members.find((m) => m.email === e) || { email: e, name: e }),
+        people: personenMitLeitung(project.pm_email, emails, members),
       };
     }
     if (!sprint) return { project, client: clientById[project.client_id], sprint: null, projectSprints };
@@ -182,7 +182,7 @@ export default function SprintProjekte() {
       projectSprints,
       milestones: sprintMilestones,
       status,
-      people: emails.map((e) => members.find((m) => m.email === e) || { email: e, name: e }),
+      people: personenMitLeitung(project.pm_email, emails, members),
     };
   })
     // gleiche Sortierung wie die Übersicht: Dringlichkeit, dann Liefertermin; Projekte ohne Sprint zuletzt
