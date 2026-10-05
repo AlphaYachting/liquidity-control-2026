@@ -149,6 +149,13 @@ export async function aendereZeit(id, patch = {}) {
     const trotzSperre = await sperreDurchsetzen({ ...pruef, trotzdem: true });
     daten.ueber_kontingent = trotzSperre || await ueberKontingentPruefen(pruef);
   }
+  // Nachträglich geänderte Zeiten kennzeichnen: eine gestoppte Timer-Buchung, deren
+  // Beginn, Ende oder Dauer von Hand geändert wird, ist nicht mehr gemessen.
+  // Unsichtbar für die Bedienung — dient nur der Nachvollziehbarkeit.
+  const zeitGeaendert = (daten.started_at && daten.started_at !== original.started_at)
+    || (daten.ended_at && daten.ended_at !== original.ended_at)
+    || (daten.duration_minutes !== undefined && daten.duration_minutes !== original.duration_minutes);
+  if (zeitGeaendert) daten.source = 'korrigiert';
   return base44.entities.TimeEntry.update(id, daten);
 }
 
