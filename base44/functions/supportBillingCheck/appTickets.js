@@ -88,7 +88,6 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
     const offen = z.minuten + vorleistung;
     // Ohne offene Zeit, aber schon über die App verrechnet (Altfall vor den Verrechnungsfeldern) → keine Position
     if (offen <= 0 && (hatAbgerechnet.has(t.id) || t.awork_vorleistung_abgerechnet)) continue;
-    const beschreibung = String(t.description || '').split('— Vollständiger E-Mail-Verlauf —')[0].trim();
     const posten = {
       key: t.id, ticket_id: t.id, project_id: t.project_id, task_title: t.title,
       assignee_name: nameByEmail[String(t.assignee_email || '').toLowerCase()] || t.assignee_email || '',
@@ -98,7 +97,6 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
       ohne_zeit: offen <= 0,
       target_hours: Number(t.target_hours) || null,
       erledigt_am: t.last_status_change || null,
-      description_kurz: beschreibung.slice(0, 600),
       awork_task_id: t.awork_task_id || null,
     };
     g.tasks.push(posten);
@@ -114,7 +112,7 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
       key: `ohne:${projectId}`, ticket_id: null, project_id: projectId, task_title: 'Zeit ohne Ticket', assignee_name: '',
       last_entry_date: z.letzte, open_minutes: z.minuten, vorleistung_minutes: 0,
       billable_minutes: supportVerrechnungsMinuten(z.minuten), time_entry_ids: z.ids, link: null,
-      ohne_zeit: false, target_hours: null, erledigt_am: null, description_kurz: '', awork_task_id: null,
+      ohne_zeit: false, target_hours: null, erledigt_am: null, awork_task_id: null,
     };
     g.tasks.push(posten);
     g.open_minutes += z.minuten;
