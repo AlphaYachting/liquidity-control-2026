@@ -1,6 +1,7 @@
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { DayPicker } from "react-day-picker"
+import { de } from "date-fns/locale"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
@@ -9,11 +10,16 @@ function Calendar({
   className,
   classNames,
   showOutsideDays = true,
+  // Woche beginnt in der ganzen App am Montag, Tage und Monate auf Deutsch — einzeln überschreibbar
+  weekStartsOn = 1,
+  locale = de,
   ...props
 }) {
   return (
     (<DayPicker
       showOutsideDays={showOutsideDays}
+      weekStartsOn={weekStartsOn}
+      locale={locale}
       className={cn("p-3", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
