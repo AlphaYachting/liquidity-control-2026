@@ -97,6 +97,7 @@ export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzoge
       )}
 
       <Input
+        autoFocus
         className="mt-3"
         placeholder="Notiz zur Buchung"
         value={notiz}
