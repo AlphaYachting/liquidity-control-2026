@@ -5,12 +5,17 @@ import { dauerText } from '@/lib/zeit/tagesAuswertung';
 
 const WOCHENTAG = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
 
-const zustand = (tag) => {
+const zustand = (tag, pflichtAb) => {
   if (tag.abgeschlossen) {
     const text = tag.grund === 'frei' ? 'frei' : tag.grund === 'abwesend' ? 'abwesend' : 'abgeschlossen';
     return { farbe: STATUS_COLORS.done, text };
   }
   if (tag.istZukunft) return { farbe: STATUS_COLORS.neutral, text: 'noch nicht dran' };
+  // Vor dem Stichtag wird kein Abschluss eingefordert — also auch kein oranger
+  // Rahmen und kein "offen". Der Streifen darf nicht mahnen, wo keine Pflicht ist.
+  if (pflichtAb && tag.tag < pflichtAb) {
+    return { farbe: STATUS_COLORS.neutral, text: tag.anzahl ? 'erfasst' : 'kein Abschluss nötig' };
+  }
   if (!tag.anzahl) return { farbe: STATUS_COLORS.neutral, text: 'nichts erfasst', offen: !tag.istHeute };
   if (tag.offenMinuten > 0) {
     return { farbe: STATUS_COLORS.attention, text: `${dauerText(tag.offenMinuten)} offen`, offen: !tag.istHeute };
@@ -19,7 +24,7 @@ const zustand = (tag) => {
 };
 
 // Montag bis Freitag auf einen Blick — offene vergangene Tage tragen einen orangen Rahmen.
-export default function Wochenstreifen({ tage, gewaehlt, onWaehlen, onZurueck, onVor }) {
+export default function Wochenstreifen({ tage, gewaehlt, pflichtAb, onWaehlen, onZurueck, onVor }) {
   return (
     <div className="flex items-stretch gap-2">
       <button type="button" onClick={onZurueck} aria-label="Woche zurück"
@@ -29,7 +34,7 @@ export default function Wochenstreifen({ tage, gewaehlt, onWaehlen, onZurueck, o
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 flex-1">
         {tage.map((tag, i) => {
-          const z = zustand(tag);
+          const z = zustand(tag, pflichtAb);
           const aktiv = tag.tag === gewaehlt;
           const rahmen = aktiv
             ? `1.5px solid ${RITTLER.black}`
