@@ -5,6 +5,9 @@
 // ein Wert am Projekt überschreibt beides.
 export const RUNDUNG_VORGABEN = {
   aufwand: { rundung_minuten: 15, rundung_art: 'auf', rundung_basis: 'tag_projekt', mindestbuchung_minuten: 0 },
+  // Regie (aufwand + aufwand_art 'regie'): mindestens 15 Minuten, auf 15 Minuten aufgerundet,
+  // je Tag und Projekt — Entscheidung 05.10.2026. Kopie in supportBillingCheck/appTickets.js.
+  regie: { rundung_minuten: 15, rundung_art: 'auf', rundung_basis: 'tag_projekt', mindestbuchung_minuten: 15 },
   support: { rundung_minuten: 15, rundung_art: 'auf', rundung_basis: 'buchung', mindestbuchung_minuten: 15 },
   sprint: { rundung_minuten: 0, rundung_art: 'auf', rundung_basis: 'tag_projekt', mindestbuchung_minuten: 0 },
   paket: { rundung_minuten: 0, rundung_art: 'auf', rundung_basis: 'tag_projekt', mindestbuchung_minuten: 0 },
@@ -15,7 +18,8 @@ const FELDER = ['rundung_minuten', 'rundung_art', 'rundung_basis', 'mindestbuchu
 
 // Wirksame Regeln: Projektwert → Setting-Wert → Vorgabe des Abrechnungsmodells.
 export function regelnFuer(project, settings = {}) {
-  const modell = project?.abrechnungsmodell || 'aufwand';
+  const grundmodell = project?.abrechnungsmodell || 'aufwand';
+  const modell = grundmodell === 'aufwand' && project?.aufwand_art === 'regie' ? 'regie' : grundmodell;
   const vorgabe = RUNDUNG_VORGABEN[modell] || RUNDUNG_VORGABEN.aufwand;
   const regeln = {};
   for (const f of FELDER) {
