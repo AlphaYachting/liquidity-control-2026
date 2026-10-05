@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import { initials, personColor } from '@/components/sprint/PersonenChip';
 
-// Gestapelte Kürzel-Chips: alle Personen mit mindestens einer Aufgabe, ab 4 gezählt.
+// Gestapelte Kürzel-Chips: Projektleitung zuerst, dann alle mit mindestens einer Aufgabe, ab 4 gezählt.
 export default function PersonenStapel({ members = [], currentUserEmail, size = 24 }) {
   if (members.length === 0) {
     return (
