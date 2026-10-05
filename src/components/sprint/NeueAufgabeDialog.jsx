@@ -13,7 +13,9 @@ const PHASES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
 
 // Aufgabe auf einer Etappe anlegen. Nach der Freigabe ist jede Aufgabe zwingend
 // ein Change Request und damit Zusatzumsatz — sie zählt nicht gegen den Festpreis.
-export default function NeueAufgabeDialog({ open, onOpenChange, milestone, tickets, members, previousMilestone, onCreated }) {
+// projectId kommt vom Aufrufer — eine Etappe trägt kein project_id, und ohne bestehende
+// Aufgabe ließe sich das Projekt sonst nicht ermitteln (erste Aufgabe eines Projekts).
+export default function NeueAufgabeDialog({ open, onOpenChange, milestone, tickets, members, previousMilestone, onCreated, projectId }) {
   const [title, setTitle] = useState('');
   const [role, setRole] = useState('');
   const [phase, setPhase] = useState(milestone.state === 'freigegeben' ? 'produktion' : milestone.state || 'produktion');
@@ -21,6 +23,8 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
   const [hours, setHours] = useState('');
   const [faellig, setFaellig] = useState('');
   const [saving, setSaving] = useState(false);
+  const [fehler, setFehler] = useState('');
+  const zielProjekt = projectId || milestone.project_id || tickets[0]?.project_id || '';
 
   const isChangeRequest = milestone.released === true;
   const dependencyWarning = previousMilestone && previousMilestone.released !== true
@@ -29,10 +33,16 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
 
   const save = async () => {
     if (!title.trim()) return;
+    if (!zielProjekt) {
+      setFehler('Das Projekt dieser Aufgabe ist unbekannt — bitte die Seite neu laden.');
+      return;
+    }
     setSaving(true);
+    setFehler('');
+    try {
     await base44.entities.Ticket.create({
       milestone_id: milestone.id,
-      project_id: milestone.project_id || tickets[0]?.project_id,
+      project_id: zielProjekt,
       order: (tickets.length || 0) + 1,
       title: title.trim(),
       role: role || undefined,
@@ -44,6 +54,12 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
       ...(faellig ? { planned_for: faellig } : {}),
       last_status_change: new Date().toISOString(),
     });
+    } catch (e) {
+      // Fehler sichtbar machen statt hängen zu bleiben
+      setFehler(e?.response?.data?.message || e?.message || 'Aufgabe konnte nicht angelegt werden.');
+      setSaving(false);
+      return;
+    }
     setSaving(false);
     setTitle(''); setRole(''); setAssignee(''); setHours(''); setFaellig('');
     onOpenChange(false);
@@ -115,6 +131,8 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
             </div>
           </div>
         </div>
+
+        {fehler && <p className="text-sm text-status-critical">{fehler}</p>}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
