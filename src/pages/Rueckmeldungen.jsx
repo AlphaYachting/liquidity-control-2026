@@ -41,6 +41,24 @@ function Schalter({ optionen, wert, onWahl, zaehlen }) {
   );
 }
 
+// Projekt bzw. Ticket, das beim Melden offen war — als Name statt als Id
+function OffenWar({ projectId, ticketId }) {
+  const { data } = useQuery({
+    queryKey: ['rueckmeldung-kontext', projectId, ticketId],
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const [p, t] = await Promise.all([
+        projectId ? base44.entities.Project.get(projectId).catch(() => null) : null,
+        ticketId ? base44.entities.Ticket.get(ticketId).catch(() => null) : null,
+      ]);
+      return { projekt: p?.title || '', ticket: t?.title || '' };
+    },
+  });
+  const teile = [data?.projekt && `Projekt „${data.projekt}“`, data?.ticket && `Ticket „${data.ticket}“`].filter(Boolean);
+  if (!teile.length) return null;
+  return <p>Offen war: {teile.join(' · ')}</p>;
+}
+
 function Eintrag({ r, offen, onToggle }) {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState(r.status || 'neu');
@@ -124,9 +142,7 @@ function Eintrag({ r, offen, onToggle }) {
                 </Link>
               </p>
             )}
-            {(r.project_id || r.ticket_id) && (
-              <p>Offen war: {r.project_id ? `Projekt ${r.project_id}` : ''}{r.ticket_id ? ` · Ticket ${r.ticket_id}` : ''}</p>
-            )}
+            {(r.project_id || r.ticket_id) && <OffenWar projectId={r.project_id} ticketId={r.ticket_id} />}
             <p>{r.person_email}{r.bildschirm ? ` · Fenster ${r.bildschirm}` : ''}</p>
             {r.browser && <p className="truncate" title={r.browser}>{r.browser}</p>}
           </div>
