@@ -109,7 +109,7 @@ export default function SprintUebersicht() {
       milestones: sprintMilestones,
       tickets: sprintTickets,
       status,
-      people: emails.map((e) => members.find((m) => m.email === e) || { email: e, name: e }),
+      people: personenMitLeitung(project?.pm_email, emails, members),
       mine: emails.includes(myEmail),
     };
   });
