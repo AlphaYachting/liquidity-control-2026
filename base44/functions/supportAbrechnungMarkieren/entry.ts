@@ -24,6 +24,8 @@ export default async function (req) {
     try { snap = instr.source_snapshot_json ? JSON.parse(instr.source_snapshot_json) : {}; } catch (_e) { snap = {}; }
     const entryIds = snap.time_entry_ids || [];
     const vorleistungIds = snap.vorleistung_ticket_ids || [];
+    const ticketIds = snap.support_ticket_ids || [];
+    const textByTicket = Object.fromEntries((snap.invoice_positions || []).filter(p => p.ticket_id).map(p => [p.ticket_id, p.leistung || p.text || '']));
 
     if (aktion === 'markieren') {
       if (snap.quelle !== 'app') return Response.json({ error: 'Keine App-Support-Abrechnung' }, { status: 400 });
@@ -37,7 +39,12 @@ export default async function (req) {
         markiert++;
       });
       await inStuecken(vorleistungIds, (id) => sr.entities.Ticket.update(id, { awork_vorleistung_abgerechnet: true }));
-      return Response.json({ success: true, markiert, vorleistungen: vorleistungIds.length });
+      // Tickets als verrechnet kennzeichnen — samt Leistungstext, der auf der Rechnung stand
+      await inStuecken(ticketIds, (id) => sr.entities.Ticket.update(id, {
+        verrechnung_status: 'verrechnet', verrechnung_text: textByTicket[id] || '',
+        verrechnung_von: user.email, verrechnung_am: jetzt, verrechnung_grund: null, verrechnung_notiz: null,
+      }));
+      return Response.json({ success: true, markiert, vorleistungen: vorleistungIds.length, tickets: ticketIds.length });
     }
 
     if (aktion === 'zuruecknehmen') {
@@ -52,6 +59,11 @@ export default async function (req) {
         geoeffnet++;
       });
       await inStuecken(vorleistungIds, (id) => sr.entities.Ticket.update(id, { awork_vorleistung_abgerechnet: false }));
+      await inStuecken(ticketIds, async (id) => {
+        const t = (await sr.entities.Ticket.filter({ id }))[0];
+        if (!t || t.verrechnung_status !== 'verrechnet') return;
+        await sr.entities.Ticket.update(id, { verrechnung_status: 'offen', verrechnung_text: null, verrechnung_von: null, verrechnung_am: null });
+      });
       await sr.entities.BillingInstruction.delete(instr.id);
       return Response.json({ success: true, geoeffnet });
     }
