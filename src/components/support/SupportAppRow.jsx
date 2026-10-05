@@ -21,8 +21,10 @@ export default function SupportAppRow({ row, onDone }) {
   const [aworkTask, setAworkTask] = useState(null);
   const [sevdesk, setSevdesk] = useState(false);
   const verknuepft = Boolean(row.sevdesk_contact_id);
+  const regie = row.art === 'regie';
   const ohneZeit = row.tasks.filter((t) => t.ohne_zeit).length;
   const stunden = row.billable_minutes / 60;
+  const vorbehalt = (row.vorbehalt_minutes || 0) / 60;
 
   return (
     <div className="border rounded-lg bg-card">
@@ -37,6 +39,7 @@ export default function SupportAppRow({ row, onDone }) {
             <Badge className="bg-slate-100 text-slate-700">{row.tasks.length} Positionen</Badge>
             {stunden > 0 && <Badge className="bg-amber-100 text-amber-700">{stunden.toFixed(2)} h gebucht zu verrechnen</Badge>}
             {ohneZeit > 0 && <Badge className="bg-amber-100 text-amber-800">{ohneZeit} ohne gebuchte Zeit</Badge>}
+            {vorbehalt > 0 && <Badge className="bg-amber-100 text-amber-800">{vorbehalt.toFixed(2)} h vor der Umstellung — mit aWork abgleichen</Badge>}
             {!verknuepft && (
               darfAendern && row.client_id ? (
                 <button onClick={() => setSevdesk(true)}>
@@ -66,6 +69,7 @@ export default function SupportAppRow({ row, onDone }) {
               onInvoice={(task) => setDialogTasks([task])}
               onNichtVerrechnen={setNichtTask}
               onAworkZeit={setAworkTask}
+              regie={regie}
             />
           ))}
           <SupportNichtVerrechnet tickets={row.nicht_verrechnet} darfAendern={darfAendern} onDone={onDone} />
