@@ -3,6 +3,38 @@
 // aus dem CRM-Posteingang (CrmInboxItem) und Anfragen ohne E-Mail (Telefon-KI, manuell).
 import { isBlockedSender } from '@/lib/crm/blockedSenders';
 import { threadIdOf } from '@/components/crm/inboxDecision';
+import { INHABER_EMAIL } from '@/lib/auslastung/inhaber';
+
+const EIGENE_DOMAIN = '@rittler.co';
+
+// "Max <a@b.at>, c@d.at" -> ['a@b.at', 'c@d.at']
+function empfaengerListe(feld) {
+  return String(feld || '')
+    .toLowerCase()
+    .split(/[,;]/)
+    .map((teil) => (teil.match(/<([^>]+)>/)?.[1] || teil).trim())
+    .filter((a) => a.includes('@'));
+}
+
+/**
+ * Vertrauliche Post gehört nicht in den gemeinsamen Posteingang (Entscheidung 05.10.2026):
+ *  - Absender ODER Empfänger steht auf der Liste „Ausblenden“ (Masseverwalter samt Kanzlei,
+ *    auch wenn er nur Empfänger oder in Kopie ist)
+ *  - die Mail geht an den Geschäftsführer, ohne dass ein anderer Kollege oder ein Sammelpostfach
+ *    (office@, support@ …) mitadressiert ist — Mails an GF und Kollegen bleiben für die Kollegen sichtbar.
+ * Die E-Mail-Zentrale zeigt weiterhin alles.
+ */
+export function istVertraulich({ absender, empfaenger, ausblenden = [] }) {
+  if (isBlockedSender(absender, ausblenden)) return true;
+  const liste = empfaengerListe(empfaenger);
+  if (liste.some((a) => isBlockedSender(a, ausblenden))) return true;
+  const gf = INHABER_EMAIL.toLowerCase();
+  if (liste.includes(gf)) {
+    const andereIntern = liste.some((a) => a !== gf && a.endsWith(EIGENE_DOMAIN));
+    if (!andereIntern) return true;
+  }
+  return false;
+}
 
 export const SCHWELLE_ARBEITSSTUNDEN = 4;
 export const ARBEITSZEIT = { von: 8, bis: 17 }; // Mo–Fr, Ortszeit Wien
@@ -91,7 +123,7 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
 
   for (const t of threads) {
     const absender = t.last_from || t.last_inbound_from || '';
-    if (isBlockedSender(absender, ausblenden)) continue;
+    if (istVertraulich({ absender, empfaenger: t.last_to, ausblenden })) continue;
     const e = {
       key: `t-${t.thread_id}`,
       threadId: String(t.thread_id),
@@ -115,7 +147,7 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
   for (const item of sortiert) {
     const tid = threadIdOf(item) ? String(threadIdOf(item)) : null;
     const absender = item.sender_email || '';
-    if (isBlockedSender(absender, ausblenden)) continue;
+    if (istVertraulich({ absender, empfaenger: item.recipient, ausblenden })) continue;
     if (tid) {
       const zeile = zeileNachThread.get(tid);
       if (zeile) {
