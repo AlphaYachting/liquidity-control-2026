@@ -261,6 +261,7 @@ export default function SprintDetail() {
           open={addOpen}
           onOpenChange={setAddOpen}
           milestone={offenerMilestone}
+          projectId={project?.id || sprint.project_id}
           tickets={tickets}
           members={members}
           previousMilestone={null}
