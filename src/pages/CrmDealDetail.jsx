@@ -91,7 +91,7 @@ export default function CrmDealDetail() {
     // Früher wurden Aktivitäten und Termine vorab gelöscht — bei einem Fehler blieb ein Deal ohne Verlauf zurück.
     try {
       await base44.entities.CrmDeal.delete(deal.id);
-    } catch (e) {
+    } catch {
       window.alert('Der Deal konnte nicht gelöscht werden — dafür fehlt dir die Berechtigung. Bitte bei Alfons melden.');
       return;
     }
