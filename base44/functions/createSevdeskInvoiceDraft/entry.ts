@@ -149,7 +149,8 @@ Deno.serve(async (req) => {
       || `Bei Fragen zu dieser Rechnung stehen wir Ihnen gerne zur Verfügung.`;
 
     // Kopfzeile
-    const headText = istSupport
+    // Eigene Kopfzeile aus dem Snapshot (z. B. Regie-Abrechnung) hat Vorrang
+    const headText = snapshot?.head_text ? String(snapshot.head_text) : istSupport
       ? `Sehr geehrte Damen und Herren,\n\nbeiliegend erhalten Sie die Verrechnung Ihrer Supportaufgabe.`
       : `Sehr geehrte Damen und Herren,\n\nbeiliegend erhalten Sie unsere ${invoiceTypeLabel}${projectLabel ? ' für das Projekt „' + projectLabel + '"' : ''}${additionalPct}.`;
 
