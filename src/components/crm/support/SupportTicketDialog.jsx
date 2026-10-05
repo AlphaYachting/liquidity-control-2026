@@ -12,6 +12,7 @@ import { descriptionFromThread } from '@/components/crm/support/threadDescriptio
 import { kundenSchluessel } from '@/lib/kunden/kundeAnlegen';
 import { dringlichkeit, faelligAm, SUPPORT_FRIST_TAGE } from '@/components/crm/support/faelligkeit';
 import { Link } from 'react-router-dom';
+import { projectTypeOf, typeStyleOf } from '@/components/sprint/projectTypes';
 
 const ROLES = ['Beratung', 'Konzept', 'Text', 'Grafik', 'Web', 'Media', 'QS'];
 // Feste leere Liste — solange die Daten laden, darf die Vorbelegung nicht bei jedem Rendern neu laufen
@@ -39,6 +40,14 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
     queryKey: ['team-members-active'],
     queryFn: () => base44.entities.TeamMember.filter({ active: true }, 'name', 100),
     enabled: open,
+  });
+  // Alle laufenden Projekte des gewählten Kunden — eine Anfrage kann auch in seinen Retainer
+  // oder ein laufendes Projekt gehören statt in ein eigenes Support-Projekt (Entscheidung 05.10.2026).
+  const { data: kundenProjekte = KEINE } = useQuery({
+    queryKey: ['support-kundenprojekte', form?.client_id],
+    queryFn: () => base44.entities.Project.filter(
+      { client_id: form.client_id, status: { $ne: 'abgeschlossen' } }, 'title', 100),
+    enabled: open && !!form?.client_id,
   });
 
   useEffect(() => {
@@ -105,7 +114,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
     setError(null);
     try {
       const user = await base44.auth.me().catch(() => null);
-      const chosen = projects.find(p => p.id === form.project_id);
+      const chosen = [...kundenProjekte, ...projects].find(p => p.id === form.project_id);
       const { project_id: projectId, milestone_id: milestoneId } = await resolveSupportProject(
         chosen ? form.customer || (chosen.title || '').replace(/^Support — /, '') : form.customer,
         {
@@ -125,6 +134,16 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
   };
 
   if (!form) return null;
+
+  // Auswahlliste: zuerst die Projekte des Kunden, danach die übrigen Support-Projekte
+  const zielProjekte = [
+    ...kundenProjekte,
+    ...projects.filter(p => p.status !== 'abgeschlossen' && !kundenProjekte.some(k => k.id === p.id)),
+  ];
+  const gewaehlt = zielProjekte.find(p => p.id === form.project_id) || null;
+  const ausserhalbSupport = !!gewaehlt && !SUPPORT_MODELS.includes(gewaehlt.abrechnungsmodell);
+  const retainer = kundenProjekte.find(p => projectTypeOf(p) === 'container');
+  const typLabel = (p) => typeStyleOf(p)?.short || '';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -170,9 +189,18 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__new__">Support-Projekt des Kunden (neu anlegen)</SelectItem>
-                {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
+                {zielProjekte.map(p => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.title}{typLabel(p) ? ` · ${typLabel(p)}` : ''}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {retainer && form.project_id !== retainer.id && (
+              <p className="text-xs text-status-attention mt-1">
+                Der Kunde hat den Retainer „{retainer.title}“. Gehört die Anfrage ins Kontingent, diesen auswählen.
+              </p>
+            )}
           </div>
           </div>
           <div>
@@ -208,11 +236,13 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
               <Input type="number" step="0.5" value={form.target_hours}
                 onChange={e => set('target_hours', e.target.value)} />
             </div>
-            <div>
-              <Label className="text-xs">Stundensatz</Label>
-              <Input type="number" value={form.stundensatz}
-                onChange={e => set('stundensatz', e.target.value)} />
-            </div>
+            {!ausserhalbSupport && (
+              <div>
+                <Label className="text-xs">Stundensatz</Label>
+                <Input type="number" value={form.stundensatz}
+                  onChange={e => set('stundensatz', e.target.value)} />
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -240,7 +270,9 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
           </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Es wird keine Rechnung ausgelöst. Der gesamte E-Mail-Verlauf wird ins Ticket übernommen. Sobald das Ticket erledigt ist, erscheint die gebuchte Zeit in der Support-Abrechnung.
+            {ausserhalbSupport
+              ? `Es wird keine Rechnung ausgelöst. Der gesamte E-Mail-Verlauf wird ins Ticket übernommen. Das Ticket landet in „${gewaehlt.title}“ und wird nicht über die Support-Abrechnung verrechnet.`
+              : 'Es wird keine Rechnung ausgelöst. Der gesamte E-Mail-Verlauf wird ins Ticket übernommen. Sobald das Ticket erledigt ist, erscheint die gebuchte Zeit in der Support-Abrechnung.'}
           </p>
         </div>
         <DialogFooter className="px-6 py-3 border-t shrink-0 sm:items-center">
