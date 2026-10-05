@@ -1,13 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { todayIso } from '@/components/sprint/sprintConfig';
-import { ermittleOffeneTage } from './offeneTage';
+import { ermittleOffeneTage, ladePflichtAb, PFLICHT_AB } from './offeneTage';
 import { ladeEigeneBuchungen, ladeEigeneAbschluesse, ladeEigeneAbwesenheiten } from './zeitDaten';
+
+// Stichtag — Stammdatum mit langem Zwischenspeicher.
+export function usePflichtAb() {
+  const { data } = useQuery({
+    queryKey: ['pflichtAb'],
+    queryFn: ladePflichtAb,
+    staleTime: Infinity,
+  });
+  return data || PFLICHT_AB;
+}
 
 // Offene Tage der eigenen Person — Grundlage der Buchungssperre.
 export function useOffeneTage(email) {
+  const pflichtAb = usePflichtAb();
   const { data } = useQuery({
-    queryKey: ['offeneTage', email],
+    queryKey: ['offeneTage', email, pflichtAb],
     enabled: !!email,
     queryFn: async () => {
       const [eintraege, abschluesse, focusDays] = await Promise.all([
@@ -15,7 +26,7 @@ export function useOffeneTage(email) {
         ladeEigeneAbschluesse(email),
         ladeEigeneAbwesenheiten(email),
       ]);
-      return ermittleOffeneTage({ heute: todayIso(), eintraege, abschluesse, focusDays });
+      return ermittleOffeneTage({ heute: todayIso(), eintraege, abschluesse, focusDays, pflichtAb });
     },
   });
 
@@ -27,5 +38,5 @@ export function useOffeneTage(email) {
   // offenen Tag geht — sonst ließe sich der Tag nie schließen.
   const darfBuchen = (zielTag) => !aeltester || zielTag === aeltester.tag;
 
-  return { offeneTage, aeltester, darfBuchen, gesperrt: offeneTage.length > 0 };
+  return { offeneTage, aeltester, darfBuchen, gesperrt: offeneTage.length > 0, pflichtAb };
 }

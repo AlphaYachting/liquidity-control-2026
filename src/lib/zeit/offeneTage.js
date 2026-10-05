@@ -1,10 +1,20 @@
 // Die Regel für offene Arbeitstage — sie sperrt neue Buchungen, nie die Messung.
 import { werteTagAus, verschiebeTage } from './tagesAuswertung';
+import { base44 } from '@/api/base44Client';
 
 export const MAX_LUECKE = 45;
 export const RUECKBLICK_TAGE = 14;
-// Solange die Demophase läuft, gilt kein Tag vor dem Systemstart als offen.
-export const SYSTEMSTART = '2026-09-30';
+// Erst ab diesem Tag wird ein Tagesabschluss eingefordert. Tage davor gelten
+// nie als offen — sie sind weder nachzutragen noch abzuschließen.
+export const PFLICHT_AB = '2026-10-05';
+
+// Stichtag aus dem Setting lesen (lang zwischengespeichert), sonst die Konstante.
+// Ein kaputtes Setting darf die Regel nie abschalten — daher immer ein Datum.
+export async function ladePflichtAb() {
+  const rows = await base44.entities.Setting.filter({ key: 'zeit_pflicht_ab' }, 'key', 1).catch(() => []);
+  const wert = String(rows[0]?.value || '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(wert) ? wert : PFLICHT_AB;
+}
 
 export const istWerktag = (iso) => {
   const [y, m, d] = iso.split('-').map(Number);
@@ -25,9 +35,9 @@ export const istAbwesend = (focusDays, tag) =>
   focusDays.some((f) => f.type === 'abwesend' && f.day <= tag && (f.until || f.day) >= tag);
 
 // Offen = vergangener Werktag, keine Abwesenheit, kein bestätigter Tagesabschluss.
-export function ermittleOffeneTage({ heute, eintraege = [], abschluesse = [], focusDays = [] }) {
+export function ermittleOffeneTage({ heute, eintraege = [], abschluesse = [], focusDays = [], pflichtAb = PFLICHT_AB }) {
   return vergangeneWerktage(heute)
-    .filter((tag) => tag >= SYSTEMSTART)
+    .filter((tag) => tag >= pflichtAb)
     .filter((tag) => !istAbwesend(focusDays, tag))
     .filter((tag) => !abschluesse.some((a) => a.tag === tag && a.bestaetigt_am))
     .map((tag) => {

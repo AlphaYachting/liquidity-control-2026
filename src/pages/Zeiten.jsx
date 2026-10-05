@@ -35,7 +35,7 @@ export default function Zeiten() {
   const [bearbeiten, setBearbeiten] = useState(null);
   const [jetzt, setJetzt] = useState(new Date());
   const { toast } = useToast();
-  const { offeneTage, aeltester, darfBuchen } = useOffeneTage(email);
+  const { offeneTage, aeltester, darfBuchen, pflichtAb } = useOffeneTage(email);
   const { timer } = useTimer(email);
   const rundungsSettings = useRundungsSettings();
   const gesprungen = useRef(false);
@@ -212,6 +212,7 @@ export default function Zeiten() {
 
       <Wochenstreifen
         tage={wochenTage}
+        pflichtAb={pflichtAb}
         gewaehlt={tag}
         onWaehlen={setTag}
         onZurueck={() => setTag(verschiebeTage(tage[0], -7))}
@@ -274,15 +275,21 @@ export default function Zeiten() {
       />
 
       <div id="tag-abschluss">
-      <TagAbschliessen
-        auswertung={auswertung}
-        abschluss={abschluss}
-        email={email}
-        tag={tag}
-        wocheBestaetigt={wocheBestaetigt}
-        darfFremdOeffnen={darfFremdOeffnen}
-        onSaved={refresh}
-      />
+      {tag < pflichtAb ? (
+        <p className="py-2 text-sm" style={{ color: RITTLER.textSecondary }}>
+          Für Tage vor dem {pflichtAb.slice(8, 10)}.{pflichtAb.slice(5, 7)}.{pflichtAb.slice(0, 4)} ist kein Abschluss nötig.
+        </p>
+      ) : (
+        <TagAbschliessen
+          auswertung={auswertung}
+          abschluss={abschluss}
+          email={email}
+          tag={tag}
+          wocheBestaetigt={wocheBestaetigt}
+          darfFremdOeffnen={darfFremdOeffnen}
+          onSaved={refresh}
+        />
+      )}
       </div>
 
       <WocheBestaetigen

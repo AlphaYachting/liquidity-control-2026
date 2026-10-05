@@ -2,8 +2,9 @@
 // Keine Meldung an Vorgesetzte: die Buchungssperre wirkt bereits.
 
 const RUECKBLICK = 14;
-// Demophase: Tage vor dem Systemstart werden nicht eingefordert.
-const SYSTEMSTART = '2026-09-30';
+// Erst ab diesem Tag wird ein Tagesabschluss eingefordert. Tage davor gelten
+// nie als offen — sie sind weder nachzutragen noch abzuschließen.
+const PFLICHT_AB = '2026-10-05';
 
 const dauerText = (min) => {
   const m = Math.max(0, Math.round(min));
@@ -29,14 +30,18 @@ function vergangeneWerktage(today) {
 
 export async function schritt10(ctx) {
   const sr = ctx.base44.asServiceRole.entities;
-  const [members, abschluesse, eintraege, focusDays] = await Promise.all([
+  const [members, abschluesse, eintraege, focusDays, settingRows] = await Promise.all([
     sr.TeamMember.filter({ active: true }, 'name', 200),
     sr.Tagesabschluss.list('-tag', 3000),
     sr.TimeEntry.list('-entry_date', 5000),
     sr.FocusDay.list('-day', 2000),
+    sr.Setting.filter({ key: 'zeit_pflicht_ab' }, 'key', 1).catch(() => []),
   ]);
 
-  const tage = vergangeneWerktage(ctx.today).filter((t) => t >= SYSTEMSTART);
+  const settingWert = String(settingRows[0]?.value || '').slice(0, 10);
+  const pflichtAb = /^\d{4}-\d{2}-\d{2}$/.test(settingWert) ? settingWert : PFLICHT_AB;
+
+  const tage = vergangeneWerktage(ctx.today).filter((t) => t >= pflichtAb);
   let n = 0;
 
   for (const member of members) {
