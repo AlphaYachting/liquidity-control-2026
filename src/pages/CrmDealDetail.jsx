@@ -87,9 +87,16 @@ export default function CrmDealDetail() {
 
   const deleteDeal = async () => {
     if (!window.confirm('Deal endgültig löschen? Alle Aktivitäten und Termine werden mitgelöscht.')) return;
-    if (activities.length > 0) await base44.entities.CrmActivity.deleteMany({ deal_id: deal.id });
-    if (appointments.length > 0) await base44.entities.CrmAppointment.deleteMany({ deal_id: deal.id });
-    await base44.entities.CrmDeal.delete(deal.id);
+    // Zuerst der Deal: Scheitert das (fehlende Berechtigung), bleibt der Verlauf unberührt.
+    // Früher wurden Aktivitäten und Termine vorab gelöscht — bei einem Fehler blieb ein Deal ohne Verlauf zurück.
+    try {
+      await base44.entities.CrmDeal.delete(deal.id);
+    } catch (e) {
+      window.alert('Der Deal konnte nicht gelöscht werden — dafür fehlt dir die Berechtigung. Bitte bei Alfons melden oder den Deal auf „Verloren“ setzen.');
+      return;
+    }
+    if (activities.length > 0) await base44.entities.CrmActivity.deleteMany({ deal_id: deal.id }).catch(() => {});
+    if (appointments.length > 0) await base44.entities.CrmAppointment.deleteMany({ deal_id: deal.id }).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ['crm-deals'] });
     navigate('/crm');
   };
