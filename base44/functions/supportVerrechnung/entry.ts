@@ -60,7 +60,7 @@ function kundePasst(titel, kundenname) {
 }
 
 // Zugangsdaten dürfen nie in einen Rechnungstext
-const SENSIBEL = /(passw|password|kennwort|lozinka|benutzername|username|korisničko|login|zugangsdaten|ftp|cpanel|iban|\b\d{6,}\b)/i;
+const SENSIBEL = /(passw|password|kennwort|lozinka|benutzername\s*:|username\s*:|korisničko ime|iban|@|\b\d{6,}\b)/i;
 
 export default async function (req) {
   try {
@@ -198,7 +198,7 @@ ${quelle}`,
         });
         for (const p of res?.positionen || []) {
           const text = String(p.text || '').trim();
-          if (!fallback[p.ticket_id] && fallback[p.ticket_id] !== '') continue;
+          if (!(p.ticket_id in fallback)) continue;
           if (text && !SENSIBEL.test(text)) texte[p.ticket_id] = text;
         }
       } catch (_e) {
