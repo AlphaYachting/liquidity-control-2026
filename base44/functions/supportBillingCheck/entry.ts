@@ -81,6 +81,8 @@ export default async function (req) {
     anweisungen.forEach(a => {
       let snap = null;
       try { snap = a.source_snapshot_json ? JSON.parse(a.source_snapshot_json) : null; } catch (_e) { snap = null; }
+      // aWork-Aufgaben, deren Zeit als Vorleistung über ein App-Ticket verrechnet wurde, nicht noch einmal im Altbestand zeigen
+      if (a.status !== 'cancelled') (snap?.awork_vorleistung_task_ids || []).forEach(id => abgerechneteTasks.add(id));
       const ids = snap?.support_task_ids || [];
       if (ids.length > 0 && a.status !== 'cancelled') {
         ids.forEach(id => abgerechneteTasks.add(id));
