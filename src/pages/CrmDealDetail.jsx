@@ -92,7 +92,7 @@ export default function CrmDealDetail() {
     try {
       await base44.entities.CrmDeal.delete(deal.id);
     } catch (e) {
-      window.alert('Der Deal konnte nicht gelöscht werden — dafür fehlt dir die Berechtigung. Bitte bei Alfons melden oder den Deal auf „Verloren“ setzen.');
+      window.alert('Der Deal konnte nicht gelöscht werden — dafür fehlt dir die Berechtigung. Bitte bei Alfons melden.');
       return;
     }
     if (activities.length > 0) await base44.entities.CrmActivity.deleteMany({ deal_id: deal.id }).catch(() => {});
