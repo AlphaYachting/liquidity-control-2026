@@ -24,6 +24,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useOffeneTage } from '@/lib/zeit/useOffeneTage';
 import { istAbwesend } from '@/lib/zeit/offeneTage';
 import { werteTagAus, wochentage, verschiebeTage, uhr, dauerText } from '@/lib/zeit/tagesAuswertung';
+import { fehlendeBeschreibungen } from '@/lib/zeit/beschreibungPflicht';
 
 // Die eigenen Zeiten: Woche im Rückblick, Erfassung, Tagesstreifen, Bilanz, Buchungen.
 export default function Zeiten() {
@@ -287,6 +288,8 @@ export default function Zeiten() {
           tag={tag}
           wocheBestaetigt={wocheBestaetigt}
           darfFremdOeffnen={darfFremdOeffnen}
+          ohneBeschreibung={gesperrt ? [] : fehlendeBeschreibungen(tagesEintraege, projekteById)}
+          projektLabel={projektLabel}
           onSaved={refresh}
         />
       )}
