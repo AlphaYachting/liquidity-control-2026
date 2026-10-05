@@ -183,7 +183,13 @@ export default function Rueckmeldungen() {
   const darf = istInhaber(user);
   const [art, setArt] = useState('alle');
   const [statusFilter, setStatusFilter] = useState('offen');
-  const [offenId, setOffenId] = useState(null);
+  // Mehrere Meldungen dürfen gleichzeitig offen sein — jede klappt unabhängig auf und zu.
+  const [offeneIds, setOffeneIds] = useState(() => new Set());
+  const umschalten = (id) => setOffeneIds((alt) => {
+    const neu = new Set(alt);
+    if (neu.has(id)) neu.delete(id); else neu.add(id);
+    return neu;
+  });
 
   const { data: alle = [], isLoading } = useQuery({
     queryKey: LISTE_KEY,
@@ -196,10 +202,11 @@ export default function Rueckmeldungen() {
 
   const liste = useMemo(() => {
     const l = alle.filter((r) => passtArt(r, art) && passtStatus(r, statusFilter));
-    // Offene: Blockierende zuerst, dann neue, dann nach Datum
+    // Blockierende Fehler zuerst, dann die neuesten. Bewusst NICHT nach „neu“ sortieren:
+    // Aufklappen setzt eine Meldung auf „angesehen“ — sie würde sonst unter dem Mauszeiger wegrutschen.
+    // Neue Meldungen erkennt man am dunklen Rahmen und am Status rechts.
     return l.sort((a, b) =>
       (Number(!!b.blockiert && OFFEN.includes(b.status)) - Number(!!a.blockiert && OFFEN.includes(a.status)))
-      || (Number(b.status === 'neu') - Number(a.status === 'neu'))
       || String(b.created_date || '').localeCompare(String(a.created_date || '')));
   }, [alle, art, statusFilter]);
 
@@ -236,7 +243,7 @@ export default function Rueckmeldungen() {
       ) : (
         <div className="space-y-2">
           {liste.map((r) => (
-            <Eintrag key={r.id} r={r} offen={offenId === r.id} onToggle={() => setOffenId(offenId === r.id ? null : r.id)} />
+            <Eintrag key={r.id} r={r} offen={offeneIds.has(r.id)} onToggle={() => umschalten(r.id)} />
           ))}
         </div>
       )}
