@@ -19,6 +19,8 @@ export default function SupportBilling() {
   const rows = data?.rows || [];
   const appRows = data?.app_rows || [];
   const appOffen = appRows.filter(r => r.tasks.length > 0);
+  const regieRows = data?.regie_rows || [];
+  const regieStunden = (data?.regie_billable_minutes || 0) / 60;
 
   const stunden = ((data?.total_billable_minutes || 0) + (data?.app_billable_minutes || 0)) / 60;
   const ohneRechnung = rows.filter(r => r.customer_name && r.instructions.length === 0).length + appOffen.length;
@@ -57,6 +59,24 @@ export default function SupportBilling() {
               <p className="text-sm text-muted-foreground">Keine erledigten Support-Tickets offen.</p>
             ) : (
               appRows.map(r => <SupportAppRow key={r.group_key} row={r} onDone={refetch} />)
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold">Regie — nach Aufwand</h2>
+              <p className="text-xs text-muted-foreground">
+                Offene Zeit der Regie-Projekte ({data.regie_projects || 0} geprüft) — {regieStunden.toFixed(2)} h zu verrechnen.
+                Je Projekt eine Rechnung, je Aufgabe eine Position, kein Minimum je Position.
+                Die Aufgaben bleiben offen; als verrechnet gelten nur die enthaltenen Zeitbuchungen.
+              </p>
+            </div>
+            {data.regie_fehler ? (
+              <p className="text-sm text-red-600">Regie-Prüfung fehlgeschlagen: {data.regie_fehler}</p>
+            ) : regieRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Keine offene Regiezeit.</p>
+            ) : (
+              regieRows.map(r => <SupportAppRow key={r.group_key} row={r} onDone={refetch} />)
             )}
           </div>
 
