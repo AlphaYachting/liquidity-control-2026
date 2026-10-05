@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Mail, Archive, Repeat, Trash2, RotateCcw } from 'lucide-react';
+import { Mail, Archive, Repeat, Trash2, RotateCcw, ArrowRightLeft } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
@@ -83,13 +83,21 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
     },
   });
   const projekt = kontext?.project || null;
+  // Ziele für „In anderes Projekt verschieben“: laufende Projekte desselben Kunden
+  const { data: kundenProjekte = [] } = useQuery({
+    queryKey: ['ticketVerschiebenZiele', projekt?.client_id],
+    enabled: Boolean(open && projekt?.client_id),
+    staleTime: 60 * 1000,
+    queryFn: () => base44.entities.Project.filter({ client_id: projekt.client_id, status: { $ne: 'abgeschlossen' } }, 'title', 100),
+  });
+  const [zielProjekt, setZielProjekt] = useState('');
   const [aktion, setAktion] = useState(null);
   const [grund, setGrund] = useState('nicht_mehr_relevant');
   const [pruefung, setPruefung] = useState(null);
   const [bestaetigt, setBestaetigt] = useState(false);
   const [fehler, setFehler] = useState('');
   const [laeuft, setLaeuft] = useState(false);
-  useEffect(() => { setAktion(null); setPruefung(null); setBestaetigt(false); setFehler(''); }, [ticket?.id, open]);
+  useEffect(() => { setAktion(null); setPruefung(null); setBestaetigt(false); setFehler(''); setZielProjekt(''); }, [ticket?.id, open]);
 
   if (!ticket) return null;
 
@@ -126,6 +134,22 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
     }
     setLaeuft(false);
   };
+
+  const verschieben = async () => {
+    if (!zielProjekt) return;
+    setLaeuft(true);
+    setFehler('');
+    try {
+      const res = await base44.functions.invoke('ticketVerschieben', { ticket_id: ticket.id, ziel_project_id: zielProjekt });
+      if (res?.data?.error) throw new Error(res.data.error);
+      onSaved?.();
+      onOpenChange(false);
+    } catch (e) {
+      setFehler(e?.response?.data?.error || e?.message || 'Verschieben fehlgeschlagen');
+    }
+    setLaeuft(false);
+  };
+  const verschiebeZiele = kundenProjekte.filter((p) => p.id !== ticket.project_id);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
   const plan = Number(form.target_hours) || 0;
@@ -367,6 +391,11 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
                     <Repeat className="w-3.5 h-3.5 mr-1" /> Routine beenden
                   </Button>
                 )}
+                {!ticket.rhythmus && verschiebeZiele.length > 0 && (
+                  <Button size="sm" variant="outline" className="rounded" onClick={() => waehle('verschieben')}>
+                    <ArrowRightLeft className="w-3.5 h-3.5 mr-1" /> In anderes Projekt verschieben
+                  </Button>
+                )}
                 {istAdmin && (
                   <Button size="sm" variant="outline" className="rounded text-red-700 border-red-200 hover:bg-red-50" onClick={() => waehle('loeschen')}>
                     <Trash2 className="w-3.5 h-3.5 mr-1" /> Löschen
@@ -385,6 +414,21 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
                       </SelectContent>
                     </Select>
                     <Button size="sm" disabled={laeuft} onClick={() => ausfuehren('archivieren', grund)}>Archivieren</Button>
+                  </div>
+                </div>
+              )}
+
+              {aktion === 'verschieben' && (
+                <div className="rounded border border-border p-3 space-y-2">
+                  <p className="text-sm">Die Aufgabe wandert samt gebuchten Zeiten und Kommentaren in ein anderes Projekt desselben Kunden. Bereits abgerechnete Zeiten verhindern das Verschieben.</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select value={zielProjekt} onValueChange={setZielProjekt}>
+                      <SelectTrigger className="h-8 w-72"><SelectValue placeholder="Zielprojekt wählen" /></SelectTrigger>
+                      <SelectContent>
+                        {verschiebeZiele.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" disabled={!zielProjekt || laeuft} onClick={verschieben}>Verschieben</Button>
                   </div>
                 </div>
               )}
