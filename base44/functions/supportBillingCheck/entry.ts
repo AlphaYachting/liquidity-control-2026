@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { secrets } from 'base44:runtime';
-import { appZeilen, supportVerrechnungsMinuten } from './appTickets.js';
+import { appZeilen, regieZeilen, supportVerrechnungsMinuten } from './appTickets.js';
 
 const SEVDESK_BASE = 'https://my.sevdesk.de/api/v1';
 
@@ -240,11 +240,24 @@ export default async function (req) {
     // Hauptteil: erledigte Support-Tickets der App
     const app = await appZeilen(base44.asServiceRole, alleSeiten, liveStatus, anweisungen);
 
+    // Regie nach Aufwand — eigener Bereich, eigene Regeln (kein Ticket-Minimum).
+    // Ein Fehler hier darf die Support-Abrechnung nicht verhindern.
+    let regie = { rows: [], regie_projects: 0, fehler: null };
+    try {
+      regie = { ...(await regieZeilen(base44.asServiceRole, alleSeiten, liveStatus, anweisungen)), fehler: null };
+    } catch (e) {
+      regie = { rows: [], regie_projects: 0, fehler: e.message };
+    }
+
     return Response.json({
       success: true,
       app_rows: app.rows,
       app_support_projects: app.support_projects,
       app_billable_minutes: app.rows.reduce((s, r) => s + r.billable_minutes, 0),
+      regie_rows: regie.rows,
+      regie_projects: regie.regie_projects,
+      regie_billable_minutes: regie.rows.reduce((s, r) => s + r.billable_minutes, 0),
+      regie_fehler: regie.fehler,
       support_projects_checked: supportProjekte.length,
       since,
       rows,
