@@ -113,7 +113,8 @@ export default function Uebernahme() {
     const clientById = Object.fromEntries((data.clients || []).map((c) => [c.id, c]));
     const nach = {};
     data.tickets.forEach((t) => { (nach[t.project_id] = nach[t.project_id] || []).push(t); });
-    // Kundenprojekte zuerst, Internes und Wartungsverträge zuletzt; innerhalb nach Menge.
+    // Offenes zuerst, vollständig Bestätigtes ans Ende. Innerhalb: Kundenprojekte zuerst,
+    // Internes und Wartungsverträge zuletzt, dann nach Menge.
     const rang = (p) => (p.abrechnungsmodell === 'intern' ? 2 : p.retainer_art === 'wartung' ? 1 : 0);
     return Object.entries(nach)
       .map(([id, tickets]) => {
@@ -124,7 +125,8 @@ export default function Uebernahme() {
           offen: tickets.filter(brauchtAntwort).length,
         };
       })
-      .sort((a, b) => rang(a.projekt) - rang(b.projekt) || b.tickets.length - a.tickets.length);
+      .sort((a, b) => (a.offen === 0) - (b.offen === 0)
+        || rang(a.projekt) - rang(b.projekt) || b.tickets.length - a.tickets.length);
   }, [data]);
 
   if (isLoading || !data) {
@@ -300,17 +302,20 @@ export default function Uebernahme() {
             <p className="text-[11px] font-bold uppercase tracking-[1.8px] text-muted-foreground">Deine Projekte</p>
             {gruppen.map((g) => {
               const an = aktiv?.id === g.id;
+              const fertig = g.offen === 0;
               return (
                 <button
                   key={g.id} type="button" onClick={() => setGewaehlt(g.id)}
                   aria-current={an ? 'true' : undefined}
-                  className={`rounded border px-3.5 py-2.5 text-left ${an ? 'border-foreground' : 'border-border hover:bg-muted'} bg-white`}
+                  className={`rounded border px-3.5 py-2.5 text-left ${fertig
+                    ? `border-l-4 bg-status-done-surface ${an ? 'border-foreground border-l-status-done' : 'border-status-done hover:brightness-95'}`
+                    : `bg-white ${an ? 'border-foreground' : 'border-border hover:bg-muted'}`}`}
                 >
                   <span className="block text-sm font-semibold text-foreground">
                     {[g.kunde, g.projekt.title].filter(Boolean).join(' · ')}
                   </span>
-                  <span className="block text-xs text-muted-foreground">
-                    {g.offen === 0 ? 'bestätigt' : `${g.offen} von ${g.tickets.length} offen`}
+                  <span className={`block text-xs ${fertig ? 'font-semibold text-status-done-text' : 'text-muted-foreground'}`}>
+                    {fertig ? '✓ vollständig bestätigt' : `${g.offen} von ${g.tickets.length} offen`}
                     {g.projekt.status === 'pausiert' ? ' · pausiert' : ''}
                   </span>
                 </button>
