@@ -207,6 +207,8 @@ export default function Sidebar() {
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {NAV_GRUPPEN.map((gruppe) => {
+          // Gruppen mit nurEmail erscheinen nur für genau diese Person.
+          if (gruppe.nurEmail && (user?.email || '').toLowerCase() !== gruppe.nurEmail) return null;
           // Nur was die Person sehen darf; eine leere Gruppe erscheint gar nicht.
           const items = gruppe.items.filter((i) => zugriff.darf(i.regel)
             && (!i.nurEmail || (user?.email || '').toLowerCase() === i.nurEmail));

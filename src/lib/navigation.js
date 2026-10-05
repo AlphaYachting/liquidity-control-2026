@@ -49,6 +49,7 @@ export const NAV_GRUPPEN = [
   },
   {
     key: 'verrechnung',
+    nurEmail: 'a.rittler@rittler.co',
     titel: 'Verrechnung',
     items: [
       { path: '/next-month-forecast', label: 'Abrechnungsforecast', icon: CalendarCheck, regel: ['leitung', 'geld'] },
@@ -61,6 +62,7 @@ export const NAV_GRUPPEN = [
   },
   {
     key: 'finanzen',
+    nurEmail: 'a.rittler@rittler.co',
     titel: 'Finanzen & Auswertung',
     einklappbar: true,
     items: [
@@ -82,6 +84,7 @@ export const NAV_GRUPPEN = [
   },
   {
     key: 'admin',
+    nurEmail: 'a.rittler@rittler.co',
     titel: 'Administration',
     einklappbar: true,
     items: [
