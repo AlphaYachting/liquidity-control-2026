@@ -7,13 +7,12 @@ import { INHABER_EMAIL } from '@/lib/auslastung/inhaber';
 
 const EIGENE_DOMAIN = '@rittler.co';
 
-// "Max <a@b.at>, c@d.at" -> ['a@b.at', 'c@d.at']
+// Alle Adressen aus einer Empfängerzeile, auch aus dem Kopie-Teil:
+// "Max <a@b.at>, c@d.at · Cc: e@f.at" -> ['a@b.at', 'c@d.at', 'e@f.at']
+// (Früher wurde nur an Komma/Semikolon getrennt — "a@b.at · Cc: e@f.at" blieb ein Block,
+// und Mails an den Geschäftsführer mit externem Kunden in Kopie rutschten durch.)
 function empfaengerListe(feld) {
-  return String(feld || '')
-    .toLowerCase()
-    .split(/[,;]/)
-    .map((teil) => (teil.match(/<([^>]+)>/)?.[1] || teil).trim())
-    .filter((a) => a.includes('@'));
+  return [...new Set(String(feld || '').toLowerCase().match(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/g) || [])];
 }
 
 /**
