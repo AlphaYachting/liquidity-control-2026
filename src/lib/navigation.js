@@ -5,7 +5,7 @@ import {
   Zap, Map, BrainCircuit, PieChart, CalendarDays, Users, BarChart2, Clock, DatabaseZap,
   RefreshCw, Trash2, RotateCcw, Scale, KanbanSquare, Inbox, History, Presentation, Mail,
   Sun, Siren, CalendarRange, Gauge, Layers, LifeBuoy, Sparkles, SlidersHorizontal, Timer,
-  Receipt, ServerCog,
+  Receipt, ServerCog, MessageSquarePlus,
 } from 'lucide-react';
 
 // Die EINE Liste aller Navigationspunkte. Die Sidebar rendert ausschließlich hieraus.
@@ -20,6 +20,7 @@ export const NAV_GRUPPEN = [
       { path: '/sprint', label: 'Mein Tag', icon: Sun, regel: 'alle' },
       { path: '/zeiten', label: 'Meine Zeiten', icon: Timer, regel: 'alle' },
       { path: '/freigaben', label: 'Freigaben', icon: ClipboardCheck, regel: ['leitung', 'geld'] },
+      { path: '/rueckmeldungen', label: 'Rückmeldungen', icon: MessageSquarePlus, regel: 'admin', nurEmail: 'a.rittler@rittler.co', zaehler: 'rueckmeldungen' },
     ],
   },
   {
