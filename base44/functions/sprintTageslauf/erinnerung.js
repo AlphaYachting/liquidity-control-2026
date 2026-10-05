@@ -1,6 +1,10 @@
 // SCHRITT 9 — Freitagserinnerung an unbestätigte Tage der laufenden Woche.
 
 const NORM = 480;
+// Erst ab diesem Tag wird ein Tagesabschluss eingefordert. Muss mit PFLICHT_AB in
+// offeneTage.js und src/lib/zeit/offeneTage.js übereinstimmen; maßgeblich ist das
+// Setting zeit_pflicht_ab.
+const PFLICHT_AB = '2026-10-05';
 
 // Montag bis heute (Freitag) im lokalen Kalender
 function wochentageBis(today) {
@@ -29,15 +33,20 @@ export async function schritt9(ctx) {
 
   const sr = ctx.base44.asServiceRole.entities;
   const tage = wochentageBis(ctx.today);
-  const [members, abschluesse, eintraege] = await Promise.all([
+  const [members, abschluesse, eintraege, settingRows] = await Promise.all([
     sr.TeamMember.filter({ active: true }, 'name', 200),
     sr.Tagesabschluss.list('-tag', 2000),
     sr.TimeEntry.list('-entry_date', 5000),
+    sr.Setting.filter({ key: 'zeit_pflicht_ab' }, 'key', 1).catch(() => []),
   ]);
+
+  const settingWert = String(settingRows[0]?.value || '').slice(0, 10);
+  const pflichtAb = /^\d{4}-\d{2}-\d{2}$/.test(settingWert) ? settingWert : PFLICHT_AB;
 
   let n = 0;
   for (const member of members) {
     const offen = tage
+      .filter((t) => t >= pflichtAb)
       .filter((t) => !abschluesse.some((a) => a.person_email === member.email && a.tag === t && a.bestaetigt_am))
       .map((t) => {
         const gebucht = eintraege
