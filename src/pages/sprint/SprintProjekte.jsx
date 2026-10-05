@@ -20,6 +20,7 @@ import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { NICHT_ARCHIVIERT } from '@/lib/sprint/aktivFilter';
 import ProjektFilterLeiste from '@/components/sprint/uebersicht/ProjektFilterLeiste';
 import ProjektGruppe from '@/components/sprint/uebersicht/ProjektGruppe';
+import { personenMitLeitung } from '@/lib/sprint/personenMitLeitung';
 import {
   PROJEKT_GRUPPEN, gruppeVon, standVon, meineProjektIds, passtZurSuche, merkLesen, merkSchreiben,
 } from '@/lib/sprint/projektGruppen';
