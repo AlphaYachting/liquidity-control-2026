@@ -113,7 +113,12 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
       mindestbuchung_minuten: Number(form.mindestbuchung_minuten) || 0,
       stundensatz: type === 'support' || type === 'regie' ? Number(form.stundensatz) || 0 : undefined,
       aufwand_art: type === 'support' || type === 'regie' ? type : undefined,
-      support_kontingent_stunden: ['container', 'support', 'regie'].includes(type) ? Number(form.support_kontingent_stunden) || 0 : undefined,
+      support_kontingent_stunden: ['container', 'support', 'regie'].includes(type) ? Number(form.support_kontingent_stunden) || 0
+        : type === 'intern'
+          ? (form.support_kontingent_stunden === '' || form.support_kontingent_stunden == null
+            ? project?.support_kontingent_stunden
+            : Number(form.support_kontingent_stunden) || 0)
+          : undefined,
       recurring_contract_id: type === 'container' ? (form.recurring_contract_id || '') : undefined,
       retainer_art: type === 'container' && form.retainer_art ? form.retainer_art : undefined,
     };

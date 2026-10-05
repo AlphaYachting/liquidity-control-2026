@@ -92,9 +92,12 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
         </>
       );
     }
+    const internKontingent = typ === 'intern' && Number(project?.support_kontingent_stunden) > 0;
     return (
       <>
-        <KennzahlFeld label={`Stunden ${mName}`} value={`${h1(gebucht)} h`} />
+        {internKontingent
+          ? <KontingentFeld label={`Kontingent ${mName}`} gebucht={gebucht} kontingent={project.support_kontingent_stunden} />
+          : <KennzahlFeld label={`Stunden ${mName}`} value={`${h1(gebucht)} h`} />}
         <KennzahlFeld label="Offene Aufgaben" value={offen.length} />
       </>
     );

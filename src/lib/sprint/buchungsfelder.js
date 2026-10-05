@@ -27,7 +27,7 @@ export const laufenderSprint = (sprints = []) => {
 // ohneId: bei Änderungen die ursprüngliche Buchung nicht mitzählen.
 export async function ueberKontingentPruefen({ projectId, tag, minuten, ohneId }) {
   const project = await base44.entities.Project.get(projectId);
-  if (!['container', 'support', 'regie'].includes(projectTypeOf(project))) return false;
+  if (!['container', 'support', 'regie', 'intern'].includes(projectTypeOf(project))) return false;
   const kontingent = Number(project.support_kontingent_stunden) || 0;
   if (!kontingent) return false;
   const monat = String(tag || '').slice(0, 7);
