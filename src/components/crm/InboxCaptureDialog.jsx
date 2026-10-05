@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -6,23 +6,52 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 
-export default function InboxCaptureDialog({ open, onOpenChange, onSaved }) {
-  const [form, setForm] = useState({ sender_name: '', sender_email: '', sender_phone: '', subject: '', body: '' });
+const LEER = { sender_name: '', sender_email: '', sender_phone: '', subject: '', body: '' };
+
+const ausEintrag = (item) => ({
+  sender_name: item?.sender_name || '',
+  sender_email: item?.sender_email || '',
+  sender_phone: item?.sender_phone || '',
+  subject: item?.subject || '',
+  body: item?.body || '',
+});
+
+// Ohne `item`: neue Anfrage manuell erfassen. Mit `item`: manuell erfassten Eintrag bearbeiten.
+export default function InboxCaptureDialog({ open, onOpenChange, onSaved, item = null }) {
+  const bearbeiten = !!item;
+  const [form, setForm] = useState(LEER);
   const [saving, setSaving] = useState(false);
+  const [fehler, setFehler] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    if (open) {
+      setForm(bearbeiten ? ausEintrag(item) : LEER);
+      setFehler('');
+    }
+  }, [open, bearbeiten, item?.id]);
 
   const save = async () => {
     setSaving(true);
+    setFehler('');
     try {
-      await base44.entities.CrmInboxItem.create({
-        ...form,
-        source: 'manual',
-        received_at: new Date().toISOString(),
-        status: 'new',
-      });
-      setForm({ sender_name: '', sender_email: '', sender_phone: '', subject: '', body: '' });
+      if (bearbeiten) {
+        await base44.entities.CrmInboxItem.update(item.id, form);
+      } else {
+        await base44.entities.CrmInboxItem.create({
+          ...form,
+          source: 'manual',
+          received_at: new Date().toISOString(),
+          status: 'new',
+        });
+      }
+      setForm(LEER);
       onSaved?.();
       onOpenChange(false);
+    } catch (e) {
+      setFehler(bearbeiten
+        ? 'Der Eintrag konnte nicht gespeichert werden — dafür fehlt dir vermutlich die Berechtigung.'
+        : 'Die Anfrage konnte nicht erfasst werden.');
     } finally {
       setSaving(false);
     }
@@ -31,7 +60,9 @@ export default function InboxCaptureDialog({ open, onOpenChange, onSaved }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Anfrage manuell erfassen</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{bearbeiten ? 'Erfasste Anfrage bearbeiten' : 'Anfrage manuell erfassen'}</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -53,11 +84,14 @@ export default function InboxCaptureDialog({ open, onOpenChange, onSaved }) {
           </div>
           <div>
             <Label className="text-xs">Anfrage-Inhalt</Label>
-            <Textarea rows={4} value={form.body} onChange={e => set('body', e.target.value)} />
+            <Textarea rows={bearbeiten ? 8 : 4} value={form.body} onChange={e => set('body', e.target.value)} />
           </div>
+          {fehler && <p className="text-meta text-status-critical">{fehler}</p>}
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-            <Button onClick={save} disabled={saving}>{saving ? 'Speichert…' : 'Erfassen'}</Button>
+            <Button onClick={save} disabled={saving}>
+              {saving ? 'Speichert…' : bearbeiten ? 'Speichern' : 'Erfassen'}
+            </Button>
           </div>
         </div>
       </DialogContent>
