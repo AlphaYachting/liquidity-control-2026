@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Phone, Mail, CalendarDays, StickyNote, GitCommitHorizontal, Bot, Trash2, Loader2 } from 'lucide-react';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 const TYPE_META = {
   call: { icon: Phone, label: 'Anruf', color: 'bg-blue-100 text-blue-600' },
@@ -43,7 +44,7 @@ export default function ActivityTimeline({ activities, onChanged }) {
                 <p className="text-sm font-medium leading-tight">{a.title || meta.label}</p>
                 <span className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[11px] text-muted-foreground">
-                    {new Date(a.activity_date || a.created_date).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    {alsDatum(a.activity_date || a.created_date).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                   </span>
                   <button
                     onClick={() => deleteActivity(a)}

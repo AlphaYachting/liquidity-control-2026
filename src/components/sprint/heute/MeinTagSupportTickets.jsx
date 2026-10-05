@@ -5,11 +5,12 @@ import { base44 } from '@/api/base44Client';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import { ohneArchiv } from '@/lib/sprint/aktivFilter';
 import { Titel, KARTE } from '@/components/sprint/heute/MeinTagBausteine';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 export const SUPPORT_TICKETS_KEY = ['meinTagSupportTickets'];
 
 const seit = (iso) => {
-  const std = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 3600000));
+  const std = Math.max(0, Math.round((Date.now() - alsDatum(iso).getTime()) / 3600000));
   if (std < 24) return `seit ${std} Std.`;
   const tage = Math.round(std / 24);
   return `seit ${tage} ${tage === 1 ? 'Tag' : 'Tagen'}`;

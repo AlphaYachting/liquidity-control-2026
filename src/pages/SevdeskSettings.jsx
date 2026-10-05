@@ -10,6 +10,7 @@ import {
   RefreshCw, FileText, ShoppingCart, CheckCircle, AlertCircle,
   Clock, Trash2, Download, Filter, ChevronDown, ChevronUp
 } from 'lucide-react';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
@@ -313,7 +314,7 @@ export default function SevdeskSettings() {
       const logs = await base44.entities.AuditLog.filter({ entity_type: 'sevdesk_sync' });
       if (!logs || logs.length === 0) return null;
       // Neuesten Eintrag finden
-      return logs.sort((a, b) => new Date(b.created_date) - new Date(a.created_date))[0];
+      return logs.sort((a, b) => alsDatum(b.created_date) - alsDatum(a.created_date))[0];
     }
   });
 
@@ -392,7 +393,7 @@ export default function SevdeskSettings() {
               <p className="text-xs text-muted-foreground">Letzte erfolgreiche Synchronisierung</p>
               {lastSync ? (
                 <p className="text-sm font-medium">
-                  {new Date(lastSync.created_date).toLocaleString('de-AT', {
+                  {alsDatum(lastSync.created_date).toLocaleString('de-AT', {
                     day: '2-digit', month: '2-digit', year: 'numeric',
                     hour: '2-digit', minute: '2-digit'
                   })}

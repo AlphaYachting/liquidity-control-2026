@@ -14,6 +14,7 @@ import QuoteItemsEditor from '@/components/crm/quotes/QuoteItemsEditor';
 import EmailOfferPanel from '@/components/crm/quotes/EmailOfferPanel';
 import SevdeskAngebotKarte from '@/components/crm/quotes/SevdeskAngebotKarte';
 import { QUOTE_STATUS, QUOTE_SOURCE, calcTotals } from '@/components/crm/quotes/quoteConfig';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 export default function CrmQuoteDetail() {
   const { quoteId } = useParams();
@@ -70,7 +71,7 @@ export default function CrmQuoteDetail() {
           <div>
             <h1 className="text-lg font-bold">{form.title}</h1>
             <p className="text-xs text-muted-foreground">
-              {QUOTE_SOURCE[quote.source]?.label || quote.source} · erstellt {quote.created_date ? new Date(quote.created_date).toLocaleDateString('de-AT') : ''}
+              {QUOTE_SOURCE[quote.source]?.label || quote.source} · erstellt {quote.created_date ? alsDatum(quote.created_date).toLocaleDateString('de-AT') : ''}
             </p>
           </div>
         </div>

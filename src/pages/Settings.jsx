@@ -13,6 +13,7 @@ import DataTable from '@/components/shared/DataTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NAV_GRUPPEN } from '@/lib/navigation';
 import { RECHT_LABEL } from '@/lib/useZugriff';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 const regelText = (regel) => (Array.isArray(regel) ? regel : [regel]).map((r) => RECHT_LABEL[r] || r).join(' oder ');
 
@@ -23,7 +24,7 @@ export default function Settings() {
   });
 
   const logColumns = [
-    { key: 'created_date', label: 'Datum', render: (v) => v ? new Date(v).toLocaleString('de-AT') : '—' },
+    { key: 'created_date', label: 'Datum', render: (v) => v ? alsDatum(v).toLocaleString('de-AT') : '—' },
     { key: 'action', label: 'Aktion', render: (v) => <Badge variant="outline">{v}</Badge> },
     { key: 'entity_type', label: 'Entität' },
     { key: 'created_by', label: 'Benutzer' },

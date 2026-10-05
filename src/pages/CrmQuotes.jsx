@@ -8,6 +8,7 @@ import { Plus, FileText } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import QuoteCaptureDialog from '@/components/crm/quotes/QuoteCaptureDialog';
 import { QUOTE_STATUS, QUOTE_SOURCE, eur } from '@/components/crm/quotes/quoteConfig';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 export default function CrmQuotes() {
   const navigate = useNavigate();
@@ -55,7 +56,7 @@ export default function CrmQuotes() {
                 {QUOTE_STATUS[q.status]?.label || q.status}
               </Badge>
               <span className="text-xs text-muted-foreground w-20 text-right">
-                {q.created_date ? new Date(q.created_date).toLocaleDateString('de-AT') : ''}
+                {q.created_date ? alsDatum(q.created_date).toLocaleDateString('de-AT') : ''}
               </span>
             </button>
           ))}

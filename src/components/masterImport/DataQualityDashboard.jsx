@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { FolderKanban, ClipboardList, FileText, AlertTriangle, CheckCircle2, Eye } from 'lucide-react';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 function QCard({ icon: Icon, label, value, color = 'text-foreground', bg = 'bg-card' }) {
   return (
@@ -35,7 +36,7 @@ export default function DataQualityDashboard() {
         <h3 className="text-sm font-semibold">Datenqualitäts-Übersicht</h3>
         {lastSession && (
           <span className="text-xs text-muted-foreground">
-            Letzter Import: {new Date(lastSession.created_date).toLocaleDateString('de-AT')} · Status: {lastSession.status}
+            Letzter Import: {alsDatum(lastSession.created_date).toLocaleDateString('de-AT')} · Status: {lastSession.status}
           </span>
         )}
       </div>
@@ -54,7 +55,7 @@ export default function DataQualityDashboard() {
             <div className="divide-y text-sm">
               {sessions.slice(0, 5).map(s => (
                 <div key={s.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <span className="text-muted-foreground text-xs">{new Date(s.created_date).toLocaleDateString('de-AT')}</span>
+                  <span className="text-muted-foreground text-xs">{alsDatum(s.created_date).toLocaleDateString('de-AT')}</span>
                   <span className="flex-1 font-medium truncate">{s.file_name || '—'}</span>
                   <span className="text-xs text-muted-foreground">{s.total_rows} Zeilen</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${

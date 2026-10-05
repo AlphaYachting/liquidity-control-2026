@@ -7,6 +7,7 @@ import ProjectDetailSlideOver from '@/components/projects/ProjectDetailSlideOver
 import { findProjectMatch } from '@/components/agent/projectMatcher';
 import WeeklyReportCard from '@/components/agent/WeeklyReportCard';
 import { toast } from 'sonner';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 // Dynamische Monatsbezüge — Vorschläge bleiben immer aktuell
 const _now = new Date();
@@ -307,7 +308,7 @@ export default function CashflowAdvisor() {
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
                   <p className="text-[11px] text-muted-foreground shrink-0">
-                    {new Date(c.created_date).toLocaleDateString('de-AT')}
+                    {alsDatum(c.created_date).toLocaleDateString('de-AT')}
                   </p>
                   {match && (
                     <button

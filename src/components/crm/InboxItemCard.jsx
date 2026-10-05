@@ -15,6 +15,7 @@ import LeadStaerke from '@/components/crm/LeadStaerke';
 import { decideInboxItem } from '@/components/crm/inboxDecision';
 import { INQUIRY_TYPE_LABELS, parseSignal } from '@/components/crm/inboxSignals';
 import { suggestionMeta } from '@/components/crm/InboxSuggestionLabel';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 const SOURCE_ICON = { phone_ai: Phone, email: Mail, manual: PenLine };
 const HERKUNFT = { email: 'Nachricht · E-Mail', phone_ai: 'Gesprächsnotiz · Telefon-KI', manual: 'Manuell erfasst' };
@@ -32,7 +33,7 @@ export default function InboxItemCard({ item, eintrag, offen, onOeffnen, onConve
   const Icon = SOURCE_ICON[item.source] || PenLine;
   const stark = item.lead_strength === 'stark';
   // Im Posteingang zählt die jüngste Kundennachricht der Konversation, nicht die erste Anfrage
-  const eingang = eintrag?.eingang || new Date(item.received_at || item.created_date).getTime();
+  const eingang = eintrag?.eingang || alsDatum(item.received_at || item.created_date).getTime();
   const tageOffen = Math.floor((Date.now() - eingang) / 86400000);
   const ueberfaellig = tageOffen >= 2;
   const zeit = eintrag ? wartezeitText(eintrag) : null;

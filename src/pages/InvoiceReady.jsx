@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { format } from 'date-fns';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 const STATUS_CFG = {
   draft:                { label: 'Entwurf',                color: 'bg-gray-100 text-gray-600' },
@@ -298,7 +299,7 @@ export default function InvoiceReady() {
                         {instr.created_date && (
                           <div>
                             <p className="text-muted-foreground font-medium">Erstellt am</p>
-                            <p>{format(new Date(instr.created_date), 'dd.MM.yyyy HH:mm')}</p>
+                            <p>{format(alsDatum(instr.created_date), 'dd.MM.yyyy HH:mm')}</p>
                           </div>
                         )}
                       </div>

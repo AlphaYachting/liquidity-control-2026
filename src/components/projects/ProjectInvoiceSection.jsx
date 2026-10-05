@@ -13,6 +13,7 @@ import InvoiceRecordForm from '@/components/orders/InvoiceRecordForm';
 import InvoiceScanUploader from '@/components/orders/InvoiceScanUploader';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { getEffectivePaid } from '@/lib/projectFinancials';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 export default function ProjectInvoiceSection({
   projectId = null,
@@ -212,7 +213,7 @@ export default function ProjectInvoiceSection({
                         />
                         {inv.updated_date && (
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            {new Date(inv.updated_date).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            {alsDatum(inv.updated_date).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </div>
                         )}
                       </td>

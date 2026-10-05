@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { istInhaber } from '@/lib/auslastung/inhaber';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 // Rückmeldungen der Kollegen: Fehler, Wünsche, Anregungen.
 // Die Sammlung sieht ausschließlich der Inhaber; jede Person sieht ihre eigenen Meldungen samt Status.
@@ -28,7 +29,7 @@ export const MAX_BILDER = 5;
 export const MAX_BYTES = 10 * 1024 * 1024;
 
 export const datum = (d) =>
-  d ? new Date(d).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+  d ? alsDatum(d).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 
 // Zähler für den Hinweis an den Inhaber — leichte Abfrage, nur die neuen.
 export const NEU_KEY = ['rueckmeldungen-neu'];

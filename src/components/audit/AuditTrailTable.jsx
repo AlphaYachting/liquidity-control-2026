@@ -1,4 +1,5 @@
 import React from 'react';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 const ACTION_STYLES = {
   create: 'bg-emerald-100 text-emerald-700',
@@ -40,7 +41,7 @@ export default function AuditTrailTable({ logs }) {
           {logs.map((log) => (
             <tr key={log.id} className="border-b last:border-0 hover:bg-muted/40 align-top">
               <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
-                {log.created_date ? new Date(log.created_date).toLocaleString('de-AT') : '—'}
+                {log.created_date ? alsDatum(log.created_date).toLocaleString('de-AT') : '—'}
               </td>
               <td className="px-3 py-2 whitespace-nowrap font-medium">{log.user_email || '—'}</td>
               <td className="px-3 py-2">

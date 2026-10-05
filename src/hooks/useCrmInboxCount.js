@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 // Ab wann eine unbearbeitete Anfrage als überfällig gilt
 const OVERDUE_HOURS = 48;
@@ -14,7 +15,7 @@ export function useCrmInboxCount({ enabled = true } = {}) {
 
   const grenze = Date.now() - OVERDUE_HOURS * 3600 * 1000;
   const overdue = data.filter((item) => {
-    const ts = new Date(item.received_at || item.created_date).getTime();
+    const ts = alsDatum(item.received_at || item.created_date).getTime();
     return ts && ts < grenze;
   }).length;
 

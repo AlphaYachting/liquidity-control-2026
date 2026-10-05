@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { STAGE_LABELS } from '@/components/crm/stages';
+import { alsDatum } from '@/lib/zeitpunkt';
 
 // Durchsuchbare Deal-Liste mit unterscheidenden Merkmalen (Kontakt, E-Mail, Phase, Datum),
 // damit gleichnamige Deals eindeutig auseinanderzuhalten sind.
@@ -23,7 +24,7 @@ export default function DealAuswahlListe({ deals, value, onChange, disabled }) {
               {[d.company_name, d.contact_name, d.contact_email].filter(Boolean).join(' · ') || 'Keine Kontaktdaten'}
             </p>
             <p className="text-meta text-muted-foreground">
-              {STAGE_LABELS?.[d.stage] || d.stage} · angelegt {d.created_date ? new Date(d.created_date).toLocaleDateString('de-AT') : '–'}
+              {STAGE_LABELS?.[d.stage] || d.stage} · angelegt {d.created_date ? alsDatum(d.created_date).toLocaleDateString('de-AT') : '–'}
             </p>
           </button>
         ))}

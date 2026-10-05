@@ -1,6 +1,7 @@
 // Erkennt Stille nach einer Angebotsübermittlung — ohne neue Entity, ohne Hintergrundlauf.
 // Liefert null oder { tage, gesendet_am, titel, summe }.
 const STAGES = ['proposal_sent', 'negotiation', 'estimated'];
+import { alsDatum } from '@/lib/zeitpunkt';
 
 const istAngebotsmail = (a) =>
   a.channel === 'email' && a.direction === 'ausgehend' && a.intent === 'angebot';
@@ -17,13 +18,13 @@ export function angebotStand(deal, activities = [], appointments = []) {
   if (kandidaten.length === 0) return null;
 
   const gesendet = kandidaten
-    .map((a) => ({ a, t: new Date(a.activity_date || a.created_date).getTime() }))
+    .map((a) => ({ a, t: alsDatum(a.activity_date || a.created_date).getTime() }))
     .sort((x, y) => y.t - x.t)[0];
   if (!gesendet?.t) return null;
 
   const tage = Math.floor((Date.now() - gesendet.t) / 86400000);
   const eingehendDanach = (activities || []).some(
-    (a) => a.direction === 'eingehend' && new Date(a.activity_date || a.created_date).getTime() > gesendet.t,
+    (a) => a.direction === 'eingehend' && alsDatum(a.activity_date || a.created_date).getTime() > gesendet.t,
   );
   const bestaetigt = (appointments || []).some((t) => t.status === 'confirmed');
 
@@ -43,7 +44,7 @@ export function angebotStille(deal, activities = [], appointments = []) {
   if (kandidaten.length === 0) return null;
 
   const gesendet = kandidaten
-    .map((a) => ({ a, t: new Date(a.activity_date || a.created_date).getTime() }))
+    .map((a) => ({ a, t: alsDatum(a.activity_date || a.created_date).getTime() }))
     .sort((x, y) => y.t - x.t)[0];
   if (!gesendet?.t) return null;
 
@@ -51,7 +52,7 @@ export function angebotStille(deal, activities = [], appointments = []) {
   if (tage < 7) return null;
 
   const eingehendDanach = (activities || []).some(
-    (a) => a.direction === 'eingehend' && new Date(a.activity_date || a.created_date).getTime() > gesendet.t,
+    (a) => a.direction === 'eingehend' && alsDatum(a.activity_date || a.created_date).getTime() > gesendet.t,
   );
   if (eingehendDanach) return null;
 
