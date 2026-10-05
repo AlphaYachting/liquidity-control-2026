@@ -42,7 +42,7 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
         project_name: p.title, liquidity_project_id: p.liquidity_project_id || '',
         stundensatz: Number(p.stundensatz) || SATZ,
         open_minutes: 0, billable_minutes: 0, vorleistung_minutes: 0,
-        tasks: [], ohne_zeit: [], instructions: [],
+        tasks: [], ohne_zeit: [], instructions: [], nicht_verrechnet: [],
       };
     }
     return gruppen[key];
@@ -67,23 +67,39 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
     if (!ziel.letzte || (e.entry_date || '') > ziel.letzte) ziel.letzte = e.entry_date || null;
   }
 
+  const vor30Tagen = new Date(Date.now() - 30 * 864e5).toISOString();
   for (const t of tickets) {
     const z = proTicket[t.id] || { minuten: 0, ids: [], letzte: null };
     const vorleistung = Number(t.awork_vorleistung_minuten) > 0 && !t.awork_vorleistung_abgerechnet ? Number(t.awork_vorleistung_minuten) : 0;
     const g = gruppe(projektById[t.project_id]);
-    const offen = z.minuten + vorleistung;
-    if (offen <= 0) {
-      if (!hatAbgerechnet.has(t.id) && !t.awork_vorleistung_abgerechnet) {
-        g.ohne_zeit.push({ ticket_id: t.id, task_title: t.title, link: `/sprint/milestones/${t.milestone_id}?aufgabe=${t.id}` });
+    const link = `/sprint/milestones/${t.milestone_id}?aufgabe=${t.id}`;
+    const vstatus = t.verrechnung_status || 'offen';
+    // Bewusst nicht verrechnet: 30 Tage sichtbar (zum Rückgängigmachen), keine Position
+    if (vstatus === 'nicht_verrechnen') {
+      if ((t.verrechnung_am || '') >= vor30Tagen) {
+        g.nicht_verrechnet.push({
+          ticket_id: t.id, task_title: t.title, link, grund: t.verrechnung_grund || '',
+          notiz: t.verrechnung_notiz || '', von: t.verrechnung_von || '', am: t.verrechnung_am || null,
+        });
       }
       continue;
     }
+    if (vstatus === 'verrechnet') continue;
+    const offen = z.minuten + vorleistung;
+    // Ohne offene Zeit, aber schon über die App verrechnet (Altfall vor den Verrechnungsfeldern) → keine Position
+    if (offen <= 0 && (hatAbgerechnet.has(t.id) || t.awork_vorleistung_abgerechnet)) continue;
+    const beschreibung = String(t.description || '').split('— Vollständiger E-Mail-Verlauf —')[0].trim();
     const posten = {
       key: t.id, ticket_id: t.id, project_id: t.project_id, task_title: t.title,
       assignee_name: nameByEmail[String(t.assignee_email || '').toLowerCase()] || t.assignee_email || '',
       last_entry_date: z.letzte, open_minutes: offen, vorleistung_minutes: vorleistung,
       billable_minutes: supportVerrechnungsMinuten(offen), time_entry_ids: z.ids,
-      link: `/sprint/milestones/${t.milestone_id}?aufgabe=${t.id}`,
+      link,
+      ohne_zeit: offen <= 0,
+      target_hours: Number(t.target_hours) || null,
+      erledigt_am: t.last_status_change || null,
+      description_kurz: beschreibung.slice(0, 600),
+      awork_task_id: t.awork_task_id || null,
     };
     g.tasks.push(posten);
     g.open_minutes += offen;
@@ -98,6 +114,7 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
       key: `ohne:${projectId}`, ticket_id: null, project_id: projectId, task_title: 'Zeit ohne Ticket', assignee_name: '',
       last_entry_date: z.letzte, open_minutes: z.minuten, vorleistung_minutes: 0,
       billable_minutes: supportVerrechnungsMinuten(z.minuten), time_entry_ids: z.ids, link: null,
+      ohne_zeit: false, target_hours: null, erledigt_am: null, description_kurz: '', awork_task_id: null,
     };
     g.tasks.push(posten);
     g.open_minutes += z.minuten;
@@ -122,7 +139,7 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
   }
 
   const rows = Object.values(gruppen)
-    .filter(g => g.tasks.length || g.ohne_zeit.length || g.instructions.length)
+    .filter(g => g.tasks.length || g.nicht_verrechnet.length || g.instructions.length)
     .sort((a, b) => b.open_minutes - a.open_minutes);
   return { rows, support_projects: projekte.length };
 }
