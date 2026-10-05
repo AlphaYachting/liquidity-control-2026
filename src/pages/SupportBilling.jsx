@@ -54,7 +54,7 @@ export default function SupportBilling() {
 
           <div className="space-y-3">
             {appRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Keine erledigten Support-Tickets mit offener Zeit.</p>
+              <p className="text-sm text-muted-foreground">Keine erledigten Support-Tickets offen.</p>
             ) : (
               appRows.map(r => <SupportAppRow key={r.group_key} row={r} onDone={refetch} />)
             )}
