@@ -9,6 +9,8 @@ import { useEscalationAlertCount } from '@/hooks/useEscalationAlertCount';
 import { useZugriff } from '@/lib/useZugriff';
 import { useAuth } from '@/lib/AuthContext';
 import { NAV_GRUPPEN } from '@/lib/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { istInhaber, NEU_KEY, ladeNeue } from '@/lib/rueckmeldung/rueckmeldung';
 
 // Welche einklappbaren Gruppen die Person offen hat — bleibt im Browser gemerkt.
 const SPEICHER = 'nav-gruppen-offen';
@@ -36,6 +38,11 @@ export default function Sidebar() {
   // Ein Zähler für den einen Posteingang — dieselbe Quelle wie die Liste
   const posteingang = usePosteingang({ enabled: bereit && zugriff.darf(['leitung', 'support']) });
   const escalationCount = useEscalationAlertCount({ enabled: bereit && zugriff.darf('leitung') });
+  // Neue Rückmeldungen der Kollegen — nur für den Inhaber, dieselbe Abfrage wie am Knopf in der Kopfleiste
+  const { data: rueck } = useQuery({
+    queryKey: NEU_KEY, queryFn: ladeNeue, enabled: bereit && istInhaber(user),
+    refetchInterval: 2 * 60 * 1000, staleTime: 60 * 1000,
+  });
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [offen, setOffen] = useState(ladeOffen);
@@ -50,6 +57,11 @@ export default function Sidebar() {
     auftraege: { anzahl: unlinkedCount || 0 },
     mahnungen: { anzahl: pendingDunningCount || 0 },
     eskalationen: { alarm: escalationCount || 0 },
+    rueckmeldungen: {
+      anzahl: rueck?.anzahl || 0,
+      ueberfaellig: rueck?.blockiert || 0,
+      titel: rueck?.blockiert ? `${rueck.blockiert} Fehler blockiert jemanden` : 'Neue Rückmeldungen',
+    },
   };
 
   const filter = new URLSearchParams(location.search).get('filter');
@@ -97,7 +109,7 @@ export default function Sidebar() {
               {badgeCount > 0 && (
                 <span
                   className={`min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold flex items-center justify-center ${badgeOverdue ? 'bg-status-critical text-white' : 'bg-foreground text-background'}`}
-                  title={badgeOverdue ? `${z.ueberfaellig} überfällig (älter als 48 Stunden)` : undefined}
+                  title={z.titel || (badgeOverdue ? `${z.ueberfaellig} überfällig (älter als 48 Stunden)` : undefined)}
                 >
                   {badgeCount}
                 </span>
