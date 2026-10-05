@@ -62,32 +62,37 @@ export default function SprintHeute() {
       // Nur die Projekte, Kunden, Sprints und Etappen laden, die diese Person wirklich betreffen.
       const bekannt = new Set(pmProjects.map((p) => p.id));
       const fehlende = eindeutig([...myTickets.map((t) => t.project_id), focusDay?.project_id]).filter((id) => !bekannt.has(id));
-      const weitere = !fehlende.length ? []
-        : fehlende.length > MAX_IDS
-          ? (await base44.entities.Project.filter(PROJEKT_LAUFEND, '-created_date', 500)).filter((p) => !bekannt.has(p.id))
-          : await base44.entities.Project.filter({ id: { $in: fehlende } }, 'title', 500);
-      const projects = [...pmProjects, ...weitere];
-      const projectIds = projects.map((p) => p.id);
-      const clientIds = eindeutig(projects.map((p) => p.client_id));
       const modulIds = eindeutig(myTickets.map((t) => t.module_template_id));
+      // Sprints hängen nur an der Projekt-ID — sie werden daher gleichzeitig mit den
+      // fehlenden Projekten geladen statt danach (eine Abfragerunde weniger).
+      const alleProjektIds = eindeutig([...bekannt, ...fehlende]);
 
-      const [clients, sprints, module] = await Promise.all([
+      const [weitere, sprints, module] = await Promise.all([
+        !fehlende.length ? []
+          : fehlende.length > MAX_IDS
+            ? base44.entities.Project.filter(PROJEKT_LAUFEND, '-created_date', 500).then((r) => r.filter((p) => !bekannt.has(p.id)))
+            : base44.entities.Project.filter({ id: { $in: fehlende } }, 'title', 500),
+        !alleProjektIds.length ? []
+          : alleProjektIds.length > MAX_IDS
+            ? base44.entities.Sprint.list('-created_date', 500)
+            : base44.entities.Sprint.filter({ project_id: { $in: alleProjektIds } }, '-created_date', 500),
+        !modulIds.length ? []
+          : base44.entities.ModuleTemplate.filter({ id: { $in: modulIds.slice(0, 200) } }, 'name', 200),
+      ]);
+      const projects = [...pmProjects, ...weitere];
+      const clientIds = eindeutig(projects.map((p) => p.client_id));
+      const sprintIds = sprints.map((s) => s.id);
+
+      const [clients, milestones] = await Promise.all([
         !clientIds.length ? []
           : clientIds.length > MAX_IDS
             ? base44.entities.Client.list('-created_date', 2000)
             : base44.entities.Client.filter({ id: { $in: clientIds } }, 'name', 500),
-        !projectIds.length ? []
-          : projectIds.length > MAX_IDS
-            ? base44.entities.Sprint.list('-created_date', 500)
-            : base44.entities.Sprint.filter({ project_id: { $in: projectIds } }, '-created_date', 500),
-        !modulIds.length ? []
-          : base44.entities.ModuleTemplate.filter({ id: { $in: modulIds.slice(0, 200) } }, 'name', 200),
+        !sprintIds.length ? []
+          : sprintIds.length > MAX_IDS
+            ? base44.entities.Milestone.list('-created_date', 500)
+            : base44.entities.Milestone.filter({ sprint_id: { $in: sprintIds } }, '-created_date', 500),
       ]);
-      const sprintIds = sprints.map((s) => s.id);
-      const milestones = !sprintIds.length ? []
-        : sprintIds.length > MAX_IDS
-          ? await base44.entities.Milestone.list('-created_date', 500)
-          : await base44.entities.Milestone.filter({ sprint_id: { $in: sprintIds } }, '-created_date', 500);
 
       const standardHours = Number(settings.find((s) => s.key === 'standard_day_hours')?.value) || 8;
       return { myTickets, focusDay, projects, clients, milestones, standardHours, sprints, todayEntries, module, members };
