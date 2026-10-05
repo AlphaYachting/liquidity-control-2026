@@ -19,6 +19,7 @@ import { ROLES, TICKET_STATUSES, TICKET_STATUS_LABELS, STATE_LABELS, fmtDate } f
 import { RHYTHMUS_LABEL } from '@/components/sprint/paket/paketZaehler';
 import { ARCHIV_GRUENDE, ARCHIV_GRUND_LABEL } from '@/lib/sprint/aktivFilter';
 import { ticketBereinigen, darfBereinigen } from '@/lib/sprint/ticketBereinigen';
+import { useZugriff } from '@/lib/useZugriff';
 
 const STATES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
 const ORIGIN_LABEL = {
@@ -60,8 +61,10 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
     Boolean(open && ticket?.id),
   );
 
-  // Archivieren / Routine beenden / Löschen — nur Projektverantwortliche und Admins
+  // Archivieren / Routine beenden: Projektverantwortliche, Führungskräfte und Admins (Entscheidung 05.10.2026,
+  // gleiche Regel wie der Server und „Aufgaben bereinigen“). Löschen: nur Admins.
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => base44.auth.me(), enabled: Boolean(open) });
+  const zugriff = useZugriff();
   const { data: kontext } = useQuery({
     queryKey: ['ticketKontext', ticket?.milestone_id, ticket?.project_id],
     enabled: Boolean(open && ticket?.id),
@@ -90,7 +93,7 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
 
   if (!ticket) return null;
 
-  const darf = darfBereinigen(me, projekt);
+  const darf = darfBereinigen(me, projekt) || (!!me && zugriff.darf('fuehrung'));
   const istAdmin = me?.role === 'admin';
   const archiviert = !!ticket.archiviert;
 
