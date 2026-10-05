@@ -14,9 +14,15 @@ export async function istContainerProjekt(projectId) {
 }
 
 // Distinkte Module, aus denen dieses Projekt Tickets hat.
+// Dazu zählen auch Module, deren Routine bewusst beendet wurde (archiv_grund „routine_beendet“):
+// Der Leistungsbereich gehört weiter zum Projekt und bleibt buchbar, nur das monatliche Ticket entfällt
+// (z. B. „Projektmanagement & Meetings“ in den Retainern, Aufräumen vom 05.10.2026).
 export async function bereicheVonProjekt(projectId) {
-  const tickets = await base44.entities.Ticket.filter(ohneArchiv({ project_id: projectId }), 'order', 1000);
-  const ids = [...new Set(tickets.map((t) => t.module_template_id).filter(Boolean))];
+  const [tickets, beendet] = await Promise.all([
+    base44.entities.Ticket.filter(ohneArchiv({ project_id: projectId }), 'order', 1000),
+    base44.entities.Ticket.filter({ project_id: projectId, archiviert: true, archiv_grund: 'routine_beendet' }, 'order', 200).catch(() => []),
+  ]);
+  const ids = [...new Set([...tickets, ...beendet].map((t) => t.module_template_id).filter(Boolean))];
   if (!ids.length) return [];
   const module = await base44.entities.ModuleTemplate.filter({ id: { $in: ids } }, 'name', 200);
   return module.map((m) => ({ id: m.id, name: m.name }));
