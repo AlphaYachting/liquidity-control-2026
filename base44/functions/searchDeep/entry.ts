@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { normalize } from '../../shared/searchNormalize.js';
+import { vertraulichGrund } from '../../shared/vertraulich.js';
 
 // Zweite Stufe: was nicht im Index liegt — Verläufe und Kundenakt im Volltext.
 export default async function (req) {
@@ -15,9 +16,20 @@ export default async function (req) {
     const sr = base44.asServiceRole;
     const fenster = new Date(Date.now() - 180 * 86400000).toISOString();
 
-    const threads = await sr.entities.EmailThreadIndex.list('-last_message_at', 1500);
+    const [threads, regeln] = await Promise.all([
+      sr.entities.EmailThreadIndex.list('-last_message_at', 1500),
+      sr.entities.InboxBlockedSender.list('-created_date', 200).catch(() => []),
+    ]);
+    const istAdmin = user.role === 'admin';
     const postfach = threads
       .filter((t) => (t.last_message_at || '') >= fenster)
+      // Vertrauliche Post (Masseverwalter, Verwaltung, Mails nur an den GF) taucht in der Suche nicht auf
+      .filter((t) => !vertraulichGrund({
+        absender: [t.last_from, t.last_inbound_from],
+        empfaenger: [t.last_to],
+        regeln,
+        istAdmin,
+      }))
       .filter((t) => normalize(`${t.subject} ${t.customer} ${t.last_from_name}`).includes(suche))
       .slice(0, 6)
       .map((t) => ({
