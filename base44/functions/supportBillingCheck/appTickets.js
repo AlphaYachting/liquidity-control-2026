@@ -147,23 +147,25 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
 // App-Supportabrechnung oben schließt Regie bewusst aus (anderes Modell: keine
 // Ticketpflicht, kein Minimum je Ticket). Hier: alle offenen, verrechenbaren
 // Buchungen je Regie-Projekt — gebündelt je Aufgabe bzw. „ohne Aufgabe".
-// Gerundet wird nach den bestehenden Regeln (Projekt → Setting → Vorgabe),
-// identische Logik wie src/lib/zeit/rundung.js (regelnFuer / verrechneteMinuten).
+// Gerundet wird nach den Regeln am Projekt, sonst Setting 'regie.*', sonst Regie-Vorgabe
+// (mindestens 15 Minuten, auf 15 Minuten aufgerundet, je Tag und Projekt).
 // Buchungen bis zum aWork-Stichtag stehen als eigene Position „vor der Umstellung"
 // und sind im Rechnungsdialog nicht vorausgewählt — sie können in aWork schon
 // gebucht und verrechnet sein.
 
-const RUNDUNG_VORGABE_AUFWAND = { rundung_minuten: 15, rundung_art: 'auf', rundung_basis: 'tag_projekt', mindestbuchung_minuten: 0 };
+// Regie: mindestens 15 Minuten, auf volle 15 Minuten aufgerundet — je Tag und Projekt
+// (Entscheidung Alfons 05.10.2026). Identisch mit RUNDUNG_VORGABEN.regie in src/lib/zeit/rundung.js.
+const RUNDUNG_VORGABE_REGIE = { rundung_minuten: 15, rundung_art: 'auf', rundung_basis: 'tag_projekt', mindestbuchung_minuten: 15 };
 const RUNDUNG_FELDER = ['rundung_minuten', 'rundung_art', 'rundung_basis', 'mindestbuchung_minuten'];
 
 function regelnFuer(project, settings) {
   const regeln = {};
   for (const f of RUNDUNG_FELDER) {
     const amProjekt = project?.[f];
-    const ausSetting = settings[`aufwand.${f}`];
+    const ausSetting = settings[`regie.${f}`];
     regeln[f] = amProjekt !== undefined && amProjekt !== null && amProjekt !== ''
       ? amProjekt
-      : (ausSetting !== undefined && ausSetting !== null && ausSetting !== '' ? ausSetting : RUNDUNG_VORGABE_AUFWAND[f]);
+      : (ausSetting !== undefined && ausSetting !== null && ausSetting !== '' ? ausSetting : RUNDUNG_VORGABE_REGIE[f]);
   }
   regeln.rundung_minuten = Number(regeln.rundung_minuten) || 0;
   regeln.mindestbuchung_minuten = Number(regeln.mindestbuchung_minuten) || 0;
@@ -176,14 +178,34 @@ const runde = (minuten, schritt, art) => {
   return (art === 'kaufmaennisch' ? Math.round(teile) : Math.ceil(teile)) * schritt;
 };
 
-// Verrechnete Minuten einer Menge Buchungen nach den Projektregeln
-function verrechnet(entries, regeln) {
+// Verrechnete Minuten je Position. Basis 'buchung': jede Buchung für sich gerundet.
+// Basis 'tag_projekt': je Tag wird die Summe des ganzen Projekts gerundet (Minimum gilt
+// je Tag und Projekt, nicht je Aufgabe); der Rundungsaufschlag eines Tages geht an die
+// Position mit den meisten Minuten an diesem Tag. Rückgabe: { [positionKey]: Minuten }
+function verrechnetJePosition(positionen, regeln) {
+  const ergebnis = Object.fromEntries(positionen.map(p => [p.key, 0]));
   if (regeln.rundung_basis === 'buchung') {
-    return entries.reduce((s, e) => s + Math.max(runde(Number(e.duration_minutes) || 0, regeln.rundung_minuten, regeln.rundung_art), regeln.mindestbuchung_minuten), 0);
+    for (const p of positionen) {
+      ergebnis[p.key] = p.entries.reduce((s, e) => s + Math.max(runde(Number(e.duration_minutes) || 0, regeln.rundung_minuten, regeln.rundung_art), regeln.mindestbuchung_minuten), 0);
+    }
+    return ergebnis;
   }
-  const nachTag = {};
-  for (const e of entries) nachTag[e.entry_date || 'ohne'] = (nachTag[e.entry_date || 'ohne'] || 0) + (Number(e.duration_minutes) || 0);
-  return Object.values(nachTag).reduce((s, min) => s + Math.max(runde(min, regeln.rundung_minuten, regeln.rundung_art), regeln.mindestbuchung_minuten), 0);
+  const tage = {};
+  for (const p of positionen) {
+    for (const e of p.entries) {
+      const tag = e.entry_date || 'ohne';
+      const t = tage[tag] = tage[tag] || {};
+      t[p.key] = (t[p.key] || 0) + (Number(e.duration_minutes) || 0);
+    }
+  }
+  for (const proPos of Object.values(tage)) {
+    const summe = Object.values(proPos).reduce((s, m) => s + m, 0);
+    const gerundet = summe > 0 ? Math.max(runde(summe, regeln.rundung_minuten, regeln.rundung_art), regeln.mindestbuchung_minuten) : summe;
+    const groesste = Object.entries(proPos).sort((a, b) => b[1] - a[1])[0][0];
+    for (const [key, min] of Object.entries(proPos)) ergebnis[key] += min;
+    ergebnis[groesste] += gerundet - summe;
+  }
+  return ergebnis;
 }
 
 export async function regieZeilen(sr, alleSeiten, liveStatus, anweisungen) {
@@ -240,6 +262,7 @@ export async function regieZeilen(sr, alleSeiten, liveStatus, anweisungen) {
       if (e.person_email) pos.personen.add(nameByEmail[String(e.person_email).toLowerCase()] || e.person_email);
     }
 
+    const verrechnetMin = verrechnetJePosition(Object.values(positionen), regeln);
     const tasks = Object.values(positionen).map(pos => {
       const t = pos.ticket_id ? ticketById[pos.ticket_id] : null;
       const minuten = pos.entries.reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0);
@@ -258,7 +281,7 @@ export async function regieZeilen(sr, alleSeiten, liveStatus, anweisungen) {
         first_entry_date: erste || null,
         open_minutes: minuten,
         vorleistung_minutes: 0,
-        billable_minutes: verrechnet(pos.entries, regeln),
+        billable_minutes: verrechnetMin[pos.key],
         time_entry_ids: pos.entries.map(e => e.id),
         link: t ? `/sprint/milestones/${t.milestone_id}?aufgabe=${t.id}` : null,
         ohne_zeit: false,
