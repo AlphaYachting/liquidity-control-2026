@@ -177,7 +177,10 @@ export async function loescheZeit(id) {
   return base44.entities.TimeEntry.delete(id);
 }
 
-export function useTimer(email) {
+// Optionen: ticken=false schaltet den Sekundentakt ab (wenn nur `timer` gebraucht wird);
+// nurTicketId=<id> lässt nur dann ticken, wenn der Timer genau auf dieser Aufgabe läuft
+// (sonst zeichnet jede Aufgabenzeile in „Mein Tag“ jede Sekunde neu).
+export function useTimer(email, { ticken = true, nurTicketId } = {}) {
   const qc = useQueryClient();
   const [, setTick] = useState(0);
 
@@ -195,11 +198,12 @@ export function useTimer(email) {
   const running = !!timer;
   const elapsedMinutes = running ? minutenSeit(timer.gestartet_am) : 0;
 
+  const tickenAktiv = running && ticken && (!nurTicketId || timer?.ticket_id === nurTicketId);
   useEffect(() => {
-    if (!running) return;
+    if (!tickenAktiv) return;
     const i = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(i);
-  }, [running]);
+  }, [tickenAktiv]);
 
   const refresh = useCallback(() => qc.invalidateQueries({ queryKey: ['laufendeZeitbuchung', email] }), [qc, email]);
 
