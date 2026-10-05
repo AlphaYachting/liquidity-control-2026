@@ -2,6 +2,36 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { emailDbGet, emailDbEnrich } from '../../shared/emailDb.ts';
 import { computeNeedsReply, conversationKeyOf } from '../../shared/emailWorkQueue.js';
 import { recomputeConversationOf } from '../../shared/emailConversations.js';
+import { vertraulichGrund, teilnehmerAusNachrichten } from '../../shared/vertraulich.js';
+
+const VERTRAULICH_TEXT = 'Diese Konversation ist vertraulich und wird in der App nicht angezeigt.';
+
+// Listen (threads, search) um vertrauliche Konversationen bereinigen. Teilnehmer kommen aus dem
+// Listeneintrag selbst, aus dem Verlaufs-Index (letzter Absender/Empfänger) und — falls schon
+// geladen — aus den Nachrichten (__teilnehmer).
+async function bereinigeListe(svc: any, results: any[], regeln: any[], istAdmin: boolean) {
+  if (!Array.isArray(results) || !results.length) return results || [];
+  const ids = [...new Set(results.map((r: any) => String(r.thread_id || r.id || '')).filter(Boolean))];
+  let index: any[] = [];
+  try {
+    for (let i = 0; i < ids.length; i += 100) {
+      index.push(...await svc.entities.EmailThreadIndex.filter({ thread_id: { $in: ids.slice(i, i + 100) } }, '-last_message_at', 200));
+    }
+  } catch (_e) { index = []; }
+  const nachId = new Map(index.map((z: any) => [String(z.thread_id), z]));
+  return results.filter((r: any) => {
+    const z = nachId.get(String(r.thread_id || r.id || '')) || {};
+    const t = r.__teilnehmer || { absender: [], empfaenger: [] };
+    const grund = vertraulichGrund({
+      absender: [r.from, r.sender, r.last_from, r.last_inbound_from, z.last_from, z.last_inbound_from, t.absender],
+      empfaenger: [r.to, r.cc, r.last_to, z.last_to, t.empfaenger],
+      regeln,
+      istAdmin,
+    });
+    delete r.__teilnehmer;
+    return !grund;
+  });
+}
 
 // "AW: Re: Fwd: Feedback" -> "feedback" (gleiche Logik wie im Frontend-Grouping)
 function normalizeSubject(s: string) {
@@ -60,6 +90,11 @@ Deno.serve(async (req) => {
     const path = paths[action];
     if (!path) return Response.json({ error: `Unbekannte Aktion: ${action}` }, { status: 400 });
 
+    // Vertrauliche Post (Masseverwalter, Verwaltung, Mails nur an den GF) — Regeln einmal je Aufruf laden
+    const svcRole = base44.asServiceRole;
+    const istAdmin = user.role === 'admin';
+    const regeln = action === 'health' ? [] : await svcRole.entities.InboxBlockedSender.list('-created_date', 200).catch(() => []);
+
     // Thread-Liste optional mit letzter Nachricht anreichern (wer hat zuletzt geschrieben?)
     if (action === 'threads' && params.with_reply_state) {
       const { with_reply_state: _drop, ...listParams } = params;
@@ -95,6 +130,7 @@ Deno.serve(async (req) => {
               detail = await emailDbGet('thread', { id: t.id, msgs: 12 });
             }
             const msgs = detail.messages || [];
+            t.__teilnehmer = teilnehmerAusNachrichten(msgs);
             const last = msgs[0];
             // Letzter Kunden-Absender (für Kundenableitung aus der Domain im Frontend)
             const lastIn = msgs.find((m: any) => m.direction === 'in');
@@ -119,6 +155,7 @@ Deno.serve(async (req) => {
           }
         }));
       }
+      listing.results = await bereinigeListe(svcRole, listing.results || [], regeln, istAdmin);
       return Response.json(listing);
     }
 
@@ -157,10 +194,27 @@ Deno.serve(async (req) => {
           }
         } catch (_e) { /* Zusammenführung ist Best-Effort — Basisdetail immer liefern */ }
       }
+      // Vertraulich? Dann gar nichts ausliefern — auch nicht Betreff oder Teilnehmer.
+      const tid = String(detail?.thread?.id || params.id || '');
+      const zeile = tid
+        ? (await svcRole.entities.EmailThreadIndex.filter({ thread_id: tid }, '-last_message_at', 1).catch(() => []))[0] || {}
+        : {};
+      const teil = teilnehmerAusNachrichten(detail?.messages || []);
+      const grund = vertraulichGrund({
+        absender: [teil.absender, detail?.thread?.from, zeile.last_from, zeile.last_inbound_from],
+        empfaenger: [teil.empfaenger, detail?.thread?.to, zeile.last_to],
+        regeln,
+        istAdmin,
+      });
+      if (grund) return Response.json({ error: VERTRAULICH_TEXT, vertraulich: grund }, { status: 403 });
       return Response.json(detail);
     }
 
-    return Response.json(await emailDbGet(path, params));
+    const daten = await emailDbGet(path, params);
+    if ((action === 'threads' || action === 'search') && Array.isArray(daten?.results)) {
+      daten.results = await bereinigeListe(svcRole, daten.results, regeln, istAdmin);
+    }
+    return Response.json(daten);
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
