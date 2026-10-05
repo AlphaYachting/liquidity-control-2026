@@ -1,5 +1,5 @@
 import React from 'react';
-import { differenceInDays, parseISO } from 'date-fns';
+import { differenceInDays } from 'date-fns';
 import { Building2, CalendarClock } from 'lucide-react';
 import { SOURCE_LABELS, eur } from '@/components/crm/stages';
 import { alsDatum } from '@/lib/zeitpunkt';
