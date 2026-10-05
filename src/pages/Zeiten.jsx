@@ -37,7 +37,8 @@ export default function Zeiten() {
   const [jetzt, setJetzt] = useState(new Date());
   const { toast } = useToast();
   const { offeneTage, aeltester, darfBuchen, pflichtAb } = useOffeneTage(email);
-  const { timer } = useTimer(email);
+  // Nur der laufende Eintrag wird gebraucht — kein Sekundentakt für die ganze Seite.
+  const { timer } = useTimer(email, { ticken: false });
   const rundungsSettings = useRundungsSettings();
   const gesprungen = useRef(false);
 
