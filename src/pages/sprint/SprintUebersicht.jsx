@@ -12,6 +12,7 @@ import { behaelterStatus } from '@/lib/sprint/behaelterStatus';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { RITTLER, fmtEUR, todayIso } from '@/components/sprint/sprintConfig';
 import { NICHT_ARCHIVIERT } from '@/lib/sprint/aktivFilter';
+import { personenMitLeitung } from '@/lib/sprint/personenMitLeitung';
 
 const mondayOf = (iso) => {
   const d = new Date(iso);
