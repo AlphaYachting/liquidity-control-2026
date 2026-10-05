@@ -131,7 +131,8 @@ export default async function (req: Request): Promise<Response> {
       hours: Math.round((minuten / 60) * 100) / 100,
       taetigkeit: art,
       quelle: 'timer',
-      note: [laufende.notiz, notiz].filter(Boolean).join(' · '),
+      // Notiz vom Start und vom Stoppen — ist sie gleich, nur einmal (sonst steht „X · X“ in der Buchung)
+      note: [...new Set([laufende.notiz, notiz].map((t) => String(t || '').trim()).filter(Boolean))].join(' · '),
       source: 'bestaetigt',
     });
 
