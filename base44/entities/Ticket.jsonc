@@ -250,6 +250,42 @@
       "default": false,
       "description": "Vorleistung aus aWork wurde in einer Support-Rechnung verrechnet",
       "type": "boolean"
+    },
+    "verrechnung_status": {
+      "default": "offen",
+      "description": "Verrechnung des erledigten Tickets: offen, verrechnet (Rechnung angelegt) oder nicht_verrechnen (bewusst ohne Rechnung)",
+      "enum": [
+        "offen",
+        "verrechnet",
+        "nicht_verrechnen"
+      ],
+      "type": "string"
+    },
+    "verrechnung_grund": {
+      "description": "Bei nicht_verrechnen: warum keine Rechnung",
+      "enum": [
+        "wartungsvertrag",
+        "anderer_auftrag",
+        "kulanz",
+        "keine_gesonderte_abrechnung",
+        "sonstiges"
+      ],
+      "type": "string"
+    },
+    "verrechnung_notiz": {
+      "type": "string"
+    },
+    "verrechnung_von": {
+      "format": "email",
+      "type": "string"
+    },
+    "verrechnung_am": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "verrechnung_text": {
+      "description": "Leistungsbeschreibung, die auf der Rechnung stand",
+      "type": "string"
     }
   }
 }
