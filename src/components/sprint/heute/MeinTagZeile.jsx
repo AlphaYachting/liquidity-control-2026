@@ -111,7 +111,7 @@ function Termin({ ticket, heute, mitHeute = false }) {
 // Timer direkt auf diese Aufgabe — läuft er hier, stoppt und bucht derselbe Knopf.
 function TimerKnopfZeile({ ticket, project, client }) {
   const { user } = useAuth();
-  const { timer, running, label, start, stop } = useTimer(user?.email);
+  const { timer, running, label, start, stop } = useTimer(user?.email, { nurTicketId: ticket.id });
   const [busy, setBusy] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
