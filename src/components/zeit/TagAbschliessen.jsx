@@ -4,6 +4,57 @@ import { base44 } from '@/api/base44Client';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { uhr, dauerText } from '@/lib/zeit/tagesAuswertung';
 import { MAX_LUECKE } from '@/lib/zeit/offeneTage';
+import { aendereZeit } from '@/lib/sprint/useTimer';
+import { beschreibungReicht } from '@/lib/zeit/beschreibungPflicht';
+
+// Eine Buchung ohne Ticket und ohne Beschreibung — hier direkt beschreiben
+function BeschreibungNachtragen({ eintrag, label, onSaved }) {
+  const [text, setText] = useState(eintrag.note || '');
+  const [busy, setBusy] = useState(false);
+  const [fehler, setFehler] = useState('');
+  const ok = beschreibungReicht(text);
+  const speichern = async () => {
+    setBusy(true);
+    setFehler('');
+    try {
+      await aendereZeit(eintrag.id, { note: text.trim() });
+      onSaved?.();
+    } catch (e) {
+      setFehler(e?.message || 'Speichern fehlgeschlagen');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const von = eintrag.started_at ? new Date(eintrag.started_at) : null;
+  const bis = eintrag.ended_at ? new Date(eintrag.ended_at) : null;
+  const zeit = von && bis ? `${uhr(von.getHours() * 60 + von.getMinutes())}–${uhr(bis.getHours() * 60 + bis.getMinutes())}` : 'ohne Zeitfenster';
+  return (
+    <div className="flex flex-wrap items-center gap-2 py-2">
+      <div className="w-full sm:w-[260px] shrink-0 min-w-0">
+        <p className="text-xs font-semibold truncate" style={{ color: RITTLER.black }}>{label}</p>
+        <p className="text-xs" style={{ color: RITTLER.textSecondary }}>{zeit} · {dauerText(Number(eintrag.duration_minutes) || 0)}</p>
+      </div>
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && ok && !busy) speichern(); }}
+        placeholder="Was wurde gemacht? z. B. Kontaktformular repariert und getestet"
+        className="flex-1 min-w-[200px] h-9 px-3 rounded border text-sm"
+        style={{ borderColor: ok ? RITTLER.line : STATUS_COLORS.attention }}
+      />
+      <button
+        type="button"
+        disabled={busy || !ok}
+        onClick={speichern}
+        className="h-9 px-4 rounded border text-xs font-bold uppercase tracking-wide disabled:opacity-40"
+        style={{ borderColor: RITTLER.black, color: RITTLER.black }}
+      >
+        {busy ? 'Speichert…' : 'Speichern'}
+      </button>
+      {fehler && <p className="w-full text-xs" style={{ color: STATUS_COLORS.attention }}>{fehler}</p>}
+    </div>
+  );
+}
 
 const GRUND_TEXT = {
   frei: 'Tag als frei abgeschlossen — Urlaub, Krankheit oder Feiertag.',
@@ -14,6 +65,7 @@ const GRUND_TEXT = {
 // Abschlussleiste: buchen, als Pause vermerken oder als frei abschließen. Nie automatisch buchen.
 export default function TagAbschliessen({
   auswertung, abschluss, email, tag, onSaved, wocheBestaetigt, darfFremdOeffnen,
+  ohneBeschreibung = [], projektLabel,
 }) {
   const [busy, setBusy] = useState(false);
   const bestaetigt = !!abschluss?.bestaetigt_am;
@@ -22,7 +74,8 @@ export default function TagAbschliessen({
   const fehlt = zuGross.reduce((s, l) => s + l.minuten, 0);
   const offeneLoecher = auswertung.loecher;
   const offenSumme = offeneLoecher.reduce((s, l) => s + l.minuten, 0);
-  const bereit = auswertung.anzahl > 0 && zuGross.length === 0;
+  const fehlendeBeschreibung = ohneBeschreibung.length > 0;
+  const bereit = auswertung.anzahl > 0 && zuGross.length === 0 && !fehlendeBeschreibung;
 
   const speichern = async (daten) => {
     setBusy(true);
@@ -88,13 +141,31 @@ export default function TagAbschliessen({
   }
 
   return (
+    <div className="space-y-2">
+    {fehlendeBeschreibung && (
+      <div className="px-3 py-3 bg-white rounded" style={{ border: `1.5px solid ${STATUS_COLORS.attention}` }}>
+        <p className="text-sm font-bold" style={{ color: STATUS_COLORS.attention }}>
+          {ohneBeschreibung.length === 1 ? '1 Buchung braucht' : `${ohneBeschreibung.length} Buchungen brauchen`} noch eine Beschreibung, was gemacht wurde
+        </p>
+        <p className="text-xs mt-0.5" style={{ color: RITTLER.textSecondary }}>
+          Diese Zeit wird nach Aufwand verrechnet und steht auf der Rechnung. Ohne Ticket braucht sie einen kurzen Satz (mindestens zwei Wörter) — vorher lässt sich der Tag nicht abschließen.
+        </p>
+        <div className="divide-y mt-1" style={{ borderColor: RITTLER.line }}>
+          {ohneBeschreibung.map((e) => (
+            <BeschreibungNachtragen key={e.id} eintrag={e} label={projektLabel ? projektLabel(e).voll : ''} onSaved={onSaved} />
+          ))}
+        </div>
+      </div>
+    )}
     <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 bg-white rounded border" style={{ borderColor: RITTLER.line }}>
-      <p className="text-sm flex-1 min-w-[240px]" style={{ color: zuGross.length ? STATUS_COLORS.attention : RITTLER.textSecondary }}>
+      <p className="text-sm flex-1 min-w-[240px]" style={{ color: zuGross.length || fehlendeBeschreibung ? STATUS_COLORS.attention : RITTLER.textSecondary }}>
         {auswertung.anzahl === 0
           ? 'Für diesen Tag liegt keine Buchung vor — erfassen oder als frei abschließen.'
           : zuGross.length
             ? `Es fehlen ${dauerText(fehlt)}: ${zuGross.map((l) => `${uhr(l.von)}–${uhr(l.bis)}`).join(', ')}. Buchen oder als Pause vermerken.`
-            : 'Keine offene Lücke — der Tag kann abgeschlossen werden.'}
+            : fehlendeBeschreibung
+              ? 'Erst die fehlenden Beschreibungen eintragen, dann den Tag abschließen.'
+              : 'Keine offene Lücke — der Tag kann abgeschlossen werden.'}
       </p>
 
       <div className="flex items-center gap-2 shrink-0">
@@ -111,7 +182,7 @@ export default function TagAbschliessen({
         )}
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || fehlendeBeschreibung}
           onClick={() => abschliessen('frei')}
           className="h-9 px-4 rounded border text-xs font-bold uppercase tracking-wide disabled:opacity-40"
           style={{ borderColor: RITTLER.line, color: RITTLER.textSecondary }}
@@ -128,6 +199,7 @@ export default function TagAbschliessen({
           <Lock className="w-3.5 h-3.5" /> Tag abschließen
         </button>
       </div>
+    </div>
     </div>
   );
 }
