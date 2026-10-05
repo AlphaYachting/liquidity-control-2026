@@ -60,7 +60,9 @@ export async function resolveSupportProject(customerName, options = {}) {
       aufwand_art: 'support',
       stundensatz: Number(stundensatz) || DEFAULT_SUPPORT_RATE,
     });
-  } else if (stundensatz && !project.stundensatz) {
+  } else if (stundensatz && !project.stundensatz && SUPPORT_MODELS.includes(project.abrechnungsmodell)) {
+    // Stundensatz nur bei Support-/Aufwandsprojekten nachtragen — ein Retainer oder Pauschalprojekt,
+    // in das eine Anfrage bewusst abgelegt wird, bekommt keinen Support-Satz.
     await base44.entities.Project.update(project.id, { stundensatz: Number(stundensatz) });
   }
 
