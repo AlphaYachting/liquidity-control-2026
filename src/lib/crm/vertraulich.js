@@ -1,5 +1,5 @@
 // Vertrauliche Post — EINE Regel für alle Stellen, an denen die App E-Mails zeigt
-// (Entscheidung Alfons 05.10.2026). Gleichlautend in src/lib/crm/vertraulich.js für die Oberfläche — bei Änderungen BEIDE anpassen.
+// (Entscheidung Alfons 05.10.2026). Gleichlautend in base44/shared/vertraulich.js für die Server-Funktionen — bei Änderungen BEIDE anpassen.
 //
 //  1. Masseverwalter (Liste „Ausblenden“, z. B. unseranwalt.at): Absender ODER Empfänger ODER in Kopie
 //     -> für ALLE unsichtbar, auch für den Geschäftsführer.
