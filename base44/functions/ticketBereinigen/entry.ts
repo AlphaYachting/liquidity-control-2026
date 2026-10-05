@@ -2,7 +2,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 // Tickets archivieren, wiederherstellen, Routinen beenden, löschen — alle Prüfungen hier auf dem Server.
 // Eingabe: { aktion: 'pruefen'|'archivieren'|'wiederherstellen'|'routine_beenden'|'loeschen', ticket_ids: string[], grund?: string }
-// Rechte: archivieren / wiederherstellen / routine_beenden → Admin oder Projektverantwortlicher; loeschen → nur Admin.
+// Rechte: archivieren / wiederherstellen / routine_beenden → Admin, Führungskraft (Stufe gf) oder Projektverantwortlicher
+// (Entscheidung 05.10.2026: Führungskräfte in allen Projekten); loeschen → nur Admin.
 // Zeitbuchungen, Abrechnung und Saldo werden nie verändert.
 
 const GRUENDE = ['doppelt', 'nicht_mehr_relevant', 'storniert', 'altbestand_awork', 'routine_beendet', 'projekt_abgeschlossen', 'sonstiges'];
