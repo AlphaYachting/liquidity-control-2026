@@ -14,7 +14,7 @@ export default function Vorschlagsliste({ vorschlaege, email, projektLabel, prue
     if (pruefen && !pruefen(v.day)) return;
     setBusy(v.id);
     const minuten = minuteVonIso(v.bis) - minuteVonIso(v.von);
-    await bucheZeit({
+    const buchung = {
       projectId: v.project_id,
       email,
       durationMinutes: minuten,
@@ -24,7 +24,19 @@ export default function Vorschlagsliste({ vorschlaege, email, projektLabel, prue
       note: v.vorgeschlagene_notiz || '',
       ticketId: v.ticket_id || undefined,
       quelle: 'spur',
-    });
+    };
+    try {
+      await bucheZeit(buchung);
+    } catch (e) {
+      if (e?.bestaetigen && window.confirm(e.message)) {
+        await bucheZeit({ ...buchung, trotzdem: true });
+      } else {
+        if (e?.sperre) window.alert(e.message);
+        else if (!e?.bestaetigen) throw e;
+        setBusy('');
+        return;
+      }
+    }
     await base44.entities.Zeitvorschlag.update(v.id, { status: 'uebernommen' });
     setBusy('');
     onErledigt?.();

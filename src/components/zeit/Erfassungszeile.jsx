@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { base44 } from '@/api/base44Client';
-import { todayIso } from '@/components/sprint/sprintConfig';
+import { todayIso, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { bucheZeit, stundenAus } from '@/lib/sprint/useTimer';
 import { parseEingabe } from '@/lib/zeit/eingabeParser';
 import { findeLuecke, fensterZuIso } from '@/lib/zeit/luecke';
@@ -37,6 +37,8 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
   const [taetigkeit, setTaetigkeit] = useState('umsetzung');
   const [listeOffen, setListeOffen] = useState(true);
   const [mehraufwand, setMehraufwand] = useState(false);
+  const [sperre, setSperre] = useState('');
+  useEffect(() => { setSperre(''); }, [gewaehlt, text]);
   const { suche, clients } = useProjektSuche(email);
 
   // Ein Klick auf ein Loch im Tagesstreifen setzt dessen Zeitfenster hierher.
@@ -75,7 +77,7 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
       const heute = await base44.entities.TimeEntry.filter({ person_email: email, entry_date: tag }, '-started_at', 50);
       zeiten = findeLuecke(tag, heute, minuten);
     }
-    const eintrag = await bucheZeit({
+    const buchung = {
       projectId: projekt.id,
       email,
       durationMinutes: minuten,
@@ -87,7 +89,21 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
       quelle: fenster ? 'zeile' : 'luecke',
       moduleTemplateId: bereich || undefined,
       mehrleistung: mehraufwand,
-    });
+    };
+    setSperre('');
+    let eintrag;
+    try {
+      eintrag = await bucheZeit(buchung);
+    } catch (e) {
+      if (e?.bestaetigen && window.confirm(e.message)) {
+        eintrag = await bucheZeit({ ...buchung, trotzdem: true });
+      } else {
+        if (e?.sperre) setSperre(e.message);
+        else if (!e?.bestaetigen) throw e;
+        setBusy(false);
+        return;
+      }
+    }
     setMehraufwand(false);
     merkeTaetigkeit(taetigkeit);
     setBusy(false);
@@ -138,6 +154,12 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
       </FeldGruppe>
 
       <VorschauSatz projekt={projekt} minuten={minuten} notiz={notiz} eingabe={projektWort} />
+
+      {sperre && (
+        <p className="text-[13px] mt-2 p-2 rounded" style={{ backgroundColor: STATUS_COLORS.criticalSurface, color: STATUS_COLORS.critical }}>
+          {sperre}
+        </p>
+      )}
 
       {listeOffen && (
         <TrefferListe

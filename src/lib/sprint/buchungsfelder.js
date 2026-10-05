@@ -38,6 +38,60 @@ export async function ueberKontingentPruefen({ projectId, tag, minuten, ohneId }
   return bisher + (Number(minuten) || 0) > kontingent * 60;
 }
 
+const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const fmtStd = (n) => (Math.round(n * 100) / 100).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+
+// Buchungssperre: nur wenn ein Admin sie am Projekt eingeschaltet hat und ein Kontingent besteht.
+// Jeder Kalendermonat beginnt wieder bei null. Werte in Stunden.
+export async function kontingentGesperrt({ projectId, tag, minuten, ohneId }) {
+  const project = await base44.entities.Project.get(projectId);
+  const kontingent = Number(project.support_kontingent_stunden) || 0;
+  const monat = String(tag || '').slice(0, 7);
+  if (!project.kontingent_sperre || !(kontingent > 0)) {
+    return { gesperrt: false, kontingent, gebucht: 0, rest: kontingent, project, monat };
+  }
+  const rows = await base44.entities.TimeEntry.filter({ project_id: projectId }, '-entry_date', 1000);
+  const bisher = rows
+    .filter((r) => r.id !== ohneId && String(r.entry_date || '').slice(0, 7) === monat)
+    .reduce((s, r) => s + (Number(r.duration_minutes) || 0), 0);
+  return {
+    gesperrt: bisher + (Number(minuten) || 0) > kontingent * 60,
+    kontingent,
+    gebucht: bisher / 60,
+    rest: Math.max(0, kontingent - bisher / 60),
+    project,
+    monat,
+  };
+}
+
+// Meldung für den Kollegen, wenn eine Buchung an der Sperre scheitert.
+export async function sperrMeldung({ project, monat, gebucht, kontingent, rest }) {
+  const pm = project.pm_email
+    ? (await base44.entities.TeamMember.filter({ email: project.pm_email }, 'name', 1).catch(() => []))[0]
+    : null;
+  const name = pm?.name || project.pm_email || 'der Projektleitung';
+  const mName = MONATE[Number(String(monat).slice(5, 7)) - 1] || monat;
+  const voll = `Das Kontingent von ${project.title} für ${mName} ist verbraucht (${fmtStd(gebucht)} von ${fmtStd(kontingent)} h). Buchungen sind gesperrt — bitte bei ${name} melden.`;
+  return rest > 0 ? `${voll} Es sind nur noch ${fmtStd(rest)} h frei.` : voll;
+}
+
+// Prüft die Sperre für eine neue oder geänderte Buchung.
+// Nicht-Admins: Fehler mit Meldung. Admins: Fehler mit bestaetigen=true, solange nicht trotzdem.
+// Rückgabe true = Admin bucht trotz Sperre (ueber_kontingent setzen).
+export async function sperreDurchsetzen({ projectId, tag, minuten, ohneId, trotzdem }) {
+  if (!(Number(minuten) > 0)) return false;
+  const info = await kontingentGesperrt({ projectId, tag, minuten, ohneId });
+  if (!info.gesperrt) return false;
+  const me = await base44.auth.me().catch(() => null);
+  if (me?.role !== 'admin') {
+    throw Object.assign(new Error(await sperrMeldung(info)), { sperre: true });
+  }
+  if (!trotzdem) {
+    throw Object.assign(new Error('Kontingent verbraucht — trotzdem buchen?'), { bestaetigen: true });
+  }
+  return true;
+}
+
 // Alle Pflichtfelder einer Buchung — ohne jede Auswahl durch den Nutzer.
 export async function ermittleBuchungsfelder(projectId) {
   const [project, sprints] = await Promise.all([

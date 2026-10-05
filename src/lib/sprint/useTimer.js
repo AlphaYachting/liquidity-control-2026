@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { todayIso } from '@/components/sprint/sprintConfig';
-import { ermittleBuchungsfelder, ueberKontingentPruefen } from './buchungsfelder';
+import { ermittleBuchungsfelder, ueberKontingentPruefen, sperreDurchsetzen, kontingentGesperrt, sperrMeldung } from './buchungsfelder';
 import { vorbelegeTaetigkeit } from '@/lib/zeit/taetigkeit';
 import { vorbelegeBereich } from '@/lib/zeit/leistungsbereich';
 
@@ -63,7 +63,7 @@ export async function tagBestaetigt(email, tag) {
 export async function bucheZeit({
   projectId, email, durationMinutes, note = '', entryDate,
   startedAt, endedAt, taetigkeit, verrechenbar, nichtVerrechenbarGrund,
-  ueberKontingent, quelle = 'timer', korrekturZu, ticketId, ausCrm, moduleTemplateId, mehrleistung,
+  ueberKontingent, quelle = 'timer', korrekturZu, ticketId, ausCrm, moduleTemplateId, mehrleistung, trotzdem,
 }) {
   const felder = await ermittleBuchungsfelder(projectId);
   const minuten = Math.round(Number(durationMinutes) || 0);
@@ -75,8 +75,10 @@ export async function bucheZeit({
     nichtVerrechenbarGrund,
     ausCrm,
   }));
+  // Buchungssperre bei verbrauchtem Kontingent (nur wenn am Projekt eingeschaltet)
+  const trotzSperre = await sperreDurchsetzen({ projectId, tag, minuten, trotzdem });
   // Support über dem Monatskontingent wird als Mehrleistung gekennzeichnet.
-  const ueber = ueberKontingent !== undefined
+  const ueber = trotzSperre ? true : ueberKontingent !== undefined
     ? ueberKontingent
     : minuten > 0
       ? await ueberKontingentPruefen({ projectId, tag, minuten })
@@ -133,13 +135,19 @@ export async function aendereZeit(id, patch = {}) {
     });
   }
 
-  if (daten.duration_minutes !== undefined || daten.project_id || daten.entry_date) {
-    daten.ueber_kontingent = await ueberKontingentPruefen({
+  const geaendert = (daten.duration_minutes !== undefined && daten.duration_minutes !== original.duration_minutes)
+    || (daten.project_id && daten.project_id !== original.project_id)
+    || (daten.entry_date && daten.entry_date !== original.entry_date);
+  if (geaendert) {
+    const pruef = {
       projectId: daten.project_id || original.project_id,
       tag: daten.entry_date || original.entry_date,
       minuten: daten.duration_minutes ?? original.duration_minutes,
       ohneId: id,
-    });
+    };
+    // Admins ändern trotz Sperre (markiert), alle anderen werden abgewiesen.
+    const trotzSperre = await sperreDurchsetzen({ ...pruef, trotzdem: true });
+    daten.ueber_kontingent = trotzSperre || await ueberKontingentPruefen(pruef);
   }
   return base44.entities.TimeEntry.update(id, daten);
 }
@@ -233,6 +241,12 @@ export function useTimer(email) {
   const start = useCallback(async (project, kuerzel, notiz = '', { force = false, ticketId, moduleTemplateId } = {}) => {
     const bestehend = await laufendeVon(email);
     if (bestehend && !force) return { conflict: bestehend };
+    // Kontingent im laufenden Monat schon voll verbraucht und gesperrt: kein Start (außer Admin)
+    const sperre = await kontingentGesperrt({ projectId: project.id, tag: todayIso(), minuten: 1 });
+    if (sperre.gesperrt) {
+      const me = await base44.auth.me().catch(() => null);
+      if (me?.role !== 'admin') return { fehler: await sperrMeldung(sperre) };
+    }
     if (bestehend) {
       const res = await stop();
       // Nicht gebucht heißt nicht umschalten — sonst geht die gemessene Zeit verloren.

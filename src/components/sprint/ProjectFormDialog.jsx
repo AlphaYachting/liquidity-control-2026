@@ -122,6 +122,10 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
       recurring_contract_id: type === 'container' ? (form.recurring_contract_id || '') : undefined,
       retainer_art: type === 'container' && form.retainer_art ? form.retainer_art : undefined,
     };
+    // Buchungssperre: nur Admins dürfen sie setzen — für alle anderen bleibt der Wert unberührt.
+    if (user?.role === 'admin' && ['container', 'support', 'regie', 'intern'].includes(type)) {
+      data.kontingent_sperre = !!form.kontingent_sperre;
+    }
     // Abschluss festhalten bzw. beim Wiederöffnen leeren
     if (form.status === 'abgeschlossen' && project.status !== 'abgeschlossen') {
       data.abgeschlossen_am = new Date().toISOString();

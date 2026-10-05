@@ -72,6 +72,11 @@
       "description": "Retainer: Anfangsstand der Periode in Stunden \u2014 normalerweise 0; positiv = Guthaben, negativ = \u00fcbernommenes Minus",
       "type": "number"
     },
+    "kontingent_sperre": {
+      "default": false,
+      "description": "Ist das Monatskontingent verbraucht, sind neue Buchungen gesperrt \u2014 nur von Admins einstellbar",
+      "type": "boolean"
+    },
     "kuerzel": {
       "description": "Kurzform f\u00fcr die Erfassungszeile, 2 bis 5 Zeichen (z. B. ami, grz)",
       "type": "string"

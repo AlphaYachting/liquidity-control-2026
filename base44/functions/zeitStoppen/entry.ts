@@ -106,6 +106,15 @@ export default async function (req: Request): Promise<Response> {
         .reduce((s, r) => s + (Number(r.duration_minutes) || 0), 0);
       ueber = bisher + minuten > kontingent * 60;
     }
+    // Buchungssperre: ein laufender Timer wird immer gebucht, über dem Kontingent nur markiert.
+    if (!ueber && project.kontingent_sperre && kontingent && minuten > 0) {
+      const monat = tag.slice(0, 7);
+      const rows = await db.TimeEntry.filter({ project_id: laufende.project_id }, '-entry_date', 1000);
+      const bisher = rows
+        .filter((r) => String(r.entry_date || '').slice(0, 7) === monat)
+        .reduce((s, r) => s + (Number(r.duration_minutes) || 0), 0);
+      ueber = bisher + minuten > kontingent * 60;
+    }
 
     // c) Buchung anlegen — schlägt das fehl, wird nichts gelöscht.
     const eintrag = await db.TimeEntry.create({

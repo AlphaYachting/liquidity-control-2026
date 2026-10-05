@@ -1,4 +1,5 @@
 import React from 'react';
+import { Lock } from 'lucide-react';
 import KennzahlFeld from '@/components/sprint/KennzahlFeld';
 import ProjektKopfTitel from '@/components/sprint/projekt/ProjektKopfTitel';
 import { KopfKennzahlLeiste } from '@/components/sprint/KopfKennzahl';
@@ -32,6 +33,12 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
     intern: 'Intern',
     legacy: 'Altprojekt',
   }[typ];
+
+  const schloss = project?.kontingent_sperre && Number(project?.support_kontingent_stunden) > 0 && (
+    <span title="Buchungssperre bei verbrauchtem Kontingent aktiv" className="self-center">
+      <Lock className="w-4 h-4 text-muted-foreground" />
+    </span>
+  );
 
   const felder = () => {
     if (typ === 'container') {
@@ -116,6 +123,7 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
       </div>
       <KopfKennzahlLeiste>
         {felder()}
+        {schloss}
       </KopfKennzahlLeiste>
     </>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Lock } from 'lucide-react';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import { kuerzeTitel } from '@/lib/zeit/projektTitel';
 
@@ -46,6 +46,7 @@ export default function TrefferListe({ treffer, wort, onWaehlen, onAnlegen }) {
             <span className="flex-1 min-w-0 text-[13px] truncate" style={{ color: RITTLER.black }}>
               {p.clientName ? `${p.clientName} · ${kurz}` : kurz}
             </span>
+            {p.kontingent_sperre && <Lock className="w-3.5 h-3.5 shrink-0" style={{ color: RITTLER.textSecondary }} />}
           </button>
         );
       })}

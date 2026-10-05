@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MODEL_OPTIONS } from '@/components/sprint/projectTypes';
 import ContainerLaufzeitFelder from '@/components/sprint/ContainerLaufzeitFelder';
+import KontingentSperreSchalter from '@/components/sprint/KontingentSperreSchalter';
 
 // Zusatzfelder je Projekttyp — nur was der Typ wirklich braucht.
 export default function ProjectTypeFields({ type, form, setForm, contracts = [], project, abVorschlag, user }) {
@@ -63,6 +64,10 @@ export default function ProjectTypeFields({ type, form, setForm, contracts = [],
             </Select>
           </div>
         </>
+      )}
+
+      {['container', 'support', 'regie', 'intern'].includes(type) && (
+        <KontingentSperreSchalter form={form} setForm={setForm} user={user} />
       )}
 
       {type === 'legacy' && (
