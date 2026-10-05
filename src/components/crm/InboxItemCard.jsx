@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { TON_STREIFEN } from '@/lib/designTon';
 import InboxItemBody from '@/components/crm/InboxItemBody';
 import InboxDismissDialog from '@/components/crm/InboxDismissDialog';
+import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
 import LeadStaerke from '@/components/crm/LeadStaerke';
 import { decideInboxItem } from '@/components/crm/inboxDecision';
 import { INQUIRY_TYPE_LABELS, parseSignal } from '@/components/crm/inboxSignals';
@@ -36,6 +37,8 @@ export default function InboxItemCard({ item, eintrag, offen, onOeffnen, onConve
   const ueberfaellig = tageOffen >= 2;
   const zeit = eintrag ? wartezeitText(eintrag) : null;
   const [dismissOpen, setDismissOpen] = useState(false);
+  const [bearbeitenOffen, setBearbeitenOffen] = useState(false);
+  const manuell = item.source === 'manual';
   const [busy, setBusy] = useState(false);
   const { toast } = useToast();
 
@@ -136,7 +139,14 @@ export default function InboxItemCard({ item, eintrag, offen, onOeffnen, onConve
         <div className="border-t px-4 pt-4 pb-4 pl-[66px]">
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] gap-4 items-start">
             <div className="space-y-2 min-w-0">
-              <p className="text-label uppercase text-muted-foreground">{HERKUNFT[item.source] || HERKUNFT.manual}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-label uppercase text-muted-foreground">{HERKUNFT[item.source] || HERKUNFT.manual}</p>
+                {manuell && (
+                  <Button variant="ghost" size="sm" onClick={() => setBearbeitenOffen(true)}>
+                    <PenLine /> Bearbeiten
+                  </Button>
+                )}
+              </div>
               <InboxItemBody item={item} />
               <p className="text-meta text-muted-foreground">
                 An:{' '}
@@ -232,6 +242,10 @@ export default function InboxItemCard({ item, eintrag, offen, onOeffnen, onConve
 
       <InboxDismissDialog open={dismissOpen} onOpenChange={setDismissOpen}
         onConfirm={(reason) => decide('verworfen', reason)} />
+      {manuell && (
+        <InboxCaptureDialog open={bearbeitenOffen} onOpenChange={setBearbeitenOffen}
+          item={item} onSaved={() => onChanged?.()} />
+      )}
     </div>
   );
 }
