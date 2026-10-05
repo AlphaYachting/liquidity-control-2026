@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, ExternalLink, Loader2 } from 'lucide-react';
@@ -64,6 +64,9 @@ function Eintrag({ r, offen, onToggle }) {
   const [status, setStatus] = useState(r.status || 'neu');
   const [antwort, setAntwort] = useState(r.antwort || '');
   const [speichern, setSpeichern] = useState(false);
+  // Gespeicherten Stand übernehmen, wenn er sich außerhalb dieser Karte geändert hat
+  useEffect(() => { setStatus(r.status || 'neu'); }, [r.status]);
+  useEffect(() => { setAntwort(r.antwort || ''); }, [r.antwort]);
   const geaendert = status !== (r.status || 'neu') || antwort !== (r.antwort || '');
 
   const aktualisieren = async (daten) => {
