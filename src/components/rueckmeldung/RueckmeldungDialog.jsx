@@ -54,18 +54,16 @@ function Formular({ onFertig }) {
     if (!liste.length) { setHinweis('Bitte ein Bild einfügen (Screenshot, PNG oder JPG).'); return; }
     const zuGross = liste.filter((f) => f.size > MAX_BYTES);
     const passend = liste.filter((f) => f.size <= MAX_BYTES);
-    setBilder((alt) => {
-      const frei = Math.max(0, MAX_BILDER - alt.length);
-      const neu = passend.slice(0, frei).map((file, i) => {
-        const name = file.name && file.name !== 'image.png' ? file.name : `screenshot-${Date.now()}-${i + 1}.png`;
-        const f = new File([file], name, { type: file.type });
-        return { file: f, url: URL.createObjectURL(f) };
-      });
-      if (passend.length > frei) setHinweis(`Höchstens ${MAX_BILDER} Bilder.`);
-      else if (zuGross.length) setHinweis('Ein Bild war größer als 10 MB und wurde weggelassen.');
-      else setHinweis('');
-      return [...alt, ...neu];
+    const frei = Math.max(0, MAX_BILDER - bilderRef.current.length);
+    const neu = passend.slice(0, frei).map((file, i) => {
+      const name = file.name && file.name !== 'image.png' ? file.name : `screenshot-${Date.now()}-${i + 1}.png`;
+      const f = new File([file], name, { type: file.type });
+      return { file: f, url: URL.createObjectURL(f) };
     });
+    if (passend.length > frei) setHinweis(`Höchstens ${MAX_BILDER} Bilder.`);
+    else if (zuGross.length) setHinweis('Ein Bild war größer als 10 MB und wurde weggelassen.');
+    else setHinweis('');
+    if (neu.length) setBilder((alt) => [...alt, ...neu]);
   };
 
   const entfernen = (url) => {
