@@ -95,23 +95,27 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
   }
   const threadLink = threadId ? `/crm/emails?thread=${threadId}` : '';
 
-  // Entsteht das Ticket aus einer E-Mail, wandert der GESAMTE Verlauf ungekürzt ins Ticket —
-  // wer das Ticket bearbeitet, darf nicht in die E-Mail-Zentrale wechseln müssen.
-  let verlauf = '';
-  if (threadId) {
-    verlauf = await threadTranscript(threadId).catch(() => '');
-    if (!verlauf && item.source === 'email' && item.body) verlauf = String(item.body).trim();
-    if (!verlauf && (item.source === 'email' || !item.id)) {
-      throw new Error('Der E-Mail-Verlauf konnte nicht geladen werden — das Ticket wurde nicht angelegt. Bitte noch einmal versuchen.');
+  // Entsteht das Ticket aus einer E-Mail, wandert der Verlauf ins Ticket — wer das Ticket bearbeitet,
+  // soll nicht in die E-Mail-Zentrale wechseln müssen. Die Datenbank begrenzt die Feldgröße: zitierter
+  // Altverlauf wird je Mail ausgeblendet, bei sehr langen Verläufen fallen die ältesten Mails weg
+  // (Hinweis + Link zur Konversation stehen im Ticket). Fehler 06.10.2026 bei 4control.
+  const baueBeschreibung = async (maxVerlauf) => {
+    let verlauf = '';
+    if (threadId) {
+      verlauf = await threadTranscript(threadId, { ohneZitate: true, maxZeichen: maxVerlauf }).catch(() => '');
+      if (!verlauf && item.source === 'email' && item.body) verlauf = String(item.body).trim().slice(0, maxVerlauf);
+      if (!verlauf && (item.source === 'email' || !item.id)) {
+        throw new Error('Der E-Mail-Verlauf konnte nicht geladen werden — das Ticket wurde nicht angelegt. Bitte noch einmal versuchen.');
+      }
     }
-  }
-  const beschreibung = [
-    String(values.description || '').trim(),
-    verlauf ? `— Vollständiger E-Mail-Verlauf —\n\n${verlauf}` : '',
-    threadLink ? `Konversation: ${threadLink}` : '',
-  ].filter(Boolean).join('\n\n');
+    return [
+      String(values.description || '').trim().slice(0, 8000),
+      verlauf ? `— E-Mail-Verlauf —\n\n${verlauf}` : '',
+      threadLink ? `Konversation: ${threadLink}` : '',
+    ].filter(Boolean).join('\n\n');
+  };
 
-  const ticket = await base44.entities.Ticket.create({
+  const ticketDaten = (beschreibung) => ({
     project_id: projectId,
     milestone_id: milestoneId,
     title: values.title,
@@ -126,6 +130,16 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
     source_thread_id: threadId ? String(threadId) : '',
     customer_name: values.customer || '',
   });
+
+  let ticket;
+  try {
+    ticket = await base44.entities.Ticket.create(ticketDaten(await baueBeschreibung(20000)));
+  } catch (e) {
+    const text = `${e?.response?.data?.detail || e?.response?.data?.message || e?.message || ''}`;
+    if (!/maximum allowed size|too large|exceeds/i.test(text)) throw e;
+    // Immer noch zu groß: deutlich kürzer, die jüngsten Mails bleiben drin
+    ticket = await base44.entities.Ticket.create(ticketDaten(await baueBeschreibung(6000)));
+  }
 
   // Nur wenn die Anfrage aus dem Posteingang stammt — Threads aus der E-Mail-Zentrale
   // haben keinen Posteingangs-Eintrag. Das Ticket steht ab hier: Scheitert nur das Schließen
