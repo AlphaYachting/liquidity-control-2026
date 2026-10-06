@@ -27,6 +27,7 @@ export default function SupportAppLine({ task, abrechenbar, darfAendern, onInvoi
             ? (task.target_hours ? ` · Plan ${task.target_hours} h` : '')
             : ` · gebucht ${std(task.open_minutes)} h · verrechnet ${std(verrechnetMin)} h`}
           {task.vorleistung_minutes > 0 && ` · davon aus aWork ${std(task.vorleistung_minutes)} h`}
+          {task.zugeordnet_minuten > 0 && ` · davon ${Math.round(task.zugeordnet_minuten)} min ohne Ticket gebucht, hier zugeordnet`}
         </p>
       </div>
       {task.link && (
