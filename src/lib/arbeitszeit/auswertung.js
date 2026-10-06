@@ -15,6 +15,7 @@ export const TAETIGKEIT = [
   { key: 'beratung', label: 'Beratung', farbe: 'hsl(var(--chart-1))' },
   { key: 'umsetzung', label: 'Umsetzung', farbe: 'hsl(var(--chart-2))' },
   { key: 'vertrieb', label: 'Vertrieb', farbe: 'hsl(var(--chart-3))' },
+  { key: 'meeting', label: 'Meeting', farbe: 'hsl(var(--chart-5))' },
 ];
 export const NV_GRUND = {
   kulanz: 'Kulanz',
@@ -44,7 +45,7 @@ const leerePerson = (key, name, email, aktiv) => ({
   key, name, email, aktiv,
   sollMin: 0, sollTage: 0, abwesendTage: 0, offeneTage: 0,
   erfasstMin: 0, verrMin: 0, nvMin: 0, mehrMin: 0, ueberMin: 0,
-  taetigkeit: { beratung: 0, umsetzung: 0, vertrieb: 0 },
+  taetigkeit: { beratung: 0, umsetzung: 0, vertrieb: 0, meeting: 0 },
   wochenStd: null, individuell: false,
 });
 
@@ -123,7 +124,7 @@ export function werteAus({
 
   const arten = {};
   const nv = {};
-  const taetigkeit = { beratung: 0, umsetzung: 0, vertrieb: 0 };
+  const taetigkeit = { beratung: 0, umsetzung: 0, vertrieb: 0, meeting: 0 };
   const projekte = {};
   const gesamt = { erfasstMin: 0, verrMin: 0, nvMin: 0, mehrMin: 0, ueberMin: 0, appMin: 0, aworkMin: 0, wochenendMin: 0, feiertagMin: 0 };
 
