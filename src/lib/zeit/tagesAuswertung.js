@@ -27,14 +27,6 @@ export const dauerText = (minuten) => {
   return r ? `${h} h ${r} min` : `${h} h`;
 };
 
-const pauseZuMinuten = (p) => {
-  const zu = (s) => {
-    const [h, m] = String(s || '').split(':').map(Number);
-    return (h || 0) * 60 + (m || 0);
-  };
-  return { von: zu(p.von), bis: zu(p.bis) };
-};
-
 const verschmelze = (intervalle) => {
   const sortiert = [...intervalle].sort((a, b) => a.von - b.von);
   const out = [];
@@ -46,7 +38,11 @@ const verschmelze = (intervalle) => {
   return out;
 };
 
-export function werteTagAus({ tag, eintraege = [], pausen = [], istHeute = false, jetztMinute = 0 }) {
+// Pausen werden nicht mehr vermerkt: nicht gebuchte Zeit bleibt eine Lücke. Ein übergebenes
+// `pausen` wird bewusst ignoriert (alte Datensätze bleiben gespeichert, zählen aber als Lücke).
+// tagesbeginnMinute: erster Aufruf des Tools an diesem Tag — ohne Wert gilt wie bisher 09:00.
+export function werteTagAus({ tag, eintraege = [], istHeute = false, jetztMinute = 0, tagesbeginnMinute = null }) {
+  const start = Number.isFinite(tagesbeginnMinute) ? tagesbeginnMinute : TAGESBEGINN;
   const mitZeit = eintraege
     .filter((e) => e.started_at && e.ended_at && (e.duration_minutes || 0) > 0)
     .map((e) => ({ entry: e, von: minuteVonIso(e.started_at), bis: minuteVonIso(e.ended_at) }))
@@ -62,14 +58,13 @@ export function werteTagAus({ tag, eintraege = [], pausen = [], istHeute = false
     return { ...b, spur, ueberschneidet };
   });
 
-  const pausenMin = pausen.map(pauseZuMinuten).filter((p) => p.bis > p.von);
-  const belegt = verschmelze([...blocks.map((b) => ({ von: b.von, bis: b.bis })), ...pausenMin]);
+  const belegt = verschmelze(blocks.map((b) => ({ von: b.von, bis: b.bis })));
 
   const letztesEnde = blocks.length ? Math.max(...blocks.map((b) => b.bis)) : 0;
   const grenze = istHeute
-    ? Math.min(STRIP_BIS, Math.max(jetztMinute, TAGESBEGINN))
+    ? Math.min(STRIP_BIS, Math.max(jetztMinute, start))
     : Math.min(STRIP_BIS, Math.max(letztesEnde, MIN_ENDE));
-  const beginn = blocks.length ? Math.min(TAGESBEGINN, blocks[0].von) : TAGESBEGINN;
+  const beginn = blocks.length ? Math.min(start, blocks[0].von) : start;
 
   const loecher = [];
   let cursor = beginn;
@@ -97,7 +92,8 @@ export function werteTagAus({ tag, eintraege = [], pausen = [], istHeute = false
     blocks,
     spuren: Math.max(1, spurEnden.length),
     loecher: echteLoecher,
-    pausen: pausenMin,
+    pausen: [],
+    tagesbeginn: Number.isFinite(tagesbeginnMinute) ? tagesbeginnMinute : null,
     grenze,
     gebuchtMinuten,
     anzahl: eintraege.length,
