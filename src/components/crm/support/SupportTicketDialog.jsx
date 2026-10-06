@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Search, X } from 'lucide-react';
+import ClientLinkStep from '@/components/crm/handover/ClientLinkStep';
 import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -11,7 +13,6 @@ import { resolveSupportProject, createSupportTicket, SUPPORT_MODELS, DEFAULT_SUP
 import { descriptionFromThread } from '@/components/crm/support/threadDescription';
 import { kundenSchluessel } from '@/lib/kunden/kundeAnlegen';
 import { dringlichkeit, faelligAm, SUPPORT_FRIST_TAGE } from '@/components/crm/support/faelligkeit';
-import { Link } from 'react-router-dom';
 import { projectTypeOf, typeStyleOf } from '@/components/sprint/projectTypes';
 
 const ROLES = ['Beratung', 'Konzept', 'Text', 'Grafik', 'Web', 'Media', 'QS'];
@@ -23,6 +24,10 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [loadingThread, setLoadingThread] = useState(false);
+  const queryClient = useQueryClient();
+  // Kundensuche statt langer Auswahlliste; fehlt der Kunde, direkt aus sevDesk übernehmen oder anlegen
+  const [kundeSuche, setKundeSuche] = useState('');
+  const [neuAnlegen, setNeuAnlegen] = useState(false);
 
   const { data: projects = KEINE } = useQuery({
     queryKey: ['support-projects'],
@@ -30,7 +35,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
       { abrechnungsmodell: { $in: SUPPORT_MODELS } }, 'title', 200),
     enabled: open,
   });
-  // Der Kunde wird nur gewählt — angelegt wird er ausschließlich im Kundenverzeichnis
+  // Kunden kommen aus dem Verzeichnis; ein neuer entsteht nur über den Kunden-Baustein (mit sevDesk)
   const { data: clients = KEINE } = useQuery({
     queryKey: ['support-clients'],
     queryFn: () => base44.entities.Client.list('name', 2000),
@@ -57,29 +62,65 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
     const match = projects.find(p => p.title === `Support — ${nachName?.name || erkannt}`);
     // Kunde: Namenstreffer im Verzeichnis, sonst der Kunde des passenden Support-Projekts
     const kunde = nachName || clients.find(c => c.id === match?.client_id) || null;
-    const customer = kunde?.name || '';
     const itemKey = String(item.id || item.thread_id || '');
     const dring = dringlichkeit(item);
-    setForm((vorher) => ({
-      // Fälligkeit: 4 Tage, bei dringender Störung sofort — eine händische Änderung bleibt erhalten
-      ...(vorher?.item_key === itemKey && vorher.planned_for
-        ? { planned_for: vorher.planned_for, faellig_manuell: vorher.faellig_manuell, dringend_grund: vorher.dringend_grund }
-        : { planned_for: faelligAm(dring.dringend), faellig_manuell: false, dringend_grund: dring.grund }),
-      customer,
-      client_id: kunde?.id || '',
-      erkannt,
-      item_key: itemKey,
-      title: (item.subject || 'Support-Anfrage').slice(0, 200),
-      // nachgeladener Verlauf bleibt erhalten, wenn die Listen später eintreffen
-      description: item.body || (vorher?.item_key === itemKey ? vorher.description : '') || '',
-      role: 'Web',
-      target_hours: 1,
-      assignee_email: '',
-      stundensatz: match?.stundensatz || DEFAULT_SUPPORT_RATE,
-      project_id: match?.id || '__new__',
-    }));
+    setForm((vorher) => {
+      const gleich = vorher?.item_key === itemKey;
+      // Hat die Person Kunde oder Projekt schon gewählt, bleibt ihre Auswahl — nachladende Listen überschreiben nichts
+      if (gleich && vorher.auswahl_manuell) return vorher;
+      // Eingaben (Titel, Text, Zuständig, Fälligkeit …) bleiben erhalten, wenn die Listen später eintreffen
+      const basis = gleich ? vorher : {
+        // Fälligkeit: 4 Tage, bei dringender Störung sofort
+        planned_for: faelligAm(dring.dringend),
+        faellig_manuell: false,
+        dringend_grund: dring.grund,
+        erkannt,
+        item_key: itemKey,
+        title: (item.subject || 'Support-Anfrage').slice(0, 200),
+        description: item.body || '',
+        role: 'Web',
+        target_hours: 1,
+        assignee_email: '',
+        auswahl_manuell: false,
+      };
+      return {
+        ...basis,
+        customer: kunde?.name || '',
+        client_id: kunde?.id || '',
+        stundensatz: match?.stundensatz || DEFAULT_SUPPORT_RATE,
+        project_id: match?.id || '__new__',
+      };
+    });
     setError(null);
   }, [open, item, projects, clients]);
+
+  // Neue Anfrage: Suchfeld mit dem erkannten Namen vorbelegen
+  useEffect(() => {
+    if (!open || !item) return;
+    setKundeSuche(item.matched_customer_name || item.sender_name || '');
+    setNeuAnlegen(false);
+  }, [open, item?.id, item?.thread_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const kundenTreffer = useMemo(() => {
+    const q = kundeSuche.trim().toLowerCase();
+    if (!q) return [];
+    const woerter = q.split(/\s+/).filter(Boolean);
+    return clients
+      .filter((c) => woerter.every((w) => String(c.name || '').toLowerCase().includes(w)))
+      .slice(0, 8);
+  }, [clients, kundeSuche]);
+
+  const kundeWaehlen = (c) => {
+    setForm((f) => ({ ...f, client_id: c.id, customer: c.name, auswahl_manuell: true }));
+    setNeuAnlegen(false);
+  };
+
+  // Kunde aus sevDesk übernommen oder neu angelegt — sofort auswählen und in die Liste aufnehmen
+  const kundeAusBaustein = (c) => {
+    if (!c?.id) return;
+    queryClient.setQueryData(['support-clients'], (alt = []) => (alt.some((x) => x.id === c.id) ? alt : [...alt, c]));
+    kundeWaehlen(c);
+  };
 
   // Kommt die Anfrage aus der E-Mail-Zentrale, fehlt der Text — Verlauf nachladen.
   useEffect(() => {
@@ -123,10 +164,10 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
           stundensatz: Number(form.stundensatz) || 0,
         },
       );
-      const { ticket, back } = await createSupportTicket({ item, projectId, milestoneId, values: form });
+      const { ticket, back, hinweis } = await createSupportTicket({ item, projectId, milestoneId, values: form });
       setBusy(false);
       onOpenChange(false);
-      onDone?.(ticket, back);
+      onDone?.(ticket, back, hinweis);
     } catch (e) {
       setBusy(false);
       setError(e?.response?.data?.detail || e?.message || 'Das Ticket konnte nicht angelegt werden.');
