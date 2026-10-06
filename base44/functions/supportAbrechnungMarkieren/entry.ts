@@ -36,7 +36,9 @@ export default async function (req) {
       await inStuecken(entryIds, async (id) => {
         const e = (await sr.entities.TimeEntry.filter({ id }))[0];
         if (!e || (e.abrechnungsstatus || 'offen') !== 'offen') return;
-        await sr.entities.TimeEntry.update(id, { abrechnungsstatus: 'abgerechnet', billing_instruction_id: instr.id, abgerechnet_am: jetzt });
+        // Ohne Ticket gebuchte Zeit, die in der Abrechnung einem Ticket zugeordnet wurde, bekommt die Ticketzuordnung dauerhaft
+        const ticketNeu = !e.ticket_id && snap.zuordnung?.[id] ? { ticket_id: snap.zuordnung[id] } : {};
+        await sr.entities.TimeEntry.update(id, { abrechnungsstatus: 'abgerechnet', billing_instruction_id: instr.id, abgerechnet_am: jetzt, ...ticketNeu });
         markiert++;
       });
       await inStuecken(vorleistungIds, (id) => sr.entities.Ticket.update(id, { awork_vorleistung_abgerechnet: true }));
