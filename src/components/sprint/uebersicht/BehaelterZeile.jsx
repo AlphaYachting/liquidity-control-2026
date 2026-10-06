@@ -21,7 +21,11 @@ export default function BehaelterZeile({ sprint, project, client, status, people
     ? status.naechsteTage < 0 ? `${-status.naechsteTage} Tage über` : status.naechsteTage === 0 ? 'heute fällig' : `in ${status.naechsteTage} Tagen`
     : null;
 
-  const geld = typ === 'container'
+  // Pauschalprojekt: Budgetstunden und Auftragssumme statt Monatsstunden
+  const b = status.budget;
+  const geld = typ === 'legacy' && b
+    ? `${b.gesamt ? `${h1(b.gebucht)} von ${h1(b.gesamt)} h` : `${h1(b.gebucht)} h · Budget fehlt`}${b.betrag ? ` · ${fmtEUR(b.betrag)}` : ''}`
+    : typ === 'container'
     ? `${status.kontingent ? `${h1(status.stunden)} von ${status.kontingent} h` : `${h1(status.stunden)} h`}${status.pauschale ? ` · ${fmtEUR(status.pauschale)}/Monat` : ''}`
     : typ === 'support' || typ === 'regie'
       ? `${h1(status.verrechenbar)} h verrechenbar${status.stundensatz ? ` · ${fmtEUR(status.verrechenbar * status.stundensatz)}` : ''}`
@@ -69,7 +73,12 @@ export default function BehaelterZeile({ sprint, project, client, status, people
         </div>
 
         <div className="hidden lg:block w-[150px] shrink-0 text-right">
-          <p className="text-[13px]" style={{ color: RITTLER.textSecondary }}>{geld}</p>
+          <p
+            className="text-[13px]"
+            style={{ color: b?.anteil > 1 ? STATUS_COLORS.critical : b?.anteil >= 0.8 ? STATUS_COLORS.attention : RITTLER.textSecondary }}
+          >
+            {geld}
+          </p>
         </div>
 
         {onEdit && (
