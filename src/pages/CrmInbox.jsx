@@ -15,6 +15,7 @@ import InboxThreadCard from '@/components/crm/InboxThreadCard';
 import { usePosteingang } from '@/hooks/usePosteingang';
 import { FILTER, SCHWELLE_ARBEITSSTUNDEN, KANAELE, imKanal, passtReiter, zaehleSicht } from '@/lib/crm/posteingang';
 import InboxFilterZeile from '@/components/crm/InboxFilterZeile';
+import SupportOhneZustaendig from '@/components/crm/support/SupportOhneZustaendig';
 import SupportTicketDialog from '@/components/crm/support/SupportTicketDialog';
 import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
 import DealFormDialog from '@/components/crm/DealFormDialog';
@@ -233,6 +234,7 @@ export default function CrmInbox() {
         <p className="text-meta text-muted-foreground py-10 text-center">{seitenTitel} lädt…</p>
       ) : (
         <>
+          {kanal === 'support' && <SupportOhneZustaendig />}
           <InboxFilterZeile
             filter={filter}
             onFilter={setFilter}
