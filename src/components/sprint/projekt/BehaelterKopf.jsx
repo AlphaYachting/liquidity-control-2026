@@ -31,7 +31,7 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
     support: `Support · ${project?.stundensatz || 0} €/h`,
     regie: ['Regie', `${project?.stundensatz || 0} €/h`, client?.contact_person].filter(Boolean).join(' · '),
     intern: 'Intern',
-    legacy: 'Altprojekt',
+    legacy: Number(project?.total_budget) > 0 ? `Pauschalprojekt · ${fmtEUR(project.total_budget)}` : 'Pauschalprojekt',
   }[typ];
 
   const schloss = project?.kontingent_sperre && Number(project?.support_kontingent_stunden) > 0 && (
@@ -75,7 +75,7 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
       );
     }
     if (typ === 'legacy') {
-      // Altprojekt: aWork-Stand bis zur Umstellung (awork_altstand_stunden) plus alle Buchungen in der App
+      // Pauschalprojekt: aWork-Stand bis zur Umstellung (awork_altstand_stunden) plus alle Buchungen in der App
       const ausAwork = Number(project?.awork_altstand_stunden) || 0;
       const inApp = Number(kontext?.summen?.gebucht_gesamt) || 0;
       const gesamt = ausAwork + inApp;
@@ -93,6 +93,13 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
             valueColor={farbe}
             hint={kontext ? herkunft : undefined}
             tooltip={budgetH && kontext ? `${Math.round(quote * 100)} % des Budgets verbraucht` : undefined}
+          />
+          <KennzahlFeld
+            label="Auftragssumme"
+            value={Number(project?.total_budget) > 0 ? fmtEUR(project.total_budget) : '—'}
+            hint={Number(project?.total_budget) > 0 && kontext
+              ? `gebucht entspricht ${fmtEUR(gesamt * KALKULATIONSSATZ)}`
+              : 'bitte in den Stammdaten eintragen'}
           />
           <KennzahlFeld label={`Stunden ${mName}`} value={`${h1(gebucht)} h`} />
           <KennzahlFeld label="Offene Aufgaben" value={offen.length} />
