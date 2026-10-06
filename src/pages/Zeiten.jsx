@@ -160,6 +160,7 @@ export default function Zeiten() {
       tagesbeginnMinute: beginnVon[t] ?? null,
       istHeute: t === todayIso(),
       jetztMinute,
+      abgeschlossen: !!abschluesse.find((a) => a.tag === t)?.bestaetigt_am,
     }),
     istHeute: t === todayIso(),
     istZukunft: t > todayIso(),
@@ -170,7 +171,10 @@ export default function Zeiten() {
   const tagesEintraege = eintraege
     .filter((e) => e.entry_date === tag)
     .sort((a, b) => (a.started_at || '').localeCompare(b.started_at || ''));
-  const auswertung = werteTagAus({ tag, eintraege: tagesEintraege, istHeute, jetztMinute, tagesbeginnMinute: beginnVon[tag] ?? null });
+  const auswertung = werteTagAus({
+    tag, eintraege: tagesEintraege, istHeute, jetztMinute, tagesbeginnMinute: beginnVon[tag] ?? null,
+    abgeschlossen: !!abschluesse.find((a) => a.tag === tag)?.bestaetigt_am,
+  });
   const abschluss = abschluesse.find((a) => a.tag === tag);
   const gesperrt = !!abschluss?.bestaetigt_am;
   const wocheBestaetigt = !!abschluesse.find((a) => a.tag === tage[0])?.woche_bestaetigt_am;
