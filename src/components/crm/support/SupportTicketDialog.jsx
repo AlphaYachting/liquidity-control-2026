@@ -192,24 +192,57 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0">
         <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0"><DialogTitle>Support-Ticket anlegen</DialogTitle></DialogHeader>
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
+          {/* Wer, für wen — Kunde und Zuständig stehen ganz oben */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-xs">Kunde</Label>
-            <Select
-              value={form.client_id}
-              onValueChange={v => setForm(f => ({ ...f, client_id: v, customer: clients.find(c => c.id === v)?.name || '' }))}
-            >
-              <SelectTrigger><SelectValue placeholder="Kunde wählen" /></SelectTrigger>
-              <SelectContent>
-                {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {!form.client_id && (
-              <p className="text-xs text-status-attention mt-1">
-                {form.erkannt ? `„${form.erkannt}" ist noch kein Kunde im Verzeichnis. ` : ''}
-                Bestehenden Kunden wählen oder zuerst im{' '}
-                <Link className="underline" to="/sprint/projekte?tab=kunden">Kundenverzeichnis</Link> anlegen.
-              </p>
+            {form.client_id ? (
+              <div className="flex items-center gap-2 h-9 px-3 rounded-md border bg-muted/40">
+                <span className="text-sm truncate flex-1">{form.customer}</span>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Anderen Kunden wählen"
+                  onClick={() => { setForm(f => ({ ...f, client_id: '', customer: '', auswahl_manuell: true })); setKundeSuche(''); }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    value={kundeSuche}
+                    onChange={e => setKundeSuche(e.target.value)}
+                    placeholder="Kunde suchen …"
+                    className="pl-8"
+                    autoFocus
+                  />
+                </div>
+                {kundenTreffer.length > 0 && (
+                  <div className="mt-1 border rounded-md divide-y max-h-48 overflow-y-auto bg-card">
+                    {kundenTreffer.map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => kundeWaehlen(c)}
+                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted"
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-status-attention mt-1">
+                  {kundeSuche.trim() && kundenTreffer.length === 0
+                    ? `„${kundeSuche.trim()}“ ist kein Kunde im Verzeichnis. `
+                    : 'Kunden suchen und auswählen. '}
+                  <button type="button" className="underline" onClick={() => setNeuAnlegen(v => !v)}>
+                    {neuAnlegen ? 'Suche in sevDesk schließen' : 'Nicht dabei? In sevDesk suchen oder neu anlegen'}
+                  </button>
+                </p>
+              </>
             )}
             {item?.customer_match === 'unsicher' && (
               <p className="text-xs text-status-attention mt-1">
@@ -218,13 +251,34 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
             )}
           </div>
           <div>
-            <Label className="text-xs">Ziel-Support-Projekt</Label>
+            <Label className="text-xs">Zuständig</Label>
+            <Select value={form.assignee_email || '__none__'}
+              onValueChange={v => set('assignee_email', v === '__none__' ? '' : v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Noch offen</SelectItem>
+                {team.map(t => <SelectItem key={t.id} value={t.email}>{t.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">Die Person findet das Ticket in „Mein Tag“.</p>
+          </div>
+          </div>
+          {!form.client_id && neuAnlegen && (
+            <ClientLinkStep
+              kunde={kundeSuche.trim() || form.erkannt || ''}
+              deal={{ contact_name: item?.sender_name || '', contact_email: item?.sender_email || '', contact_phone: item?.sender_phone || '' }}
+              client={null}
+              onClient={kundeAusBaustein}
+            />
+          )}
+          <div>
+            <Label className="text-xs">Ziel-Projekt</Label>
             <Select
               value={form.project_id}
               onValueChange={v => {
                 // Bestehendes Support-Projekt gewählt → dessen Kunde wird übernommen
                 const kunde = clients.find(c => c.id === projects.find(p => p.id === v)?.client_id);
-                setForm(f => ({ ...f, project_id: v, ...(kunde ? { client_id: kunde.id, customer: kunde.name } : {}) }));
+                setForm(f => ({ ...f, project_id: v, auswahl_manuell: true, ...(kunde ? { client_id: kunde.id, customer: kunde.name } : {}) }));
               }}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -242,7 +296,6 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
                 Der Kunde hat den Retainer „{retainer.title}“. Gehört die Anfrage ins Kontingent, diesen auswählen.
               </p>
             )}
-          </div>
           </div>
           <div>
             <Label className="text-xs">Titel</Label>
@@ -285,7 +338,6 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
               </div>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-xs">Fällig am</Label>
             <Input type="date" value={form.planned_for || ''}
@@ -297,18 +349,6 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
                   ? `Dringend erkannt (${form.dringend_grund}) — sofort fällig. Bei Bedarf ändern.`
                   : `Standard: ${SUPPORT_FRIST_TAGE} Tage ab heute.`}
             </p>
-          </div>
-          <div>
-            <Label className="text-xs">Zuständig</Label>
-            <Select value={form.assignee_email || '__none__'}
-              onValueChange={v => set('assignee_email', v === '__none__' ? '' : v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Noch offen</SelectItem>
-                {team.map(t => <SelectItem key={t.id} value={t.email}>{t.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
           </div>
           <p className="text-xs text-muted-foreground">
             {ausserhalbSupport
