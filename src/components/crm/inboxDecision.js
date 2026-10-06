@@ -1,6 +1,20 @@
 import { base44 } from '@/api/base44Client';
 import { emailApi } from '@/components/crm/emails/emailApi';
 
+// Posteingangs-Einträge ändern — immer über die Server-Funktion, die das Recht prüft
+// (Führung, Projektleitung, Web). Direkt dürfen nur Ersteller und Admins schreiben.
+// Fehler kommen als Error mit lesbarem Text zurück.
+export async function eintragAendern(itemId, patch) {
+  let res;
+  try {
+    res = await base44.functions.invoke('posteingangEntscheiden', { item_id: itemId, patch });
+  } catch (e) {
+    throw new Error(e?.response?.data?.error || e?.message || 'Der Eintrag konnte nicht gespeichert werden.');
+  }
+  if (res?.data?.error) throw new Error(res.data.error);
+  return res?.data?.item;
+}
+
 export const threadIdOf = (item) =>
   item?.thread_id || (String(item?.email_message_id || '').startsWith('thread:')
     ? item.email_message_id.slice(7)
@@ -26,7 +40,6 @@ export async function markThreadAsLead(threadId, dealId) {
 // Rückgabe: Ergebnis des Rückkanals ({ ok, error? }).
 export async function attachInboxItemToDeal(item, deal) {
   const threadId = threadIdOf(item);
-  const user = await base44.auth.me().catch(() => null);
   if (threadId && !deal.email_thread_id) {
     await base44.entities.CrmDeal.update(deal.id, { email_thread_id: threadId });
   }
@@ -39,10 +52,7 @@ export async function attachInboxItemToDeal(item, deal) {
   });
   // Threads aus der E-Mail-Zentrale haben keinen Posteingangs-Eintrag
   if (item.id) {
-    await base44.entities.CrmInboxItem.update(item.id, {
-      status: 'converted', decision: 'zugeordnet', linked_deal_id: deal.id,
-      decided_by: user?.email || '', decided_at: new Date().toISOString(),
-    });
+    await eintragAendern(item.id, { status: 'converted', decision: 'zugeordnet', linked_deal_id: deal.id });
   }
   return markThreadAsLead(threadId, deal.id);
 }
@@ -52,11 +62,8 @@ export async function attachInboxItemToDeal(item, deal) {
 // Kundennachricht zurück). "Kein Lead" lässt sie offen: Sie bleibt im Posteingang,
 // bis jemand antwortet.
 export async function decideInboxItem(item, decision, dismissReason = '') {
-  const user = await base44.auth.me().catch(() => null);
-  const result = await base44.entities.CrmInboxItem.update(item.id, {
+  const result = await eintragAendern(item.id, {
     decision,
-    decided_by: user?.email || '',
-    decided_at: new Date().toISOString(),
     dismiss_reason: dismissReason,
     status: 'dismissed',
   });
