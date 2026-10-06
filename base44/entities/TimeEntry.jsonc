@@ -1,65 +1,56 @@
 {
   "name": "TimeEntry",
-  "type": "object",
   "properties": {
-    "project_id": {
+    "abgerechnet_am": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "abrechenbar": {
+      "default": true,
+      "description": "abgel\u00f6st durch verrechenbar \u2014 nur noch f\u00fcr Altauswertungen mitgeschrieben",
+      "type": "boolean"
+    },
+    "abrechnungsstatus": {
+      "default": "offen",
+      "enum": [
+        "offen",
+        "abgerechnet",
+        "verworfen"
+      ],
+      "type": "string"
+    },
+    "billing_instruction_id": {
+      "description": "Abrechnungsanweisung, mit der diese Stunde fakturiert wurde",
       "type": "string"
     },
     "client_id": {
       "type": "string"
     },
-    "sprint_id": {
-      "type": "string"
-    },
-    "ticket_id": {
-      "type": "string",
-      "description": "optional: Aufgabe, auf die gebucht wurde"
-    },
-    "module_template_id": {
-      "type": "string",
-      "description": "Leistungsbereich der Buchung"
-    },
-    "laufende_id": {
-      "type": "string",
-      "description": "Id der LaufendeZeitbuchung, aus der diese Buchung entstand \u2014 wird nur von zeitStoppen gesetzt und macht den Aufruf wiederholbar"
-    },
-    "person_email": {
-      "type": "string",
-      "format": "email"
-    },
-    "entry_date": {
-      "type": "string",
-      "format": "date",
-      "description": "Buchungstag \u2014 beim Timer der Tag des STARTS"
-    },
-    "started_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "tats\u00e4chlicher Beginn"
-    },
-    "ended_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "tats\u00e4chliches Ende"
+    "dauer_geschaetzt": {
+      "default": false,
+      "description": "Altbuchung \u2014 duration_minutes aus gerundeten Stunden abgeleitet, nicht echt gemessen",
+      "type": "boolean"
     },
     "duration_minutes": {
-      "type": "number",
-      "description": "ungerundete Dauer in Minuten \u2014 die f\u00fchrende Gr\u00f6\u00dfe"
+      "description": "ungerundete Dauer in Minuten \u2014 die f\u00fchrende Gr\u00f6\u00dfe",
+      "type": "number"
     },
-    "dauer_geschaetzt": {
-      "type": "boolean",
-      "default": false,
-      "description": "Altbuchung \u2014 duration_minutes aus gerundeten Stunden abgeleitet, nicht echt gemessen"
-    },
-    "hours": {
-      "type": "number",
-      "description": "abgeleitet aus duration_minutes"
-    },
-    "note": {
+    "ended_at": {
+      "description": "tats\u00e4chliches Ende",
+      "format": "date-time",
       "type": "string"
     },
+    "entry_date": {
+      "description": "Buchungstag \u2014 beim Timer der Tag des STARTS",
+      "format": "date",
+      "type": "string"
+    },
+    "hours": {
+      "description": "abgeleitet aus duration_minutes",
+      "type": "number"
+    },
     "kategorie": {
-      "type": "string",
+      "description": "Abrechnungsmodell des Projekts zum Buchungszeitpunkt",
       "enum": [
         "sprint",
         "support",
@@ -67,23 +58,26 @@
         "paket",
         "intern"
       ],
-      "description": "Abrechnungsmodell des Projekts zum Buchungszeitpunkt"
+      "type": "string"
     },
-    "taetigkeit": {
-      "type": "string",
-      "enum": [
-        "beratung",
-        "vertrieb",
-        "umsetzung"
-      ],
-      "description": "Art der Arbeit in der Zeitbuchung \u2014 wird immer vorbelegt, die sieben Rollen bleiben der Aufgabenzuteilung"
+    "korrektur_zu": {
+      "description": "Id der Buchung, die diese Buchung korrigiert",
+      "type": "string"
     },
-    "verrechenbar": {
-      "type": "boolean",
-      "default": true
+    "laufende_id": {
+      "description": "Id der LaufendeZeitbuchung, aus der diese Buchung entstand \u2014 wird nur von zeitStoppen gesetzt und macht den Aufruf wiederholbar",
+      "type": "string"
+    },
+    "mehrleistung": {
+      "default": false,
+      "description": "Mehraufwand: Zusatzwunsch des Kunden ausserhalb des Auftragsumfangs \u2014 tr\u00e4gt die Begr\u00fcndung f\u00fcr Mehrkosten",
+      "type": "boolean"
+    },
+    "module_template_id": {
+      "description": "Leistungsbereich der Buchung",
+      "type": "string"
     },
     "nicht_verrechenbar_grund": {
-      "type": "string",
       "enum": [
         "kulanz",
         "interne_nacharbeit",
@@ -91,23 +85,21 @@
         "einarbeitung",
         "akquise",
         "intern"
-      ]
+      ],
+      "type": "string"
     },
-    "ueber_kontingent": {
-      "type": "boolean",
-      "default": false
+    "note": {
+      "type": "string"
     },
-    "mehrleistung": {
-      "type": "boolean",
-      "default": false,
-      "description": "Mehraufwand: Zusatzwunsch des Kunden ausserhalb des Auftragsumfangs \u2014 tr\u00e4gt die Begr\u00fcndung f\u00fcr Mehrkosten"
+    "person_email": {
+      "format": "email",
+      "type": "string"
     },
-    "korrektur_zu": {
-      "type": "string",
-      "description": "Id der Buchung, die diese Buchung korrigiert"
+    "project_id": {
+      "type": "string"
     },
     "quelle": {
-      "type": "string",
+      "default": "timer",
       "enum": [
         "timer",
         "zeile",
@@ -115,42 +107,50 @@
         "spur",
         "korrektur"
       ],
-      "default": "timer"
-    },
-    "abrechenbar": {
-      "type": "boolean",
-      "default": true,
-      "description": "abgel\u00f6st durch verrechenbar \u2014 nur noch f\u00fcr Altauswertungen mitgeschrieben"
-    },
-    "abrechnungsstatus": {
-      "type": "string",
-      "enum": [
-        "offen",
-        "abgerechnet",
-        "verworfen"
-      ],
-      "default": "offen"
-    },
-    "billing_instruction_id": {
-      "type": "string",
-      "description": "Abrechnungsanweisung, mit der diese Stunde fakturiert wurde"
-    },
-    "abgerechnet_am": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "stundensatz": {
-      "type": "number",
-      "description": "nur bei Kategorie 'aufwand' gesetzt"
+      "type": "string"
     },
     "source": {
-      "type": "string",
+      "default": "bestaetigt",
+      "description": "Wochenbest\u00e4tigung oder nachtr\u00e4gliche Korrektur",
       "enum": [
         "bestaetigt",
         "korrigiert"
       ],
-      "default": "bestaetigt",
-      "description": "Wochenbest\u00e4tigung oder nachtr\u00e4gliche Korrektur"
+      "type": "string"
+    },
+    "sprint_id": {
+      "type": "string"
+    },
+    "started_at": {
+      "description": "tats\u00e4chlicher Beginn",
+      "format": "date-time",
+      "type": "string"
+    },
+    "stundensatz": {
+      "description": "nur bei Kategorie 'aufwand' gesetzt",
+      "type": "number"
+    },
+    "taetigkeit": {
+      "description": "Art der Arbeit in der Zeitbuchung \u2014 wird immer vorbelegt (Meeting w\u00e4hlt man bewusst), die sieben Rollen bleiben der Aufgabenzuteilung",
+      "enum": [
+        "beratung",
+        "vertrieb",
+        "umsetzung",
+        "meeting"
+      ],
+      "type": "string"
+    },
+    "ticket_id": {
+      "description": "optional: Aufgabe, auf die gebucht wurde",
+      "type": "string"
+    },
+    "ueber_kontingent": {
+      "default": false,
+      "type": "boolean"
+    },
+    "verrechenbar": {
+      "default": true,
+      "type": "boolean"
     }
   },
   "required": [
@@ -159,6 +159,7 @@
     "entry_date",
     "duration_minutes"
   ],
+  "type": "object",
   "rls": {
     "create": null,
     "read": null,
