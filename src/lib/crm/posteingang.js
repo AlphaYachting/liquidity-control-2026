@@ -60,6 +60,23 @@ export function sichtbarAb(eingangMs, stunden = SCHWELLE_ARBEITSSTUNDEN) {
   return slot;
 }
 
+/**
+ * Kanäle nach Empfängeradresse (Entscheidung 06.10.2026): Was an support@ geht, ist Support —
+ * unabhängig von der KI-Einordnung; was an office@ geht, ist Office. Eine Mail an beide steht in beiden.
+ * Maßgeblich sind die Empfänger der letzten Kundennachricht (An und Kopie).
+ *  support — Support-Eingang: Führung und Fachrolle Web, sofort sichtbar (keine Wartezeit)
+ *  office  — Office-Eingang: Projektleitung und Führung
+ */
+export const KANAELE = {
+  support: { key: 'support', titel: 'Support-Eingang', adresse: 'support@rittler.co', recht: 'support' },
+  office: { key: 'office', titel: 'Office-Eingang', adresse: 'office@rittler.co', recht: 'leitung' },
+};
+
+export function kanaeleVon(empfaenger) {
+  const text = (Array.isArray(empfaenger) ? empfaenger.join(', ') : String(empfaenger || '')).toLowerCase();
+  return Object.values(KANAELE).filter((k) => text.includes(k.adresse)).map((k) => k.key);
+}
+
 const aktionVon = (item) => item?.suggested_action || (item?.track === 'support' ? 'supportticket' : 'anfrage');
 
 /**
@@ -114,6 +131,7 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
       betreff: t.subject || '',
       verwaltung: isBlockedSender(absender, verwaltung),
       eskalation: eskalationen.has(String(t.thread_id)),
+      kanaele: kanaeleVon(t.last_to),
       sofort: false,
     };
     eintraege.push(e);
@@ -151,12 +169,14 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
       betreff: item.subject || '',
       verwaltung: isBlockedSender(absender, verwaltung),
       eskalation: tid ? eskalationen.has(tid) : false,
+      kanaele: kanaeleVon(item.recipient),
       sofort: item.source !== 'email',
     });
   }
 
   return eintraege.map((e) => {
-    const ab = e.sofort || e.eskalation ? e.eingang : sichtbarAb(e.eingang);
+    // Support-Mails sind oft dringend — sie erscheinen sofort, ohne die 4-Arbeitsstunden-Wartezeit
+    const ab = e.sofort || e.eskalation || e.kanaele.includes('support') ? e.eingang : sichtbarAb(e.eingang);
     const klasse = klasseVon(e);
     return {
       ...e,
@@ -168,9 +188,12 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
   });
 }
 
+// Reiter innerhalb einer Sicht. Im Kanal (Support, Office) zählt „Alle“ wirklich alles,
+// was an die Adresse ging; in der Gesamtsicht bleibt Verwaltung im eigenen Reiter.
 export const FILTER = [
-  { key: 'alle', label: 'Alle', passt: (e) => e.klasse !== 'verwaltung' },
-  { key: 'support', label: 'Support (Web)', passt: (e) => e.klasse === 'support' },
+  { key: 'alle', label: 'Alle', passt: (e) => e.klasse !== 'verwaltung', passtImKanal: () => true },
+  // KI-Einordnung „Support“ für Mails, die NICHT an support@ gingen — hier kann man ein Support-Ticket anlegen
+  { key: 'moeglich', label: 'Möglicher Support', passt: (e) => e.klasse === 'support' && !e.kanaele.includes('support') },
   { key: 'kunde', label: 'Kundenanfragen', passt: (e) => e.klasse === 'kunde' },
   { key: 'neu', label: 'Neue Anfragen', passt: (e) => e.klasse === 'neu' },
   { key: 'offen', label: 'Noch nicht eingeordnet', passt: (e) => e.klasse === 'offen', nurWennVorhanden: true },
@@ -179,19 +202,38 @@ export const FILTER = [
 ];
 
 export const KLASSE_LABEL = {
-  support: 'Support (Web)',
+  support: 'Möglicher Support',
   kunde: 'Kundenanfrage',
   neu: 'Neue Anfrage',
   offen: 'Wird eingeordnet',
   verwaltung: 'Verwaltung',
 };
 
+// Einträge einer Sicht: ohne Kanal die Gesamtsicht, sonst nur, was an die Kanal-Adresse ging
+export const imKanal = (eintraege, kanal) => (kanal ? eintraege.filter((e) => e.kanaele.includes(kanal)) : eintraege);
+
+// Passt ein Eintrag in den Reiter? Im Kanal gilt passtImKanal, falls vorhanden
+export const passtReiter = (reiter, kanal) => {
+  const f = FILTER.find((x) => x.key === reiter) || FILTER[0];
+  return (kanal && f.passtImKanal) || f.passt;
+};
+
+export function zaehleSicht(eintraege, kanal) {
+  const sichtbar = imKanal(eintraege, kanal).filter((e) => e.sichtbar);
+  return Object.fromEntries(FILTER.map((f) => [f.key, sichtbar.filter(passtReiter(f.key, kanal)).length]));
+}
+
 export function zaehle(eintraege) {
   const sichtbar = eintraege.filter((e) => e.sichtbar);
-  const zahlen = Object.fromEntries(FILTER.map((f) => [f.key, sichtbar.filter(f.passt).length]));
+  const zahlen = zaehleSicht(eintraege, null);
   const alle = sichtbar.filter(FILTER[0].passt);
+  const kanaele = Object.fromEntries(Object.keys(KANAELE).map((k) => {
+    const liste = sichtbar.filter((e) => e.kanaele.includes(k));
+    return [k, { anzahl: liste.length, ueberfaellig: liste.filter((e) => e.ueberfaellig).length }];
+  }));
   return {
     zahlen,
+    kanaele,
     gesamt: zahlen.alle,
     ueberfaellig: alle.filter((e) => e.ueberfaellig).length,
     eskalationen: alle.filter((e) => e.eskalation).length,
