@@ -5,7 +5,7 @@ import {
   Zap, Map, BrainCircuit, PieChart, CalendarDays, Users, BarChart2, Clock, DatabaseZap,
   RefreshCw, Trash2, RotateCcw, Scale, KanbanSquare, Inbox, History, Presentation, Mail,
   Sun, Siren, CalendarRange, Gauge, Layers, LifeBuoy, Sparkles, SlidersHorizontal, Timer,
-  Receipt, ServerCog, MessageSquarePlus, Hourglass,
+  Receipt, ServerCog, MessageSquarePlus, Hourglass, Building2,
 } from 'lucide-react';
 
 // Die EINE Liste aller Navigationspunkte. Die Sidebar rendert ausschließlich hieraus.
