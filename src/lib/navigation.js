@@ -41,7 +41,8 @@ export const NAV_GRUPPEN = [
     titel: 'Kunden & Vertrieb',
     items: [
       { path: '/crm/inbox', label: 'Posteingang', icon: Inbox, regel: 'leitung', zaehler: 'posteingang' },
-      { path: '/crm/inbox?filter=support', label: 'Support-Eingang', icon: LifeBuoy, regel: 'support', zaehler: 'support' },
+      { path: '/crm/inbox?kanal=support', label: 'Support-Eingang', icon: LifeBuoy, regel: 'support', zaehler: 'support' },
+      { path: '/crm/inbox?kanal=office', label: 'Office-Eingang', icon: Building2, regel: 'leitung', zaehler: 'office' },
       { path: '/crm/emails', label: 'E-Mail-Zentrale', icon: Mail, regel: 'leitung' },
       { path: '/crm/escalations', label: 'Kunden-Eskalationen', icon: Siren, regel: 'leitung', zaehler: 'eskalationen' },
       { path: '/crm', label: 'Pipeline', icon: KanbanSquare, regel: 'sales' },
