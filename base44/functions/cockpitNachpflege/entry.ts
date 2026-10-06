@@ -4,7 +4,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 // Finanzdaten mit project_id = Project.id werden auf die Cockpit-ID umgehängt.
 // modus "pruefen" (Standard) zeigt nur die Vorschau, "anwenden" schreibt. Nichts wird gelöscht.
 
-const MODELL: Record<string, string> = { sprint: 'pauschal', container: 'retainer', support: 'aufwand', regie: 'aufwand' };
+const MODELL: Record<string, string> = { sprint: 'pauschal', legacy: 'pauschal', container: 'retainer', support: 'aufwand', regie: 'aufwand' };
 const ABHAENGIG = ['ConfirmedOrder', 'BillingInstruction', 'InvoiceRecord', 'MonthlyBillingPlan', 'ProjectFileEntry'];
 
 function typVon(p: any) {
