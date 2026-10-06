@@ -5,6 +5,7 @@ import Kopfleiste from './Kopfleiste';
 import TimerKnopf from '@/components/sprint/timer/TimerKnopf';
 import { ZeitKontextProvider } from '@/lib/sprint/ZeitKontext';
 import { ladeAlltagsseitenVor } from '@/lib/seitenVorladen';
+import { useErsterAufruf } from '@/lib/zeit/useErsterAufruf';
 
 // Schmaler Ladebalken statt Text — erscheint nur noch beim allerersten Laden,
 // danach bleibt beim Seitenwechsel die bisherige Seite stehen (Router-Übergang).
@@ -18,6 +19,7 @@ function Ladebalken() {
 
 export default function AppLayout() {
   useEffect(() => { ladeAlltagsseitenVor(); }, []);
+  useErsterAufruf();
 
   return (
     <ZeitKontextProvider>
