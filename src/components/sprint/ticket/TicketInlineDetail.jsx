@@ -1,9 +1,10 @@
 import React from 'react';
-import { Check, ExternalLink } from 'lucide-react';
+import { Check, ExternalLink, Pencil } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 
 // Aufgeklappte Zeile: Beschreibung lesen, Checkliste direkt abhaken, Verweise öffnen.
-export default function TicketInlineDetail({ ticket, editable, onChecklist }) {
+export default function TicketInlineDetail({ ticket, editable, onChecklist, onBearbeiten }) {
   const checklist = ticket.checklist || [];
   const links = ticket.links || [];
   const erledigt = checklist.filter((c) => c.done).length;
@@ -81,8 +82,15 @@ export default function TicketInlineDetail({ ticket, editable, onChecklist }) {
 
         {leer && (
           <p className="text-[13px]" style={{ color: RITTLER.textSecondary }}>
-            Noch keine Details erfasst — über das Stift-Symbol ergänzen.
+            Noch keine Details erfasst.
           </p>
+        )}
+
+        {/* Titel, Beschreibung, Zuständig, Fälligkeit ändern — öffnet das Bearbeitungsfenster */}
+        {onBearbeiten && !ticket.archiviert && (
+          <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={(e) => { e.stopPropagation(); onBearbeiten(); }}>
+            <Pencil className="w-3.5 h-3.5" /> Bearbeiten
+          </Button>
         )}
       </div>
     </div>
