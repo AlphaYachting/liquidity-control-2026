@@ -72,9 +72,12 @@ export default function AzTagDetail({ tag, projektInfo, aworkLabel }) {
               istHeute={false}
               jetztMinute={0}
               nurLesen
-              onLoch={() => {}}
-              onPause={() => {}}
             />
+          )}
+          {tag.geoeffnet && (
+            <p className="text-meta text-muted-foreground">
+              Tool geöffnet um {new Date(tag.geoeffnet).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' })} — ab hier zählen die Lücken.
+            </p>
           )}
           <Tagesbilanz auswertung={tag.auswertung} />
           {tag.ohneUhrzeit > 0 && (
