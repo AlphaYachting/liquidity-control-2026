@@ -1,5 +1,5 @@
 import { base44 } from '@/api/base44Client';
-import { threadIdOf } from '@/components/crm/inboxDecision';
+import { threadIdOf, eintragAendern } from '@/components/crm/inboxDecision';
 import { emailApi } from '@/components/crm/emails/emailApi';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { findeKunde } from '@/lib/kunden/kundeAnlegen';
@@ -71,10 +71,28 @@ export async function resolveSupportProject(customerName, options = {}) {
 }
 
 // Support-Anfrage in ein Ticket überführen — es entsteht KEINE Rechnung.
-// Rückgabe: { ticket, back: { ok, error? } }
+// Zeitfenster, in dem ein zweites Ticket zur selben Konversation als Doppelklick gilt
+const DOPPELT_MINUTEN = 15;
+
+// Rückgabe: { ticket, back: { ok, error? }, hinweis? }
 export async function createSupportTicket({ item, projectId, milestoneId, values }) {
-  const user = await base44.auth.me().catch(() => null);
   const threadId = threadIdOf(item);
+
+  // Schutz vor Doppelanlage: Eintrag schon übernommen, oder zur Konversation gerade ein Ticket angelegt?
+  if (item.id) {
+    const frisch = await base44.entities.CrmInboxItem.get(item.id).catch(() => null);
+    if (frisch && frisch.status !== 'new') {
+      throw new Error('Diese Anfrage wurde bereits übernommen — bitte die Liste neu laden.');
+    }
+  }
+  if (threadId) {
+    const grenze = Date.now() - DOPPELT_MINUTEN * 60 * 1000;
+    const vorhanden = await base44.entities.Ticket.filter({ source_thread_id: String(threadId) }, '-created_date', 10).catch(() => []);
+    const gerade = vorhanden.find((t) => !t.archiviert && new Date(t.created_date).getTime() >= grenze);
+    if (gerade) {
+      throw new Error(`Zu dieser Konversation wurde gerade das Ticket „${gerade.title}“ angelegt — es wird kein zweites angelegt.`);
+    }
+  }
   const threadLink = threadId ? `/crm/emails?thread=${threadId}` : '';
 
   // Entsteht das Ticket aus einer E-Mail, wandert der GESAMTE Verlauf ungekürzt ins Ticket —
@@ -110,15 +128,16 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
   });
 
   // Nur wenn die Anfrage aus dem Posteingang stammt — Threads aus der E-Mail-Zentrale
-  // haben keinen Posteingangs-Eintrag.
+  // haben keinen Posteingangs-Eintrag. Das Ticket steht ab hier: Scheitert nur das Schließen
+  // des Eintrags, wird das gemeldet, aber nicht als Fehler geworfen (sonst klickt man erneut
+  // und legt ein zweites Ticket an).
+  let hinweis = '';
   if (item.id) {
-    await base44.entities.CrmInboxItem.update(item.id, {
-      status: 'converted',
-      decision: 'zugeordnet',
-      linked_ticket_id: ticket.id,
-      decided_by: user?.email || '',
-      decided_at: new Date().toISOString(),
-    });
+    try {
+      await eintragAendern(item.id, { status: 'converted', decision: 'zugeordnet', linked_ticket_id: ticket.id });
+    } catch (e) {
+      hinweis = `Der Posteingangs-Eintrag konnte nicht geschlossen werden (${e?.message || 'unbekannter Fehler'}).`;
+    }
   }
 
   // Rückkanal in die E-Mail-Datenbank — der Thread verlässt „braucht Entscheidung"
@@ -138,5 +157,5 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
     }
   }
 
-  return { ticket, back };
+  return { ticket, back, hinweis };
 }
