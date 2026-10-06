@@ -15,8 +15,13 @@ const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Der Kunde wird ausdrücklich gewählt, aus sevDesk übernommen oder neu angelegt.
 // Gültig ist er erst mit verknüpfter sevDesk-Kontakt-ID.
 // kontaktFelder: Ansprechperson, E-Mail und Telefon werden hier erfasst (ohne Deal im Hintergrund).
-export default function ClientLinkStep({ deal, kunde, client, onClient, kontaktFelder = false }) {
-  const [query, setQuery] = useState(kunde || '');
+// suchbegriff/ohneSuchfeld: Die Suche kommt von außen (z. B. Kundenfeld im Support-Ticket) — dann gibt es
+// nur EIN Suchfeld, und der Baustein zeigt sevDesk-Treffer und „neu anlegen“ zum eingetippten Namen.
+export default function ClientLinkStep({ deal, kunde, client, onClient, kontaktFelder = false, suchbegriff, ohneSuchfeld = false }) {
+  const [query, setQuery] = useState(suchbegriff ?? kunde ?? '');
+  useEffect(() => {
+    if (suchbegriff !== undefined) setQuery(suchbegriff);
+  }, [suchbegriff]);
   const [clients, setClients] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -219,13 +224,15 @@ export default function ClientLinkStep({ deal, kunde, client, onClient, kontaktF
               „{client.name}" ist noch nicht mit sevDesk verknüpft — passenden Kontakt unten wählen.
             </p>
           )}
-          <div>
-            <Label className="text-xs">Kundenname suchen</Label>
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-3 text-muted-foreground" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} className="h-9 pl-8" placeholder="z. B. Timber-Moves" />
+          {!ohneSuchfeld && (
+            <div>
+              <Label className="text-xs">Kundenname suchen</Label>
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-3 text-muted-foreground" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} className="h-9 pl-8" placeholder="z. B. Timber-Moves" />
+              </div>
             </div>
-          </div>
+          )}
 
           {kontaktFelder && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
