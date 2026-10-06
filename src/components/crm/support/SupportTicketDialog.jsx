@@ -338,7 +338,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
               </div>
             )}
           </div>
-          <div>
+          <div className="sm:w-1/2 sm:pr-1.5">
             <Label className="text-xs">Fällig am</Label>
             <Input type="date" value={form.planned_for || ''}
               onChange={e => setForm(f => ({ ...f, planned_for: e.target.value, faellig_manuell: true }))} />
