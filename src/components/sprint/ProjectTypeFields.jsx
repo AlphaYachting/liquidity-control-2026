@@ -2,7 +2,6 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MODEL_OPTIONS } from '@/components/sprint/projectTypes';
 import ContainerLaufzeitFelder from '@/components/sprint/ContainerLaufzeitFelder';
 import KontingentSperreSchalter from '@/components/sprint/KontingentSperreSchalter';
 import PauschalBudgetFelder from '@/components/sprint/PauschalBudgetFelder';
