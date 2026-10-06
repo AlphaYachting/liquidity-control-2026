@@ -4,7 +4,7 @@ import Tagesbilanz from '@/components/zeit/Tagesbilanz';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { minuteVonIso, uhr, dauerText, MODELL_TEXT, MODELL_FARBE } from '@/lib/zeit/tagesAuswertung';
 
-const TAET = { beratung: 'Beratung', umsetzung: 'Umsetzung', vertrieb: 'Vertrieb' };
+const TAET = { beratung: 'Beratung', umsetzung: 'Umsetzung', vertrieb: 'Vertrieb', meeting: 'Meeting' };
 const QUELLE = { timer: 'Timer', zeile: 'Eingabezeile', luecke: 'aus Lücke', spur: 'aus Spur', korrektur: 'Korrektur' };
 
 const Etikett = ({ children, farbe, flaeche }) => (
