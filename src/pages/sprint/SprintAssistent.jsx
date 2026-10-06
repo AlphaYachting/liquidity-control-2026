@@ -103,7 +103,8 @@ export default function SprintAssistent() {
   );
   const stepLabels = isSprint
     ? ['Rahmen', 'Sprint', 'Module', 'Zuständigkeiten', 'Übersicht']
-    : (seed.type === 'support' || seed.type === 'regie') ? ['Rahmen', 'Details'] : ['Rahmen', 'Details', 'Module'];
+    // Support, Regie und Pauschal ohne Modul-Schritt — Pauschalprojekte kommen ohne vordefinierte Pakete aus
+    : ['support', 'regie', 'legacy'].includes(seed.type) ? ['Rahmen', 'Details'] : ['Rahmen', 'Details', 'Module'];
   const lastStep = stepLabels.length;
 
   const sprintRahmenValid = size && startDate && deliveryDate;
@@ -148,7 +149,10 @@ export default function SprintAssistent() {
       title: seed.title.trim(),
       pm_email: seed.pm_email,
       status: 'aktiv',
-      abrechnungsmodell: seed.type === 'legacy' ? seed.modell : def.model,
+      abrechnungsmodell: def.model,
+      // Pauschalprojekt: Auftragssumme und Budgetstunden (Pflicht im Schritt „Details“)
+      total_budget: seed.type === 'legacy' ? Number(seed.budget_betrag) || 0 : undefined,
+      target_hours: seed.type === 'legacy' ? Number(seed.budget_stunden) || 0 : undefined,
       stundensatz: Number(seed.stundensatz) || undefined,
       support_kontingent_stunden: ['container', 'support', 'regie'].includes(seed.type) ? Number(seed.kontingent_stunden) || undefined : undefined,
       recurring_contract_id: seed.type === 'container' ? seed.recurring_contract_id || undefined : undefined,
