@@ -67,6 +67,39 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
     if (!ziel.letzte || (e.entry_date || '') > ziel.letzte) ziel.letzte = e.entry_date || null;
   }
 
+  // Zusammenführen (06.10.2026): Ein erledigtes Ticket ohne Zeit und daneben Zeit ohne Ticket
+  // im selben Support-Projekt sind fast immer dieselbe Arbeit — der Timer wurde am Projekt statt
+  // am Ticket gestartet. Dann wird die Zeit dem Ticket zugeordnet, statt zwei Positionen mit je
+  // 0,5 h Minimum zu bilden. Nur wenn es eindeutig ist:
+  //  - genau EIN erledigtes, noch zu verrechnendes Ticket des Projekts hat keine eigene Zeit,
+  //  - das Projekt hat kein offenes Ticket, dem die Zeit sonst gehören könnte,
+  //  - die Zeit ist nicht nach dem Erledigt-Tag gebucht.
+  // Die Daten selbst bleiben unverändert; erst beim Abrechnen wird die Ticketzuordnung gespeichert.
+  const offenOhneZeit = (t) => {
+    const vstatus = t.verrechnung_status || 'offen';
+    if (vstatus !== 'offen') return false;
+    if ((proTicket[t.id]?.minuten || 0) > 0) return false;
+    if (Number(t.awork_vorleistung_minuten) > 0 && !t.awork_vorleistung_abgerechnet) return false;
+    if (hatAbgerechnet.has(t.id) || t.awork_vorleistung_abgerechnet) return false;
+    return true;
+  };
+  const zugeordnet = {}; // ticketId -> { minuten, ids }
+  for (const [projectId, z] of Object.entries(ohneTicket)) {
+    const kandidaten = tickets.filter(t => t.project_id === projectId && offenOhneZeit(t));
+    if (kandidaten.length !== 1) continue;
+    const t = kandidaten[0];
+    const erledigtTag = String(t.last_status_change || t.updated_date || '').slice(0, 10);
+    const eintraege = buchungen.filter(e => z.ids.includes(e.id));
+    if (erledigtTag && eintraege.some(e => String(e.entry_date || '') > erledigtTag)) continue;
+    const offeneTickets = await sr.entities.Ticket
+      .filter({ project_id: projectId, status: { $ne: 'erledigt' }, archiviert: { $ne: true } }, '-updated_date', 1)
+      .catch(() => [{}]);
+    if (offeneTickets.length) continue;
+    proTicket[t.id] = { minuten: z.minuten, ids: [...z.ids], letzte: z.letzte };
+    zugeordnet[t.id] = { minuten: z.minuten, ids: [...z.ids] };
+    delete ohneTicket[projectId];
+  }
+
   const vor30Tagen = new Date(Date.now() - 30 * 864e5).toISOString();
   for (const t of tickets) {
     const z = proTicket[t.id] || { minuten: 0, ids: [], letzte: null };
@@ -98,6 +131,9 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
       target_hours: Number(t.target_hours) || null,
       erledigt_am: t.last_status_change || null,
       awork_task_id: t.awork_task_id || null,
+      // Zeit, die ohne Ticket gebucht war und diesem Ticket zugeordnet wurde
+      zugeordnet_minuten: zugeordnet[t.id]?.minuten || 0,
+      zugeordnet_ids: zugeordnet[t.id]?.ids || [],
     };
     g.tasks.push(posten);
     g.open_minutes += offen;
