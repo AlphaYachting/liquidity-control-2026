@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 
-const TAETIGKEITEN = ['beratung', 'vertrieb', 'umsetzung'];
-const LABEL = { beratung: 'Beratung', vertrieb: 'Vertrieb', umsetzung: 'Umsetzung' };
-const FARBE = { beratung: 'hsl(var(--chart-1))', vertrieb: 'hsl(var(--chart-3))', umsetzung: 'hsl(var(--chart-2))' };
+const TAETIGKEITEN = ['beratung', 'vertrieb', 'umsetzung', 'meeting'];
+const LABEL = { beratung: 'Beratung', vertrieb: 'Vertrieb', umsetzung: 'Umsetzung', meeting: 'Meeting' };
+const FARBE = { beratung: 'hsl(var(--chart-1))', vertrieb: 'hsl(var(--chart-3))', umsetzung: 'hsl(var(--chart-2))', meeting: 'hsl(var(--chart-5))' };
 
 const fmtH = (min) => `${Math.floor(min / 60)}:${String(Math.round(min % 60)).padStart(2, '0')} h`;
 
@@ -26,7 +26,7 @@ const Balken = ({ name, s, hinweis }) => (
 // Aufteilung der Tätigkeiten je Monat und Person. Ein Vertriebsanteil nahe null ist ein Befund.
 export default function TaetigkeitsMix({ entries = [], month }) {
   const { gesamt, personen } = useMemo(() => {
-    const leer = () => ({ beratung: 0, vertrieb: 0, umsetzung: 0, gesamt: 0 });
+    const leer = () => ({ beratung: 0, vertrieb: 0, umsetzung: 0, meeting: 0, gesamt: 0 });
     const g = leer();
     const perPerson = {};
     for (const e of entries) {
