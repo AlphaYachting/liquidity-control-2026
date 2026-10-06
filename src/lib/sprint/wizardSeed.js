@@ -1,4 +1,4 @@
-import { PROJECT_TYPE_ORDER } from '@/components/sprint/projectTypes';
+import { PROJECT_TYPE_ORDER, budgetStundenAus } from '@/components/sprint/projectTypes';
 
 // Optionaler Startkeim für den Anlage-Wizard.
 // Quelle: Location-State ({ seed: {...}, sprint: {...} }) oder Query-Parameter
@@ -20,6 +20,9 @@ export function readWizardSeed(locationState) {
     kontingent_stunden: fromState.kontingent_stunden || '',
     recurring_contract_id: fromState.recurring_contract_id || '',
     modell: fromState.modell || 'aufwand',
+    // Pauschalprojekt: Auftragssumme (aus der Übergabe vorbelegt) und Budgetstunden
+    budget_betrag: fromState.budget_betrag || '',
+    budget_stunden: fromState.budget_stunden || (fromState.budget_betrag ? budgetStundenAus(fromState.budget_betrag) : ''),
   };
 
   const s = locationState?.sprint || {};
