@@ -25,6 +25,7 @@ import { useOffeneTage } from '@/lib/zeit/useOffeneTage';
 import { istAbwesend } from '@/lib/zeit/offeneTage';
 import { werteTagAus, wochentage, verschiebeTage, uhr, dauerText } from '@/lib/zeit/tagesAuswertung';
 import { fehlendeBeschreibungen } from '@/lib/zeit/beschreibungPflicht';
+import { ladeArbeitstage, beginnJeTag } from '@/lib/zeit/arbeitstag';
 
 // Die eigenen Zeiten: Woche im Rückblick, Erfassung, Tagesstreifen, Bilanz, Buchungen.
 export default function Zeiten() {
@@ -79,13 +80,14 @@ export default function Zeiten() {
     enabled: !!email,
     placeholderData: (vorher) => vorher,
     queryFn: async () => {
-      const [eintraege, abschluesse, vorschlaege, { projects, clients }, focusDays, members] = await Promise.all([
+      const [eintraege, abschluesse, vorschlaege, { projects, clients }, focusDays, members, arbeitstage] = await Promise.all([
         ladeEigeneBuchungen(email),
         ladeEigeneAbschluesse(email),
         base44.entities.Zeitvorschlag.filter({ person_email: email, status: 'offen' }, '-von', 100),
         ladeStammdaten(),
         ladeEigeneAbwesenheiten(email),
         base44.entities.TeamMember.filter({ email }, 'name', 1),
+        ladeArbeitstage(email, tage[0], tage[tage.length - 1]),
       ]);
       const clientById = Object.fromEntries(clients.map((c) => [c.id, c]));
       const projekteById = Object.fromEntries(projects.map((p) => [p.id, p]));
@@ -96,6 +98,7 @@ export default function Zeiten() {
       }]));
       return {
         eintraege, abschluesse, vorschlaege, projektInfo, projekteById, focusDays,
+        beginnVon: beginnJeTag(arbeitstage),
         rolle: members[0]?.system_role || 'teammitglied',
       };
     },
@@ -134,7 +137,7 @@ export default function Zeiten() {
     );
   }
 
-  const { eintraege, abschluesse, vorschlaege, projektInfo, projekteById, focusDays, rolle } = data;
+  const { eintraege, abschluesse, vorschlaege, projektInfo, projekteById, focusDays, rolle, beginnVon = {} } = data;
   const istHeute = tag === todayIso();
   const darfFremdOeffnen = rolle === 'pm' || rolle === 'gf';
 
@@ -149,13 +152,12 @@ export default function Zeiten() {
     return false;
   };
   const jetztMinute = jetzt.getHours() * 60 + jetzt.getMinutes();
-  const pausenVon = (t) => abschluesse.find((a) => a.tag === t)?.pausen || [];
 
   const wochenTage = tage.map((t) => ({
     ...werteTagAus({
       tag: t,
       eintraege: eintraege.filter((e) => e.entry_date === t),
-      pausen: pausenVon(t),
+      tagesbeginnMinute: beginnVon[t] ?? null,
       istHeute: t === todayIso(),
       jetztMinute,
     }),
@@ -168,7 +170,7 @@ export default function Zeiten() {
   const tagesEintraege = eintraege
     .filter((e) => e.entry_date === tag)
     .sort((a, b) => (a.started_at || '').localeCompare(b.started_at || ''));
-  const auswertung = werteTagAus({ tag, eintraege: tagesEintraege, pausen: pausenVon(tag), istHeute, jetztMinute });
+  const auswertung = werteTagAus({ tag, eintraege: tagesEintraege, istHeute, jetztMinute, tagesbeginnMinute: beginnVon[tag] ?? null });
   const abschluss = abschluesse.find((a) => a.tag === tag);
   const gesperrt = !!abschluss?.bestaetigt_am;
   const wocheBestaetigt = !!abschluesse.find((a) => a.tag === tage[0])?.woche_bestaetigt_am;
@@ -179,16 +181,6 @@ export default function Zeiten() {
       kuerzel: info?.kuerzel || '—',
       voll: info ? [info.kunde, info.titel].filter(Boolean).join(' · ') : 'Projekt unbekannt',
     };
-  };
-
-  const pauseVermerken = async (loch) => {
-    const neu = { von: uhr(loch.von), bis: uhr(loch.bis) };
-    if (abschluss) {
-      await base44.entities.Tagesabschluss.update(abschluss.id, { pausen: [...(abschluss.pausen || []), neu] });
-    } else {
-      await base44.entities.Tagesabschluss.create({ person_email: email, tag, pausen: [neu], tagesnorm_minuten: 480 });
-    }
-    refresh();
   };
 
   const loeschen = async (e) => {
@@ -243,8 +235,12 @@ export default function Zeiten() {
         istHeute={istHeute}
         jetztMinute={jetztMinute}
         onLoch={(l) => setVorbelegung({ wert: `${uhr(l.von)}-${uhr(l.bis)}`, n: Date.now() })}
-        onPause={pauseVermerken}
       />
+      {auswertung.tagesbeginn !== null && (
+        <p className="-mt-2 text-xs" style={{ color: RITTLER.textSecondary }}>
+          Tool geöffnet um {uhr(auswertung.tagesbeginn)} — ab hier zählen die Lücken.
+        </p>
+      )}
 
       <Tagesbilanz auswertung={auswertung} />
 
