@@ -202,7 +202,7 @@ export const FILTER = [
 ];
 
 export const KLASSE_LABEL = {
-  support: 'Möglicher Support',
+  support: 'Support (Web)',
   kunde: 'Kundenanfrage',
   neu: 'Neue Anfrage',
   offen: 'Wird eingeordnet',
