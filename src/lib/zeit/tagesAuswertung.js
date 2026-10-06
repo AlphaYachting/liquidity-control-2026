@@ -41,7 +41,9 @@ const verschmelze = (intervalle) => {
 // Pausen werden nicht mehr vermerkt: nicht gebuchte Zeit bleibt eine Lücke. Ein übergebenes
 // `pausen` wird bewusst ignoriert (alte Datensätze bleiben gespeichert, zählen aber als Lücke).
 // tagesbeginnMinute: erster Aufruf des Tools an diesem Tag — ohne Wert gilt wie bisher 09:00.
-export function werteTagAus({ tag, eintraege = [], istHeute = false, jetztMinute = 0, tagesbeginnMinute = null }) {
+// abgeschlossen: Der Tag ist bestätigt — dann endet er an der letzten Buchung (wer früher geht,
+// hat keine Lücke bis 17:00; Entscheidung Alfons 06.10.2026). Ohne Buchung gilt wie bisher 17:00.
+export function werteTagAus({ tag, eintraege = [], istHeute = false, jetztMinute = 0, tagesbeginnMinute = null, abgeschlossen = false }) {
   const start = Number.isFinite(tagesbeginnMinute) ? tagesbeginnMinute : TAGESBEGINN;
   const mitZeit = eintraege
     .filter((e) => e.started_at && e.ended_at && (e.duration_minutes || 0) > 0)
@@ -61,9 +63,11 @@ export function werteTagAus({ tag, eintraege = [], istHeute = false, jetztMinute
   const belegt = verschmelze(blocks.map((b) => ({ von: b.von, bis: b.bis })));
 
   const letztesEnde = blocks.length ? Math.max(...blocks.map((b) => b.bis)) : 0;
-  const grenze = istHeute
-    ? Math.min(STRIP_BIS, Math.max(jetztMinute, start))
-    : Math.min(STRIP_BIS, Math.max(letztesEnde, MIN_ENDE));
+  const grenze = abgeschlossen && blocks.length
+    ? Math.min(STRIP_BIS, letztesEnde)
+    : istHeute
+      ? Math.min(STRIP_BIS, Math.max(jetztMinute, start))
+      : Math.min(STRIP_BIS, Math.max(letztesEnde, MIN_ENDE));
   const beginn = blocks.length ? Math.min(start, blocks[0].von) : start;
 
   const loecher = [];
