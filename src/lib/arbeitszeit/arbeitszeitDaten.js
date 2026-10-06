@@ -51,10 +51,10 @@ export async function ladeArbeitszeit({ von, auswertungBis: bis, leer }) {
     wochenSoll: leseWochenSoll(wert(SOLL_KEY)),
     sollSetting: settings.find((s) => s.key === SOLL_KEY) || null,
   };
-  if (leer) return { ...basis, eintraege: [], awork: [], abschluesse: [], focusDays: [], abgeschnitten: false };
+  if (leer) return { ...basis, eintraege: [], awork: [], abschluesse: [], focusDays: [], arbeitstage: [], abgeschnitten: false };
 
   const aworkBis = plusTage(appAb, -1);
-  const [app, awork, abschluesse, focus] = await Promise.all([
+  const [app, awork, abschluesse, focus, arbeitstage] = await Promise.all([
     bis >= appAb
       ? imZeitraum(base44.entities.TimeEntry, { entry_date: { $gte: von > appAb ? von : appAb, $lte: bis } }, 'entry_date')
       : { rows: [], abgeschnitten: false },
@@ -64,6 +64,8 @@ export async function ladeArbeitszeit({ von, auswertungBis: bis, leer }) {
     base44.entities.Tagesabschluss.filter({ tag: { $gte: von, $lte: bis } }, 'tag', 5000).catch(() => []),
     // Abwesenheiten, die im Zeitraum liegen oder bis zu zwei Monate vorher begonnen haben
     base44.entities.FocusDay.filter({ type: 'abwesend', day: { $gte: plusTage(von, -62), $lte: bis } }, 'day', 2000).catch(() => []),
+    // Zeitstempel „Tool geöffnet“ — nur für die Tagesansicht
+    base44.entities.Arbeitstag.filter({ tag: { $gte: von, $lte: bis } }, 'tag', 5000).catch(() => []),
   ]);
   return {
     ...basis,
@@ -71,6 +73,7 @@ export async function ladeArbeitszeit({ von, auswertungBis: bis, leer }) {
     awork: awork.rows,
     abschluesse,
     focusDays: focus,
+    arbeitstage,
     abgeschnitten: app.abgeschnitten || awork.abgeschnitten,
   };
 }
