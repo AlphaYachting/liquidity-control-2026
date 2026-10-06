@@ -11,7 +11,6 @@ export const PROJEKT_GRUPPEN = [
   { key: 'support', titel: 'Support', style: PROJECT_TYPES.support.style },
   { key: 'wartung', titel: 'Wartungsverträge', style: WARTUNG_STYLE, anfangsZu: true },
   { key: 'intern', titel: 'Intern', style: PROJECT_TYPES.intern.style },
-  { key: 'legacy', titel: 'Pauschalprojekte', style: PROJECT_TYPES.legacy.style },
 ];
 
 export function gruppeVon(project) {
