@@ -5,7 +5,7 @@ import ProjektKopfTitel from '@/components/sprint/projekt/ProjektKopfTitel';
 import { KopfKennzahlLeiste } from '@/components/sprint/KopfKennzahl';
 import KontingentFeld from '@/components/sprint/projekt/KontingentFeld';
 import LaufzeitSaldoFeld from '@/components/sprint/projekt/LaufzeitSaldoFeld';
-import { projectTypeOf, istWartung } from '@/components/sprint/projectTypes';
+import { projectTypeOf, istWartung, KALKULATIONSSATZ } from '@/components/sprint/projectTypes';
 import { STATUS_COLORS, fmtDate, fmtEUR, todayIso } from '@/components/sprint/sprintConfig';
 import { istFaellig, istUeberfaellig } from '@/lib/sprint/faelligkeit';
 import { laufenderMonat, monatsName, stundenVon, imMonat, h1, nachFaelligkeit } from '@/lib/sprint/behaelterZahlen';
@@ -34,8 +34,9 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
     legacy: Number(project?.total_budget) > 0 ? `Pauschalprojekt · ${fmtEUR(project.total_budget)}` : 'Pauschalprojekt',
   }[typ];
 
-  const schloss = project?.kontingent_sperre && Number(project?.support_kontingent_stunden) > 0 && (
-    <span title="Buchungssperre bei verbrauchtem Kontingent aktiv" className="self-center">
+  const sperrbar = typ === 'legacy' ? Number(project?.target_hours) > 0 : Number(project?.support_kontingent_stunden) > 0;
+  const schloss = project?.kontingent_sperre && sperrbar && (
+    <span title={typ === 'legacy' ? 'Buchungssperre bei verbrauchtem Budget aktiv' : 'Buchungssperre bei verbrauchtem Kontingent aktiv'} className="self-center">
       <Lock className="w-4 h-4 text-muted-foreground" />
     </span>
   );
