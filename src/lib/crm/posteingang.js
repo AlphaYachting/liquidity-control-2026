@@ -65,11 +65,11 @@ export function sichtbarAb(eingangMs, stunden = SCHWELLE_ARBEITSSTUNDEN) {
  * unabhängig von der KI-Einordnung; was an office@ geht, ist Office. Eine Mail an beide steht in beiden.
  * Maßgeblich sind die Empfänger der letzten Kundennachricht (An und Kopie).
  *  support — Support-Eingang: Führung und Fachrolle Web, sofort sichtbar (keine Wartezeit)
- *  office  — Office-Eingang: Projektleitung und Führung
+ *  office  — Office-Eingang: Projektleitung, Führung und alle mit Zugang zum Support-Eingang (Web)
  */
 export const KANAELE = {
   support: { key: 'support', titel: 'Support-Eingang', adresse: 'support@rittler.co', recht: 'support' },
-  office: { key: 'office', titel: 'Office-Eingang', adresse: 'office@rittler.co', recht: 'leitung' },
+  office: { key: 'office', titel: 'Office-Eingang', adresse: 'office@rittler.co', recht: ['leitung', 'support'] },
 };
 
 export function kanaeleVon(empfaenger) {
