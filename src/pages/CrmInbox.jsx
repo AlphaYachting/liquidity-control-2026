@@ -19,7 +19,7 @@ import SupportTicketDialog from '@/components/crm/support/SupportTicketDialog';
 import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
 import DealFormDialog from '@/components/crm/DealFormDialog';
 import InboxDuplicateDialog from '@/components/crm/InboxDuplicateDialog';
-import { threadIdOf, markThreadAsLead, attachInboxItemToDeal } from '@/components/crm/inboxDecision';
+import { threadIdOf, markThreadAsLead, attachInboxItemToDeal, eintragAendern } from '@/components/crm/inboxDecision';
 import InboxAssignDealDialog from '@/components/crm/InboxAssignDealDialog';
 import { descriptionFromThread } from '@/components/crm/support/threadDescription';
 import { useToast } from '@/components/ui/use-toast';
@@ -125,15 +125,13 @@ export default function CrmInbox() {
   const handleDealSaved = async (deal) => {
     if (!convertItem) return;
     const threadId = threadIdOf(convertItem);
-    const user = await base44.auth.me().catch(() => null);
     await base44.entities.CrmDeal.update(deal.id, {
       email_thread_id: threadId || '',
       origin_inbox_item_id: convertItem.id,
     });
-    await base44.entities.CrmInboxItem.update(convertItem.id, {
-      status: 'converted', decision: 'lead', linked_deal_id: deal.id,
-      decided_by: user?.email || '', decided_at: new Date().toISOString(),
-    });
+    // Der Deal steht — scheitert nur das Schließen des Eintrags, bleibt der Deal gültig
+    await eintragAendern(convertItem.id, { status: 'converted', decision: 'lead', linked_deal_id: deal.id })
+      .catch((e) => toast({ variant: 'destructive', title: 'Deal angelegt — Posteingangs-Eintrag nicht geschlossen', description: e?.message }));
     await base44.entities.CrmActivity.create({
       deal_id: deal.id,
       activity_type: 'system',
