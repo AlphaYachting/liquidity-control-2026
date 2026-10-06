@@ -2,12 +2,16 @@ import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import ZahlSpalte from './ZahlSpalte';
-import { budgetSpalte, terminSpalte, warnZeile } from '@/lib/zeit/projektAmpel';
+import { budgetSpalte, terminSpalte, warnZeile, pauschalSpalte } from '@/lib/zeit/projektAmpel';
+import { KALKULATIONSSATZ } from '@/components/sprint/projectTypes';
 
 // Zwei Zahlen statt zwei Karten — die beiden Prozentwerte lesen sich gegeneinander.
 export default function ZahlenBlock({ kontext }) {
   const links = budgetSpalte(kontext?.budget, kontext?.kategorie, kontext?.project?.stundensatz);
-  const rechts = terminSpalte(kontext?.summen?.sprint_start_date, kontext?.summen?.sprint_delivery_date);
+  // Pauschalprojekt: statt Liefertermin die Auftragssumme und was die gebuchte Zeit davon schon ausmacht
+  const rechts = kontext?.budget?.pauschal
+    ? pauschalSpalte(kontext.budget, KALKULATIONSSATZ)
+    : terminSpalte(kontext?.summen?.sprint_start_date, kontext?.summen?.sprint_delivery_date);
   const warnung = warnZeile({
     frist: kontext?.summen?.frist,
     budgetAnteil: links.anteil,
