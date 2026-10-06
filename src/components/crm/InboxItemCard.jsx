@@ -142,6 +142,25 @@ export default function InboxItemCard({ item, eintrag, offen, onOeffnen, onConve
 
       {offen && (
         <div className="border-t px-4 pt-4 pb-4 pl-[66px]">
+          {/* Entscheidung zuerst — Text, Verlauf und KI-Einschätzung stehen darunter */}
+          <div className="mb-4 pb-3.5 border-b flex flex-wrap items-center gap-2">
+            <Button variant={knopf('anfrage')} disabled={busy} onClick={() => onConvert(item)}>
+              {act === 'anfrage' && <UserPlus />} Deal / Lead anlegen
+            </Button>
+            <Button variant="outline" disabled={busy} onClick={() => onAssign(item)}>
+              Zu Deal zuordnen
+            </Button>
+            <Button variant={knopf('supportticket')} disabled={busy} onClick={() => onSupportTicket?.(item)}>
+              {act === 'supportticket' && <LifeBuoy />} Supportticket anlegen
+            </Button>
+            <Button variant={knopf('kein_lead')} disabled={busy} onClick={() => decide('nur_antwort')}>
+              {act === 'kein_lead' && <MailCheck />} Kein Deal / kein Lead
+            </Button>
+            <span className="flex-1" />
+            <Button variant="ghost" disabled={busy} onClick={() => setDismissOpen(true)}>
+              <Archive /> Erledigt (mit Grund)
+            </Button>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] gap-4 items-start">
             <div className="space-y-2 min-w-0">
               <div className="flex items-center justify-between gap-2">
@@ -224,24 +243,6 @@ export default function InboxItemCard({ item, eintrag, offen, onOeffnen, onConve
             </div>
           </div>
 
-          <div className="mt-4 pt-3.5 border-t flex flex-wrap items-center gap-2 -ml-[50px]">
-            <Button variant={knopf('anfrage')} disabled={busy} onClick={() => onConvert(item)}>
-              {act === 'anfrage' && <UserPlus />} Deal / Lead anlegen
-            </Button>
-            <Button variant="outline" disabled={busy} onClick={() => onAssign(item)}>
-              Zu Deal zuordnen
-            </Button>
-            <Button variant={knopf('supportticket')} disabled={busy} onClick={() => onSupportTicket?.(item)}>
-              {act === 'supportticket' && <LifeBuoy />} Supportticket anlegen
-            </Button>
-            <Button variant={knopf('kein_lead')} disabled={busy} onClick={() => decide('nur_antwort')}>
-              {act === 'kein_lead' && <MailCheck />} Kein Deal / kein Lead
-            </Button>
-            <span className="flex-1" />
-            <Button variant="ghost" disabled={busy} onClick={() => setDismissOpen(true)}>
-              <Archive /> Erledigt (mit Grund)
-            </Button>
-          </div>
         </div>
       )}
 
