@@ -1,6 +1,6 @@
 import { base44 } from '@/api/base44Client';
 
-const MODELL = { sprint: 'pauschal', container: 'retainer', support: 'aufwand', regie: 'aufwand' };
+const MODELL = { sprint: 'pauschal', legacy: 'pauschal', container: 'retainer', support: 'aufwand', regie: 'aufwand' };
 
 // Finanz-ID eines Projekts: das verknüpfte Cockpit, ersatzweise die Projekt-ID.
 export const finanzIdVon = (project) => project?.liquidity_project_id || project?.id;
