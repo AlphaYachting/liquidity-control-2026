@@ -99,7 +99,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
     if (!open || !item) return;
     setKundeSuche(item.matched_customer_name || item.sender_name || '');
     setNeuAnlegen(false);
-  }, [open, item?.id, item?.thread_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, item?.id, item?.thread_id]);
 
   const kundenTreffer = useMemo(() => {
     const q = kundeSuche.trim().toLowerCase();
