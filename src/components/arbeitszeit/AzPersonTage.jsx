@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { STATUS_COLORS, RITTLER } from '@/components/sprint/sprintConfig';
 import { tageDerPerson } from '@/lib/arbeitszeit/tagesDetails';
 import { fmtStd } from '@/lib/arbeitszeit/auswertung';
@@ -31,13 +32,12 @@ function Status({ tag }) {
 const zelle = 'px-3 py-2 text-right tabular-nums whitespace-nowrap';
 
 // Die Tage einer Person im gewählten Zeitraum, aufklappbar bis zur einzelnen Buchung.
+// Öffnet als Seitenpanel über der Seite — sichtbar, egal wo in der Tabelle geklickt wurde.
 export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) {
-  const kopf = useRef(null);
   const tage = useMemo(() => tageDerPerson({ ...daten, person, zeitraum }), [daten, person, zeitraum]);
   // Beim Öffnen ist der erste auffällige Tag aufgeklappt. Die Seite setzt einen key
   // je Person und Zeitraum, damit das Panel dafür neu beginnt.
   const [offen, setOffen] = useState(() => tage.find((t) => t.hinweise.length)?.tag || null);
-  useEffect(() => { kopf.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, []);
 
   const projektInfo = useMemo(() => {
     const kunde = Object.fromEntries((daten.clients || []).map((c) => [c.id, c.name]));
@@ -53,20 +53,16 @@ export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) 
   const summe = tage.reduce((s, t) => s + t.gebucht, 0);
 
   return (
-    <div ref={kopf} className="bg-white rounded border border-border scroll-mt-4">
-      <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-3 border-b border-border">
-        <div>
-          <h2 className="text-section font-bold uppercase tracking-tight">Tage von {person.name}</h2>
-          <p className="text-meta text-muted-foreground">
-            {fmtDatum(zeitraum.von)} – {fmtDatum(zeitraum.auswertungBis)} · {fmtStd(summe)} h gebucht
-            {auffaellig > 0 && <span style={{ color: STATUS_COLORS.critical }}> · {auffaellig} {auffaellig === 1 ? 'Tag' : 'Tage'} mit Auffälligkeiten</span>}
-            {' '}· nur lesen, Änderungen macht die Person selbst
-          </p>
-        </div>
-        <button type="button" onClick={onSchliessen} className="p-1.5 rounded hover:bg-muted" aria-label="Tagesansicht schließen">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+    <Sheet open onOpenChange={(o) => { if (!o) onSchliessen(); }}>
+      <SheetContent side="right" className="w-full sm:max-w-5xl overflow-y-auto p-0">
+      <SheetHeader className="px-5 pt-5 pb-3 pr-12 border-b border-border space-y-1">
+        <SheetTitle className="text-section font-bold uppercase tracking-tight">Tage von {person.name}</SheetTitle>
+        <SheetDescription className="text-meta">
+          {fmtDatum(zeitraum.von)} – {fmtDatum(zeitraum.auswertungBis)} · {fmtStd(summe)} h gebucht
+          {auffaellig > 0 && <span style={{ color: STATUS_COLORS.critical }}> · {auffaellig} {auffaellig === 1 ? 'Tag' : 'Tage'} mit Auffälligkeiten</span>}
+          {' '}· nur lesen, Änderungen macht die Person selbst
+        </SheetDescription>
+      </SheetHeader>
       {!tage.length ? <p className="p-6 text-center text-muted-foreground">Keine Tage im Zeitraum.</p> : (
         <div className="overflow-x-auto">
           <table className="w-full text-body">
@@ -118,6 +114,7 @@ export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) 
           </table>
         </div>
       )}
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
