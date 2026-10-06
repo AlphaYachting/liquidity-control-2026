@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Phone, Mail, PenLine, UserPlus, MailCheck, Link2, LifeBuoy, Sparkles, ChevronDown, Check, Archive, Siren, Clock } from 'lucide-react';
+import { Phone, Mail, PenLine, UserPlus, MailCheck, LifeBuoy, Sparkles, ChevronDown, Check, Archive, Siren, Clock } from 'lucide-react';
 import { wartezeitText } from '@/components/crm/inboxZeit';
 import { KLASSE_LABEL } from '@/lib/crm/posteingang';
 import { Button } from '@/components/ui/button';
