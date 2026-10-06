@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Lock, CheckCircle2, Coffee, Unlock } from 'lucide-react';
+import { Lock, CheckCircle2, Unlock } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { uhr, dauerText } from '@/lib/zeit/tagesAuswertung';
-import { MAX_LUECKE } from '@/lib/zeit/offeneTage';
 import { aendereZeit } from '@/lib/sprint/useTimer';
 import { beschreibungReicht } from '@/lib/zeit/beschreibungPflicht';
 
@@ -57,12 +56,13 @@ function BeschreibungNachtragen({ eintrag, label, onSaved }) {
 }
 
 const GRUND_TEXT = {
-  frei: 'Tag als frei abgeschlossen — Urlaub, Krankheit oder Feiertag.',
+  frei: 'Als nicht anwesend abgeschlossen — Urlaub, Krankheit, Feiertag oder nicht da.',
   abwesend: 'Abwesend geplant — der Tag zählt nicht als offen.',
   erfasst: 'Tag abgeschlossen — Änderungen entstehen als Korrekturbuchung.',
 };
 
-// Abschlussleiste: buchen, als Pause vermerken oder als frei abschließen. Nie automatisch buchen.
+// Abschlussleiste: abschließen oder als nicht anwesend abschließen. Nie automatisch buchen.
+// Lücken sperren den Abschluss nicht — nicht gebuchte Zeit bleibt als Lücke sichtbar.
 export default function TagAbschliessen({
   auswertung, abschluss, email, tag, onSaved, wocheBestaetigt, darfFremdOeffnen,
   ohneBeschreibung = [], projektLabel,
@@ -70,12 +70,10 @@ export default function TagAbschliessen({
   const [busy, setBusy] = useState(false);
   const bestaetigt = !!abschluss?.bestaetigt_am;
 
-  const zuGross = auswertung.loecher.filter((l) => l.minuten > MAX_LUECKE);
-  const fehlt = zuGross.reduce((s, l) => s + l.minuten, 0);
   const offeneLoecher = auswertung.loecher;
   const offenSumme = offeneLoecher.reduce((s, l) => s + l.minuten, 0);
   const fehlendeBeschreibung = ohneBeschreibung.length > 0;
-  const bereit = auswertung.anzahl > 0 && zuGross.length === 0 && !fehlendeBeschreibung;
+  const bereit = auswertung.anzahl > 0 && !fehlendeBeschreibung;
 
   const speichern = async (daten) => {
     setBusy(true);
@@ -89,13 +87,6 @@ export default function TagAbschliessen({
     grund,
     bestaetigt_am: new Date().toISOString(),
     bestaetigt_von: email,
-  });
-
-  const alsPause = () => speichern({
-    pausen: [
-      ...(abschluss?.pausen || []),
-      ...offeneLoecher.map((l) => ({ von: uhr(l.von), bis: uhr(l.bis) })),
-    ],
   });
 
   const wiederOeffnen = async () => {
@@ -158,36 +149,26 @@ export default function TagAbschliessen({
       </div>
     )}
     <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 bg-white rounded border" style={{ borderColor: RITTLER.line }}>
-      <p className="text-sm flex-1 min-w-[240px]" style={{ color: zuGross.length || fehlendeBeschreibung ? STATUS_COLORS.attention : RITTLER.textSecondary }}>
+      <p className="text-sm flex-1 min-w-[240px]" style={{ color: fehlendeBeschreibung ? STATUS_COLORS.attention : RITTLER.textSecondary }}>
         {auswertung.anzahl === 0
-          ? 'Für diesen Tag liegt keine Buchung vor — erfassen oder als frei abschließen.'
-          : zuGross.length
-            ? `Es fehlen ${dauerText(fehlt)}: ${zuGross.map((l) => `${uhr(l.von)}–${uhr(l.bis)}`).join(', ')}. Buchen oder als Pause vermerken.`
-            : fehlendeBeschreibung
-              ? 'Erst die fehlenden Beschreibungen eintragen, dann den Tag abschließen.'
+          ? 'Für diesen Tag liegt keine Buchung vor — erfassen oder als nicht anwesend abschließen.'
+          : fehlendeBeschreibung
+            ? 'Erst die fehlenden Beschreibungen eintragen, dann den Tag abschließen.'
+            : offeneLoecher.length
+              ? `${dauerText(offenSumme)} nicht gebucht (${offeneLoecher.map((l) => `${uhr(l.von)}–${uhr(l.bis)}`).join(', ')}) — bleibt als Lücke stehen. Der Tag kann abgeschlossen werden.`
               : 'Keine offene Lücke — der Tag kann abgeschlossen werden.'}
       </p>
 
       <div className="flex items-center gap-2 shrink-0">
-        {offeneLoecher.length > 0 && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={alsPause}
-            className="h-9 px-4 rounded border text-xs font-bold uppercase tracking-wide flex items-center gap-2 disabled:opacity-40"
-            style={{ borderColor: RITTLER.black, color: RITTLER.black }}
-          >
-            <Coffee className="w-3.5 h-3.5" /> {dauerText(offenSumme)} als Pause
-          </button>
-        )}
         <button
           type="button"
-          disabled={busy || fehlendeBeschreibung}
+          disabled={busy}
           onClick={() => abschliessen('frei')}
+          title="Urlaub, Krankheit, Feiertag oder nicht da"
           className="h-9 px-4 rounded border text-xs font-bold uppercase tracking-wide disabled:opacity-40"
           style={{ borderColor: RITTLER.line, color: RITTLER.textSecondary }}
         >
-          Als frei abschließen
+          Nicht anwesend
         </button>
         <button
           type="button"
