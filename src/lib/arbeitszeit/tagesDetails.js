@@ -11,6 +11,7 @@ const lokalerTag = (iso) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+const minuteVon = (iso) => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes(); };
 const tagesEnde = (iso) => { const d = new Date(iso); d.setHours(23, 59, 0, 0); return d.toISOString(); };
 
 export const LANGE_BUCHUNG = 10 * 60; // eine einzelne Buchung über 10 h
@@ -26,7 +27,7 @@ export function hinweiseZu(e, ueberschneidet) {
   return out;
 }
 
-export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = [], awork = [], members = [], abschluesse = [], focusDays = [] }) {
+export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = [], awork = [], members = [], abschluesse = [], focusDays = [], arbeitstage = [] }) {
   if (!person || zeitraum.leer) return [];
   const von = zeitraum.von;
   const bis = zeitraum.auswertungBis;
@@ -39,6 +40,11 @@ export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = 
   const abschlussVon = Object.fromEntries(abschluesse.filter((a) => norm(a.person_email) === person.key).map((a) => [a.tag, a]));
   const abwesendAm = (t) => focusDays.some((f) => f.type === 'abwesend' && norm(f.person_email) === person.key
     && f.day <= t && (f.until && f.until >= f.day ? f.until : f.day) >= t);
+  // Erster Aufruf des Tools je Tag (bei mehreren Datensätzen der früheste)
+  const geoeffnetAm = {};
+  arbeitstage.filter((r) => norm(r.person_email) === person.key && r.tag && r.erster_aufruf_am).forEach((r) => {
+    if (!geoeffnetAm[r.tag] || r.erster_aufruf_am < geoeffnetAm[r.tag]) geoeffnetAm[r.tag] = r.erster_aufruf_am;
+  });
   const tagesSoll = person.aktiv && person.wochenStd !== null ? (person.wochenStd * 60) / 5 : 0;
 
   return tageZwischen(von, bis).map((tag) => {
@@ -54,9 +60,10 @@ export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = 
     // Die Summen kommen aus allen Buchungen, die gebuchte Dauer bleibt unverändert.
     const fuerStreifen = liste.filter((e) => !e.korrektur_zu).map((e) => (e.started_at && e.ended_at && lokalerTag(e.started_at) !== lokalerTag(e.ended_at)
       ? { ...e, ended_at: tagesEnde(e.started_at) } : e));
-    const pausen = abschluss?.pausen || [];
-    const streifen = werteTagAus({ tag, eintraege: fuerStreifen, pausen });
-    const summen = werteTagAus({ tag, eintraege: liste, pausen });
+    // Lücken beginnen beim ersten Aufruf des Tools (falls vorhanden), sonst wie bisher um 09:00.
+    const geoeffnet = geoeffnetAm[tag] || null;
+    const streifen = werteTagAus({ tag, eintraege: fuerStreifen, tagesbeginnMinute: geoeffnet ? minuteVon(geoeffnet) : null });
+    const summen = werteTagAus({ tag, eintraege: liste });
     const auswertung = {
       ...streifen,
       gebuchtMinuten: summen.gebuchtMinuten,
@@ -85,7 +92,7 @@ export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = 
     else if (quelle === 'app' && tag >= pflichtAb) status = abgeschlossen ? 'abgeschlossen' : 'offen';
 
     return {
-      tag, quelle, status, soll, abwesend, arbeitstag,
+      tag, quelle, status, soll, abwesend, arbeitstag, geoeffnet,
       feiertag: feiertag(tag),
       gebucht,
       verr: auswertung.verrechenbarMinuten,
