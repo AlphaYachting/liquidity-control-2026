@@ -3,13 +3,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SectionLabel from '@/components/sprint/SectionLabel';
-import { MODEL_OPTIONS } from '@/components/sprint/projectTypes';
+import PauschalBudgetFelder, { pauschalBudgetGueltig } from '@/components/sprint/PauschalBudgetFelder';
 
 // Vollständigkeit der typspezifischen Zusatzfelder
 export function typDetailsValid(seed) {
   if (seed.type === 'support' || seed.type === 'regie') return Number(seed.stundensatz) > 0;
   if (seed.type === 'container') return Number(seed.kontingent_stunden) > 0;
-  if (seed.type === 'legacy') return Boolean(seed.modell);
+  if (seed.type === 'legacy') return pauschalBudgetGueltig(seed.budget_betrag, seed.budget_stunden);
   return true;
 }
 
@@ -58,16 +58,11 @@ export default function StepTypDetails({ seed, setSeed, contracts = [] }) {
       )}
 
       {seed.type === 'legacy' && (
-        <div className="space-y-2">
-          <Label>Abrechnungsmodell *</Label>
-          <Select value={seed.modell || 'aufwand'} onValueChange={(v) => set({ modell: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {MODEL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">Altprojekt — keine Automatismen.</p>
-        </div>
+        <PauschalBudgetFelder
+          betrag={seed.budget_betrag}
+          stunden={seed.budget_stunden}
+          onChange={({ betrag, stunden }) => set({ budget_betrag: betrag, budget_stunden: stunden })}
+        />
       )}
 
       {seed.type === 'intern' && (
@@ -75,8 +70,9 @@ export default function StepTypDetails({ seed, setSeed, contracts = [] }) {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Es entsteht eine laufende Betreuung mit einer offenen Etappe — ohne Liefertermin und ohne Etappenbetrag.
-        Tickets können sofort abgelegt werden.
+        {seed.type === 'legacy'
+          ? 'Es entsteht ein Pauschalprojekt ohne Sprintplanung und ohne Pakete. Aufgaben legst du direkt im Projekt an; gebucht wird gegen die Budgetstunden.'
+          : 'Es entsteht eine laufende Betreuung mit einer offenen Etappe — ohne Liefertermin und ohne Etappenbetrag. Tickets können sofort abgelegt werden.'}
       </p>
     </div>
   );
