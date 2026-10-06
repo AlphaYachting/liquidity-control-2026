@@ -126,7 +126,7 @@ export default function AzPersonen({ personen, standardWoche, onSollSpeichern, m
               <td className={zelle}>{fmtStd(p.nvMin)}</td>
               <td className={zelle}>{mitApp ? fmtStd(p.mehrMin) : '—'}</td>
               <td className={zelle} style={{ color: p.offeneTage ? 'hsl(var(--destructive))' : undefined }}>{mitApp && p.aktiv ? (p.offeneTage || '–') : '—'}</td>
-              <td className={zelle}><TaetigkeitBalken werte={p.taetigkeit} gesamt={p.erfasstMin > 0 ? p.taetigkeit.beratung + p.taetigkeit.umsetzung + p.taetigkeit.vertrieb : 0} /></td>
+              <td className={zelle}><TaetigkeitBalken werte={p.taetigkeit} gesamt={p.erfasstMin > 0 ? p.taetigkeit.beratung + p.taetigkeit.umsetzung + p.taetigkeit.vertrieb + (p.taetigkeit.meeting || 0) : 0} /></td>
             </tr>
           ))}
         </tbody>
