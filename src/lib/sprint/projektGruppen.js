@@ -5,12 +5,13 @@ import { projectTypeOf, istWartung, PROJECT_TYPES, WARTUNG_STYLE } from '@/compo
 // weil sie die größte Gruppe ist und selten täglich gebraucht wird.
 export const PROJEKT_GRUPPEN = [
   { key: 'sprint', titel: 'Sprintprojekte', style: PROJECT_TYPES.sprint.style },
+  { key: 'legacy', titel: 'Pauschalprojekte', style: PROJECT_TYPES.legacy.style },
   { key: 'retainer', titel: 'Retainer', style: PROJECT_TYPES.container.style },
   { key: 'regie', titel: 'Regie', style: PROJECT_TYPES.regie.style },
   { key: 'support', titel: 'Support', style: PROJECT_TYPES.support.style },
   { key: 'wartung', titel: 'Wartungsverträge', style: WARTUNG_STYLE, anfangsZu: true },
   { key: 'intern', titel: 'Intern', style: PROJECT_TYPES.intern.style },
-  { key: 'legacy', titel: 'Altprojekte', style: PROJECT_TYPES.legacy.style, anfangsZu: true },
+  { key: 'legacy', titel: 'Pauschalprojekte', style: PROJECT_TYPES.legacy.style },
 ];
 
 export function gruppeVon(project) {
