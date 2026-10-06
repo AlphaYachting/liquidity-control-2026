@@ -5,7 +5,6 @@ import { KLASSE_LABEL } from '@/lib/crm/posteingang';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
-import { base44 } from '@/api/base44Client';
 import { cn } from '@/lib/utils';
 import { TON_STREIFEN } from '@/lib/designTon';
 import InboxItemBody from '@/components/crm/InboxItemBody';
