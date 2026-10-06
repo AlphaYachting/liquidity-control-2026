@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MODEL_OPTIONS } from '@/components/sprint/projectTypes';
 import ContainerLaufzeitFelder from '@/components/sprint/ContainerLaufzeitFelder';
 import KontingentSperreSchalter from '@/components/sprint/KontingentSperreSchalter';
+import PauschalBudgetFelder from '@/components/sprint/PauschalBudgetFelder';
 
 // Zusatzfelder je Projekttyp — nur was der Typ wirklich braucht.
 export default function ProjectTypeFields({ type, form, setForm, contracts = [], project, abVorschlag, user }) {
@@ -71,19 +72,20 @@ export default function ProjectTypeFields({ type, form, setForm, contracts = [],
       )}
 
       {type === 'legacy' && (
-        <div>
-          <Label>Abrechnungsmodell</Label>
-          <Select value={form.abrechnungsmodell || 'aufwand'} onValueChange={set('abrechnungsmodell')}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {MODEL_OPTIONS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+        <PauschalBudgetFelder
+          betrag={form.total_budget}
+          stunden={form.target_hours}
+          onChange={({ betrag, stunden }) => setForm((f) => ({ ...f, total_budget: betrag, target_hours: stunden }))}
+          sperre={form.kontingent_sperre}
+          onSperre={(v) => setForm((f) => ({ ...f, kontingent_sperre: v }))}
+          istAdmin={user?.role === 'admin'}
+        />
       )}
 
       <p className="text-xs text-muted-foreground">
-        Es entsteht sofort eine laufende Betreuung ohne Termin und ohne Betrag — Tickets können direkt abgelegt werden.
+        {type === 'legacy'
+          ? 'Pauschalprojekt: fester Auftragswert, ohne Sprintplanung und ohne Pakete — Tickets können direkt abgelegt werden.'
+          : 'Es entsteht sofort eine laufende Betreuung ohne Termin und ohne Betrag — Tickets können direkt abgelegt werden.'}
       </p>
     </>
   );
