@@ -12,7 +12,7 @@ import InboxItemBody from '@/components/crm/InboxItemBody';
 import InboxDismissDialog from '@/components/crm/InboxDismissDialog';
 import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
 import LeadStaerke from '@/components/crm/LeadStaerke';
-import { decideInboxItem } from '@/components/crm/inboxDecision';
+import { decideInboxItem, eintragAendern } from '@/components/crm/inboxDecision';
 import { INQUIRY_TYPE_LABELS, parseSignal } from '@/components/crm/inboxSignals';
 import { suggestionMeta } from '@/components/crm/InboxSuggestionLabel';
 import { alsDatum } from '@/lib/zeitpunkt';
@@ -72,8 +72,12 @@ export default function InboxItemCard({ item, eintrag, offen, onOeffnen, onConve
   };
 
   const korrigiere = async (patch) => {
-    await base44.entities.CrmInboxItem.update(item.id, patch);
-    onChanged?.();
+    try {
+      await eintragAendern(item.id, patch);
+      onChanged?.();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Korrektur nicht gespeichert', description: e?.message });
+    }
   };
 
   const knopf = (ziel) => (act === ziel ? 'default' : 'outline');
