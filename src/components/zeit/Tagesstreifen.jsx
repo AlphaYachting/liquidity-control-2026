@@ -9,7 +9,8 @@ const breite = (von, bis) => `${((Math.min(bis, STRIP_BIS) - Math.max(von, STRIP
 const SCHRAFFUR = 'repeating-linear-gradient(45deg, rgba(255,255,255,.45) 0 4px, transparent 4px 8px)';
 
 // Der Tag als waagrechter Streifen von 07:00 bis 20:00.
-export default function Tagesstreifen({ auswertung, kuerzelVon, istHeute, jetztMinute, onLoch, onPause }) {
+// nurLesen: Lücken sind nicht anklickbar, keine Pausen-Knöpfe (Arbeitszeitauswertung).
+export default function Tagesstreifen({ auswertung, kuerzelVon, istHeute, jetztMinute, onLoch, onPause, nurLesen = false }) {
   const stunden = Array.from({ length: (STRIP_BIS - STRIP_VON) / 60 + 1 }, (_, i) => STRIP_VON + i * 60);
   const hoehe = auswertung.spuren * 34;
 
@@ -39,23 +40,25 @@ export default function Tagesstreifen({ auswertung, kuerzelVon, istHeute, jetztM
         {auswertung.loecher.map((l, i) => (
           <div
             key={`l${i}`}
-            className="absolute top-0 bottom-0 rounded-[2px] flex items-center justify-center gap-1 cursor-pointer"
+            className={`absolute top-0 bottom-0 rounded-[2px] flex items-center justify-center gap-1 ${nurLesen ? '' : 'cursor-pointer'}`}
             style={{ left: pos(l.von), width: breite(l.von, l.bis), border: `1px dashed ${RITTLER.decorGray}` }}
-            title={`${uhr(l.von)}–${uhr(l.bis)} nicht erfasst — klicken zum Übernehmen`}
-            onClick={() => onLoch(l)}
-            onContextMenu={(e) => { e.preventDefault(); onPause(l); }}
+            title={nurLesen ? `${uhr(l.von)}–${uhr(l.bis)} nicht erfasst` : `${uhr(l.von)}–${uhr(l.bis)} nicht erfasst — klicken zum Übernehmen`}
+            onClick={nurLesen ? undefined : () => onLoch(l)}
+            onContextMenu={nurLesen ? undefined : (e) => { e.preventDefault(); onPause(l); }}
           >
             <span className="text-[10px] whitespace-nowrap" style={{ color: RITTLER.textSecondary }}>
               {dauerText(l.minuten)}
             </span>
-            <button
-              type="button"
-              aria-label="Als Pause vermerken"
-              onClick={(e) => { e.stopPropagation(); onPause(l); }}
-              className="p-0.5 rounded hover:bg-muted"
-            >
-              <Coffee className="w-3 h-3" style={{ color: RITTLER.textSecondary }} />
-            </button>
+            {!nurLesen && (
+              <button
+                type="button"
+                aria-label="Als Pause vermerken"
+                onClick={(e) => { e.stopPropagation(); onPause(l); }}
+                className="p-0.5 rounded hover:bg-muted"
+              >
+                <Coffee className="w-3 h-3" style={{ color: RITTLER.textSecondary }} />
+              </button>
+            )}
           </div>
         ))}
 
