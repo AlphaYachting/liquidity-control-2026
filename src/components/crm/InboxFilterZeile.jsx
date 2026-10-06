@@ -7,7 +7,7 @@ import { FILTER, SCHWELLE_ARBEITSSTUNDEN } from '@/lib/crm/posteingang';
 
 // Reiter über der EINEN Liste — sie filtern, sie zerlegen die Liste nicht in Spalten.
 // Darunter: Suche (grenzt die gewählte Sicht ein), jüngere Nachrichten, Sortierung.
-// Im Kanal (Office) heißt der erste Reiter „Alle an diese Adresse“ und zählt auch Verwaltung mit.
+// Im Kanal (Office) zählt „Alle“ alles, was an die Adresse ging — auch Verwaltung.
 export default function InboxFilterZeile({
   filter, onFilter, zahlen, reiterAnzeigen = true, imKanal = false,
   suche = '', onSuche, neuesteZuerst, onSortierung, jungAnzahl = 0, zeigeJung, onZeigeJung,
@@ -60,7 +60,7 @@ export default function InboxFilterZeile({
           )}
         </div>
         <span className="flex-1" />
-        {jungAnzahl > 0 && (
+        {(jungAnzahl > 0 || zeigeJung) && (
           <Button
             size="sm"
             variant={zeigeJung ? 'default' : 'outline'}
