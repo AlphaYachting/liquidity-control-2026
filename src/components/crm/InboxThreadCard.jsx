@@ -84,8 +84,7 @@ export default function InboxThreadCard({ eintrag, offen, onOeffnen, onChanged }
 
       {offen && (
         <div className="border-t px-4 pt-4 pb-4 pl-[66px] space-y-3">
-          <p className="text-label uppercase text-muted-foreground">Verlauf · letzte Nachricht vom Kunden</p>
-          <EscalationThreadPreview threadId={eintrag.threadId} start={3} />
+          {/* Entscheidung zuerst — der Verlauf darunter ist oft lang und wird selten ganz gelesen */}
           <ThreadActionBar
             thread={{ id: Number(eintrag.threadId), subject: eintrag.betreff, customer: t.customer || '' }}
             messages={[{ direction: 'in', from: eintrag.absender, from_name: eintrag.absenderName }]}
@@ -100,6 +99,8 @@ export default function InboxThreadCard({ eintrag, offen, onOeffnen, onChanged }
               {busy ? <Loader2 className="animate-spin" /> : <Check />} Erledigt (ohne Antwort)
             </Button>
           </div>
+          <p className="text-label uppercase text-muted-foreground pt-1">Verlauf · neueste Nachricht zuerst</p>
+          <EscalationThreadPreview threadId={eintrag.threadId} start={3} />
         </div>
       )}
     </div>
