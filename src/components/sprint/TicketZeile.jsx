@@ -102,7 +102,9 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
         <button
           onClick={(e) => { stop(e); setDetailOpen(true); }}
           title="Detail bearbeiten"
-          className="shrink-0 p-1.5 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground"
+          aria-label="Aufgabe bearbeiten"
+          // Immer sichtbar (Rückmeldung John 06.10.2026): nur beim Darüberfahren war er nicht auffindbar, am Tablet gar nicht
+          className="shrink-0 p-1.5 rounded text-muted-foreground/60 group-hover:text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <Pencil className="w-3.5 h-3.5" />
         </button>
@@ -128,6 +130,7 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
         <TicketInlineDetail
           ticket={ticket}
           editable={editable}
+          onBearbeiten={() => setDetailOpen(true)}
           onChecklist={async (checklist) => {
             await base44.entities.Ticket.update(ticket.id, { checklist });
             ladeAnsichtenNachTicketAenderung(queryClient);
