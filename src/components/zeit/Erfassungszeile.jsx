@@ -5,6 +5,7 @@ import { todayIso, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { bucheZeit, stundenAus } from '@/lib/sprint/useTimer';
 import { parseEingabe } from '@/lib/zeit/eingabeParser';
 import { findeLuecke, fensterZuIso } from '@/lib/zeit/luecke';
+import { tagesbeginnMinute } from '@/lib/zeit/arbeitstag';
 import { useProjektSuche } from '@/lib/zeit/useProjektSuche';
 import { merkeTaetigkeit } from '@/lib/zeit/taetigkeit';
 import TaetigkeitWahl from './TaetigkeitWahl';
@@ -74,8 +75,11 @@ export default function Erfassungszeile({ email, onStart, onBooked, tag: tagProp
     if (fenster) {
       zeiten = fensterZuIso(tag, fenster);
     } else {
-      const heute = await base44.entities.TimeEntry.filter({ person_email: email, entry_date: tag }, '-started_at', 50);
-      zeiten = findeLuecke(tag, heute, minuten);
+      const [heute, beginn] = await Promise.all([
+        base44.entities.TimeEntry.filter({ person_email: email, entry_date: tag }, '-started_at', 50),
+        tagesbeginnMinute(email, tag).catch(() => null),
+      ]);
+      zeiten = findeLuecke(tag, heute, minuten, beginn);
     }
     const buchung = {
       projectId: projekt.id,
