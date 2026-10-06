@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, X } from 'lucide-react';
 import ClientLinkStep from '@/components/crm/handover/ClientLinkStep';
+import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
   const [error, setError] = useState(null);
   const [loadingThread, setLoadingThread] = useState(false);
   const queryClient = useQueryClient();
+  const { user: ich } = useAuth();
   // Kundensuche statt langer Auswahlliste; fehlt der Kunde, direkt aus sevDesk übernehmen oder anlegen
   const [kundeSuche, setKundeSuche] = useState('');
   const [neuAnlegen, setNeuAnlegen] = useState(false);
@@ -80,7 +82,8 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
         description: item.body || '',
         role: 'Web',
         target_hours: 1,
-        assignee_email: '',
+        // Zuständig ist Pflicht (Rückmeldung John 06.10.2026) — vorbelegt mit der Person, die anlegt
+        assignee_email: ich?.email || '',
         auswahl_manuell: false,
       };
       return {
@@ -270,11 +273,10 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-xs">Zuständig</Label>
-            <Select value={form.assignee_email || '__none__'}
-              onValueChange={v => set('assignee_email', v === '__none__' ? '' : v)}>
+            <Select value={form.assignee_email || undefined}
+              onValueChange={v => set('assignee_email', v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Noch offen</SelectItem>
                 {team.map(t => <SelectItem key={t.id} value={t.email}>{t.name}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -369,7 +371,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
         <DialogFooter className="px-6 py-3 border-t shrink-0 sm:items-center">
           {error && <p className="text-xs text-destructive sm:mr-auto sm:max-w-[60%]">{error}</p>}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Abbrechen</Button>
-          <Button onClick={submit} disabled={busy || loadingThread || !form.customer || !form.title || !form.description.trim()}>
+          <Button onClick={submit} disabled={busy || loadingThread || !form.customer || !form.title || !form.description.trim() || !form.assignee_email}>
             {busy ? 'Wird angelegt…' : 'Ticket anlegen'}
           </Button>
         </DialogFooter>
