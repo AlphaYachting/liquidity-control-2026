@@ -68,8 +68,8 @@ export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) 
           <table className="w-full text-body">
             <thead>
               <tr className="border-b border-border">
-                {['Tag', 'Status', 'Soll', 'Gebucht', 'Verrechenbar', 'Nicht verr.', 'Offene Lücke', 'Buchungen', 'Hinweise'].map((s, i) => (
-                  <th key={s} className={`text-label uppercase text-muted-foreground font-medium px-3 py-2 whitespace-nowrap ${i < 2 || i === 8 ? 'text-left' : 'text-right'}`}>{s}</th>
+                {['Tag', 'Status', 'Tool geöffnet', 'Soll', 'Gebucht', 'Verrechenbar', 'Nicht verr.', 'Offene Lücke', 'Buchungen', 'Hinweise'].map((s, i) => (
+                  <th key={s} className={`text-label uppercase text-muted-foreground font-medium px-3 py-2 whitespace-nowrap ${i < 2 || i === 9 ? 'text-left' : 'text-right'}`}>{s}</th>
                 ))}
               </tr>
             </thead>
@@ -88,6 +88,7 @@ export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) 
                         </span>
                       </td>
                       <td className="px-3 py-2"><Status tag={t} /></td>
+                      <td className={zelle}>{t.geoeffnet ? new Date(t.geoeffnet).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                       <td className={zelle}>{t.soll ? fmtStd(t.soll) : '—'}</td>
                       <td className={`${zelle} font-medium`} style={{ color: ueber || t.hinweise.length ? STATUS_COLORS.critical : undefined }}>{fmtStd(t.gebucht)}</td>
                       <td className={zelle}>{fmtStd(t.verr)}</td>
@@ -102,7 +103,7 @@ export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) 
                     </tr>
                     {auf && (
                       <tr className="border-b border-border">
-                        <td colSpan={9} className="px-4 py-4 bg-muted/20">
+                        <td colSpan={10} className="px-4 py-4 bg-muted/20">
                           <AzTagDetail tag={t} projektInfo={projektInfo} aworkLabel={aworkLabel} />
                         </td>
                       </tr>
