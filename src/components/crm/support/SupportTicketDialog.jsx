@@ -110,6 +110,10 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
       .slice(0, 8);
   }, [clients, kundeSuche]);
 
+  // sevDesk-Suche erscheint von selbst, sobald das Verzeichnis nichts findet — oder auf Klick
+  const zeigeSevdesk = !!form && !form.client_id
+    && (neuAnlegen || (kundeSuche.trim().length >= 2 && kundenTreffer.length === 0));
+
   const kundeWaehlen = (c) => {
     setForm((f) => ({ ...f, client_id: c.id, customer: c.name, auswahl_manuell: true }));
     setNeuAnlegen(false);
@@ -193,7 +197,8 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
         <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0"><DialogTitle>Support-Ticket anlegen</DialogTitle></DialogHeader>
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
           {/* Wer, für wen — Kunde und Zuständig stehen ganz oben */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Kunde zuerst und über die ganze Breite: EIN Suchfeld — findet es nichts im Verzeichnis,
+              erscheinen darunter sofort die sevDesk-Treffer und „neu anlegen“ zum eingetippten Namen */}
           <div>
             <Label className="text-xs">Kunde</Label>
             {form.client_id ? (
@@ -236,11 +241,13 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
                 )}
                 <p className="text-xs text-status-attention mt-1">
                   {kundeSuche.trim() && kundenTreffer.length === 0
-                    ? `„${kundeSuche.trim()}“ ist kein Kunde im Verzeichnis. `
-                    : 'Kunden suchen und auswählen. '}
-                  <button type="button" className="underline" onClick={() => setNeuAnlegen(v => !v)}>
-                    {neuAnlegen ? 'Suche in sevDesk schließen' : 'Nicht dabei? In sevDesk suchen oder neu anlegen'}
-                  </button>
+                    ? `„${kundeSuche.trim()}“ ist kein Kunde im Verzeichnis — unten aus sevDesk übernehmen oder neu anlegen.`
+                    : 'Kundennamen eintippen und auswählen. '}
+                  {kundenTreffer.length > 0 && (
+                    <button type="button" className="underline" onClick={() => setNeuAnlegen(v => !v)}>
+                      {neuAnlegen ? 'Suche in sevDesk schließen' : 'Nicht dabei? In sevDesk suchen oder neu anlegen'}
+                    </button>
+                  )}
                 </p>
               </>
             )}
@@ -250,6 +257,17 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
               </p>
             )}
           </div>
+          {zeigeSevdesk && (
+            <ClientLinkStep
+              kunde={form.erkannt || ''}
+              suchbegriff={kundeSuche.trim()}
+              ohneSuchfeld
+              deal={{ contact_name: item?.sender_name || '', contact_email: item?.sender_email || '', contact_phone: item?.sender_phone || '' }}
+              client={null}
+              onClient={kundeAusBaustein}
+            />
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-xs">Zuständig</Label>
             <Select value={form.assignee_email || '__none__'}
@@ -262,15 +280,6 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
             </Select>
             <p className="text-xs text-muted-foreground mt-1">Die Person findet das Ticket in „Mein Tag“.</p>
           </div>
-          </div>
-          {!form.client_id && neuAnlegen && (
-            <ClientLinkStep
-              kunde={kundeSuche.trim() || form.erkannt || ''}
-              deal={{ contact_name: item?.sender_name || '', contact_email: item?.sender_email || '', contact_phone: item?.sender_phone || '' }}
-              client={null}
-              onClient={kundeAusBaustein}
-            />
-          )}
           <div>
             <Label className="text-xs">Ziel-Projekt</Label>
             <Select
@@ -296,6 +305,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
                 Der Kunde hat den Retainer „{retainer.title}“. Gehört die Anfrage ins Kontingent, diesen auswählen.
               </p>
             )}
+          </div>
           </div>
           <div>
             <Label className="text-xs">Titel</Label>
