@@ -47,13 +47,12 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [offen, setOffen] = useState(ladeOffen);
 
-  const supportUeberfaellig = (posteingang.eintraege || [])
-    .filter((e) => e.sichtbar && e.klasse === 'support' && e.ueberfaellig).length;
-
   // anzahl = dunkler Zähler (rot, wenn etwas überfällig ist), alarm = roter Zähler
   const zaehler = {
     posteingang: { anzahl: posteingang.gesamt || 0, ueberfaellig: posteingang.ueberfaellig || 0 },
-    support: { anzahl: posteingang.zahlen?.support || 0, ueberfaellig: supportUeberfaellig },
+    // Kanäle nach Empfängeradresse (support@, office@)
+    support: { anzahl: posteingang.kanaele?.support?.anzahl || 0, ueberfaellig: posteingang.kanaele?.support?.ueberfaellig || 0 },
+    office: { anzahl: posteingang.kanaele?.office?.anzahl || 0, ueberfaellig: posteingang.kanaele?.office?.ueberfaellig || 0 },
     auftraege: { anzahl: unlinkedCount || 0 },
     mahnungen: { anzahl: pendingDunningCount || 0 },
     eskalationen: { alarm: escalationCount || 0 },
@@ -64,12 +63,14 @@ export default function Sidebar() {
     },
   };
 
-  const filter = new URLSearchParams(location.search).get('filter');
+  const suche = new URLSearchParams(location.search);
+  // ältere Verweise ?filter=support zeigen ebenfalls auf den Support-Eingang
+  const kanal = suche.get('kanal') || (suche.get('filter') === 'support' ? 'support' : null);
   const isActive = (path) => {
     const p = location.pathname;
-    // Posteingang und Support-Eingang sind dieselbe Seite mit anderem Filter
-    if (path === '/crm/inbox?filter=support') return p === '/crm/inbox' && filter === 'support';
-    if (path === '/crm/inbox') return p === '/crm/inbox' && filter !== 'support';
+    // Posteingang, Support- und Office-Eingang sind dieselbe Seite mit anderem Kanal
+    if (path.startsWith('/crm/inbox?kanal=')) return p === '/crm/inbox' && kanal === path.split('=')[1];
+    if (path === '/crm/inbox') return p === '/crm/inbox' && !kanal;
     if (path === '/sprint') return p === '/sprint';
     if (path === '/sprint/projekte') return /^\/sprint\/(projekte|katalog|neu|sprints|milestones)/.test(p);
     // Angebote und Deal-Details haben keinen eigenen Punkt — sie gehören zur Pipeline
