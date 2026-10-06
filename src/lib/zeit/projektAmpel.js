@@ -35,7 +35,7 @@ export function budgetSpalte(budget, kategorie, stundensatz) {
       zahl: `${zahl1(budget?.gebucht)} h`,
       wort: null,
       farbe: null,
-      vergleich: 'kein Budget gepflegt',
+      vergleich: budget?.pauschal ? 'Budgetstunden fehlen – bitte in den Stammdaten eintragen' : 'kein Budget gepflegt',
       anteil: null,
     };
   }
@@ -48,6 +48,27 @@ export function budgetSpalte(budget, kategorie, stundensatz) {
     farbe: FARBE[stufe],
     vergleich: `${proz(anteil)} % von ${zahl1(budget.gesamt)} h`,
     anteil,
+  };
+}
+
+const euro = (v) => new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v || 0);
+
+// Rechte Spalte beim Pauschalprojekt: Auftragssumme und der Wert der gebuchten Zeit zum Kalkulationssatz.
+export function pauschalSpalte(budget, kalkulationssatz) {
+  const betrag = Number(budget?.betrag) || 0;
+  if (!betrag) {
+    return { beschriftung: 'Auftragssumme', zahl: '—', wort: null, farbe: null, vergleich: 'Auftragssumme fehlt', anteil: null };
+  }
+  const wert = (Number(budget?.gebucht) || 0) * kalkulationssatz;
+  const anteil = wert / betrag;
+  const stufe = stufeAus(anteil);
+  return {
+    beschriftung: 'Auftragssumme',
+    zahl: euro(betrag),
+    wort: null,
+    farbe: FARBE[stufe],
+    vergleich: `gebucht entspricht ${euro(wert)} (${proz(anteil)} %)`,
+    anteil: null,
   };
 }
 
