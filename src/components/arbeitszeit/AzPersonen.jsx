@@ -73,7 +73,7 @@ const SPALTEN = [
   { key: 'taetigkeit', label: 'Tätigkeit', ohneSort: true },
 ];
 
-export default function AzPersonen({ personen, standardWoche, onSollSpeichern, mitApp }) {
+export default function AzPersonen({ personen, standardWoche, onSollSpeichern, mitApp, gewaehlt, onPerson }) {
   const [sort, setSort] = useState({ key: 'name', ab: false });
   const sortiert = useMemo(() => {
     const liste = [...personen];
@@ -102,9 +102,12 @@ export default function AzPersonen({ personen, standardWoche, onSollSpeichern, m
         </thead>
         <tbody>
           {sortiert.map((p) => (
-            <tr key={p.key} className={`border-b border-border last:border-0 ${p.aktiv ? '' : 'text-muted-foreground'}`}>
+            <tr key={p.key} className={`border-b border-border last:border-0 ${p.aktiv ? '' : 'text-muted-foreground'} ${gewaehlt === p.key ? 'bg-muted/50' : ''}`}>
               <td className="px-3 py-2 whitespace-nowrap font-medium">
-                {p.name}
+                <button type="button" className="text-left underline-offset-2 hover:underline" onClick={() => onPerson?.(p.key)}
+                  aria-pressed={gewaehlt === p.key} title="Tage dieser Person ansehen">
+                  {p.name}
+                </button>
                 {!p.aktiv && <span className="ml-2 text-meta">{p.key.startsWith('awork:') ? 'nur aWork, nicht zugeordnet' : 'nicht aktiv'}</span>}
               </td>
               <td className={zelle}><SollEingabe key={`${p.key}-${p.wochenStd}`} person={p} standard={standardWoche} onSpeichern={onSollSpeichern} /></td>
