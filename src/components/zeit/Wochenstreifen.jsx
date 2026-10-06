@@ -7,7 +7,7 @@ const WOCHENTAG = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
 
 const zustand = (tag, pflichtAb) => {
   if (tag.abgeschlossen) {
-    const text = tag.grund === 'frei' ? 'frei' : tag.grund === 'abwesend' ? 'abwesend' : 'abgeschlossen';
+    const text = tag.grund === 'frei' ? 'nicht anwesend' : tag.grund === 'abwesend' ? 'abwesend' : 'abgeschlossen';
     return { farbe: STATUS_COLORS.done, text };
   }
   if (tag.istZukunft) return { farbe: STATUS_COLORS.neutral, text: 'noch nicht dran' };
