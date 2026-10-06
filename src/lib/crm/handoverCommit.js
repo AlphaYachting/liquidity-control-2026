@@ -120,6 +120,8 @@ export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, 
         type: projectType,
         pm_email: pm,
         title: deal.title,
+        // Pauschalprojekt: Auftragssumme aus dem Auftrag vorbelegen
+        ...(projectType === 'legacy' ? { budget_betrag: total } : {}),
       },
       sprint: { selected: matchModules(positions, modules), start_date: termine.start, delivery_date: termine.lieferung, size: sprintGroesseAus(termine) },
       handoff: {
