@@ -62,7 +62,10 @@ export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = 
       ? { ...e, ended_at: tagesEnde(e.started_at) } : e));
     // Lücken beginnen beim ersten Aufruf des Tools (falls vorhanden), sonst wie bisher um 09:00.
     const geoeffnet = geoeffnetAm[tag] || null;
-    const streifen = werteTagAus({ tag, eintraege: fuerStreifen, tagesbeginnMinute: geoeffnet ? minuteVon(geoeffnet) : null });
+    const streifen = werteTagAus({
+      tag, eintraege: fuerStreifen, tagesbeginnMinute: geoeffnet ? minuteVon(geoeffnet) : null,
+      abgeschlossen: !!abschluss?.bestaetigt_am,
+    });
     const summen = werteTagAus({ tag, eintraege: liste });
     const auswertung = {
       ...streifen,
