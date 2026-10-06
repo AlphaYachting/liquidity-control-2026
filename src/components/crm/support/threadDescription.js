@@ -16,6 +16,13 @@ export function ohneZitat(text) {
   return `${t.slice(0, treffer.index).trim()}\n[zitierter Verlauf ausgeblendet]`;
 }
 
+// Unzustellbarkeits-Berichte und andere System-Mails (gleiche Regel wie in der Verlaufsvorschau)
+export function istSystemMail(m) {
+  const from = String(m?.from || '').toLowerCase();
+  if (from.includes('microsoftexchange') || from.startsWith('postmaster@') || from.startsWith('mailer-daemon@')) return true;
+  return /couldn'?t be delivered|undeliverable|unzustellbar|zustellung .*fehlgeschlagen/i.test(String(m?.text || '').slice(0, 300));
+}
+
 // Vollständiger Verlauf als Text — Quelldokument für das Angebots-Studio und das Support-Ticket.
 // Optionen: ohneZitate — zitierten Altverlauf je Nachricht abschneiden;
 // maxZeichen — Obergrenze; dann fallen die ältesten Nachrichten weg (die jüngsten bleiben vollständig).
@@ -26,8 +33,10 @@ export async function threadTranscript(threadId, { ohneZitate = false, maxZeiche
   const messages = data?.messages || [];
   if (messages.length === 0) return '';
   const subject = data?.thread?.subject ? `Betreff: ${data.thread.subject}\n\n` : '';
-  // chronologisch (älteste zuerst) — die Datenbank liefert neueste zuerst
+  // chronologisch (älteste zuerst) — die Datenbank liefert neueste zuerst.
+  // Im Ticket haben System-Mails (Unzustellbarkeits-Berichte, Exchange/Postmaster) nichts verloren.
   const bloecke = [...messages]
+    .filter((m) => !(ohneZitate && istSystemMail(m)))
     .sort((a, b) => String(a.received_at || '').localeCompare(String(b.received_at || '')))
     .map((m) => {
       const head = `${m.from_name || m.from || 'Unbekannt'} <${m.from || ''}> · ${formatMailDate(m.received_at)} · ${m.direction === 'in' ? 'eingehend' : 'ausgehend'}`;
