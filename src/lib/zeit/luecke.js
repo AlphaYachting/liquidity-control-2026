@@ -13,14 +13,15 @@ const minuteVon = (iso) => {
   return d.getHours() * 60 + d.getMinutes();
 };
 
-// eintraege = TimeEntries derselben Person am selben Tag
-export function findeLuecke(tag, eintraege, minuten) {
+// eintraege = TimeEntries derselben Person am selben Tag.
+// beginnMinute: erster Aufruf des Tools an diesem Tag — ohne Wert wie bisher 09:00.
+export function findeLuecke(tag, eintraege, minuten, beginnMinute = null) {
   const belegt = eintraege
     .filter((e) => e.started_at && e.ended_at)
     .map((e) => ({ von: minuteVon(e.started_at), bis: minuteVon(e.ended_at) }))
     .sort((a, b) => a.von - b.von);
 
-  let cursor = TAGESBEGINN;
+  let cursor = Number.isFinite(beginnMinute) ? beginnMinute : TAGESBEGINN;
   for (const b of belegt) {
     if (b.von - cursor >= minuten) break;
     cursor = Math.max(cursor, b.bis);
