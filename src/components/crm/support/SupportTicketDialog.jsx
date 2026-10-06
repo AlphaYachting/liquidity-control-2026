@@ -272,15 +272,17 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs">Zuständig</Label>
+            <Label className="text-xs">Zuständig *</Label>
             <Select value={form.assignee_email || undefined}
               onValueChange={v => set('assignee_email', v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Person wählen" /></SelectTrigger>
               <SelectContent>
                 {team.map(t => <SelectItem key={t.id} value={t.email}>{t.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground mt-1">Die Person findet das Ticket in „Mein Tag“.</p>
+            <p className={`text-xs mt-1 ${form.assignee_email ? 'text-muted-foreground' : 'text-status-attention'}`}>
+              {form.assignee_email ? 'Die Person findet das Ticket in „Mein Tag“.' : 'Ohne zuständige Person kein Ticket — bitte wählen.'}
+            </p>
           </div>
           <div>
             <Label className="text-xs">Ziel-Projekt</Label>
