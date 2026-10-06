@@ -6,18 +6,52 @@ const clip = (s, max = 1200) => {
   return t.length > max ? `${t.slice(0, max)}…` : t;
 };
 
-// Vollständiger Verlauf als Text — Quelldokument für das Angebots-Studio.
-export async function threadTranscript(threadId) {
+// Zitierten Altverlauf am Ende einer Mail abschneiden („Von: …“, „Am … schrieb“, „-----Original…“, „> …“).
+// Er steht als eigene Nachricht ohnehin im Verlauf und bläht ihn nur auf.
+const ZITAT_BEGINN = /^[ \t]*(?:>|Von:\s|From:\s|-{2,}\s*(?:Original|Ursprüngliche)|Am\s.{4,120}\sschrieb|On\s.{4,120}\swrote)/im;
+export function ohneZitat(text) {
+  const t = String(text || '').trim();
+  const treffer = ZITAT_BEGINN.exec(t);
+  if (!treffer || treffer.index < 40) return t;
+  return `${t.slice(0, treffer.index).trim()}\n[zitierter Verlauf ausgeblendet]`;
+}
+
+// Vollständiger Verlauf als Text — Quelldokument für das Angebots-Studio und das Support-Ticket.
+// Optionen: ohneZitate — zitierten Altverlauf je Nachricht abschneiden;
+// maxZeichen — Obergrenze; dann fallen die ältesten Nachrichten weg (die jüngsten bleiben vollständig).
+export async function threadTranscript(threadId, { ohneZitate = false, maxZeichen = 0 } = {}) {
   if (!threadId) return '';
   // Gleicher Aufruf wie in der E-Mail-Zentrale: Parameter liegen unter params, full=1 liefert den ganzen Text
   const data = await emailApi('thread', { params: { id: threadId, msgs: 50, full: 1 } }).catch(() => null);
   const messages = data?.messages || [];
   if (messages.length === 0) return '';
   const subject = data?.thread?.subject ? `Betreff: ${data.thread.subject}\n\n` : '';
-  return subject + [...messages].reverse().map((m) => {
-    const head = `${m.from_name || m.from || 'Unbekannt'} <${m.from || ''}> · ${formatMailDate(m.received_at)} · ${m.direction === 'in' ? 'eingehend' : 'ausgehend'}`;
-    return `${head}\n${String(m.text || m.preview || '').trim()}`;
-  }).join('\n\n---\n\n');
+  // chronologisch (älteste zuerst) — die Datenbank liefert neueste zuerst
+  const bloecke = [...messages]
+    .sort((a, b) => String(a.received_at || '').localeCompare(String(b.received_at || '')))
+    .map((m) => {
+      const head = `${m.from_name || m.from || 'Unbekannt'} <${m.from || ''}> · ${formatMailDate(m.received_at)} · ${m.direction === 'in' ? 'eingehend' : 'ausgehend'}`;
+      const text = String(m.text || m.preview || '').trim();
+      return `${head}\n${ohneZitate ? ohneZitat(text) : text}`;
+    });
+  const TRENNER = '\n\n---\n\n';
+  if (!maxZeichen) return subject + bloecke.join(TRENNER);
+  // Von hinten (jüngste) auffüllen, bis die Grenze erreicht ist
+  const behalten = [];
+  let laenge = subject.length;
+  for (let i = bloecke.length - 1; i >= 0; i--) {
+    let b = bloecke[i];
+    // eine einzelne riesige Nachricht wird selbst gekürzt, damit wenigstens die jüngste drin ist
+    if (!behalten.length && b.length > maxZeichen - laenge - 200) b = `${b.slice(0, Math.max(0, maxZeichen - laenge - 200))}… [gekürzt]`;
+    if (laenge + b.length + TRENNER.length > maxZeichen) break;
+    behalten.unshift(b);
+    laenge += b.length + TRENNER.length;
+  }
+  const weg = bloecke.length - behalten.length;
+  const hinweis = weg > 0
+    ? `[${weg} ältere ${weg === 1 ? 'Nachricht' : 'Nachrichten'} gekürzt — vollständig in der E-Mail-Zentrale]${TRENNER}`
+    : '';
+  return subject + hinweis + behalten.join(TRENNER);
 }
 
 // Baut die Ticket-Beschreibung aus dem echten E-Mail-Verlauf (jüngste Kundennachricht zuerst).
