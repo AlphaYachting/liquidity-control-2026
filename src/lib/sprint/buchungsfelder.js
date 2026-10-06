@@ -45,8 +45,29 @@ const fmtStd = (n) => (Math.round(n * 100) / 100).toLocaleString('de-DE', { maxi
 // Jeder Kalendermonat beginnt wieder bei null. Werte in Stunden.
 export async function kontingentGesperrt({ projectId, tag, minuten, ohneId }) {
   const project = await base44.entities.Project.get(projectId);
-  const kontingent = Number(project.support_kontingent_stunden) || 0;
   const monat = String(tag || '').slice(0, 7);
+  // Pauschalprojekt: Sperre gegen das Gesamtbudget (aWork-Stand plus alle Buchungen), nicht je Monat
+  if (project.is_legacy) {
+    const budget = Number(project.target_hours) || 0;
+    if (!project.kontingent_sperre || !(budget > 0)) {
+      return { gesperrt: false, kontingent: budget, gebucht: 0, rest: budget, project, monat, pauschal: true };
+    }
+    const rows = await base44.entities.TimeEntry.filter({ project_id: projectId }, '-entry_date', 5000);
+    const bisher = rows
+      .filter((r) => r.id !== ohneId)
+      .reduce((s, r) => s + (Number(r.duration_minutes) || 0), 0)
+      + (Number(project.awork_altstand_stunden) || 0) * 60;
+    return {
+      gesperrt: bisher + (Number(minuten) || 0) > budget * 60,
+      kontingent: budget,
+      gebucht: bisher / 60,
+      rest: Math.max(0, budget - bisher / 60),
+      project,
+      monat,
+      pauschal: true,
+    };
+  }
+  const kontingent = Number(project.support_kontingent_stunden) || 0;
   if (!project.kontingent_sperre || !(kontingent > 0)) {
     return { gesperrt: false, kontingent, gebucht: 0, rest: kontingent, project, monat };
   }
@@ -65,13 +86,15 @@ export async function kontingentGesperrt({ projectId, tag, minuten, ohneId }) {
 }
 
 // Meldung für den Kollegen, wenn eine Buchung an der Sperre scheitert.
-export async function sperrMeldung({ project, monat, gebucht, kontingent, rest }) {
+export async function sperrMeldung({ project, monat, gebucht, kontingent, rest, pauschal }) {
   const pm = project.pm_email
     ? (await base44.entities.TeamMember.filter({ email: project.pm_email }, 'name', 1).catch(() => []))[0]
     : null;
   const name = pm?.name || project.pm_email || 'der Projektleitung';
   const mName = MONATE[Number(String(monat).slice(5, 7)) - 1] || monat;
-  const voll = `Das Kontingent von ${project.title} für ${mName} ist verbraucht (${fmtStd(gebucht)} von ${fmtStd(kontingent)} h). Buchungen sind gesperrt — bitte bei ${name} melden.`;
+  const voll = pauschal
+    ? `Das Budget von ${project.title} ist verbraucht (${fmtStd(gebucht)} von ${fmtStd(kontingent)} h). Buchungen sind gesperrt — bitte bei ${name} melden.`
+    : `Das Kontingent von ${project.title} für ${mName} ist verbraucht (${fmtStd(gebucht)} von ${fmtStd(kontingent)} h). Buchungen sind gesperrt — bitte bei ${name} melden.`;
   return rest > 0 ? `${voll} Es sind nur noch ${fmtStd(rest)} h frei.` : voll;
 }
 
@@ -87,7 +110,7 @@ export async function sperreDurchsetzen({ projectId, tag, minuten, ohneId, trotz
     throw Object.assign(new Error(await sperrMeldung(info)), { sperre: true });
   }
   if (!trotzdem) {
-    throw Object.assign(new Error('Kontingent verbraucht — trotzdem buchen?'), { bestaetigen: true });
+    throw Object.assign(new Error(info.pauschal ? 'Budget verbraucht — trotzdem buchen?' : 'Kontingent verbraucht — trotzdem buchen?'), { bestaetigen: true });
   }
   return true;
 }
