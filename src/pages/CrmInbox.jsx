@@ -13,7 +13,7 @@ import { Box } from '@/components/shared/Box';
 import InboxItemCard from '@/components/crm/InboxItemCard';
 import InboxThreadCard from '@/components/crm/InboxThreadCard';
 import { usePosteingang } from '@/hooks/usePosteingang';
-import { FILTER, SCHWELLE_ARBEITSSTUNDEN } from '@/lib/crm/posteingang';
+import { FILTER, SCHWELLE_ARBEITSSTUNDEN, KANAELE, imKanal, passtReiter, zaehleSicht } from '@/lib/crm/posteingang';
 import InboxFilterZeile from '@/components/crm/InboxFilterZeile';
 import SupportTicketDialog from '@/components/crm/support/SupportTicketDialog';
 import InboxCaptureDialog from '@/components/crm/InboxCaptureDialog';
@@ -30,7 +30,8 @@ export default function CrmInbox() {
   const queryClient = useQueryClient();
   const [captureOpen, setCaptureOpen] = useState(false);
   const [uebernahmeOpen, setUebernahmeOpen] = useState(false);
-  const { darf } = useZugriff();
+  const zugriff = useZugriff();
+  const { darf } = zugriff;
   const [convertItem, setConvertItem] = useState(null);
   const [assignItem, setAssignItem] = useState(null);
   const [supportItem, setSupportItem] = useState(null);
@@ -40,10 +41,17 @@ export default function CrmInbox() {
   const { toast } = useToast();
   const [backchannelWarning, setBackchannelWarning] = useState(null);
   const [threadText, setThreadText] = useState('');
-  // Der Filter steht in der Adresse (?filter=support) — so sind Sichten wie der
-  // Support-Eingang direkt verlinkbar.
+  // Kanal (?kanal=support|office) und Reiter (?filter=…) stehen in der Adresse — jede Sicht ist
+  // direkt verlinkbar. Ältere Verweise ?filter=support führen in den Support-Eingang.
   const [params, setParams] = useSearchParams();
-  const filter = FILTER.some((f) => f.key === params.get('filter')) ? params.get('filter') : 'alle';
+  const kanalWunsch = params.get('kanal') || (params.get('filter') === 'support' ? 'support' : null);
+  // Wer die Gesamtsicht nicht sehen darf (Webentwicklung), landet im Support-Eingang
+  const kanal = KANAELE[kanalWunsch]
+    ? kanalWunsch
+    : (!zugriff.isLoading && !darf('leitung') && darf('support') ? 'support' : null);
+  const keinZugriff = !zugriff.isLoading && !darf(kanal ? KANAELE[kanal].recht : 'leitung');
+  // Im Support-Eingang gibt es keine Reiter — dort zählt alles, was an support@ ging
+  const filter = kanal !== 'support' && FILTER.some((f) => f.key === params.get('filter')) ? params.get('filter') : 'alle';
   const setFilter = (key) => {
     const neu = new URLSearchParams(params);
     if (key === 'alle') neu.delete('filter'); else neu.set('filter', key);
@@ -51,7 +59,15 @@ export default function CrmInbox() {
   };
   const [neuesteZuerst, setNeuesteZuerst] = useState(true);
   const [zeigeJung, setZeigeJung] = useState(false);
-  const [offenId, setOffenId] = useState(null);
+  const [suche, setSuche] = useState('');
+  // Beim Öffnen ist alles zugeklappt; jeder Eintrag klappt mit einem Klick auf und wieder zu,
+  // mehrere dürfen gleichzeitig offen sein.
+  const [offeneIds, setOffeneIds] = useState(() => new Set());
+  const umschalten = (key) => setOffeneIds((alt) => {
+    const neu = new Set(alt);
+    if (neu.has(key)) neu.delete(key); else neu.add(key);
+    return neu;
+  });
 
   // Fehlt der Anfragetext, den echten E-Mail-Verlauf nachladen — die Beschreibung
   // des Deals darf nie ein bloßes „Anfrage" sein.
@@ -69,16 +85,26 @@ export default function CrmInbox() {
   // Anfragen der Telefon-KI und manuell erfasste — siehe lib/crm/posteingang.js
   const { eintraege, zahlen, gesamt, ueberfaellig: overdue, isLoading } = usePosteingang();
 
-  const passt = FILTER.find((f) => f.key === filter)?.passt || FILTER[0].passt;
-  const imFilter = eintraege.filter(passt);
+  const sicht = imKanal(eintraege, kanal);
+  const imFilter = sicht.filter(passtReiter(filter, kanal));
+  const zahlenSicht = kanal ? zaehleSicht(eintraege, kanal) : zahlen;
   const jungAnzahl = imFilter.filter((e) => !e.sichtbar).length;
-  // Im Support-Eingang zählt der Seitenkopf nur die Support-Anfragen
-  const kopfAnzahl = filter === 'support' ? imFilter.filter((e) => e.sichtbar).length : gesamt;
-  const kopfUeberfaellig = filter === 'support' ? imFilter.filter((e) => e.sichtbar && e.ueberfaellig).length : overdue;
+  // Im Kanal zählt der Seitenkopf nur, was an die Kanal-Adresse ging
+  const kanalSichtbar = sicht.filter((e) => e.sichtbar);
+  const kopfAnzahl = kanal ? kanalSichtbar.length : gesamt;
+  const kopfUeberfaellig = kanal ? kanalSichtbar.filter((e) => e.ueberfaellig).length : overdue;
+  // Suche grenzt innerhalb der Sicht ein — Betreff, Absender, Kunde und Anfragetext;
+  // beim Suchen zählen auch Nachrichten, die noch keine 4 Arbeitsstunden alt sind
+  const begriff = suche.trim().toLowerCase();
+  const trifft = (e) => !begriff || [
+    e.betreff, e.absender, e.absenderName, e.thread?.customer, e.thread?.anliegen_beleg,
+    e.item?.matched_customer_name, e.item?.sender_name, e.item?.sender_email, e.item?.body,
+  ].some((v) => String(v || '').toLowerCase().includes(begriff));
   const gefilterte = imFilter
-    .filter((e) => e.sichtbar || zeigeJung)
+    .filter((e) => e.sichtbar || zeigeJung || begriff)
+    .filter(trifft)
     .sort((a, b) => (neuesteZuerst ? b.eingang - a.eingang : a.eingang - b.eingang));
-  const offeneId = (gefilterte.find((e) => e.key === offenId) || gefilterte[0])?.key;
+  const seitenTitel = kanal ? KANAELE[kanal].titel : 'Posteingang';
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['posteingang'] });
@@ -157,14 +183,16 @@ export default function CrmInbox() {
     <div className="max-w-[1200px] space-y-4">
       <Seitenkopf
         bereich="CRM"
-        titel={filter === 'support' ? 'Support-Eingang' : 'Posteingang'}
-        kontext={`${kopfAnzahl} unbeantwortet seit mindestens ${SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden${kopfUeberfaellig > 0 ? ` · ${kopfUeberfaellig} davon länger als 2 Tage` : ''}`}
+        titel={seitenTitel}
+        kontext={kanal === 'support'
+          ? `${kopfAnzahl} unbeantwortet an ${KANAELE.support.adresse} · erscheint sofort${kopfUeberfaellig > 0 ? ` · ${kopfUeberfaellig} davon länger als 2 Tage` : ''}`
+          : `${kopfAnzahl} unbeantwortet${kanal ? ` an ${KANAELE[kanal].adresse}` : ''} seit mindestens ${SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden${kopfUeberfaellig > 0 ? ` · ${kopfUeberfaellig} davon länger als 2 Tage` : ''}`}
         aktionen={
           <>
             <Button variant="outline" asChild>
               <Link to="/crm"><KanbanSquare /> Pipeline</Link>
             </Button>
-            {filter === 'support' && darf('fuehrung') && (
+            {kanal === 'support' && darf('fuehrung') && (
               <Button variant="outline" onClick={() => setUebernahmeOpen(true)}>
                 <ArrowDownToLine /> Offene aWork-Support-Aufgaben übernehmen
               </Button>
@@ -196,28 +224,49 @@ export default function CrmInbox() {
         </div>
       )}
 
-      {isLoading ? (
-        <p className="text-meta text-muted-foreground py-10 text-center">Posteingang lädt…</p>
+      {keinZugriff ? (
+        <Box className="py-16 text-center">
+          <p className="text-body text-foreground">Kein Zugriff auf diese Ansicht</p>
+          <p className="text-meta text-muted-foreground mt-1">Bitte bei Alfons melden, falls du sie brauchst.</p>
+        </Box>
+      ) : isLoading ? (
+        <p className="text-meta text-muted-foreground py-10 text-center">{seitenTitel} lädt…</p>
       ) : (
         <>
           <InboxFilterZeile
             filter={filter}
             onFilter={setFilter}
-            zahlen={zahlen}
+            zahlen={zahlenSicht}
+            reiterAnzeigen={kanal !== 'support'}
+            imKanal={!!kanal}
+            suche={suche}
+            onSuche={setSuche}
             neuesteZuerst={neuesteZuerst}
             onSortierung={() => setNeuesteZuerst((v) => !v)}
-            jungAnzahl={jungAnzahl}
+            jungAnzahl={kanal === 'support' ? 0 : jungAnzahl}
             zeigeJung={zeigeJung}
             onZeigeJung={() => setZeigeJung((v) => !v)}
           />
 
           {gefilterte.length === 0 ? (
             <Box className="py-16 text-center">
-              <p className="text-body text-foreground">Nichts unbeantwortet</p>
-              <p className="text-meta text-muted-foreground mt-1 max-w-sm mx-auto">
-                Hier erscheint jede Kundennachricht, auf die seit {SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden niemand geantwortet hat,
-                Eskalationen sofort. Beantwortetes findest du in der E-Mail-Zentrale.
-              </p>
+              {begriff ? (
+                <>
+                  <p className="text-body text-foreground">Kein Treffer für „{suche.trim()}“</p>
+                  <p className="text-meta text-muted-foreground mt-1">Gesucht wird in Betreff, Absender, Kunde und Anfragetext dieser Ansicht.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-body text-foreground">Nichts unbeantwortet</p>
+                  <p className="text-meta text-muted-foreground mt-1 max-w-sm mx-auto">
+                    {kanal === 'support'
+                      ? <>Hier erscheint jede unbeantwortete Mail an {KANAELE.support.adresse}, sofort nach dem Eingang.</>
+                      : <>Hier erscheint jede Kundennachricht, auf die seit {SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden niemand geantwortet hat,
+                        Eskalationen sofort.</>}{' '}
+                    Beantwortetes findest du in der E-Mail-Zentrale.
+                  </p>
+                </>
+              )}
             </Box>
           ) : (
             <div className="bg-card border rounded-lg overflow-hidden divide-y">
@@ -226,8 +275,8 @@ export default function CrmInbox() {
                   key={e.key}
                   item={e.item}
                   eintrag={e}
-                  offen={e.key === offeneId}
-                  onOeffnen={() => setOffenId(e.key)}
+                  offen={offeneIds.has(e.key)}
+                  onOeffnen={() => umschalten(e.key)}
                   onConvert={handleConvert}
                   onAssign={setAssignItem}
                   onSupportTicket={setSupportItem}
@@ -237,8 +286,8 @@ export default function CrmInbox() {
                 <InboxThreadCard
                   key={e.key}
                   eintrag={e}
-                  offen={e.key === offeneId}
-                  onOeffnen={() => setOffenId(e.key)}
+                  offen={offeneIds.has(e.key)}
+                  onOeffnen={() => umschalten(e.key)}
                   onChanged={refresh}
                 />
               )))}
@@ -252,12 +301,12 @@ export default function CrmInbox() {
         open={Boolean(supportItem)}
         onOpenChange={(o) => { if (!o) setSupportItem(null); }}
         item={supportItem}
-        onDone={(ticket, back) => {
+        onDone={(ticket, back, hinweis) => {
           setSupportItem(null);
           refresh();
           toast({
             title: `Support-Ticket „${ticket.title}" angelegt`,
-            description: back.ok ? undefined : 'Der Thread konnte in der E-Mail-Zentrale nicht markiert werden.',
+            description: [hinweis, back.ok ? '' : 'Der Thread konnte in der E-Mail-Zentrale nicht markiert werden.'].filter(Boolean).join(' ') || undefined,
           });
         }}
       />
