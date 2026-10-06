@@ -4,11 +4,20 @@ export const PROJECT_TYPES = {
   support: { label: 'Supportprojekt', model: 'aufwand', container: true, style: { pillBg: '#FAEEDA', pillText: '#633806', icon: 'headset', short: 'Support' } },
   container: { label: 'Retainer', model: 'paket', container: true, style: { pillBg: '#E1F5EE', pillText: '#085041', icon: 'refresh', short: 'Retainer' } },
   regie: { label: 'Regie-Projekt', model: 'aufwand', container: true, style: { pillBg: '#E6F1FB', pillText: '#0C447C', icon: 'clock', short: 'Regie' } },
-  legacy: { label: 'Altprojekt', model: null, container: true, style: { pillBg: '#F1EFE8', pillText: '#444441', icon: 'archive', short: 'Alt' } },
+  // Pauschalprojekt (Entscheidung 06.10.2026): fester Auftragswert, ohne Sprintplanung und ohne Pakete.
+  // Technisch weiterhin is_legacy (früher „Altprojekt“) — Abrechnungsmodell fest „sprint“ (keine Stundenverrechnung).
+  legacy: { label: 'Pauschalprojekt', model: 'sprint', container: true, style: { pillBg: '#F1EFE8', pillText: '#444441', icon: 'archive', short: 'Pauschal' } },
   intern: { label: 'Internes Projekt', model: 'intern', container: true, style: { pillBg: '#EEEDFE', pillText: '#3C3489', icon: 'building', short: 'Intern' } },
 };
 
-export const PROJECT_TYPE_ORDER = ['sprint', 'container', 'support', 'regie', 'intern', 'legacy'];
+export const PROJECT_TYPE_ORDER = ['sprint', 'legacy', 'container', 'support', 'regie', 'intern'];
+
+// Kalkulationssatz für Budgetstunden aus der Auftragssumme (Entscheidung 06.10.2026: Standardsatz 120 €)
+export const KALKULATIONSSATZ = 120;
+export const budgetStundenAus = (betrag, satz = KALKULATIONSSATZ) =>
+  Number(betrag) > 0 && satz > 0 ? Math.round((Number(betrag) / satz) * 10) / 10 : 0;
+
+export const istPauschal = (project) => !!project?.is_legacy;
 
 export const MODEL_OPTIONS = [
   { value: 'sprint', label: 'Sprint' },
