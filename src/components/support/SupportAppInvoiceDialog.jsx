@@ -143,6 +143,8 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
           // Regie: Aufgaben bleiben offen — nur die Zeitbuchungen gelten als verrechnet
           support_ticket_ids: regie ? [] : gewaehlt.filter((t) => t.ticket_id).map((t) => t.ticket_id),
           time_entry_ids: gewaehlt.flatMap((t) => t.time_entry_ids || []),
+          // Ohne Ticket gebuchte Zeit, die einem Ticket zugeordnet wurde: beim Markieren wird die Zuordnung gespeichert
+          zuordnung: Object.fromEntries(gewaehlt.filter((t) => t.ticket_id).flatMap((t) => (t.zugeordnet_ids || []).map((id) => [id, t.ticket_id]))),
           vorleistung_ticket_ids: mitVorleistung.map((t) => t.ticket_id),
           awork_vorleistung_task_ids: mitVorleistung.map((t) => t.awork_task_id).filter(Boolean),
           sevdesk_contact_id: row.sevdesk_contact_id || null,
