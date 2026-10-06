@@ -31,7 +31,10 @@ export default function EscalationThreadPreview({ threadId, start = 5 }) {
   }
   if (isError) return <p className="text-xs text-muted-foreground">Verlauf nicht verfügbar.</p>;
 
-  const messages = (data?.messages || []).filter((m) => !isSystemMail(m));
+  // Neueste Nachricht immer oben — ausdrücklich sortiert, nicht auf die Reihenfolge der Datenbank verlassen
+  const messages = (data?.messages || [])
+    .filter((m) => !isSystemMail(m))
+    .sort((a, b) => String(b.received_at || '').localeCompare(String(a.received_at || '')));
   if (messages.length === 0) return <p className="text-xs text-muted-foreground">Keine Nachrichten gefunden.</p>;
 
   const sichtbar = alle ? messages : messages.slice(0, start);
