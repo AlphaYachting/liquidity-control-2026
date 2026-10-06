@@ -12,6 +12,7 @@ import AzKennzahlen from '@/components/arbeitszeit/AzKennzahlen';
 import AzVerlauf from '@/components/arbeitszeit/AzVerlauf';
 import AzPersonen from '@/components/arbeitszeit/AzPersonen';
 import AzVerteilung, { AzProjekte } from '@/components/arbeitszeit/AzVerteilung';
+import AzPersonTage from '@/components/arbeitszeit/AzPersonTage';
 
 const knopf = (aktiv) => `text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded border ${aktiv ? 'bg-foreground text-background border-foreground' : 'bg-white text-foreground border-border hover:bg-muted'}`;
 
@@ -34,6 +35,7 @@ export default function Arbeitszeitauswertung() {
   const darf = istInhaber(user);
   const qc = useQueryClient();
   const [key, setKey] = useState('monat');
+  const [personKey, setPersonKey] = useState(null);
   const heute = isoVon(new Date());
   const zr = useMemo(() => berechneZeitraum(key, heute), [key, heute]);
 
@@ -58,6 +60,7 @@ export default function Arbeitszeitauswertung() {
   if (!darf) return null;
 
   const q = ergebnis?.quellen;
+  const gewaehltePerson = ergebnis?.personen.find((p) => p.key === personKey) || null;
   return (
     <div className="max-w-[1400px] mx-auto space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -114,12 +117,17 @@ export default function Arbeitszeitauswertung() {
                 Teamschnitt: {fmtQuote(ergebnis.gesamt.erfassungsquote)} erfasst · {fmtQuote(ergebnis.gesamt.produktiv)} verrechenbar vom Soll
               </span>
             </div>
-            <AzPersonen personen={ergebnis.personen} standardWoche={data.standardStdTag * 5} onSollSpeichern={sollSpeichern} mitApp={q.app} />
+            <AzPersonen personen={ergebnis.personen} standardWoche={data.standardStdTag * 5} onSollSpeichern={sollSpeichern} mitApp={q.app}
+              gewaehlt={personKey} onPerson={(k) => setPersonKey(personKey === k ? null : k)} />
             <p className="text-meta text-muted-foreground">
               Soll h/Woche: leer lassen für den Standard ({data.standardStdTag * 5} h), für Teilzeit die Wochenstunden eintragen — verteilt auf Mo–Fr.
-              Offene Tage zählen erst ab {fmtDatum(q.pflichtAb)}.
+              Offene Tage zählen erst ab {fmtDatum(q.pflichtAb)}. Ein Klick auf einen Namen zeigt die einzelnen Tage.
             </p>
           </div>
+          {gewaehltePerson && (
+            <AzPersonTage key={`${gewaehltePerson.key}|${zr.von}|${zr.auswertungBis}`} person={gewaehltePerson} daten={data} zeitraum={zr}
+              onSchliessen={() => setPersonKey(null)} />
+          )}
           <AzVerteilung ergebnis={ergebnis} />
           <AzProjekte projekte={ergebnis.projekte} />
         </>
