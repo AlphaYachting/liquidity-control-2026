@@ -44,8 +44,9 @@ const Feld = ({ children, htmlFor }) => (
 export default function TicketDetailPanel({ ticket, members = [], open, onOpenChange, onSaved, nichtModal = false }) {
   const [form, setForm] = useState(ticket || {});
   const [saving, setSaving] = useState(false);
+  const [speicherFehler, setSpeicherFehler] = useState('');
 
-  useEffect(() => { setForm(ticket || {}); }, [ticket?.id, open]);
+  useEffect(() => { setForm(ticket || {}); setSpeicherFehler(''); }, [ticket?.id, open]);
 
   const { data: gebucht = 0 } = useQuery({
     enabled: Boolean(open && ticket?.id),
@@ -158,8 +159,22 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
   const faelligNeu = form.planned_for || '';
   const faelligGeaendert = faelligNeu !== (ticket.planned_for || '') && !(ticket.rhythmus && !faelligNeu);
 
+  // Speichern mit sichtbarer Fehlermeldung — vorher blieb der Knopf bei einem Fehler stumm hängen
   const speichern = async () => {
     setSaving(true);
+    setSpeicherFehler('');
+    try {
+      await speichernAusfuehren();
+      onSaved?.();
+      onOpenChange(false);
+    } catch (e) {
+      setSpeicherFehler(e?.response?.data?.detail || e?.response?.data?.message || e?.message || 'Speichern fehlgeschlagen');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const speichernAusfuehren = async () => {
     await base44.entities.Ticket.update(ticket.id, {
       title: form.title,
       description: form.description || '',
@@ -182,9 +197,6 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
         text: `Status von „${ticket.status}" auf „${form.status}" gesetzt.`,
       });
     }
-    setSaving(false);
-    onSaved?.();
-    onOpenChange(false);
   };
 
   // Projektkontext: Projekt, Kunde, Etappe (nur Sprintprojekte), Projektleitung
@@ -215,6 +227,7 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
               value={form.title || ''}
               disabled={archiviert}
               onChange={(e) => set({ title: e.target.value })}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !archiviert) { e.preventDefault(); speichern(); } }}
               className="h-auto rounded border-transparent px-1.5 -mx-1.5 py-1 text-[20px] md:text-[20px] leading-[26px] font-bold shadow-none hover:border-border focus-visible:border-border"
             />
             {projekt && (
@@ -374,9 +387,13 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
 
           </fieldset>
 
-          <div className="flex gap-2">
-            {!archiviert && <Button onClick={speichern} disabled={saving}>Speichern</Button>}
-            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Schließen</Button>
+          {/* Speichern bleibt beim Scrollen unten sichtbar — lange Beschreibungen schoben den Knopf aus dem Blick */}
+          <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-background border-t border-border z-10 space-y-2">
+            {speicherFehler && <p className="text-xs text-status-critical">Nicht gespeichert: {speicherFehler}</p>}
+            <div className="flex gap-2">
+              {!archiviert && <Button onClick={speichern} disabled={saving}>{saving ? 'Speichert…' : 'Speichern'}</Button>}
+              <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Schließen</Button>
+            </div>
           </div>
 
           {darf && !archiviert && (
