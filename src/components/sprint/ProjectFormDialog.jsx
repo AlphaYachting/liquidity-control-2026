@@ -12,11 +12,12 @@ import { kuerzelVorschlag } from '@/lib/zeit/useProjektSuche';
 import { finanzIdVon } from '@/lib/projekt/cockpitSicherstellen';
 import { PROJECT_TYPES, PROJECT_TYPE_ORDER, RETAINER_ARTEN, projectTypeOf } from '@/components/sprint/projectTypes';
 import ProjectTypeFields from '@/components/sprint/ProjectTypeFields';
+import { pauschalBudgetGueltig } from '@/components/sprint/PauschalBudgetFelder';
 import RundungsFelder from '@/components/sprint/RundungsFelder';
 import { useTeamMitglieder } from '@/components/sprint/projekt/ProjektleitungWahl';
 
 const EMPTY = {
-  client_id: '', title: '', pm_email: '', status: 'aktiv', total_budget: '',
+  client_id: '', title: '', pm_email: '', status: 'aktiv', total_budget: '', target_hours: '',
   stundensatz: '', support_kontingent_stunden: '', recurring_contract_id: '', abrechnungsmodell: 'aufwand',
 };
 
@@ -87,8 +88,11 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
   // Wechsel von/zu Sprint nur ohne bestehende Aufgaben
   const gesperrt = (k) => hatTickets && (originalType === 'sprint' ? k !== 'sprint' : k === 'sprint');
 
+  // Pauschalprojekt: Auftragssumme und Budgetstunden sind Pflicht (Entscheidung 06.10.2026)
+  const budgetFehlt = type === 'legacy' && !pauschalBudgetGueltig(form.total_budget, form.target_hours);
+
   const handleSave = async () => {
-    if (!form.client_id || !form.title || !form.pm_email) return;
+    if (!form.client_id || !form.title || !form.pm_email || budgetFehlt) return;
     setSaving(true);
     const def = PROJECT_TYPES[type];
     const isContainer = type === 'container';
@@ -105,6 +109,7 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
       pm_email: form.pm_email,
       status: form.status,
       total_budget: Number(form.total_budget) || 0,
+      ...(type === 'legacy' ? { target_hours: Number(form.target_hours) || 0 } : {}),
       abrechnungsmodell: def.model || form.abrechnungsmodell || 'aufwand',
       is_legacy: type === 'legacy',
       rundung_minuten: Number(form.rundung_minuten) || 0,
@@ -123,7 +128,7 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
       retainer_art: type === 'container' && form.retainer_art ? form.retainer_art : undefined,
     };
     // Buchungssperre: nur Admins dürfen sie setzen — für alle anderen bleibt der Wert unberührt.
-    if (user?.role === 'admin' && ['container', 'support', 'regie', 'intern'].includes(type)) {
+    if (user?.role === 'admin' && ['container', 'support', 'regie', 'intern', 'legacy'].includes(type)) {
       data.kontingent_sperre = !!form.kontingent_sperre;
     }
     // Abschluss festhalten bzw. beim Wiederöffnen leeren
@@ -250,7 +255,10 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
               </SelectContent>
             </Select>
           </div>
-          <div><Label>Gesamtbudget netto (EUR)</Label><Input type="number" value={form.total_budget} onChange={(e) => setForm((f) => ({ ...f, total_budget: e.target.value }))} /></div>
+          {/* Beim Pauschalprojekt steht das Budget in den Typfeldern (Summe + Budgetstunden) */}
+          {type !== 'legacy' && (
+            <div><Label>Gesamtbudget netto (EUR)</Label><Input type="number" value={form.total_budget ?? ''} onChange={(e) => setForm((f) => ({ ...f, total_budget: e.target.value }))} /></div>
+          )}
 
           <ProjectTypeFields type={type} form={form} setForm={setForm} contracts={contracts} project={project} abVorschlag={abVorschlag} user={user} />
 
@@ -258,7 +266,7 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
 
           <Button
             className="w-full bg-primary hover:bg-primary/90 text-white font-bold uppercase rounded"
-            disabled={saving || !form.client_id || !form.title || !form.pm_email}
+            disabled={saving || !form.client_id || !form.title || !form.pm_email || budgetFehlt}
             onClick={handleSave}
           >
             {saving ? 'Speichert…' : 'Speichern'}
