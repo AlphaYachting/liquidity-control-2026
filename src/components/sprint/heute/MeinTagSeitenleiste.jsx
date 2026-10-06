@@ -78,9 +78,9 @@ export function MeinTagEingang({ nurSupport }) {
   const post = usePosteingang();
   if (post.isLoading || post.isError) return null;
   const liste = post.eintraege
-    .filter((e) => e.sichtbar && (nurSupport ? e.klasse === 'support' : e.klasse !== 'verwaltung'))
+    .filter((e) => e.sichtbar && (nurSupport ? e.kanaele.includes('support') : e.klasse !== 'verwaltung'))
     .sort((a, b) => a.eingang - b.eingang);
-  const ziel = nurSupport ? '/crm/inbox?filter=support' : '/crm/inbox';
+  const ziel = nurSupport ? '/crm/inbox?kanal=support' : '/crm/inbox';
   const titel = nurSupport ? 'Support-Eingang' : 'Posteingang';
 
   return (
@@ -92,7 +92,7 @@ export function MeinTagEingang({ nurSupport }) {
         <>
           <p className="text-[12.5px] mb-1" style={{ color: RITTLER.textSecondary }}>
             {nurSupport
-              ? 'Unbeantwortete Support-Mails nach 4 Arbeitsstunden. Nur für Webentwicklung und Führung sichtbar.'
+              ? 'Unbeantwortete Mails an support@rittler.co — sofort sichtbar. Nur für Webentwicklung und Führung.'
               : 'Unbeantwortete Kundenpost nach 4 Arbeitsstunden — die ältesten zuerst.'}
           </p>
           {liste.slice(0, 3).map((e) => (
