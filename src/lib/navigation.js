@@ -5,7 +5,7 @@ import {
   Zap, Map, BrainCircuit, PieChart, CalendarDays, Users, BarChart2, Clock, DatabaseZap,
   RefreshCw, Trash2, RotateCcw, Scale, KanbanSquare, Inbox, History, Presentation, Mail,
   Sun, Siren, CalendarRange, Gauge, Layers, LifeBuoy, Sparkles, SlidersHorizontal, Timer,
-  Receipt, ServerCog, MessageSquarePlus,
+  Receipt, ServerCog, MessageSquarePlus, Hourglass,
 } from 'lucide-react';
 
 // Die EINE Liste aller Navigationspunkte. Die Sidebar rendert ausschließlich hieraus.
@@ -33,6 +33,7 @@ export const NAV_GRUPPEN = [
       { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban, regel: 'geld' },
       { path: '/sprint/steuerung', label: 'Steuerung', icon: SlidersHorizontal, regel: 'fuehrung' },
       { path: '/sprint/auslastung', label: 'Auslastungsforecast', icon: BarChart3, regel: 'admin', nurEmail: 'a.rittler@rittler.co' },
+      { path: '/sprint/arbeitszeit', label: 'Arbeitszeitauswertung', icon: Hourglass, regel: 'admin', nurEmail: 'a.rittler@rittler.co' },
     ],
   },
   {
