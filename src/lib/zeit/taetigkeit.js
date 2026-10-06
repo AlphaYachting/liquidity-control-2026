@@ -1,19 +1,22 @@
 import { base44 } from '@/api/base44Client';
 
-// Die Zeitbuchung kennt genau drei Tätigkeiten. Die sieben Rollen bleiben der
-// Aufgabenzuteilung vorbehalten und tauchen hier nicht mehr auf.
-export const TAETIGKEITEN = ['beratung', 'vertrieb', 'umsetzung'];
+// Die Zeitbuchung kennt vier Tätigkeiten (Meeting seit 06.10.2026: Jour fixe, Abstimmung, Termine).
+// Die sieben Rollen bleiben der Aufgabenzuteilung vorbehalten und tauchen hier nicht mehr auf.
+// Die Tätigkeit dient nur der Auswertung — ob verrechnet wird, hängt am Projekt.
+export const TAETIGKEITEN = ['beratung', 'vertrieb', 'umsetzung', 'meeting'];
 
 export const TAETIGKEIT_LABEL = {
   beratung: 'Beratung',
   vertrieb: 'Vertrieb',
   umsetzung: 'Umsetzung',
+  meeting: 'Meeting',
 };
 
 export const TAETIGKEIT_FARBE = {
   beratung: 'hsl(var(--chart-1))',
   vertrieb: 'hsl(var(--chart-3))',
   umsetzung: 'hsl(var(--chart-2))',
+  meeting: 'hsl(var(--chart-5))',
 };
 
 const KEY = 'zeit_letzte_taetigkeit';
@@ -44,10 +47,10 @@ export async function vorbelegeTaetigkeit({ kategorie, ticketId, nichtVerrechenb
 
 // Minuten je Tätigkeit — Grundlage aller drei Auswertungen.
 export function summeNachTaetigkeit(eintraege = []) {
-  const summen = { beratung: 0, vertrieb: 0, umsetzung: 0 };
+  const summen = { beratung: 0, vertrieb: 0, umsetzung: 0, meeting: 0 };
   for (const e of eintraege) {
     const k = TAETIGKEITEN.includes(e.taetigkeit) ? e.taetigkeit : 'umsetzung';
     summen[k] += Number(e.duration_minutes) || 0;
   }
-  return { ...summen, gesamt: summen.beratung + summen.vertrieb + summen.umsetzung };
+  return { ...summen, gesamt: summen.beratung + summen.vertrieb + summen.umsetzung + summen.meeting };
 }
