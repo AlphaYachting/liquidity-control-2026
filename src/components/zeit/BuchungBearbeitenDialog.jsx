@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { aendereZeit } from '@/lib/sprint/useTimer';
 import BereichChips from './BereichChips';
 import { minuteVonIso, isoVonMinute, uhr } from '@/lib/zeit/tagesAuswertung';
+import { brauchtBeschreibung, beschreibungReicht } from '@/lib/zeit/beschreibungPflicht';
 
 const zuMinute = (s) => {
   const [h, m] = String(s || '').split(':').map(Number);
@@ -13,7 +14,7 @@ const zuMinute = (s) => {
 };
 
 // Buchung ändern, solange der Tag nicht bestätigt ist.
-export default function BuchungBearbeitenDialog({ eintrag, open, onOpenChange, onSaved }) {
+export default function BuchungBearbeitenDialog({ eintrag, projekt, open, onOpenChange, onSaved }) {
   const [von, setVon] = useState('09:00');
   const [bis, setBis] = useState('10:00');
   const [notiz, setNotiz] = useState('');
@@ -30,6 +31,9 @@ export default function BuchungBearbeitenDialog({ eintrag, open, onOpenChange, o
 
   if (!eintrag) return null;
   const minuten = zuMinute(bis) - zuMinute(von);
+  // Nach Aufwand ohne Ticket: die Notiz ist die Rechnungszeile — Regel hier gleich sichtbar machen.
+  const notizPflicht = brauchtBeschreibung({ ...eintrag, note: '' }, projekt);
+  const notizZuKurz = notizPflicht && !beschreibungReicht(notiz);
 
   const speichern = async () => {
     setSaving(true);
@@ -56,7 +60,15 @@ export default function BuchungBearbeitenDialog({ eintrag, open, onOpenChange, o
             <div><Label>Von</Label><Input type="time" value={von} onChange={(e) => setVon(e.target.value)} /></div>
             <div><Label>Bis</Label><Input type="time" value={bis} onChange={(e) => setBis(e.target.value)} /></div>
           </div>
-          <div><Label>Notiz</Label><Input value={notiz} onChange={(e) => setNotiz(e.target.value)} /></div>
+          <div>
+            <Label>Notiz</Label>
+            <Input value={notiz} onChange={(e) => setNotiz(e.target.value)} />
+            {notizZuKurz && (
+              <p className="text-xs mt-1 text-amber-700">
+                Wird nach Aufwand verrechnet: bitte mindestens zwei Wörter, was gemacht wurde — z. B. „Projektmanagement Abstimmung mit Kunde“. Sonst lässt sich der Tag nicht abschließen.
+              </p>
+            )}
+          </div>
           <BereichChips projectId={eintrag.project_id} wert={bereich} onWaehlen={setBereich} />
           <Button className="w-full font-bold uppercase" disabled={saving || minuten <= 0} onClick={speichern}>
             {saving ? 'Speichert…' : 'Speichern'}
