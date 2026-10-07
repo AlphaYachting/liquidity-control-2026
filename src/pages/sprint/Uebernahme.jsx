@@ -144,7 +144,14 @@ export default function Uebernahme() {
   const offenGesamt = data.tickets.filter(brauchtAntwort).length;
   const geerbtGesamt = data.tickets.filter((t) => brauchtAntwort(t) && !warSchonMeins(t, meinName)).length;
   const aktiv = gruppen.find((g) => g.id === gewaehlt) || gruppen.find((g) => g.offen > 0) || gruppen[0] || null;
-  const naechste = aktiv ? gruppen.find((g) => g.id !== aktiv.id && g.offen > 0) : null;
+  // Nächstes offenes Projekt NACH dem aktuellen in der Liste (danach von vorn) —
+  // sonst springt „Weiter“ bei zwei offenen Projekten immer zwischen denselben hin und her.
+  const naechste = (() => {
+    if (!aktiv) return null;
+    const i = gruppen.findIndex((g) => g.id === aktiv.id);
+    const reihe = [...gruppen.slice(i + 1), ...gruppen.slice(0, Math.max(i, 0))];
+    return reihe.find((g) => g.offen > 0) || null;
+  })();
   const istFuehrung = zugriff.darf('fuehrung');
   const darfArchivieren = (p) => istFuehrung || gleich(p?.pm_email, email);
 
