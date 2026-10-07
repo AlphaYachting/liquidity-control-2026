@@ -50,6 +50,11 @@ function BeschreibungNachtragen({ eintrag, label, onSaved }) {
       >
         {busy ? 'Speichert…' : 'Speichern'}
       </button>
+      {!ok && text.trim() && (
+        <p className="w-full text-xs" style={{ color: STATUS_COLORS.attention }}>
+          Noch zu knapp: bitte mindestens zwei Wörter, was gemacht wurde — z. B. „Projektmanagement Abstimmung mit Kunde“. Dann wird „Speichern“ aktiv.
+        </p>
+      )}
       {fehler && <p className="w-full text-xs" style={{ color: STATUS_COLORS.attention }}>{fehler}</p>}
     </div>
   );
