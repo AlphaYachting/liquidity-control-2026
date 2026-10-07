@@ -309,6 +309,7 @@ export default function Zeiten() {
 
       <BuchungBearbeitenDialog
         eintrag={bearbeiten}
+        projekt={bearbeiten ? projekteById?.[bearbeiten.project_id] : null}
         open={!!bearbeiten}
         onOpenChange={(o) => !o && setBearbeiten(null)}
         onSaved={refresh}
