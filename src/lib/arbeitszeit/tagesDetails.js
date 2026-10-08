@@ -3,6 +3,7 @@
 // Rein rechnend: nutzt die schon geladenen Daten der Arbeitszeitauswertung.
 import { werteTagAus } from '../zeit/tagesAuswertung.js';
 import { tageZwischen, istWochenende, feiertag, istArbeitstag } from './kalender.js';
+import { messung } from './messung.js';
 
 const norm = (s) => String(s || '').trim().toLowerCase();
 const min = (e) => Number(e.duration_minutes) || 0;
@@ -77,8 +78,15 @@ export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = 
       anzahl: summen.anzahl,
     };
     const ueberschneidend = new Set(auswertung.blocks.filter((b) => b.ueberschneidet).map((b) => b.entry.id));
-    const buchungen = liste.map((e) => ({ ...e, hinweise: quelle === 'app' ? hinweiseZu(e, ueberschneidend.has(e.id)) : (min(e) >= LANGE_BUCHUNG ? ['über 10 h am Stück'] : []) }));
+    const buchungen = liste.map((e) => ({
+      ...e,
+      hinweise: quelle === 'app' ? hinweiseZu(e, ueberschneidend.has(e.id)) : (min(e) >= LANGE_BUCHUNG ? ['über 10 h am Stück'] : []),
+      messung: quelle === 'app' ? messung(e) : null,
+    }));
     const gebucht = auswertung.gebuchtMinuten;
+    // Gemessen („gebucht“) und nachgetragen — nur App-Buchungen, aWork kennt keinen Timer
+    const gemessen = quelle === 'app' ? buchungen.reduce((s, b) => s + (b.messung?.gebucht || 0), 0) : null;
+    const nachgetragen = quelle === 'app' ? buchungen.reduce((s, b) => s + (b.messung?.nachgetragen || 0), 0) : null;
 
     const hinweise = [];
     if (gebucht >= LANGER_TAG) hinweise.push('mehr als 12 h an einem Tag');
@@ -98,6 +106,8 @@ export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = 
       tag, quelle, status, soll, abwesend, arbeitstag, geoeffnet,
       feiertag: feiertag(tag),
       gebucht,
+      gemessen,
+      nachgetragen,
       verr: auswertung.verrechenbarMinuten,
       nv: auswertung.nichtVerrechenbarMinuten,
       mehr: buchungen.filter((b) => b.mehrleistung).reduce((s, b) => s + min(b), 0),
