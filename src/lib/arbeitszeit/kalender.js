@@ -78,7 +78,10 @@ export function zeitraum(key, heute) {
   else { von = isoVon(new Date(j, m, 1)); bis = monatsEnde(j, m); }
   const gestern = plusTage(heute, -1);
   const auswertungBis = bis < gestern ? bis : gestern;
-  return { key, von, bis, auswertungBis, leer: auswertungBis < von };
+  // Die Tagesansicht einer Person zeigt den laufenden Tag mit an (gekennzeichnet) —
+  // Summen, Soll und Quoten bleiben bei auswertungBis.
+  const tageBis = bis < heute ? bis : heute;
+  return { key, von, bis, auswertungBis, tageBis, heute, leer: auswertungBis < von };
 }
 
 export const fmtDatum = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '—');
