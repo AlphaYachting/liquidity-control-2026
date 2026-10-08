@@ -3,6 +3,21 @@ import Tagesstreifen from '@/components/zeit/Tagesstreifen';
 import Tagesbilanz from '@/components/zeit/Tagesbilanz';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { minuteVonIso, uhr, dauerText, MODELL_TEXT, MODELL_FARBE } from '@/lib/zeit/tagesAuswertung';
+import { laufText } from '@/lib/arbeitszeit/messung';
+
+// Gebucht (Timer) und nachgetragen je Buchung — mit der echten Laufzeit des Timers
+function Messung({ m }) {
+  if (!m || (!m.gebucht && !m.nachgetragen)) return null;
+  const lauf = laufText(m.laufMin);
+  const titel = lauf ? `Timer lief ${lauf}` : 'ohne Timer eingetragen';
+  if (!m.nachgetragen) return <p className="text-[11px] text-muted-foreground tabular-nums" title={titel}>gebucht</p>;
+  return (
+    <p className="text-[11px] tabular-nums" style={{ color: STATUS_COLORS.attention }} title={titel}>
+      {m.gebucht ? `${dauerText(m.gebucht)} gebucht · ` : ''}{dauerText(m.nachgetragen)} nachgetragen
+      {lauf && m.laufMin < 1 ? ` · Timer ${lauf}` : ''}
+    </p>
+  );
+}
 
 const TAET = { beratung: 'Beratung', umsetzung: 'Umsetzung', vertrieb: 'Vertrieb', meeting: 'Meeting' };
 const QUELLE = { timer: 'Timer', zeile: 'Eingabezeile', luecke: 'aus Lücke', spur: 'aus Spur', korrektur: 'Korrektur' };
@@ -25,9 +40,10 @@ function Zeile({ b, label, istAwork }) {
     <div className={`px-3 py-2.5 ${b.korrektur_zu ? 'pl-8 bg-muted/40' : ''}`}>
       <div className="flex items-start gap-3">
         <span className="w-1 h-9 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: farbe }} />
-        <div className="w-[120px] shrink-0">
+        <div className="w-[150px] shrink-0">
           <p className="text-sm font-semibold tabular-nums">{fenster}</p>
           <p className="text-xs text-muted-foreground tabular-nums">{(Number(b.duration_minutes) || 0) < 0 ? `−${dauerText(-b.duration_minutes)}` : dauerText(b.duration_minutes)}</p>
+          {!istAwork && <Messung m={b.messung} />}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{label}</p>
