@@ -34,9 +34,12 @@ export function hinweiseZu(e, ueberschneidet) {
 // aktionen: Änderungsprotokoll der Person im Zeitraum (null = noch nicht geladen —
 // dann werden Beginn und Ende nicht als Auffälligkeit gewertet).
 export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = [], awork = [], members = [], abschluesse = [], focusDays = [], arbeitstage = [], aktionen = null }) {
-  if (!person || zeitraum.leer) return [];
   const von = zeitraum.von;
-  const bis = zeitraum.auswertungBis;
+  // Die Tagesansicht reicht bis heute (der laufende Tag ist gekennzeichnet), die Summen
+  // der Seite bleiben bei auswertungBis.
+  const bis = zeitraum.tageBis || zeitraum.auswertungBis;
+  if (!person || bis < von) return [];
+  const jetzt = new Date();
   const keyVonName = {};
   members.forEach((m) => { if (m.email && m.name) keyVonName[norm(m.name)] = norm(m.email); });
   const aworkKey = (e) => keyVonName[norm(e.user_name)] || `awork:${norm(e.user_name) || 'unbekannt'}`;
@@ -75,9 +78,11 @@ export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = 
       ? { ...e, ended_at: tagesEnde(e.started_at) } : e));
     // Lücken beginnen beim ersten Aufruf des Tools (falls vorhanden), sonst wie bisher um 09:00.
     const geoeffnet = geoeffnetAm[tag] || null;
+    const laeuft = tag === zeitraum.heute && !abschluss?.bestaetigt_am;
     const streifen = werteTagAus({
       tag, eintraege: fuerStreifen, tagesbeginnMinute: geoeffnet ? minuteVon(geoeffnet) : null,
       abgeschlossen: !!abschluss?.bestaetigt_am,
+      istHeute: laeuft, jetztMinute: jetzt.getHours() * 60 + jetzt.getMinutes(),
     });
     const summen = werteTagAus({ tag, eintraege: liste });
     const auswertung = {
@@ -118,7 +123,7 @@ export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = 
     let status = 'normal';
     if (!arbeitstag) status = feiertag(tag) && !istWochenende(tag) ? 'feiertag' : 'wochenende';
     else if (abwesend) status = 'abwesend';
-    else if (quelle === 'app' && tag >= pflichtAb) status = abgeschlossen ? 'abgeschlossen' : 'offen';
+    else if (quelle === 'app' && tag >= pflichtAb) status = abgeschlossen ? 'abgeschlossen' : laeuft ? 'heute' : 'offen';
 
     return {
       tag, quelle, status, soll, abwesend, arbeitstag, geoeffnet,
