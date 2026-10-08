@@ -78,6 +78,19 @@ export async function ladeArbeitszeit({ von, auswertungBis: bis, leer }) {
   };
 }
 
+// Änderungsprotokoll einer Person im Zeitraum — nur für die Tagesansicht (erste und letzte
+// Aktion im Tool). Einen Tag Rand auf beiden Seiten, weil das Protokoll in UTC speichert;
+// die Zuordnung zum Kalendertag passiert danach in Ortszeit.
+export async function ladeAktionen(email, von, bis) {
+  if (!email) return [];
+  const rows = await base44.entities.AuditLog.filter(
+    { user_email: email, created_date: { $gte: `${plusTage(von, -1)}T00:00:00`, $lte: `${plusTage(bis, 1)}T23:59:59` } },
+    'created_date',
+    5000,
+  ).catch(() => null);
+  return rows ? rows.map((r) => ({ created_date: r.created_date, entity_type: r.entity_type, action: r.action })) : null;
+}
+
 // Individuelle Sollstunden je Woche (Teilzeit) speichern. Leerer Wert = Standard.
 export async function speichereWochenSoll(sollSetting, wochenSoll) {
   const sauber = Object.fromEntries(Object.entries(wochenSoll)
