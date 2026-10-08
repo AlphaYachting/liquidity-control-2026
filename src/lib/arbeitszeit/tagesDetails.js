@@ -4,6 +4,9 @@
 import { werteTagAus } from '../zeit/tagesAuswertung.js';
 import { tageZwischen, istWochenende, feiertag, istArbeitstag } from './kalender.js';
 import { messung } from './messung.js';
+import { aktionenJeTag, tagesgrenzen } from './tagesgrenzen.js';
+
+const uhrzeit = (d) => (d ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '');
 
 const norm = (s) => String(s || '').trim().toLowerCase();
 const min = (e) => Number(e.duration_minutes) || 0;
@@ -28,7 +31,9 @@ export function hinweiseZu(e, ueberschneidet) {
   return out;
 }
 
-export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = [], awork = [], members = [], abschluesse = [], focusDays = [], arbeitstage = [] }) {
+// aktionen: Änderungsprotokoll der Person im Zeitraum (null = noch nicht geladen —
+// dann werden Beginn und Ende nicht als Auffälligkeit gewertet).
+export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = [], awork = [], members = [], abschluesse = [], focusDays = [], arbeitstage = [], aktionen = null }) {
   if (!person || zeitraum.leer) return [];
   const von = zeitraum.von;
   const bis = zeitraum.auswertungBis;
@@ -47,6 +52,13 @@ export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = 
     if (!geoeffnetAm[r.tag] || r.erster_aufruf_am < geoeffnetAm[r.tag]) geoeffnetAm[r.tag] = r.erster_aufruf_am;
   });
   const tagesSoll = person.aktiv && person.wochenStd !== null ? (person.wochenStd * 60) / 5 : 0;
+  // Belegte Momente im Tool je Kalendertag (Protokoll, Timer, Anlage, Abschluss, Tool geöffnet)
+  const momenteJeTag = aktionenJeTag({
+    aktionen: aktionen || [],
+    eintraege: appEintraege,
+    abschluesse: abschluesse.filter((a) => norm(a.person_email) === person.key),
+    arbeitstage: arbeitstage.filter((r) => norm(r.person_email) === person.key),
+  });
 
   return tageZwischen(von, bis).map((tag) => {
     const quelle = tag < appAb ? 'awork' : 'app';
@@ -94,6 +106,12 @@ export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = 
     if (buchungen.some((b) => b.hinweise.includes('läuft über Mitternacht'))) hinweise.push('Buchung läuft über Mitternacht');
     if (ueberschneidend.size) hinweise.push(`${ueberschneidend.size} Buchungen überschneiden sich`);
     if (gebucht > 0 && (!arbeitstag || abwesend)) hinweise.push(abwesend ? 'gebucht trotz Abwesenheit' : feiertag(tag) && !istWochenende(tag) ? 'am Feiertag gebucht' : 'am Wochenende gebucht');
+    // Beginn und Ende: gebucht gegen die erste und letzte belegte Aktion im Tool
+    const grenzen = quelle === 'app' ? tagesgrenzen({ buchungen: liste, momente: momenteJeTag[tag] || [] }) : null;
+    if (grenzen && aktionen) {
+      if (grenzen.zuFrueh) hinweise.push(`gebucht ab ${uhrzeit(grenzen.gebuchtAb)}, erste Aktion im Tool erst ${uhrzeit(grenzen.ersteAktion)}`);
+      if (grenzen.zuSpaet) hinweise.push(`gebucht bis ${uhrzeit(grenzen.gebuchtBis)}, letzte Aktion im Tool ${uhrzeit(grenzen.letzteAktion)} (${grenzen.letzteArt})`);
+    }
 
     const soll = arbeitstag && !abwesend ? tagesSoll : 0;
     const abgeschlossen = !!(abschluss?.bestaetigt_am || abschluss?.woche_bestaetigt_am);
@@ -108,6 +126,8 @@ export function tageDerPerson({ person, zeitraum, appAb, pflichtAb, eintraege = 
       gebucht,
       gemessen,
       nachgetragen,
+      grenzen,
+      grenzenGeprueft: !!aktionen,
       verr: auswertung.verrechenbarMinuten,
       nv: auswertung.nichtVerrechenbarMinuten,
       mehr: buchungen.filter((b) => b.mehrleistung).reduce((s, b) => s + min(b), 0),
