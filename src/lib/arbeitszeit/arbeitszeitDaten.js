@@ -66,7 +66,7 @@ export async function ladeArbeitszeit({ von, auswertungBis: bis, tageBis, leer }
       : { rows: [], abgeschnitten: false },
     base44.entities.Tagesabschluss.filter({ tag: { $gte: von, $lte: appBis } }, 'tag', 5000).catch(() => []),
     // Abwesenheiten, die im Zeitraum liegen oder bis zu zwei Monate vorher begonnen haben
-    base44.entities.FocusDay.filter({ type: 'abwesend', day: { $gte: plusTage(von, -62), $lte: bis } }, 'day', 2000).catch(() => []),
+    base44.entities.FocusDay.filter({ type: 'abwesend', day: { $gte: plusTage(von, -62), $lte: appBis } }, 'day', 2000).catch(() => []),
     // Zeitstempel „Tool geöffnet“ — nur für die Tagesansicht
     base44.entities.Arbeitstag.filter({ tag: { $gte: von, $lte: appBis } }, 'tag', 5000).catch(() => []),
   ]);
