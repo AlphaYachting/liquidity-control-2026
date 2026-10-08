@@ -61,6 +61,7 @@ const SPALTEN = [
   { key: 'abwesendTage', label: 'Abwesend' },
   { key: 'sollMin', label: 'Soll h' },
   { key: 'erfasstMin', label: 'Erfasst h' },
+  { key: 'nachQuote', label: 'Nachgetragen', titel: 'Anteil der App-Buchungen, der nicht vom Timer gemessen, sondern von Hand eingetragen ist' },
   { key: 'saldoMin', label: 'Differenz' },
   { key: 'erfassungsquote', label: 'Erfasst/Soll' },
   { key: 'schnittTag', label: 'Ø je Tag' },
@@ -94,7 +95,7 @@ export default function AzPersonen({ personen, standardWoche, onSollSpeichern, m
           <tr className="border-b border-border">
             {SPALTEN.map((s) => (
               <th key={s.key} className={`text-label uppercase text-muted-foreground font-medium px-3 py-2 whitespace-nowrap ${s.links ? 'text-left' : 'text-right'} ${s.ohneSort ? '' : 'cursor-pointer select-none hover:text-foreground'}`}
-                onClick={() => klick(s)} aria-sort={sort.key === s.key ? (sort.ab ? 'descending' : 'ascending') : undefined}>
+                title={s.titel} onClick={() => klick(s)} aria-sort={sort.key === s.key ? (sort.ab ? 'descending' : 'ascending') : undefined}>
                 {s.label}{sort.key === s.key ? (sort.ab ? ' ↓' : ' ↑') : ''}
               </th>
             ))}
@@ -115,6 +116,10 @@ export default function AzPersonen({ personen, standardWoche, onSollSpeichern, m
               <td className={zelle}>{p.aktiv ? (p.abwesendTage || '–') : '—'}</td>
               <td className={zelle}>{p.aktiv ? fmtStd(p.sollMin) : '—'}</td>
               <td className={`${zelle} font-medium`}>{fmtStd(p.erfasstMin)}</td>
+              <td className={zelle} title={mitApp && p.nachQuote !== null ? `${fmtStd(p.gemessenMin)} h gebucht (Timer) · ${fmtStd(p.nachMin)} h nachgetragen` : undefined}
+                style={{ color: mitApp && p.nachQuote > 0.5 ? 'hsl(var(--chart-4))' : undefined }}>
+                {mitApp ? fmtQuote(p.nachQuote) : '—'}
+              </td>
               <td className={zelle} style={{ color: p.saldoMin < -60 ? 'hsl(var(--destructive))' : undefined }}>
                 {p.saldoMin === null ? '—' : `${p.saldoMin > 0 ? '+' : ''}${fmtStd(p.saldoMin)}`}
               </td>
