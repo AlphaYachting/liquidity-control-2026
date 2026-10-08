@@ -40,7 +40,7 @@ export default function Arbeitszeitauswertung() {
   const zr = useMemo(() => berechneZeitraum(key, heute), [key, heute]);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['arbeitszeitauswertung', zr.von, zr.auswertungBis],
+    queryKey: ['arbeitszeitauswertung', zr.von, zr.auswertungBis, zr.tageBis],
     queryFn: () => ladeArbeitszeit(zr),
     enabled: darf,
     staleTime: 5 * 60 * 1000,
