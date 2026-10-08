@@ -31,7 +31,10 @@ function leseWochenSoll(wert) {
   } catch { return {}; }
 }
 
-export async function ladeArbeitszeit({ von, auswertungBis: bis, leer }) {
+export async function ladeArbeitszeit({ von, auswertungBis: bis, tageBis, leer }) {
+  // App-Daten bis einschließlich heute laden (für die Tagesansicht); die Auswertung
+  // selbst filtert weiter bis gestern.
+  const appBis = tageBis && tageBis > bis ? tageBis : bis;
   const [settings, members, projects, clients] = await Promise.all([
     base44.entities.Setting.filter({ key: { $in: KEYS } }, 'key', 20).catch(() => []),
     base44.entities.TeamMember.list('name', 300),
@@ -56,16 +59,16 @@ export async function ladeArbeitszeit({ von, auswertungBis: bis, leer }) {
   const aworkBis = plusTage(appAb, -1);
   const [app, awork, abschluesse, focus, arbeitstage] = await Promise.all([
     bis >= appAb
-      ? imZeitraum(base44.entities.TimeEntry, { entry_date: { $gte: von > appAb ? von : appAb, $lte: bis } }, 'entry_date')
+      ? imZeitraum(base44.entities.TimeEntry, { entry_date: { $gte: von > appAb ? von : appAb, $lte: appBis } }, 'entry_date')
       : { rows: [], abgeschnitten: false },
     von <= aworkBis
       ? imZeitraum(base44.entities.AworkTimeEntry, { entry_date: { $gte: von, $lte: bis < aworkBis ? bis : aworkBis } }, 'entry_date')
       : { rows: [], abgeschnitten: false },
-    base44.entities.Tagesabschluss.filter({ tag: { $gte: von, $lte: bis } }, 'tag', 5000).catch(() => []),
+    base44.entities.Tagesabschluss.filter({ tag: { $gte: von, $lte: appBis } }, 'tag', 5000).catch(() => []),
     // Abwesenheiten, die im Zeitraum liegen oder bis zu zwei Monate vorher begonnen haben
     base44.entities.FocusDay.filter({ type: 'abwesend', day: { $gte: plusTage(von, -62), $lte: bis } }, 'day', 2000).catch(() => []),
     // Zeitstempel „Tool geöffnet“ — nur für die Tagesansicht
-    base44.entities.Arbeitstag.filter({ tag: { $gte: von, $lte: bis } }, 'tag', 5000).catch(() => []),
+    base44.entities.Arbeitstag.filter({ tag: { $gte: von, $lte: appBis } }, 'tag', 5000).catch(() => []),
   ]);
   return {
     ...basis,
