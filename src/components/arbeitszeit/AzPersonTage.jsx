@@ -13,6 +13,7 @@ const WT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const STATUS = {
   abgeschlossen: { text: 'abgeschlossen', farbe: STATUS_COLORS.doneText, flaeche: STATUS_COLORS.doneSurface },
   offen: { text: 'offen', farbe: STATUS_COLORS.critical, flaeche: STATUS_COLORS.criticalSurface },
+  heute: { text: 'läuft', farbe: STATUS_COLORS.attention, flaeche: STATUS_COLORS.attentionSurface },
   abwesend: { text: 'abwesend', farbe: RITTLER.textSecondary, flaeche: RITTLER.surface },
   feiertag: { text: 'Feiertag', farbe: RITTLER.textSecondary, flaeche: RITTLER.surface },
   wochenende: { text: 'Wochenende', farbe: RITTLER.textSecondary, flaeche: RITTLER.surface },
@@ -64,9 +65,9 @@ const SPALTEN = [
 export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) {
   // Änderungsprotokoll der Person — erst beim Öffnen geladen, nicht für die ganze Seite
   const { data: aktionen = null } = useQuery({
-    queryKey: ['arbeitszeitAktionen', person.email || person.key, zeitraum.von, zeitraum.auswertungBis],
-    queryFn: () => ladeAktionen(person.email || person.key, zeitraum.von, zeitraum.auswertungBis),
-    enabled: !zeitraum.leer && !String(person.key).startsWith('awork:'),
+    queryKey: ['arbeitszeitAktionen', person.email || person.key, zeitraum.von, zeitraum.tageBis || zeitraum.auswertungBis],
+    queryFn: () => ladeAktionen(person.email || person.key, zeitraum.von, zeitraum.tageBis || zeitraum.auswertungBis),
+    enabled: !String(person.key).startsWith('awork:'),
     staleTime: 2 * 60 * 1000,
   });
   const tage = useMemo(() => tageDerPerson({ ...daten, person, zeitraum, aktionen }), [daten, person, zeitraum, aktionen]);
@@ -95,7 +96,7 @@ export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) 
       <SheetHeader className="px-5 pt-5 pb-3 pr-12 border-b border-border space-y-1">
         <SheetTitle className="text-section font-bold uppercase tracking-tight">Tage von {person.name}</SheetTitle>
         <SheetDescription className="text-meta">
-          {fmtDatum(zeitraum.von)} – {fmtDatum(zeitraum.auswertungBis)} · {fmtStd(summe)} h erfasst
+          {fmtDatum(zeitraum.von)} – {fmtDatum(zeitraum.tageBis || zeitraum.auswertungBis)}{zeitraum.tageBis > zeitraum.auswertungBis ? ' (heute läuft noch)' : ''} · {fmtStd(summe)} h erfasst
           {summeGemessen + summeNach > 0 && <> · davon {fmtStd(summeGemessen)} h gebucht (Timer), {fmtStd(summeNach)} h nachgetragen</>}
           {auffaellig > 0 && <span style={{ color: STATUS_COLORS.critical }}> · {auffaellig} {auffaellig === 1 ? 'Tag' : 'Tage'} mit Auffälligkeiten</span>}
           {' '}· nur lesen, Änderungen macht die Person selbst
