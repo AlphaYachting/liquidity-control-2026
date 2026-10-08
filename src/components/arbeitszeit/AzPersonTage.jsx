@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { ladeAktionen } from '@/lib/arbeitszeit/arbeitszeitDaten';
 import { ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { STATUS_COLORS, RITTLER } from '@/components/sprint/sprintConfig';
@@ -30,11 +32,27 @@ function Status({ tag }) {
 }
 
 const zelle = 'px-3 py-2 text-right tabular-nums whitespace-nowrap';
+const uhr = (d) => (d ? d.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) : '—');
+
+// Beginn bzw. Ende: gebucht gegen tatsächlich im Tool belegt. Rot, wenn die Buchung vor der
+// ersten bzw. nach der letzten Aktion liegt (mehr als 5 Minuten).
+function Grenze({ zeit, auffaellig, titel }) {
+  return (
+    <td className={zelle} title={titel} style={{ color: auffaellig ? STATUS_COLORS.critical : undefined, fontWeight: auffaellig ? 600 : undefined }}>
+      {uhr(zeit)}
+    </td>
+  );
+}
 
 // Erfasst = alles, was an dem Tag steht. Gebucht = davon vom Timer gemessen.
 // Nachgetragen = davon von Hand eingetragen oder länger als der Timer lief.
 const SPALTEN = [
-  { text: 'Tag' }, { text: 'Status' }, { text: 'Tool geöffnet' }, { text: 'Soll' },
+  { text: 'Tag' }, { text: 'Status' },
+  { text: 'Gebucht ab', titel: 'Beginn der frühesten Buchung des Tages' },
+  { text: 'Erste Aktion', titel: 'Frühester belegter Moment im Tool: Tool geöffnet, Timer gestartet, Buchung angelegt oder geändert' },
+  { text: 'Gebucht bis', titel: 'Ende der spätesten Buchung des Tages' },
+  { text: 'Letzte Aktion', titel: 'Spätester belegter Moment im Tool: Timer gestoppt, Buchung angelegt oder geändert, Tag abgeschlossen' },
+  { text: 'Soll' },
   { text: 'Erfasst', titel: 'Alle Buchungen des Tages' },
   { text: 'Gebucht', titel: 'Davon vom Timer gemessen' },
   { text: 'Nachgetragen', titel: 'Davon von Hand eingetragen oder länger als der Timer lief' },
@@ -44,7 +62,14 @@ const SPALTEN = [
 // Die Tage einer Person im gewählten Zeitraum, aufklappbar bis zur einzelnen Buchung.
 // Öffnet als Seitenpanel über der Seite — sichtbar, egal wo in der Tabelle geklickt wurde.
 export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) {
-  const tage = useMemo(() => tageDerPerson({ ...daten, person, zeitraum }), [daten, person, zeitraum]);
+  // Änderungsprotokoll der Person — erst beim Öffnen geladen, nicht für die ganze Seite
+  const { data: aktionen = null } = useQuery({
+    queryKey: ['arbeitszeitAktionen', person.email || person.key, zeitraum.von, zeitraum.auswertungBis],
+    queryFn: () => ladeAktionen(person.email || person.key, zeitraum.von, zeitraum.auswertungBis),
+    enabled: !zeitraum.leer && !String(person.key).startsWith('awork:'),
+    staleTime: 2 * 60 * 1000,
+  });
+  const tage = useMemo(() => tageDerPerson({ ...daten, person, zeitraum, aktionen }), [daten, person, zeitraum, aktionen]);
   // Beim Öffnen ist der erste auffällige Tag aufgeklappt. Die Seite setzt einen key
   // je Person und Zeitraum, damit das Panel dafür neu beginnt.
   const [offen, setOffen] = useState(() => tage.find((t) => t.hinweise.length)?.tag || null);
@@ -101,7 +126,18 @@ export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) 
                         </span>
                       </td>
                       <td className="px-3 py-2"><Status tag={t} /></td>
-                      <td className={zelle}>{t.geoeffnet ? new Date(t.geoeffnet).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                      {t.grenzen ? (
+                        <>
+                          <Grenze zeit={t.grenzen.gebuchtAb} auffaellig={t.grenzenGeprueft && t.grenzen.zuFrueh}
+                            titel={t.grenzen.zuFrueh ? `${t.grenzen.vorBeginn} min vor der ersten Aktion im Tool gebucht` : undefined} />
+                          <Grenze zeit={t.grenzen.ersteAktion} titel={t.grenzen.ersteArt || undefined} />
+                          <Grenze zeit={t.grenzen.gebuchtBis} auffaellig={t.grenzenGeprueft && t.grenzen.zuSpaet}
+                            titel={t.grenzen.zuSpaet ? `${t.grenzen.nachEnde} min über die letzte Aktion im Tool hinaus gebucht` : undefined} />
+                          <Grenze zeit={t.grenzen.letzteAktion} titel={t.grenzen.letzteArt ? `${t.grenzen.letzteArt}${t.grenzenGeprueft ? '' : ' (Protokoll lädt noch)'}` : undefined} />
+                        </>
+                      ) : (
+                        <><td className={zelle}>—</td><td className={zelle}>—</td><td className={zelle}>—</td><td className={zelle}>—</td></>
+                      )}
                       <td className={zelle}>{t.soll ? fmtStd(t.soll) : '—'}</td>
                       <td className={`${zelle} font-medium`} style={{ color: ueber || t.hinweise.length ? STATUS_COLORS.critical : undefined }}>{fmtStd(t.gebucht)}</td>
                       <td className={zelle}>{t.gemessen === null ? '—' : fmtStd(t.gemessen)}</td>
