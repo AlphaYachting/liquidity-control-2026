@@ -31,6 +31,16 @@ function Status({ tag }) {
 
 const zelle = 'px-3 py-2 text-right tabular-nums whitespace-nowrap';
 
+// Erfasst = alles, was an dem Tag steht. Gebucht = davon vom Timer gemessen.
+// Nachgetragen = davon von Hand eingetragen oder länger als der Timer lief.
+const SPALTEN = [
+  { text: 'Tag' }, { text: 'Status' }, { text: 'Tool geöffnet' }, { text: 'Soll' },
+  { text: 'Erfasst', titel: 'Alle Buchungen des Tages' },
+  { text: 'Gebucht', titel: 'Davon vom Timer gemessen' },
+  { text: 'Nachgetragen', titel: 'Davon von Hand eingetragen oder länger als der Timer lief' },
+  { text: 'Verrechenbar' }, { text: 'Nicht verr.' }, { text: 'Offene Lücke' }, { text: 'Buchungen' }, { text: 'Hinweise' },
+];
+
 // Die Tage einer Person im gewählten Zeitraum, aufklappbar bis zur einzelnen Buchung.
 // Öffnet als Seitenpanel über der Seite — sichtbar, egal wo in der Tabelle geklickt wurde.
 export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) {
@@ -51,6 +61,8 @@ export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) 
 
   const auffaellig = tage.filter((t) => t.hinweise.length).length;
   const summe = tage.reduce((s, t) => s + t.gebucht, 0);
+  const summeGemessen = tage.reduce((s, t) => s + (t.gemessen || 0), 0);
+  const summeNach = tage.reduce((s, t) => s + (t.nachgetragen || 0), 0);
 
   return (
     <Sheet open onOpenChange={(o) => { if (!o) onSchliessen(); }}>
@@ -58,7 +70,8 @@ export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) 
       <SheetHeader className="px-5 pt-5 pb-3 pr-12 border-b border-border space-y-1">
         <SheetTitle className="text-section font-bold uppercase tracking-tight">Tage von {person.name}</SheetTitle>
         <SheetDescription className="text-meta">
-          {fmtDatum(zeitraum.von)} – {fmtDatum(zeitraum.auswertungBis)} · {fmtStd(summe)} h gebucht
+          {fmtDatum(zeitraum.von)} – {fmtDatum(zeitraum.auswertungBis)} · {fmtStd(summe)} h erfasst
+          {summeGemessen + summeNach > 0 && <> · davon {fmtStd(summeGemessen)} h gebucht (Timer), {fmtStd(summeNach)} h nachgetragen</>}
           {auffaellig > 0 && <span style={{ color: STATUS_COLORS.critical }}> · {auffaellig} {auffaellig === 1 ? 'Tag' : 'Tage'} mit Auffälligkeiten</span>}
           {' '}· nur lesen, Änderungen macht die Person selbst
         </SheetDescription>
@@ -68,8 +81,8 @@ export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) 
           <table className="w-full text-body">
             <thead>
               <tr className="border-b border-border">
-                {['Tag', 'Status', 'Tool geöffnet', 'Soll', 'Gebucht', 'Verrechenbar', 'Nicht verr.', 'Offene Lücke', 'Buchungen', 'Hinweise'].map((s, i) => (
-                  <th key={s} className={`text-label uppercase text-muted-foreground font-medium px-3 py-2 whitespace-nowrap ${i < 2 || i === 9 ? 'text-left' : 'text-right'}`}>{s}</th>
+                {SPALTEN.map((s, i) => (
+                  <th key={s.text} title={s.titel} className={`text-label uppercase text-muted-foreground font-medium px-3 py-2 whitespace-nowrap ${i < 2 || i === SPALTEN.length - 1 ? 'text-left' : 'text-right'}`}>{s.text}</th>
                 ))}
               </tr>
             </thead>
@@ -91,6 +104,10 @@ export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) 
                       <td className={zelle}>{t.geoeffnet ? new Date(t.geoeffnet).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                       <td className={zelle}>{t.soll ? fmtStd(t.soll) : '—'}</td>
                       <td className={`${zelle} font-medium`} style={{ color: ueber || t.hinweise.length ? STATUS_COLORS.critical : undefined }}>{fmtStd(t.gebucht)}</td>
+                      <td className={zelle}>{t.gemessen === null ? '—' : fmtStd(t.gemessen)}</td>
+                      <td className={zelle} style={{ color: t.nachgetragen > 0 && t.gebucht > 0 && t.nachgetragen / t.gebucht > 0.5 ? STATUS_COLORS.attention : undefined }}>
+                        {t.nachgetragen === null ? '—' : fmtStd(t.nachgetragen)}
+                      </td>
                       <td className={zelle}>{fmtStd(t.verr)}</td>
                       <td className={zelle}>{fmtStd(t.nv)}</td>
                       <td className={zelle}>{t.quelle === 'app' && t.offenMinuten ? fmtStd(t.offenMinuten) : '—'}</td>
@@ -103,7 +120,7 @@ export default function AzPersonTage({ person, daten, zeitraum, onSchliessen }) 
                     </tr>
                     {auf && (
                       <tr className="border-b border-border">
-                        <td colSpan={10} className="px-4 py-4 bg-muted/20">
+                        <td colSpan={SPALTEN.length} className="px-4 py-4 bg-muted/20">
                           <AzTagDetail tag={t} projektInfo={projektInfo} aworkLabel={aworkLabel} />
                         </td>
                       </tr>
