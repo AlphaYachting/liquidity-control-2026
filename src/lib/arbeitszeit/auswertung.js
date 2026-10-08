@@ -10,6 +10,7 @@
 // Gründe für nicht Verrechenbares gibt es nur für die Firma, nie je Person.
 import { ARTEN, artVon } from '../auslastung/arbeitsart.js';
 import { tageZwischen, istArbeitstag, istWochenende, feiertag, plusTage, fmtKurz, wochentag } from './kalender.js';
+import { messung } from './messung.js';
 
 export const TAETIGKEIT = [
   { key: 'beratung', label: 'Beratung', farbe: 'hsl(var(--chart-1))' },
@@ -45,6 +46,7 @@ const leerePerson = (key, name, email, aktiv) => ({
   key, name, email, aktiv,
   sollMin: 0, sollTage: 0, abwesendTage: 0, offeneTage: 0,
   erfasstMin: 0, verrMin: 0, nvMin: 0, mehrMin: 0, ueberMin: 0,
+  gemessenMin: 0, nachMin: 0, // nur App: vom Timer gemessen („gebucht“) bzw. nachgetragen
   taetigkeit: { beratung: 0, umsetzung: 0, vertrieb: 0, meeting: 0 },
   wochenStd: null, individuell: false,
 });
@@ -128,9 +130,11 @@ export function werteAus({
   const projekte = {};
   const gesamt = { erfasstMin: 0, verrMin: 0, nvMin: 0, mehrMin: 0, ueberMin: 0, appMin: 0, aworkMin: 0, wochenendMin: 0, feiertagMin: 0 };
 
-  const zaehle = ({ person, tag, minuten, verrechenbar, art, taet, projektKey, projektLabel, grund, mehr, ueber, quelle }) => {
+  const zaehle = ({ person, tag, minuten, verrechenbar, art, taet, projektKey, projektLabel, grund, mehr, ueber, quelle, gemessen = 0, nach = 0 }) => {
     if (!minuten) return;
     person.erfasstMin += minuten;
+    person.gemessenMin += gemessen;
+    person.nachMin += nach;
     gesamt.erfasstMin += minuten;
     gesamt[quelle === 'app' ? 'appMin' : 'aworkMin'] += minuten;
     if (!istArbeitstag(tag)) gesamt[feiertag(tag) && !istWochenende(tag) ? 'feiertagMin' : 'wochenendMin'] += minuten;
@@ -168,7 +172,10 @@ export function werteAus({
     const key = norm(e.person_email);
     if (!key) return;
     const p = projById[e.project_id];
+    const m = messung(e);
     zaehle({
+      gemessen: m.gebucht,
+      nach: m.nachgetragen,
       person: personFuer(key, nameVon[key], e.person_email),
       tag,
       minuten: min(e),
@@ -216,6 +223,7 @@ export function werteAus({
       produktiv: quote(p.verrMin, p.sollMin),
       schnittTag: p.sollTage ? p.erfasstMin / p.sollTage : null,
       saldoMin: p.aktiv ? p.erfasstMin - p.sollMin : null,
+      nachQuote: quote(p.nachMin, p.gemessenMin + p.nachMin),
     }))
     .sort((a, b) => (b.aktiv - a.aktiv) || a.name.localeCompare(b.name, 'de'));
 
