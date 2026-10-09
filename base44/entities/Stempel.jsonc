@@ -1,0 +1,103 @@
+{
+  "name": "Stempel",
+  "description": "Anwesenheitsstempel (Kommen, Pause, Gehen) nach \u00a7 26 AZG. Wird ausschlie\u00dflich serverseitig angelegt (Funktionen stempeln, zeitAntragEntscheiden, zeitAdminAendern, arbeitszeitAutomatik). Nie l\u00f6schen \u2014 Korrekturen \u00fcber status und ersetzt_durch.",
+  "type": "object",
+  "properties": {
+    "person_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "tag": {
+      "type": "string",
+      "description": "Kalendertag in Wiener Zeit (YYYY-MM-DD), dem der Stempel zugeordnet ist"
+    },
+    "art": {
+      "type": "string",
+      "enum": [
+        "kommen",
+        "pause_start",
+        "pause_ende",
+        "gehen"
+      ]
+    },
+    "zeit": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Zeitpunkt (Serverzeit beim Knopfdruck bzw. genehmigte Zeit)"
+    },
+    "quelle": {
+      "type": "string",
+      "enum": [
+        "knopf",
+        "antrag",
+        "admin",
+        "auto"
+      ],
+      "default": "knopf"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "gueltig",
+        "ungueltig",
+        "storniert"
+      ],
+      "default": "gueltig",
+      "description": "ungueltig = widerspr\u00fcchlicher Doppelstempel (z. B. zwei Tabs gleichzeitig), storniert = durch Antrag oder Admin ersetzt"
+    },
+    "status_grund": {
+      "type": "string"
+    },
+    "ersetzt_durch": {
+      "type": "string",
+      "description": "Id des Stempels, der diesen ersetzt"
+    },
+    "antrag_id": {
+      "type": "string"
+    },
+    "vorgang_id": {
+      "type": "string",
+      "description": "Vorgangsnummer des Knopfdrucks \u2014 macht den Aufruf wiederholbar ohne Doppelung"
+    },
+    "erfasst_von": {
+      "type": "string",
+      "description": "wer den Stempel ausgel\u00f6st hat (Person, Alfons, automatik)"
+    }
+  },
+  "required": [
+    "person_email",
+    "tag",
+    "art",
+    "zeit",
+    "quelle"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

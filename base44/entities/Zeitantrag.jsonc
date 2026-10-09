@@ -1,0 +1,117 @@
+{
+  "description": "Antrag auf Nachtragen, \u00c4ndern oder L\u00f6schen von Stempeln und Zeitbuchungen. Offene Antr\u00e4ge z\u00e4hlen nirgends \u2014 erst die Genehmigung (Funktion zeitAntragEntscheiden) legt Stempel bzw. Buchungen an oder \u00e4ndert sie.",
+  "name": "Zeitantrag",
+  "properties": {
+    "angewendet_ids": {
+      "description": "Ids der beim Genehmigen angelegten oder ge\u00e4nderten Datens\u00e4tze",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "art": {
+      "description": "gehen_angeben = nach automatischem Ausstempeln, ende_angeben = Ende eines automatisch angehaltenen Timers",
+      "enum": [
+        "nachtragen",
+        "aendern",
+        "loeschen",
+        "gehen_angeben",
+        "ende_angeben"
+      ],
+      "type": "string"
+    },
+    "entschieden_am": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "entschieden_von": {
+      "type": "string"
+    },
+    "grund": {
+      "type": "string"
+    },
+    "kommentar": {
+      "type": "string"
+    },
+    "nachher": {
+      "additionalProperties": true,
+      "description": "beantragter Stand",
+      "type": "object"
+    },
+    "person_email": {
+      "format": "email",
+      "type": "string"
+    },
+    "status": {
+      "default": "offen",
+      "enum": [
+        "offen",
+        "genehmigt",
+        "abgelehnt",
+        "zurueckgezogen"
+      ],
+      "type": "string"
+    },
+    "tag": {
+      "description": "Kalendertag in Wiener Zeit (YYYY-MM-DD)",
+      "type": "string"
+    },
+    "vorgang_id": {
+      "description": "Vorgangsnummer \u2014 macht das Stellen wiederholbar ohne Doppelung",
+      "type": "string"
+    },
+    "vorher": {
+      "additionalProperties": true,
+      "description": "Stand vor der \u00c4nderung (Anzeige und Nachweis)",
+      "type": "object"
+    },
+    "ziel": {
+      "enum": [
+        "stempel",
+        "buchung"
+      ],
+      "type": "string"
+    },
+    "ziel_id": {
+      "description": "Id des betroffenen Stempels bzw. der Buchung (bei aendern/loeschen)",
+      "type": "string"
+    }
+  },
+  "required": [
+    "person_email",
+    "tag",
+    "ziel",
+    "art",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}

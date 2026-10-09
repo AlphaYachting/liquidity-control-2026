@@ -1,0 +1,135 @@
+{
+  "description": "Arbeitszeitnachweis je Person und Tag (\u00a7 26 AZG), aus den g\u00fcltigen Stempeln und Zeitbuchungen berechnet. Wird ausschlie\u00dflich serverseitig geschrieben; nach Mitternacht festgeschrieben.",
+  "name": "Tagesnachweis",
+  "properties": {
+    "arbeitszeit_min": {
+      "type": "number"
+    },
+    "berechnet_am": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "bloecke": {
+      "description": "Anwesenheitsbl\u00f6cke (bei zweitem Kommen mehrere)",
+      "items": {
+        "properties": {
+          "bis": {
+            "type": "string"
+          },
+          "von": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "festgeschrieben_am": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "gehen": {
+      "description": "letztes Gehen des Tages",
+      "format": "date-time",
+      "type": "string"
+    },
+    "hinweise": {
+      "description": "z. B. pause_fehlt, gehen_unklar, beschreibung_fehlt",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "kommen": {
+      "description": "erstes Kommen des Tages",
+      "format": "date-time",
+      "type": "string"
+    },
+    "offene_antraege": {
+      "default": 0,
+      "type": "number"
+    },
+    "ohne_projekt_min": {
+      "type": "number"
+    },
+    "pause_min": {
+      "type": "number"
+    },
+    "pausen": {
+      "items": {
+        "properties": {
+          "bis": {
+            "type": "string"
+          },
+          "von": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "person_email": {
+      "format": "email",
+      "type": "string"
+    },
+    "projektzeit_min": {
+      "type": "number"
+    },
+    "saldo_min": {
+      "type": "number"
+    },
+    "soll_min": {
+      "type": "number"
+    },
+    "status": {
+      "default": "laeuft",
+      "enum": [
+        "laeuft",
+        "gehen_unklar",
+        "abgeschlossen",
+        "fest"
+      ],
+      "type": "string"
+    },
+    "tag": {
+      "description": "Kalendertag in Wiener Zeit (YYYY-MM-DD)",
+      "type": "string"
+    }
+  },
+  "required": [
+    "person_email",
+    "tag",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.person_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}
