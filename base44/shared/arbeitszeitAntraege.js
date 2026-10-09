@@ -110,7 +110,8 @@ export async function antragStellen(db, email, eingabe, jetzt = new Date(), { st
     // Entwurf der Automatik ausfüllen (Gehen angeben, Timer-Ende angeben)
     const e = await db.Zeitantrag.get(eingabe.antrag_id).catch(() => null);
     if (!e || e.person_email !== email) return fehler('Antrag nicht gefunden');
-    if (e.status !== 'entwurf') return fehler('Dieser Antrag ist schon gestellt');
+    if (e.status === 'offen') return { antrag: e, wiederholt: true }; // Wiederholung nach Netzfehler
+    if (e.status !== 'entwurf') return fehler('Dieser Antrag ist schon entschieden');
     antrag = { ...e, nachher: { ...(e.nachher || {}), ...(eingabe.nachher || {}) }, grund };
   } else {
     if (!['stempel', 'buchung'].includes(eingabe.ziel)) return fehler('Ziel fehlt');
@@ -127,7 +128,8 @@ export async function antragStellen(db, email, eingabe, jetzt = new Date(), { st
 
   const pruef = await pruefen(db, email, antrag, jetztIso, stempelt);
   if (pruef.fehler) return pruef;
-  const daten = { ...antrag, vorher: { ...(antrag.vorher || {}), ...pruef.vorher }, status: 'offen', ...(eingabe.vorgang_id ? { vorgang_id: eingabe.vorgang_id } : {}) };
+  // Ein Entwurf behält seine Vorgangsnummer (gehen:… / timer:…) — daran hängt die Zuordnung.
+  const daten = { ...antrag, vorher: { ...(antrag.vorher || {}), ...pruef.vorher }, status: 'offen', ...(!eingabe.antrag_id && eingabe.vorgang_id ? { vorgang_id: eingabe.vorgang_id } : {}) };
   delete daten._autoGehenId;
   if (eingabe.antrag_id) {
     const { id, created_date, updated_date, created_by, created_by_id, is_sample, ...rest } = daten;
