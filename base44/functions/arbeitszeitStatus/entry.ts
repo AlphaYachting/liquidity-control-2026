@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { wienTag, darfGenehmigen, modusFuer } from '../../shared/arbeitszeitKern.js';
-import { ladeEinstellungen, ladeStempel, automatikNachziehen, timerAufraeumen, nachweisNeu, statusAntwort } from '../../shared/arbeitszeitDaten.js';
+import { ladeEinstellungen, ladeStempel, automatikNachziehen, timerAufraeumen, bindungAktiv, nachweisNeu, statusAntwort } from '../../shared/arbeitszeitDaten.js';
 
 // Stand der angemeldeten Person für Kopfzeile und Tagesansicht. Nur lesend — mit einer Ausnahme:
 // Ist ein automatisches Gehen fällig und noch nicht festgeschrieben (z. B. Browser über Nacht
@@ -23,7 +23,7 @@ export default async function (req: Request): Promise<Response> {
     if (modus.stempelt) {
       const stempel = await ladeStempel(db, email, tag);
       if (await automatikNachziehen(db, email, tag, stempel, jetztIso)) await nachweisNeu(db, email, tag, einst);
-      await timerAufraeumen(db, email, jetztIso);
+      await timerAufraeumen(db, email, jetztIso, { bindung: bindungAktiv(einst, tag) });
     }
     return Response.json(await statusAntwort(db, email, einst, { istGenehmiger: darfGenehmigen(email, einst) }));
   } catch (error) {
