@@ -195,4 +195,43 @@ await fall('timerAufraeumen lässt einen regulären Timer laufen', async () => {
   assert.equal(db.LaufendeZeitbuchung.rows.length, 1);
 });
 
+const PILOT = 'a.rittler@rittler.co';
+const einstPilot = leseEinstellungen([
+  { key: 'arbeitszeit_pilot', value: PILOT },
+  { key: 'arbeitszeit_modell', value: JSON.stringify({ personen: { [PILOT]: [{ gueltig_ab: '2026-10-19', stempelt: false }] } }) },
+]);
+const laeuftPilot = (db, project_id, gestartet) => db.LaufendeZeitbuchung.rows.push({
+  id: `lp${Math.random()}`, person_email: PILOT, project_id, gestartet_am: gestartet.toISOString(), projekt_titel: 'X', notiz: '',
+});
+
+await fall('Pilot vor dem Stichtag: Timer ohne Kommen bleibt unangetastet', async () => {
+  const db = speicherDb(); grunddaten(db);
+  laeuftPilot(db, 'p2', z('2026-10-12', '08:00'));
+  const s = await statusAntwort(db, PILOT, einstPilot, { jetzt: z('2026-10-12', '09:00') });
+  assert.equal(s.aktiv, true);
+  assert.equal(s.stempelt, true);
+  assert.equal(s.zustand, 'weg');
+  const { timerAufraeumen: aufr, bindungAktiv } = await import('../base44/shared/arbeitszeitDaten.js');
+  await aufr(db, PILOT, z('2026-10-12', '09:00').toISOString(), { bindung: bindungAktiv(einstPilot, '2026-10-12') });
+  assert.equal(db.LaufendeZeitbuchung.rows.length, 1);
+  assert.equal(db.Zeitantrag.rows.length, 0);
+});
+
+await fall('Pilot: Gehen stoppt den heutigen Timer und bucht ihn', async () => {
+  const db = speicherDb(); grunddaten(db);
+  await stempelnAblauf(db, PILOT, einstPilot, { art: 'kommen', vorgang_id: 'a' }, z('2026-10-12', '08:00'));
+  laeuftPilot(db, 'p2', z('2026-10-12', '09:00'));
+  const r = await stempelnAblauf(db, PILOT, einstPilot, { art: 'gehen', vorgang_id: 'b' }, z('2026-10-12', '11:00'));
+  assert.equal(r.extra.gebucht.minuten, 120);
+});
+
+await fall('Pilot: Timer vom Vortag wird bei Gehen weder gebucht noch entfernt', async () => {
+  const db = speicherDb(); grunddaten(db);
+  laeuftPilot(db, 'p2', z('2026-10-11', '16:00'));
+  await stempelnAblauf(db, PILOT, einstPilot, { art: 'kommen', vorgang_id: 'a' }, z('2026-10-12', '08:00'));
+  await stempelnAblauf(db, PILOT, einstPilot, { art: 'gehen', vorgang_id: 'b' }, z('2026-10-12', '11:00'));
+  assert.equal(db.TimeEntry.rows.length, 0);
+  assert.equal(db.LaufendeZeitbuchung.rows.length, 1);
+});
+
 console.log(`\n${n} Fälle bestanden`);
