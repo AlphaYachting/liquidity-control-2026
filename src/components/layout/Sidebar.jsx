@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { NAV_GRUPPEN } from '@/lib/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { istInhaber, NEU_KEY, ladeNeue } from '@/lib/rueckmeldung/rueckmeldung';
+import { useArbeitszeitAktiv } from '@/lib/arbeitszeit/useAnwesenheit';
 
 // Welche einklappbaren Gruppen die Person offen hat — bleibt im Browser gemerkt.
 const SPEICHER = 'nav-gruppen-offen';
@@ -25,6 +26,7 @@ export default function Sidebar() {
   const location = useLocation();
   const zugriff = useZugriff();
   const { user } = useAuth();
+  const arbeitszeitAktiv = useArbeitszeitAktiv(user?.email);
   // Die Zähler laden erst kurz nach dem Start: die geöffnete Seite bekommt den
   // Server zuerst. Und nur, wenn die Person den zugehörigen Punkt auch sieht.
   const [zaehlerBereit, setZaehlerBereit] = useState(false);
@@ -212,7 +214,8 @@ export default function Sidebar() {
           if (gruppe.nurEmail && (user?.email || '').toLowerCase() !== gruppe.nurEmail) return null;
           // Nur was die Person sehen darf; eine leere Gruppe erscheint gar nicht.
           const items = gruppe.items.filter((i) => zugriff.darf(i.regel)
-            && (!i.nurEmail || (user?.email || '').toLowerCase() === i.nurEmail));
+            && (!i.nurEmail || (user?.email || '').toLowerCase() === i.nurEmail)
+            && (!i.nurArbeitszeit || arbeitszeitAktiv));
           if (items.length === 0) return null;
           // Liegt die geöffnete Seite in der Gruppe, ist sie immer aufgeklappt.
           const istOffen = !gruppe.einklappbar || !!offen[gruppe.key] || items.some((i) => isActive(i.path));
