@@ -71,9 +71,6 @@ const GRUND_TEXT = {
 export default function TagAbschliessen({
   auswertung, abschluss, email, tag, onSaved, wocheBestaetigt, darfFremdOeffnen,
   ohneBeschreibung = [], projektLabel,
-  // Anwesenheitserfassung (Pilot oder ab Stichtag): Ein Tag mit Kommen lässt sich erst abschließen,
-  // wenn Gehen gestempelt ist (Entscheidung Alfons 09.10.2026). gehenHinweis = Grund, warum noch nicht.
-  gehenHinweis = null, gekommen = false,
 }) {
   const [busy, setBusy] = useState(false);
   const bestaetigt = !!abschluss?.bestaetigt_am;
@@ -81,7 +78,7 @@ export default function TagAbschliessen({
   const offeneLoecher = auswertung.loecher;
   const offenSumme = offeneLoecher.reduce((s, l) => s + l.minuten, 0);
   const fehlendeBeschreibung = ohneBeschreibung.length > 0;
-  const bereit = (auswertung.anzahl > 0 || gekommen) && !fehlendeBeschreibung && !gehenHinweis;
+  const bereit = auswertung.anzahl > 0 && !fehlendeBeschreibung;
 
   const speichern = async (daten) => {
     setBusy(true);
@@ -157,10 +154,8 @@ export default function TagAbschliessen({
       </div>
     )}
     <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 bg-white rounded border" style={{ borderColor: RITTLER.line }}>
-      <p className="text-sm flex-1 min-w-[240px]" style={{ color: fehlendeBeschreibung || gehenHinweis ? STATUS_COLORS.attention : RITTLER.textSecondary }}>
-        {gehenHinweis ? gehenHinweis
-          : auswertung.anzahl === 0 && gekommen ? 'Keine Projektbuchung an diesem Tag — der Tag kann trotzdem abgeschlossen werden.'
-          : auswertung.anzahl === 0
+      <p className="text-sm flex-1 min-w-[240px]" style={{ color: fehlendeBeschreibung ? STATUS_COLORS.attention : RITTLER.textSecondary }}>
+        {auswertung.anzahl === 0
           ? 'Für diesen Tag liegt keine Buchung vor — erfassen oder als nicht anwesend abschließen.'
           : fehlendeBeschreibung
             ? 'Erst die fehlenden Beschreibungen eintragen, dann den Tag abschließen.'
@@ -170,7 +165,7 @@ export default function TagAbschliessen({
       </p>
 
       <div className="flex items-center gap-2 shrink-0">
-        {!gekommen && <button
+        <button
           type="button"
           disabled={busy}
           onClick={() => abschliessen('frei')}
@@ -179,7 +174,7 @@ export default function TagAbschliessen({
           style={{ borderColor: RITTLER.line, color: RITTLER.textSecondary }}
         >
           Nicht anwesend
-        </button>}
+        </button>
         <button
           type="button"
           disabled={busy || !bereit}
