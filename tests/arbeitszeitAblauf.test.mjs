@@ -17,7 +17,8 @@ function passt(row, q) {
     return w === v;
   });
 }
-function speicherDb() {
+function speicherDb({ latenz = 0 } = {}) {
+  const warte = () => (latenz ? new Promise((r) => setTimeout(r, latenz)) : Promise.resolve());
   let n = 0;
   let uhr = 0;
   const tabellen = {};
@@ -27,6 +28,7 @@ function speicherDb() {
     return {
       rows,
       async filter(q, sort, limit = 50) {
+        await warte();
         let r = rows.filter((x) => passt(x, q));
         if (sort) {
           const ab = sort.startsWith('-');
@@ -35,9 +37,9 @@ function speicherDb() {
         }
         return r.slice(0, limit).map((x) => ({ ...x }));
       },
-      async get(id) { const x = rows.find((r) => r.id === id); if (!x) throw new Error('not found'); return { ...x }; },
-      async create(d) { const x = { ...d, id: `${name}${++n}`, created_date: new Date(Date.UTC(2026, 0, 1) + (++uhr)).toISOString() }; rows.push(x); return { ...x }; },
-      async update(id, d) { const x = rows.find((r) => r.id === id); Object.assign(x, d); return { ...x }; },
+      async get(id) { await warte(); const x = rows.find((r) => r.id === id); if (!x) throw new Error('not found'); return { ...x }; },
+      async create(d) { await warte(); const x = { ...d, id: `${name}${++n}`, created_date: new Date(Date.UTC(2026, 0, 1) + (++uhr)).toISOString() }; rows.push(x); return { ...x }; },
+      async update(id, d) { await warte(); const x = rows.find((r) => r.id === id); Object.assign(x, d); return { ...x }; },
       async delete(id) { const i = rows.findIndex((r) => r.id === id); if (i >= 0) rows.splice(i, 1); },
     };
   };
@@ -232,6 +234,26 @@ await fall('Pilot: Timer vom Vortag wird bei Gehen weder gebucht noch entfernt',
   await stempelnAblauf(db, PILOT, einstPilot, { art: 'gehen', vorgang_id: 'b' }, z('2026-10-12', '11:00'));
   assert.equal(db.TimeEntry.rows.length, 0);
   assert.equal(db.LaufendeZeitbuchung.rows.length, 1);
+});
+
+// --- Leistung: jede Datenbankabfrage dauert hier 50 ms; gemessen wird, wie viele Runden
+// nacheinander ein Knopfdruck braucht (parallele Abfragen zählen als eine Runde).
+const runden = async (fn) => { const t = Date.now(); await fn(); return Math.round((Date.now() - t) / 50); };
+await fall('Leistung: Kommen braucht höchstens 4 Runden, Stand-Abfrage 1', async () => {
+  const db = speicherDb({ latenz: 50 });
+  const r1 = await runden(() => stempelnAblauf(db, MAIL, einst, { art: 'kommen', vorgang_id: 'a' }, z('2026-10-19', '08:00')));
+  const { statusAbfrage } = await import('../base44/shared/arbeitszeitDaten.js');
+  const r2 = await runden(() => statusAbfrage(db, MAIL, z('2026-10-19', '09:00')).catch(() => null));
+  console.log(`    Kommen: ${r1} Runden, Stand: ${r2} Runden`);
+  assert.ok(r1 <= 4, `Kommen ${r1} Runden`);
+});
+await fall('Leistung: Pause mit laufendem Timer höchstens 8 Runden', async () => {
+  const db = speicherDb({ latenz: 50 }); grunddaten(db);
+  await stempelnAblauf(db, MAIL, einst, { art: 'kommen', vorgang_id: 'a' }, z('2026-10-19', '08:00'));
+  laeuft(db, 'p2', z('2026-10-19', '08:10'));
+  const r = await runden(() => stempelnAblauf(db, MAIL, einst, { art: 'pause_start', vorgang_id: 'b' }, z('2026-10-19', '12:00')));
+  console.log(`    Pause mit Timer: ${r} Runden`);
+  assert.ok(r <= 8, `Pause ${r} Runden`);
 });
 
 console.log(`\n${n} Fälle bestanden`);
