@@ -1,9 +1,59 @@
 // Arbeitszeit — Datenzugriff und gemeinsame Abläufe der Funktionen stempeln, arbeitszeitStatus,
 // zeitStarten, zeitAntrag*, arbeitszeitAutomatik. `db` = base44.asServiceRole.entities.
 import {
-  EINSTELLUNG_KEYS, leseEinstellungen, modusFuer, wienTag, zustandJetzt, werteTagAus, spieleAb,
+  EINSTELLUNG_KEYS, leseEinstellungen, modusFuer, wienTag, zustandJetzt, werteTagAus, spieleAb, erlaubt,
 } from './arbeitszeitKern.js';
-import { laufendeVon, laufendeEntfernen } from './zeitBuchung.js';
+import { laufendeVon, laufendeEntfernen, timerVerbuchen } from './zeitBuchung.js';
+
+export const STEMPEL_ARTEN = ['kommen', 'pause_start', 'pause_ende', 'gehen'];
+
+// Der ganze Ablauf eines Knopfdrucks — hier statt in der Funktion, damit er prüfbar ist.
+// Reihenfolge: Automatik nachziehen → prüfen → laufenden Timer buchen → Stempel → nachlesen → Nachweis.
+// Ergebnis: { status (HTTP), extra } — die Antwort ergänzt statusAntwort um extra.
+export async function stempelnAblauf(db, email, einst, { art, vorgang_id, erwartet, notiz = '' }, jetzt = new Date()) {
+  if (!STEMPEL_ARTEN.includes(art)) return { status: 400, extra: { fehler: 'Unbekannte Art' }, ohneStand: true };
+  const jetztIso = jetzt.toISOString();
+  const tag = wienTag(jetzt);
+  const modus = modusFuer(email, tag, einst);
+  if (!modus.neu) return { status: 409, extra: { fehler: 'nicht_aktiv' }, ohneStand: true };
+  if (!modus.stempelt) return { status: 400, extra: { fehler: 'stempelt_nicht' }, ohneStand: true };
+
+  // Wiederholung desselben Knopfdrucks: nichts Neues, aktueller Stand zurück.
+  if (await stempelZuVorgang(db, email, vorgang_id)) return { status: 200, extra: { ok: true, wiederholt: true } };
+
+  let stempel = await ladeStempel(db, email, tag);
+  if (await automatikNachziehen(db, email, tag, stempel, jetztIso)) stempel = await ladeStempel(db, email, tag);
+  // Ein Timer vom Vortag oder außerhalb der Anwesenheit darf nie mit „jetzt“ als Ende gebucht werden.
+  await timerAufraeumen(db, email, jetztIso);
+
+  const zustand = zustandJetzt(stempel, jetztIso).zustand;
+  if (erwartet && erwartet !== zustand) return { status: 409, extra: { fehler: 'veraltet' } };
+  if (!erlaubt(zustand, art)) return { status: 409, extra: { fehler: 'nicht_moeglich' } };
+
+  // Pause und Gehen stoppen einen laufenden Timer — vor dem Stempel, damit nie ein Timer
+  // in einer Pause weiterläuft. Bei Wiederholung erkennt timerVerbuchen die Buchung wieder.
+  let gebucht = null;
+  if (art === 'pause_start' || art === 'gehen') {
+    const laufende = await laufendeVon(db, email);
+    if (laufende) {
+      const r = await timerVerbuchen(db, laufende, { notiz, endeIso: jetztIso, tag: wienTag(laufende.gestartet_am) });
+      gebucht = { id: r.eintrag.id, minuten: r.eintrag.duration_minutes, project_id: r.eintrag.project_id, projekt_titel: laufende.projekt_titel || '' };
+    }
+  }
+
+  const neu = await db.Stempel.create({
+    person_email: email, tag, art, zeit: jetztIso, quelle: 'knopf', status: 'gueltig',
+    ...(vorgang_id ? { vorgang_id } : {}), erfasst_von: email,
+  });
+
+  // Nachlesen: zwei Fenster gleichzeitig? Der erste Stempel gewinnt, der zweite wird ungültig.
+  stempel = await ladeStempel(db, email, tag);
+  const konflikte = await konflikteBereinigen(db, stempel);
+  if (konflikte.includes(neu.id)) return { status: 409, extra: { fehler: 'veraltet', gebucht } };
+
+  await nachweisNeu(db, email, tag, einst, { jetzt });
+  return { status: 200, extra: { ok: true, art, gebucht } };
+}
 
 export async function ladeEinstellungen(db) {
   const rows = await db.Setting.filter({ key: { $in: EINSTELLUNG_KEYS } }, 'key', 20).catch(() => []);
@@ -168,14 +218,14 @@ export async function nachweisSchreiben(db, email, tag, a, { festschreiben = fal
   return erster ? db.Tagesnachweis.update(erster.id, daten) : db.Tagesnachweis.create(daten);
 }
 
-export async function nachweisNeu(db, email, tag, einst, opts = {}) {
-  const { auswertung } = await tagesstand(db, email, tag, new Date().toISOString(), einst);
+export async function nachweisNeu(db, email, tag, einst, { jetzt = new Date(), ...opts } = {}) {
+  const { auswertung } = await tagesstand(db, email, tag, jetzt.toISOString(), einst);
   return nachweisSchreiben(db, email, tag, auswertung, opts);
 }
 
 // Antwort an den Browser: alles, was Kopfzeile und Tagesansicht brauchen.
-export async function statusAntwort(db, email, einst, { istGenehmiger = false } = {}) {
-  const jetztIso = new Date().toISOString();
+export async function statusAntwort(db, email, einst, { istGenehmiger = false, jetzt = new Date() } = {}) {
+  const jetztIso = jetzt.toISOString();
   const tag = wienTag(jetztIso);
   const modus = modusFuer(email, tag, einst);
   if (!modus.neu) return { aktiv: false, jetzt: jetztIso, tag };
