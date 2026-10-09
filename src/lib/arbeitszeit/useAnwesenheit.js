@@ -43,6 +43,15 @@ function useSchalter() {
   });
 }
 
+// Gilt die Anwesenheitserfassung für diese Person heute? (Pilot oder ab Stichtag)
+// Für „Meine Zeiten“ — dieselbe kleine, lang zwischengespeicherte Abfrage der Settings wie der Knopf.
+export function useArbeitszeitAktiv(email) {
+  const { data: schalter } = useSchalter();
+  const mail = String(email || '').toLowerCase();
+  return !!mail && !!schalter
+    && (schalter.pilot.includes(mail) || (!!schalter.neuAb && heuteWien() >= schalter.neuAb));
+}
+
 const neueVorgangsnummer = () => {
   try { return crypto.randomUUID(); } catch { return `${Date.now()}-${Math.random().toString(36).slice(2)}`; }
 };
