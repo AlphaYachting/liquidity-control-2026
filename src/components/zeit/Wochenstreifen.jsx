@@ -52,9 +52,21 @@ export default function Wochenstreifen({ tage, gewaehlt, pflichtAb, onWaehlen, o
               <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: RITTLER.textSecondary }}>
                 {WOCHENTAG[i]} · {tag.tag.slice(8, 10)}.{tag.tag.slice(5, 7)}.
               </p>
-              <p className="text-[19px] font-bold tabular-nums mt-1" style={{ color: RITTLER.black }}>
-                {dauerText(tag.gebuchtMinuten)}
-              </p>
+              {/* Anwesenheitserfassung: Arbeitszeit groß, die gebuchte Projektzeit darunter */}
+              {tag.arbeitszeitMin !== undefined && tag.arbeitszeitMin !== null ? (
+                <>
+                  <p className="text-[19px] font-bold tabular-nums mt-1" style={{ color: RITTLER.black }}>
+                    {dauerText(tag.arbeitszeitMin)}
+                  </p>
+                  <p className="text-xs tabular-nums" style={{ color: RITTLER.textSecondary }}>
+                    {dauerText(tag.gebuchtMinuten)} gebucht
+                  </p>
+                </>
+              ) : (
+                <p className="text-[19px] font-bold tabular-nums mt-1" style={{ color: RITTLER.black }}>
+                  {dauerText(tag.gebuchtMinuten)}
+                </p>
+              )}
               <p className="flex items-center gap-1.5 mt-1 text-xs" style={{ color: RITTLER.textSecondary }}>
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: z.farbe }} />
                 {z.text}
