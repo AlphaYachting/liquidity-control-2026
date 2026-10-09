@@ -80,9 +80,14 @@ export default function Buchungsliste({
 
   if (!eintraege.length && !anw.length) {
     return (
-      <p className="p-8 text-center text-sm bg-white rounded border" style={{ borderColor: RITTLER.line, color: RITTLER.textSecondary }}>
-        Für diesen Tag ist nichts erfasst.
-      </p>
+      <div className="p-8 text-center text-sm bg-white rounded border" style={{ borderColor: RITTLER.line, color: RITTLER.textSecondary }}>
+        <p>Für diesen Tag ist nichts erfasst.</p>
+        {kannStempelAntrag && anwesenheit && (
+          <button type="button" onClick={() => onStempelAntrag({ typ: 'stempel_fehlt' })} className="mt-2 text-xs underline">
+            Kommen oder Gehen vergessen? Antrag stellen
+          </button>
+        )}
+      </div>
     );
   }
 
