@@ -19,10 +19,19 @@ const Kachel = ({ titel, wert, zusatz, warnung }) => (
 );
 
 // Vier Kacheln: Gebucht, Verrechenbar, Nicht verrechenbar, Offene Lücke.
-export default function Tagesbilanz({ auswertung }) {
+// Mit Anwesenheitserfassung kommt vorne die Arbeitszeit dazu (Kommen bis Gehen ohne Pausen).
+// anwesenheit: { arbeitszeitMin, pauseMin, kommen, gehen, zustand } oder null
+export default function Tagesbilanz({ auswertung, anwesenheit = null, mitArbeitszeit = false }) {
   const a = auswertung;
+  const uhrVon = (iso) => (iso ? new Date(iso).toTimeString().slice(0, 5) : '');
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+    <div className={`grid grid-cols-2 gap-2 ${mitArbeitszeit ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+      {mitArbeitszeit && (
+        <Kachel titel="Arbeitszeit" wert={dauerText(anwesenheit?.arbeitszeitMin || 0)}
+          zusatz={anwesenheit?.kommen
+            ? `${uhrVon(anwesenheit.kommen)}–${anwesenheit.zustand !== 'weg' ? 'jetzt' : uhrVon(anwesenheit.gehen)}${anwesenheit.pauseMin ? `, Pause ${dauerText(anwesenheit.pauseMin)}` : ''}`
+            : 'nicht gestempelt'} />
+      )}
       <Kachel titel="Gebucht" wert={dauerText(a.gebuchtMinuten)}
         zusatz={`${a.anzahl} ${a.anzahl === 1 ? 'Buchung' : 'Buchungen'}`} />
       <Kachel titel="Verrechenbar" wert={dauerText(a.verrechenbarMinuten)}
