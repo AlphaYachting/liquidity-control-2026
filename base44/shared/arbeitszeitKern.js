@@ -263,7 +263,7 @@ export function werteTagAus({ tag, stempel = [], buchungen = [], jetztIso, sollM
   if (z.gehenUnklar) hinweise.push('gehen_unklar');
   if (stempelt && arbeitszeitMin > PAUSE_HINWEIS_AB_MIN && pauseMin < PAUSE_MINDEST_MIN) hinweise.push('pause_fehlt');
   if (stempelt && arbeitszeitMin !== null && projektzeitMin > arbeitszeitMin + 1) hinweise.push('projektzeit_ueber_arbeitszeit');
-  const status = z.gehenUnklar ? 'gehen_unklar' : (z.zustand === 'weg' && bloecke.length ? 'abgeschlossen' : (z.zustand === 'weg' ? 'abgeschlossen' : 'laeuft'));
+  const status = z.gehenUnklar ? 'gehen_unklar' : z.zustand === 'weg' ? 'abgeschlossen' : 'laeuft';
   return {
     tag,
     heute,
