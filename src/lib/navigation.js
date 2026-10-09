@@ -18,7 +18,7 @@ export const NAV_GRUPPEN = [
     titel: null,
     items: [
       { path: '/sprint', label: 'Mein Tag', icon: Sun, regel: 'alle' },
-      { path: '/zeiten', label: 'Meine Zeiten', icon: Timer, regel: 'alle' },
+      { path: '/zeiten', label: 'Meine Zeiten', icon: Timer, regel: 'alle', nurAltModus: true },
       // Eigene Aufzeichnungsseite (Kommen/Pause/Gehen + Projektzeit) — nur wo die neue Erfassung gilt
       { path: '/arbeitszeit', label: 'Meine Arbeitszeit', icon: Clock, regel: 'alle', nurArbeitszeit: true },
       { path: '/freigaben', label: 'Freigaben', icon: ClipboardCheck, regel: ['leitung', 'geld'] },
