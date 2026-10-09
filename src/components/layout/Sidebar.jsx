@@ -215,7 +215,8 @@ export default function Sidebar() {
           // Nur was die Person sehen darf; eine leere Gruppe erscheint gar nicht.
           const items = gruppe.items.filter((i) => zugriff.darf(i.regel)
             && (!i.nurEmail || (user?.email || '').toLowerCase() === i.nurEmail)
-            && (!i.nurArbeitszeit || arbeitszeitAktiv));
+            && (!i.nurArbeitszeit || arbeitszeitAktiv)
+            && (!i.nurAltModus || !arbeitszeitAktiv));
           if (items.length === 0) return null;
           // Liegt die geöffnete Seite in der Gruppe, ist sie immer aufgeklappt.
           const istOffen = !gruppe.einklappbar || !!offen[gruppe.key] || items.some((i) => isActive(i.path));
