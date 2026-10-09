@@ -72,14 +72,16 @@ export async function ueberKontingent(db, project, tag, minuten, ohneId = null) 
 
 // Laufenden Timer verbuchen. endeIso = Ende der Messung (Serverzeit), abzugMinuten nur im alten Modus.
 // Ergebnis: { eintrag, wiederholt }
-export async function timerVerbuchen(db, laufende, { notiz = '', endeIso, abzugMinuten = 0, tag } = {}) {
+// laufendeBehalten: beim Verbuchen eines Timer-Endes aus einem Antrag darf ein gerade laufender
+// (anderer) Timer der Person nicht entfernt werden.
+export async function timerVerbuchen(db, laufende, { notiz = '', endeIso, abzugMinuten = 0, tag, laufendeBehalten = false } = {}) {
   // Wiederholungsprüfung und Projektdaten parallel
   const [schon, bf] = await Promise.all([
     db.TimeEntry.filter({ laufende_id: laufende.id }, '-created_date', 1),
     buchungsfelder(db, laufende.project_id),
   ]);
   if (schon[0]) {
-    await laufendeEntfernen(db, laufende.person_email);
+    if (!laufendeBehalten) await laufendeEntfernen(db, laufende.person_email);
     return { eintrag: schon[0], wiederholt: true };
   }
   const { felder, kategorie, project } = bf;
@@ -109,7 +111,7 @@ export async function timerVerbuchen(db, laufende, { notiz = '', endeIso, abzugM
     note: [...new Set([laufende.notiz, notiz].map((t) => String(t || '').trim()).filter(Boolean))].join(' · '),
     source: 'bestaetigt',
   });
-  await laufendeEntfernen(db, laufende.person_email);
+  if (!laufendeBehalten) await laufendeEntfernen(db, laufende.person_email);
   return { eintrag, wiederholt: false, project };
 }
 
