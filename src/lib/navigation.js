@@ -19,6 +19,8 @@ export const NAV_GRUPPEN = [
     items: [
       { path: '/sprint', label: 'Mein Tag', icon: Sun, regel: 'alle' },
       { path: '/zeiten', label: 'Meine Zeiten', icon: Timer, regel: 'alle' },
+      // Eigene Aufzeichnungsseite (Kommen/Pause/Gehen + Projektzeit) — nur wo die neue Erfassung gilt
+      { path: '/arbeitszeit', label: 'Meine Arbeitszeit', icon: Clock, regel: 'alle', nurArbeitszeit: true },
       { path: '/freigaben', label: 'Freigaben', icon: ClipboardCheck, regel: ['leitung', 'geld'] },
       { path: '/rueckmeldungen', label: 'Rückmeldungen', icon: MessageSquarePlus, regel: 'admin', nurEmail: 'a.rittler@rittler.co', zaehler: 'rueckmeldungen' },
     ],
