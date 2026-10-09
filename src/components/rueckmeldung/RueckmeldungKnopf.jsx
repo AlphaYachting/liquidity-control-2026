@@ -49,6 +49,7 @@ export default function RueckmeldungKnopf() {
     ? `${anzahl} neue Rückmeldung${anzahl === 1 ? '' : 'en'}${alarm ? ` · ${neu.blockiert} blockiert jemanden` : ''}`
     : punkt ? 'Es gibt Neuigkeiten zu deinen Meldungen' : 'Fehler, Wunsch oder Anregung melden';
 
+  // Nur noch das Symbol (Wunsch Alfons 09.10.2026: die Kollegen kennen den Knopf) — Platz für Kommen/Pause/Gehen
   return (
     <>
       <button
@@ -56,7 +57,6 @@ export default function RueckmeldungKnopf() {
         onClick={oeffnen}
         title={titel}
         aria-label={titel}
-        // Nur noch das Symbol (Wunsch Alfons 09.10.2026: die Kollegen kennen den Knopf) — Platz für Kommen/Pause/Gehen
         className="relative shrink-0 flex items-center justify-center hover:bg-muted transition-colors"
         style={{ width: 38, height: 38, borderRadius: 3, border: `1px solid ${RITTLER.line}`, color: RITTLER.black, backgroundColor: RITTLER.white }}
       >
