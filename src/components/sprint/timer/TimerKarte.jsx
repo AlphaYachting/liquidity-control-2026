@@ -18,7 +18,9 @@ const jetztMinute = () => {
 };
 
 // Laufender Timer: dieselbe Ordnung wie im Ruhezustand, nur mit Uhr.
-export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzogen, elapsedMinutes = 0 }) {
+// neu: neue Arbeitszeiterfassung — keine Pause im Timer (Pause läuft über die Kopfleiste und stoppt den
+// Timer), keine von Hand korrigierte Dauer (Änderungen nur per Antrag).
+export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzogen, elapsedMinutes = 0, neu = false }) {
   const [busy, setBusy] = useState(false);
   const [notiz, setNotiz] = useState('');
   const [korrektur, setKorrektur] = useState('');
@@ -40,9 +42,10 @@ export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzoge
   const stoppen = async () => {
     setBusy(true);
     let abzug = pausenMinuten + (pauseAb === null ? 0 : Math.max(0, jetztMinute() - pauseAb));
-    // Korrigierte Dauer schlägt die gemessene — der Rest wird als Abzug verbucht.
+    // Korrigierte Dauer schlägt die gemessene — der Rest wird als Abzug verbucht (nur alter Modus).
     const gewuenscht = Number(String(korrektur).replace(',', '.'));
-    if (korrektur && gewuenscht > 0) {
+    if (neu) abzug = 0;
+    else if (korrektur && gewuenscht > 0) {
       abzug = Math.max(0, Math.round(elapsedMinutes - gewuenscht * 60));
     }
     await onStop(notiz, abzug);
@@ -78,7 +81,7 @@ export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzoge
         </p>
       )}
 
-      {ueberzogen && (
+      {ueberzogen && !neu && (
         <div
           className="mt-3 p-3 rounded"
           style={{ backgroundColor: STATUS_COLORS.attentionSurface, color: STATUS_COLORS.attention }}
@@ -110,7 +113,7 @@ export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzoge
 
       <FussVerweise
         links={onWechseln ? { text: 'Projekt wechseln', onClick: onWechseln } : null}
-        rechts={{ text: pauseAb === null ? 'Pause einlegen' : 'Pause beenden', onClick: pauseUmschalten }}
+        rechts={neu ? null : { text: pauseAb === null ? 'Pause einlegen' : 'Pause beenden', onClick: pauseUmschalten }}
       />
     </div>
   );
