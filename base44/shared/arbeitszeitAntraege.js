@@ -189,7 +189,8 @@ async function protokoll(db, wer, aktion, entity, id, alt, neu, antragId) {
 
 async function anwenden(db, antrag, wer, jetztIso, stempelt) {
   const email = antrag.person_email;
-  const pruef = await pruefen(db, email, { ...antrag }, jetztIso, stempelt);
+  const geprueft = { ...antrag }; // pruefen ergänzt _autoGehenId — nie am Original
+  const pruef = await pruefen(db, email, geprueft, jetztIso, stempelt);
   if (pruef.fehler) return pruef;
   const n = antrag.nachher || {};
   const ids = [];
@@ -208,7 +209,7 @@ async function anwenden(db, antrag, wer, jetztIso, stempelt) {
       await db.Stempel.update(antrag.ziel_id, { status: 'storniert', status_grund: `Zeitantrag ${antrag.id}` });
       ids.push(antrag.ziel_id);
     } else if (antrag.art === 'gehen_angeben') {
-      const auto = pruef.stempel.find((s) => s.id === antrag._autoGehenId);
+      const auto = pruef.stempel.find((s) => s.id === geprueft._autoGehenId);
       const s = await db.Stempel.create({ ...basis, art: 'gehen', zeit: iso(n.zeit) });
       await db.Stempel.update(auto.id, { status: 'storniert', ersetzt_durch: s.id, status_grund: `Gehen angegeben, Zeitantrag ${antrag.id}` });
       ids.push(s.id, auto.id);
