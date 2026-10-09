@@ -90,7 +90,8 @@ export function useAnwesenheit(email) {
     refetchOnWindowFocus: true,
     queryFn: async () => {
       const gesendet = Date.now();
-      const res = await base44.functions.invoke('arbeitszeitStatus', {});
+      // Über dieselbe Funktion wie der Knopfdruck — so bleibt sie warm und der Klick wartet nie auf einen Kaltstart.
+      const res = await base44.functions.invoke('stempeln', { nur_stand: true });
       const daten = res?.data || {};
       if (daten.fehler) throw new Error(daten.fehler);
       if (daten.jetzt) versatz.current = Date.parse(daten.jetzt) - Math.round((gesendet + Date.now()) / 2);
