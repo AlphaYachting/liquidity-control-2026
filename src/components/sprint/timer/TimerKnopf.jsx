@@ -17,6 +17,7 @@ import ProjektWechsel from '@/components/zeit/ProjektWechsel';
 import BuchungBestaetigung from '@/components/zeit/BuchungBestaetigung';
 import NichtGebucht from '@/components/zeit/NichtGebucht';
 import SperrHinweis from '@/components/zeit/SperrHinweis';
+import { useArbeitszeitAktiv } from '@/lib/arbeitszeit/useAnwesenheit';
 
 // Knopf im Sprint-Modul und bei laufendem Timer — die Zeile selbst ist überall mit T erreichbar.
 export default function TimerKnopf() {
@@ -25,7 +26,11 @@ export default function TimerKnopf() {
   const { user } = useAuth();
   const email = user?.email;
   const { timer, running, label, start, stop, ueberzogen, elapsedMinutes } = useTimer(email);
-  const { aeltester } = useOffeneTage(email);
+  const { aeltester: aeltesterAlt } = useOffeneTage(email);
+  // Neue Arbeitszeiterfassung (Pilot oder ab Stichtag): kein manuelles Eintragen, keine Lückensperre,
+  // kein Tagesabschluss. Projektwechsel läuft über die Projektsuche und startet den Timer neu.
+  const neu = useArbeitszeitAktiv(email);
+  const aeltester = neu ? null : aeltesterAlt;
   const ortKontext = useZeitKontext();
   const navigate = useNavigate();
   const [offen, setOffen] = useState(false);
@@ -149,13 +154,18 @@ export default function TimerKnopf() {
   };
 
   const hatKontext = !!kontext.project_id && kontext.quelle !== 'keiner';
+  // Im neuen Modus: Projektwechsel bei laufendem Timer = Projekt suchen → neuen Timer starten
+  const wechselImLauf = neu && running && (wechsel || !!gewaehlt);
+  const startenNeu = neu && running ? (p, k, n, o = {}) => starten(p, k, n, { ...o, force: true }) : starten;
+  const nachtragen = neu ? undefined : () => setTippzeile(true);
+  const anderesProjekt = neu ? () => setWechsel(true) : () => setTippzeile(true);
 
   // Der Fenstertitel benennt den Zustand — eine Kopfzeile für alle.
   const titel = sperre ? 'Timer läuft bereits'
     : bestaetigung ? 'Gebucht'
     : nichtGebucht ? 'Nicht gebucht'
     : tippzeile ? 'Zeit nachtragen'
-    : wechsel ? 'Projekt wechseln'
+    : wechsel || wechselImLauf ? 'Projekt wechseln'
     : running ? 'Läuft'
     : 'Zeit erfassen';
 
@@ -193,6 +203,7 @@ export default function TimerKnopf() {
           ) : bestaetigung ? (
             <BuchungBestaetigung
               info={bestaetigung}
+              ohneRueckgaengig={neu}
               onFertig={() => (bestaetigung.offenerTag ? zumAbschluss(bestaetigung.offenerTag) : schliessen())}
               onRueckgaengig={auffrischen}
             />
@@ -212,16 +223,17 @@ export default function TimerKnopf() {
               onBooked={gebucht}
               onZurueck={running ? () => setTippzeile(false) : undefined}
             />
-          ) : running ? (
+          ) : running && !wechselImLauf ? (
             <TimerKarte
               timer={timer}
               label={label}
               onStop={stoppen}
-              onWechseln={() => setTippzeile(true)}
+              onWechseln={anderesProjekt}
               ueberzogen={ueberzogen}
               elapsedMinutes={elapsedMinutes}
+              neu={neu}
             />
-          ) : wechsel && hatKontext ? (
+          ) : wechsel && (hatKontext || neu) ? (
             <ProjektWechsel
               email={email}
               onWaehlen={(p) => { setGewaehlt(p); setWechsel(false); }}
@@ -232,14 +244,14 @@ export default function TimerKnopf() {
               kontext={kontext}
               ortProjektId={ortKontext.project_id}
               ausOrt={ausOrt}
-              onStart={starten}
+              onStart={startenNeu}
               onSuche={() => setWechsel(true)}
               onZurueckZumOrt={() => setGewaehlt(null)}
-              onNachtragen={() => setTippzeile(true)}
+              onNachtragen={nachtragen}
             />
           ) : (
             <div className="px-4 pt-[14px] pb-4">
-              <SchnellProjekte email={email} onStart={starten} onTippzeile={() => setTippzeile(true)} />
+              <SchnellProjekte email={email} onStart={starten} onTippzeile={anderesProjekt} ohneNachtragen={neu} />
             </div>
           )}
         </ErfassungsFenster>
