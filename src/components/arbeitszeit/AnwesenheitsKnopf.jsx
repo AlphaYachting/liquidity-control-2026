@@ -15,14 +15,16 @@ const knopfStil = {
   height: 38, borderRadius: 3, border: `1px solid ${RITTLER.line}`, color: RITTLER.black, backgroundColor: RITTLER.white,
 };
 
+// Kein Ausgrauen während des Sendens: Die Anzeige springt sofort um; ein zweiter Klick,
+// solange der erste noch unterwegs ist, wird nur ignoriert.
 function Knopf({ onClick, disabled, icon, children, kurz, betont, title }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      disabled={disabled}
+      onClick={disabled ? undefined : onClick}
+      aria-disabled={disabled || undefined}
       title={title}
-      className="shrink-0 flex items-center gap-1.5 px-3 text-[13px] font-semibold hover:bg-muted transition-colors disabled:opacity-50"
+      className="shrink-0 flex items-center gap-1.5 px-3 text-[13px] font-semibold hover:bg-muted transition-colors"
       style={{ ...knopfStil, ...(betont ? { borderColor: RITTLER.black } : {}) }}
     >
       {icon}
