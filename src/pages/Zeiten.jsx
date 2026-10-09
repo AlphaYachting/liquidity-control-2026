@@ -26,8 +26,16 @@ import { istAbwesend } from '@/lib/zeit/offeneTage';
 import { werteTagAus, wochentage, verschiebeTage, uhr, dauerText } from '@/lib/zeit/tagesAuswertung';
 import { fehlendeBeschreibungen } from '@/lib/zeit/beschreibungPflicht';
 import { ladeArbeitstage, beginnJeTag } from '@/lib/zeit/arbeitstag';
+import { minuteVonIso } from '@/lib/zeit/tagesAuswertung';
+import { useArbeitszeitAktiv, ANWESENHEIT_KEY } from '@/lib/arbeitszeit/useAnwesenheit';
+import { useAnwesenheitWoche, anwesenheitTag, ANWESENHEIT_WOCHE_KEY } from '@/lib/arbeitszeit/anwesenheitWoche';
+import AnwesenheitsAntraege from '@/components/arbeitszeit/AnwesenheitsAntraege';
+import StempelAntragDialog from '@/components/arbeitszeit/StempelAntragDialog';
 
 // Die eigenen Zeiten: Woche im Rückblick, Erfassung, Tagesstreifen, Bilanz, Buchungen.
+// Anwesenheitserfassung (Pilot oder ab Stichtag, Entscheidung Alfons 09.10.2026): Die Seite bleibt wie sie ist;
+// dazu kommen Kommen/Pause/Gehen in Buchungsliste und Zeitleiste, die Arbeitszeit in Bilanz und Wochenkacheln,
+// und der Tag lässt sich erst abschließen, wenn Gehen gestempelt ist. Stempel ändert man nur per Antrag.
 export default function Zeiten() {
   const { user } = useAuth();
   const email = user?.email;
@@ -42,6 +50,8 @@ export default function Zeiten() {
   const { timer } = useTimer(email, { ticken: false });
   const rundungsSettings = useRundungsSettings();
   const gesprungen = useRef(false);
+  const neu = useArbeitszeitAktiv(email);
+  const [stempelAntrag, setStempelAntrag] = useState(null);
 
   // Die Seite öffnet auf dem ältesten offenen Tag, nicht auf heute.
   useEffect(() => {
@@ -74,6 +84,7 @@ export default function Zeiten() {
   };
 
   const tage = useMemo(() => wochentage(tag), [tag]);
+  const { data: anwWoche, refetch: anwNeuLaden } = useAnwesenheitWoche(email, tage, neu);
 
   const { data, isLoading } = useQuery({
     queryKey: ['zeitenSeite', email, tage[0]],
@@ -107,6 +118,8 @@ export default function Zeiten() {
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['zeitenSeite'] });
     qc.invalidateQueries({ queryKey: ['offeneTage'] });
+    qc.invalidateQueries({ queryKey: ANWESENHEIT_WOCHE_KEY });
+    qc.invalidateQueries({ queryKey: ANWESENHEIT_KEY(String(email || '').toLowerCase()) });
   };
 
   // Geplante Abwesenheit schließt den Tag von selbst — er gilt nie als offen.
@@ -152,18 +165,26 @@ export default function Zeiten() {
     return false;
   };
   const jetztMinute = jetzt.getHours() * 60 + jetzt.getMinutes();
+  // Anwesenheit je Tag (null = nicht gestempelt oder alter Modus). Mit Kommen beginnt der Tag beim Kommen,
+  // nicht beim ersten Öffnen des Tools.
+  const anwVon = (t) => (neu && anwWoche ? anwesenheitTag(anwWoche.stempel, t, jetzt.toISOString()) : null);
+  const beginnFuer = (t) => {
+    const k = anwVon(t)?.kommen;
+    return k ? minuteVonIso(k) : (beginnVon[t] ?? null);
+  };
 
   const wochenTage = tage.map((t) => ({
     ...werteTagAus({
       tag: t,
       eintraege: eintraege.filter((e) => e.entry_date === t),
-      tagesbeginnMinute: beginnVon[t] ?? null,
+      tagesbeginnMinute: beginnFuer(t),
       istHeute: t === todayIso(),
       jetztMinute,
       abgeschlossen: !!abschluesse.find((a) => a.tag === t)?.bestaetigt_am,
     }),
     istHeute: t === todayIso(),
     istZukunft: t > todayIso(),
+    ...(neu ? { arbeitszeitMin: anwVon(t)?.arbeitszeitMin ?? 0 } : {}),
     abgeschlossen: !!abschluesse.find((a) => a.tag === t)?.bestaetigt_am,
     grund: abschluesse.find((a) => a.tag === t)?.grund,
   }));
@@ -172,12 +193,21 @@ export default function Zeiten() {
     .filter((e) => e.entry_date === tag)
     .sort((a, b) => (a.started_at || '').localeCompare(b.started_at || ''));
   const auswertung = werteTagAus({
-    tag, eintraege: tagesEintraege, istHeute, jetztMinute, tagesbeginnMinute: beginnVon[tag] ?? null,
+    tag, eintraege: tagesEintraege, istHeute, jetztMinute, tagesbeginnMinute: beginnFuer(tag),
     abgeschlossen: !!abschluesse.find((a) => a.tag === tag)?.bestaetigt_am,
   });
   const abschluss = abschluesse.find((a) => a.tag === tag);
   const gesperrt = !!abschluss?.bestaetigt_am;
   const wocheBestaetigt = !!abschluesse.find((a) => a.tag === tage[0])?.woche_bestaetigt_am;
+  const anwHeute = anwVon(tag);
+  const eigeneAntraege = anwWoche?.antraege?.eigene || [];
+  const antragOffenFuer = new Set(eigeneAntraege.filter((a) => a.status === 'offen' && a.ziel_id).map((a) => a.ziel_id));
+  // Tag abschließen erst nach Gehen. Ein automatisch beendetes Gehen ist geklärt, sobald der Antrag gestellt ist.
+  const gehenAntragGestellt = eigeneAntraege.some((a) => a.tag === tag && a.art === 'gehen_angeben' && a.status === 'offen');
+  const gehenHinweis = !anwHeute ? null
+    : anwHeute.zustand !== 'weg' ? 'Erst Gehen stempeln, dann den Tag abschließen.'
+      : anwHeute.gehenUnklar && !gehenAntragGestellt ? 'Gehen wurde nicht gestempelt — oben unter „Zu klären“ die Uhrzeit angeben, dann abschließen.'
+        : null;
 
   const projektLabel = (e) => {
     const info = projektInfo[e.project_id];
@@ -207,6 +237,14 @@ export default function Zeiten() {
         laufendesProjekt={timer?.projekt_titel || null}
         onAbschluss={zumAbschluss}
       />
+
+      {neu && (
+        <AnwesenheitsAntraege
+          antraege={anwWoche?.antraege}
+          onAusfuellen={setStempelAntrag}
+          onGeaendert={() => { anwNeuLaden(); refresh(); }}
+        />
+      )}
 
       <Wochenstreifen
         tage={wochenTage}
@@ -239,14 +277,20 @@ export default function Zeiten() {
         istHeute={istHeute}
         jetztMinute={jetztMinute}
         onLoch={(l) => setVorbelegung({ wert: `${uhr(l.von)}-${uhr(l.bis)}`, n: Date.now() })}
+        anwesenheit={anwHeute}
       />
-      {auswertung.tagesbeginn !== null && (
+      {anwHeute?.kommen ? (
+        <p className="-mt-2 text-xs" style={{ color: RITTLER.textSecondary }}>
+          Gekommen um {uhr(minuteVonIso(anwHeute.kommen))}
+          {anwHeute.gehen && anwHeute.zustand === 'weg' ? ` · gegangen um ${uhr(minuteVonIso(anwHeute.gehen))}` : ''} — ab hier zählen die Lücken.
+        </p>
+      ) : auswertung.tagesbeginn !== null && (
         <p className="-mt-2 text-xs" style={{ color: RITTLER.textSecondary }}>
           Tool geöffnet um {uhr(auswertung.tagesbeginn)} — ab hier zählen die Lücken.
         </p>
       )}
 
-      <Tagesbilanz auswertung={auswertung} />
+      <Tagesbilanz auswertung={auswertung} anwesenheit={anwHeute} mitArbeitszeit={neu} />
 
       <RundungsZeile werte={verrechneteMinutenGesamt(tagesEintraege, projekteById, rundungsSettings)} titel="Tag" />
 
@@ -274,6 +318,10 @@ export default function Zeiten() {
         onAendern={setBearbeiten}
         onLoeschen={loeschen}
         onGeaendert={refresh}
+        anwesenheit={neu ? (anwHeute?.stempel || []) : null}
+        antragOffenFuer={antragOffenFuer}
+        kannStempelAntrag={neu && tag <= todayIso()}
+        onStempelAntrag={(v) => setStempelAntrag({ ...v, tag })}
       />
 
       <div id="tag-abschluss">
@@ -292,6 +340,8 @@ export default function Zeiten() {
           ohneBeschreibung={gesperrt ? [] : fehlendeBeschreibungen(tagesEintraege, projekteById)}
           projektLabel={projektLabel}
           onSaved={refresh}
+          gekommen={!!anwHeute?.kommen}
+          gehenHinweis={gehenHinweis}
         />
       )}
       </div>
@@ -306,6 +356,10 @@ export default function Zeiten() {
         settings={rundungsSettings}
         onSaved={refresh}
       />
+
+      {stempelAntrag && (
+        <StempelAntragDialog vorlage={stempelAntrag} onClose={() => setStempelAntrag(null)} onGestellt={() => { anwNeuLaden(); refresh(); }} />
+      )}
 
       <BuchungBearbeitenDialog
         eintrag={bearbeiten}
