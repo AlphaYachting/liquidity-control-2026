@@ -8,7 +8,7 @@ const ms = (iso) => Date.parse(iso);
 const min = (von, bis) => Math.max(0, Math.round((ms(bis) - ms(von)) / 60000));
 
 // Reihenfolge bei gleicher Uhrzeit
-const RANG = { kommen: 0, pause_ende: 1, arbeit: 2, laeuft: 2, ohne: 3, pause: 4, gehen: 5 };
+const RANG = { kommen: 0, alt: 0.5, pause_ende: 1, arbeit: 2, laeuft: 2, ohne: 3, pause: 4, gehen: 5 };
 
 export function zeitleiste(tag, { jetztIso, timer = null } = {}) {
   const zeilen = [];

@@ -33,7 +33,7 @@ const Aktion = ({ onClick, icon, title, children }) => (
 const STIFT = <Pencil className="w-3 h-3" />;
 const EIMER = <Trash2 className="w-3 h-3" />;
 
-function Zeile({ z, tag, kannAntrag, antragOffen, onAntrag }) {
+function Zeile({ z, kannAntrag, antragOffen, onAntrag }) {
   const offen = (id) => antragOffen(id);
   const ic = 'w-4 h-4 shrink-0';
   let icon; let titel; let text = null; let farbe = RITTLER.black; let leise = false; let aktionen = null; let etiketten = [];
@@ -152,7 +152,7 @@ export default function TagesListe({ tag, heute, jetztIso, timer, offen, onUmsch
           {zeilen.length === 0 && <p className="px-3 py-3 text-sm" style={{ color: RITTLER.textSecondary }}>Für diesen Tag ist nichts aufgezeichnet.</p>}
           <div className="divide-y" style={{ borderColor: RITTLER.line }}>
             {zeilen.map((z, i) => (
-              <Zeile key={`${z.typ}-${z.zeit}-${i}`} z={z} tag={tag} kannAntrag={kannAntrag} antragOffen={antragOffen} onAntrag={antrag} />
+              <Zeile key={`${z.typ}-${z.zeit}-${i}`} z={z} kannAntrag={kannAntrag} antragOffen={antragOffen} onAntrag={antrag} />
             ))}
           </div>
           {kannAntrag && (
