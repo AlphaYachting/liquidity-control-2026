@@ -134,6 +134,11 @@ export function useAnwesenheit(email) {
     // Laufende Abfrage abbrechen, damit sie den sofort gezeigten Zustand nicht überschreibt
     qc.cancelQueries({ queryKey: key });
     if (vorher && NAECHSTER[art]) qc.setQueryData(key, sofortStand(vorher, art, new Date(Date.now() + versatz.current)));
+    // Pause und Gehen stoppen einen Timer von heute — die Pille verschwindet sofort mit
+    const timerKey = ['laufendeZeitbuchung', email];
+    const timerVorher = qc.getQueryData(timerKey);
+    const timerStopptMit = (art === 'pause_start' || art === 'gehen') && !!vorher?.timer && !!timerVorher;
+    if (timerStopptMit) qc.setQueryData(timerKey, null);
 
     let daten = null;
     let netzfehler = false;
@@ -148,6 +153,7 @@ export function useAnwesenheit(email) {
     if (netzfehler) {
       // Nichts ist sicher — mit DERSELBEN Vorgangsnummer erneut senden, der Server stempelt nur einmal.
       if (vorher) qc.setQueryData(key, vorher);
+      if (timerStopptMit) qc.setQueryData(timerKey, timerVorher);
       setFehlgeschlagen({ art, vorgang_id, notiz });
       return { fehler: 'netz' };
     }
@@ -158,6 +164,8 @@ export function useAnwesenheit(email) {
       if (vorher) qc.setQueryData(key, vorher);
       qc.invalidateQueries({ queryKey: key });
     }
+    // Nicht gestempelt (veraltet, Fehler) oder kein Timer gebucht: Pille wieder vom Server holen
+    if (timerStopptMit && !daten?.gebucht) qc.invalidateQueries({ queryKey: timerKey });
     try { kanal.current?.postMessage(mail); } catch { /* egal */ }
     if (daten?.gebucht) {
       // Ein mitgestoppter Timer: Pille sofort leeren, Zeiten und Mein Tag beim nächsten Aufruf neu
