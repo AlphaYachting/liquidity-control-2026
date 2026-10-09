@@ -50,30 +50,7 @@ export async function automatikNachziehen(db, email, tag, stempel, jetztIso) {
   // Timer zuerst sichern — er darf nie verloren gehen.
   const laufende = await laufendeVon(db, email);
   if (laufende && laufende.gestartet_am <= z.autoGehenFaellig) {
-    const tVorgang = `timer:${laufende.id}`;
-    const da = await db.Zeitantrag.filter({ person_email: email, vorgang_id: tVorgang }, 'created_date', 1);
-    if (!da[0]) {
-      await db.Zeitantrag.create({
-        person_email: email,
-        tag: wienTag(laufende.gestartet_am),
-        ziel: 'buchung',
-        art: 'ende_angeben',
-        status: 'entwurf',
-        vorher: { laufende_id: laufende.id, gestartet_am: laufende.gestartet_am, automatisch_angehalten_am: z.autoGehenFaellig },
-        nachher: {
-          project_id: laufende.project_id,
-          ticket_id: laufende.ticket_id || null,
-          module_template_id: laufende.module_template_id || null,
-          sprint_id: laufende.sprint_id || null,
-          projekt_titel: laufende.projekt_titel || '',
-          von: laufende.gestartet_am,
-          bis: null,
-          note: laufende.notiz || '',
-        },
-        vorgang_id: tVorgang,
-      });
-    }
-    await laufendeEntfernen(db, email);
+    await timerAlsEntwurf(db, email, laufende, z.autoGehenFaellig, 'Gehen nicht gestempelt — Timer automatisch angehalten');
   }
 
   if (!(await stempelZuVorgang(db, email, vorgang))) {
@@ -92,6 +69,47 @@ export async function automatikNachziehen(db, email, tag, stempel, jetztIso) {
       nachher: {}, vorgang_id: gVorgang,
     });
   }
+  return true;
+}
+
+// Einen laufenden Timer, dessen Ende niemand kennt, NICHT buchen, sondern als Entwurf
+// „Ende angeben“ ablegen. Die Person trägt das Ende ein, Alfons genehmigt. Wiederholbar.
+export async function timerAlsEntwurf(db, email, laufende, angehaltenAm, grund) {
+  const tVorgang = `timer:${laufende.id}`;
+  const da = await db.Zeitantrag.filter({ person_email: email, vorgang_id: tVorgang }, 'created_date', 1);
+  if (!da[0]) {
+    await db.Zeitantrag.create({
+      person_email: email,
+      tag: wienTag(laufende.gestartet_am),
+      ziel: 'buchung',
+      art: 'ende_angeben',
+      status: 'entwurf',
+      vorher: { laufende_id: laufende.id, gestartet_am: laufende.gestartet_am, automatisch_angehalten_am: angehaltenAm, hinweis: grund },
+      nachher: {
+        project_id: laufende.project_id,
+        ticket_id: laufende.ticket_id || null,
+        module_template_id: laufende.module_template_id || null,
+        projekt_titel: laufende.projekt_titel || '',
+        von: laufende.gestartet_am,
+        bis: null,
+        note: laufende.notiz || '',
+      },
+      vorgang_id: tVorgang,
+    });
+  }
+  await laufendeEntfernen(db, email);
+}
+
+// Ein Timer, der außerhalb der Anwesenheit läuft (vom Vortag übrig, vor dem Stichtag gestartet,
+// Gehen in einem anderen Fenster), wird zum Entwurf. Nur für Personen, die stempeln.
+export async function timerAufraeumen(db, email, jetztIso) {
+  const laufende = await laufendeVon(db, email);
+  if (!laufende) return false;
+  const tagT = wienTag(laufende.gestartet_am);
+  const stempel = await ladeStempel(db, email, tagT);
+  if (await automatikNachziehen(db, email, tagT, stempel, jetztIso)) return true;
+  if (zustandJetzt(stempel, jetztIso).zustand === 'da') return false;
+  await timerAlsEntwurf(db, email, laufende, jetztIso, 'Timer lief ohne Anwesenheit');
   return true;
 }
 
