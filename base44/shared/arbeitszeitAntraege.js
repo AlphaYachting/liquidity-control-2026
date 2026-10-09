@@ -4,7 +4,7 @@
 // Projektzeit lässt sich nicht nachtragen; ändern lassen sich nur gemessene Buchungen.
 // Einzige Ausnahme: ein fehlender Stempel (Kommen/Gehen vergessen) — ebenfalls nur per Antrag.
 // `db` = base44.asServiceRole.entities
-import { wienTag, spieleAb, bloeckeUndPausen, darfGenehmigen } from './arbeitszeitKern.js';
+import { wienTag, spieleAb, bloeckeUndPausen, darfGenehmigen, modusFuer } from './arbeitszeitKern.js';
 import { ladeStempel, ladeBuchungen, nachweisNeu, ladeEinstellungen } from './arbeitszeitDaten.js';
 import { timerVerbuchen, buchungsfelder, ueberKontingent } from './zeitBuchung.js';
 
@@ -261,7 +261,6 @@ export async function antraegeEntscheiden(db, wer, { ids = [], entscheidung, kom
       ergebnis.push({ id: a.id, status: 'abgelehnt' });
       continue;
     }
-    const { modusFuer } = await import('./arbeitszeitKern.js');
     const stempelt = modusFuer(a.person_email, a.tag, einst).stempelt;
     const r = await anwenden(db, a, wer, jetztIso, stempelt);
     if (r.fehler) { ergebnis.push({ id: a.id, fehler: r.fehler }); continue; }
