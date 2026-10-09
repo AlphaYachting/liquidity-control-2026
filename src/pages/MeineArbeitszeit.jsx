@@ -1,15 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Pencil, Trash2, Plus, Check, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil, Check, X } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import AntragDialog, { artText } from '@/components/arbeitszeit/AntragDialog';
-import { ANWESENHEIT_KEY } from '@/lib/arbeitszeit/useAnwesenheit';
+import { ANWESENHEIT_KEY, useAnwesenheit } from '@/lib/arbeitszeit/useAnwesenheit';
+import TagesListe from '@/components/arbeitszeit/TagesListe';
 import { wienTag, wienUhr, tagKurz, dauer, saldo, monatName, monatPlus } from '@/lib/arbeitszeit/wienZeit';
 
-// „Meine Arbeitszeit“ — die eigene Aufzeichnungsseite (Einsicht nach § 26 AZG).
+// „Meine Zeiten“ im neuen Modus — die eigene Aufzeichnung (Einsicht nach § 26 AZG): je Tag EINE Liste
+// nach Uhrzeit (Kommen, Arbeit begonnen, Pause, Gehen). Wird von pages/Zeiten.jsx im neuen Modus gezeigt.
 // Hier wird NICHTS eingetragen. Jede Änderung ist ein Antrag und wirkt erst nach Genehmigung.
 
 const HINWEIS = {
@@ -64,9 +66,10 @@ function antragBeschreibung(a) {
 export default function MeineArbeitszeit() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const anwesenheit = useAnwesenheit(user?.email);
   const [monat, setMonat] = useState(wienTag().slice(0, 7));
   const [person, setPerson] = useState(null); // nur Genehmiger: andere Person ansehen
-  const [offenerTag, setOffenerTag] = useState(null);
+  const [offeneTage, setOffeneTage] = useState(() => [wienTag()]); // heute ist aufgeklappt
   const [vorlage, setVorlage] = useState(null);
   const [auswahl, setAuswahl] = useState([]);
   const [kommentar, setKommentar] = useState('');
@@ -146,16 +149,16 @@ export default function MeineArbeitszeit() {
     <div className="max-w-[1200px] mx-auto space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold uppercase tracking-tight" style={{ color: RITTLER.black }}>Meine Arbeitszeit</h1>
+          <h1 className="text-2xl font-extrabold uppercase tracking-tight" style={{ color: RITTLER.black }}>Meine Zeiten</h1>
           <p className="text-sm" style={{ color: RITTLER.textSecondary }}>
-            Deine Aufzeichnung aus Kommen, Pause, Gehen und den Projekt-Timern. Änderungen nur per Antrag.
+            Dein Tag in einer Liste: Kommen, Arbeit, Pause, Gehen. Änderungen nur per Antrag.
           </p>
         </div>
         <div className="flex items-center gap-2">
           {data.genehmiger && (
             <select className="h-9 px-2 rounded border text-sm bg-white" style={{ borderColor: RITTLER.line }}
-              value={person || ''} onChange={(e) => { setPerson(e.target.value || null); setOffenerTag(null); }}>
-              <option value="">Meine Arbeitszeit</option>
+              value={person || ''} onChange={(e) => { setPerson(e.target.value || null); }}>
+              <option value="">Meine Zeiten</option>
               {team.filter((m) => m.email?.toLowerCase() !== user?.email?.toLowerCase()).map((m) => <option key={m.id} value={m.email.toLowerCase()}>{m.name}</option>)}
             </select>
           )}
@@ -213,7 +216,7 @@ export default function MeineArbeitszeit() {
                   <p className="text-xs" style={{ color: RITTLER.textSecondary }}>{antragBeschreibung(a)} — „{a.grund}“</p>
                 </div>
                 <button type="button" className="text-xs underline shrink-0" style={{ color: RITTLER.textSecondary }}
-                  onClick={(e) => { e.preventDefault(); setPerson(a.person_email === user?.email?.toLowerCase() ? null : a.person_email); setMonat(a.tag.slice(0, 7)); setOffenerTag(a.tag); }}>
+                  onClick={(e) => { e.preventDefault(); setPerson(a.person_email === user?.email?.toLowerCase() ? null : a.person_email); setMonat(a.tag.slice(0, 7)); setOffeneTage([a.tag]); }}>
                   Tag ansehen
                 </button>
               </label>
@@ -222,120 +225,24 @@ export default function MeineArbeitszeit() {
         </div>
       )}
 
-      <div className="bg-white rounded border" style={{ borderColor: RITTLER.line }}>
-        <div className="hidden md:grid grid-cols-[110px_70px_70px_70px_90px_90px_80px_1fr_24px] gap-2 px-3 py-2 border-b text-[11px] font-bold uppercase tracking-wide"
-          style={{ borderColor: RITTLER.line, color: RITTLER.textSecondary }}>
-          <span>Tag</span><span>Kommen</span><span>Gehen</span><span>Pause</span><span>Arbeitszeit</span><span>Projekte</span><span>Saldo</span><span>Hinweis</span><span />
-        </div>
-        {tage.length === 0 && <p className="p-6 text-center text-sm" style={{ color: RITTLER.textSecondary }}>In diesem Monat ist nichts aufgezeichnet.</p>}
-        <div className="divide-y" style={{ borderColor: RITTLER.line }}>
-          {tage.map((t) => {
-            const auf = offenerTag === t.tag;
-            const antraegeTag = data.antraege.filter((a) => a.tag === t.tag && a.status === 'offen');
-            const hatAntrag = (id) => antraegeTag.some((a) => a.ziel_id === id);
-            const gueltig = t.stempel.filter((x) => x.status === 'gueltig');
-            const kannAntrag = darfAntraege && t.neu;
-            return (
-              <div key={t.tag}>
-                <button type="button" onClick={() => setOffenerTag(auf ? null : t.tag)}
-                  className="w-full text-left grid grid-cols-[1fr_auto] md:grid-cols-[110px_70px_70px_70px_90px_90px_80px_1fr_24px] gap-2 px-3 py-2.5 text-sm tabular-nums hover:bg-muted/40 items-center">
-                  <span className="font-semibold">{tagKurz(t.tag, t.wochentag)}{t.tag === data.heute ? ' · heute' : ''}</span>
-                  <span className="hidden md:inline">{t.stempelt ? wienUhr(t.kommen) || '—' : ''}</span>
-                  <span className="hidden md:inline">{t.stempelt ? (t.zustand !== 'weg' ? 'läuft' : wienUhr(t.gehen) || '—') : ''}</span>
-                  <span className="hidden md:inline">{t.stempelt ? dauer(t.pauseMin) : ''}</span>
-                  <span className="hidden md:inline font-semibold">{t.stempelt ? dauer(t.arbeitszeitMin) : ''}</span>
-                  <span className="hidden md:inline">{dauer(t.projektzeitMin)}</span>
-                  <span className="hidden md:inline" style={{ color: (t.saldoMin || 0) < 0 ? STATUS_COLORS.attention : undefined }}>{t.stempelt ? saldo(t.saldoMin) : ''}</span>
-                  <span className="hidden md:flex flex-wrap gap-1">
-                    {t.feiertag && <Etikett>{t.feiertag}</Etikett>}
-                    {t.abwesend && <Etikett>abwesend</Etikett>}
-                    {!t.neu && <Etikett>vor Umstellung</Etikett>}
-                    {t.hinweise.map((h) => <Etikett key={h} warn>{HINWEIS[h] || h}</Etikett>)}
-                    {antraegeTag.length > 0 && <Etikett warn>{antraegeTag.length} Antrag offen</Etikett>}
-                  </span>
-                  <span className="flex justify-end md:justify-start items-center gap-2" style={{ color: RITTLER.textSecondary }}>
-                    <span className="md:hidden text-xs">{t.stempelt ? `${dauer(t.arbeitszeitMin)} h · ` : ''}{dauer(t.projektzeitMin)} h Projekt</span>
-                    {auf ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </span>
-                </button>
-
-                {auf && (
-                  <div className="px-3 pb-3 grid gap-3 md:grid-cols-2" style={{ backgroundColor: 'hsl(var(--muted) / 0.35)' }}>
-                    {t.stempelt && (
-                      <div className="pt-3">
-                        <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: RITTLER.textSecondary }}>Anwesenheit</p>
-                        <div className="bg-white rounded border divide-y" style={{ borderColor: RITTLER.line }}>
-                          {t.stempel.length === 0 && <p className="px-3 py-2 text-sm" style={{ color: RITTLER.textSecondary }}>Keine Stempel.</p>}
-                          {t.stempel.map((st) => (
-                            <div key={st.id} className="flex items-center gap-3 px-3 py-2 text-sm" style={st.status !== 'gueltig' ? { color: RITTLER.textSecondary } : undefined}>
-                              <span className={`w-12 tabular-nums font-semibold ${st.status !== 'gueltig' ? 'line-through' : ''}`}>{wienUhr(st.zeit)}</span>
-                              <span className={`flex-1 ${st.status !== 'gueltig' ? 'line-through' : ''}`}>{artText(st.art)}</span>
-                              {st.quelle === 'auto' && <Etikett warn>automatisch</Etikett>}
-                              {st.quelle === 'antrag' && <Etikett>per Antrag</Etikett>}
-                              {st.quelle === 'admin' && <Etikett>korrigiert</Etikett>}
-                              {st.status === 'storniert' && <Etikett>ersetzt</Etikett>}
-                              {st.status === 'ungueltig' && <Etikett>doppelt</Etikett>}
-                              {kannAntrag && st.status === 'gueltig' && st.quelle !== 'auto' && !hatAntrag(st.id) && (
-                                <>
-                                  <KleinKnopf title="Uhrzeit ändern (Antrag)" onClick={() => setVorlage({ typ: 'stempel_aendern', tag: t.tag, wochentag: t.wochentag, stempel: st })} icon={<Pencil className="w-3 h-3" />} />
-                                  <KleinKnopf title="Stempel entfernen (Antrag)" onClick={() => setVorlage({ typ: 'stempel_loeschen', tag: t.tag, wochentag: t.wochentag, stempel: st })} icon={<Trash2 className="w-3 h-3" />} />
-                                </>
-                              )}
-                              {hatAntrag(st.id) && <Etikett warn>Antrag offen</Etikett>}
-                            </div>
-                          ))}
-                        </div>
-                        {kannAntrag && t.tag <= data.heute && (
-                          <div className="mt-1.5">
-                            <KleinKnopf onClick={() => setVorlage({ typ: 'stempel_fehlt', tag: t.tag, wochentag: t.wochentag })} icon={<Plus className="w-3 h-3" />}>Fehlenden Stempel beantragen</KleinKnopf>
-                          </div>
-                        )}
-                        {gueltig.length > 0 && (
-                          <p className="text-xs mt-1.5" style={{ color: RITTLER.textSecondary }}>
-                            Arbeitszeit {dauer(t.arbeitszeitMin)} h · Pause {dauer(t.pauseMin)} h · davon ohne Projekt {dauer(t.ohneProjektMin)} h
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    <div className="pt-3">
-                      <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: RITTLER.textSecondary }}>Projektzeit</p>
-                      <div className="bg-white rounded border divide-y" style={{ borderColor: RITTLER.line }}>
-                        {t.buchungen.length === 0 && <p className="px-3 py-2 text-sm" style={{ color: RITTLER.textSecondary }}>Keine Projektzeit.</p>}
-                        {t.buchungen.map((b) => (
-                          <div key={b.id} className="flex items-start gap-3 px-3 py-2 text-sm">
-                            <span className="w-[86px] shrink-0 tabular-nums">
-                              <span className="font-semibold">{b.started_at ? `${wienUhr(b.started_at)}–${wienUhr(b.ended_at)}` : '—'}</span>
-                              <span className="block text-xs" style={{ color: RITTLER.textSecondary }}>{dauer(b.duration_minutes)} h</span>
-                            </span>
-                            <span className="flex-1 min-w-0">
-                              <span className="block truncate font-medium">{[b.kunde, b.projekt].filter(Boolean).join(' · ') || 'Projekt'}</span>
-                              {b.note && <span className="block text-xs truncate" style={{ color: RITTLER.textSecondary }}>{b.note}</span>}
-                            </span>
-                            <span className="flex items-center gap-1 shrink-0">
-                              {b.quelle !== 'timer' && <Etikett>nachgetragen</Etikett>}
-                              {b.source === 'korrigiert' && <Etikett>korrigiert</Etikett>}
-                              {b.abrechnungsstatus === 'abgerechnet' && <Etikett>abgerechnet</Etikett>}
-                              {hatAntrag(b.id) && <Etikett warn>Antrag offen</Etikett>}
-                              {kannAntrag && !hatAntrag(b.id) && b.abrechnungsstatus !== 'abgerechnet' && b.started_at && (
-                                <>
-                                  <KleinKnopf title="Zeit ändern (Antrag)" onClick={() => setVorlage({ typ: 'buchung_aendern', tag: t.tag, wochentag: t.wochentag, buchung: b })} icon={<Pencil className="w-3 h-3" />} />
-                                  <KleinKnopf title="Buchung entfernen (Antrag)" onClick={() => setVorlage({ typ: 'buchung_loeschen', tag: t.tag, wochentag: t.wochentag, buchung: b })} icon={<Trash2 className="w-3 h-3" />} />
-                                </>
-                              )}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs mt-1.5" style={{ color: RITTLER.textSecondary }}>
-                        Projektzeit entsteht nur über den Timer. Lücken sind erlaubt — sie zählen als Arbeitszeit ohne Projekt.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+      <div className="space-y-2">
+        {tage.length === 0 && (
+          <p className="bg-white rounded border p-6 text-center text-sm" style={{ borderColor: RITTLER.line, color: RITTLER.textSecondary }}>In diesem Monat ist nichts aufgezeichnet.</p>
+        )}
+        {tage.map((t) => (
+          <TagesListe
+            key={t.tag}
+            tag={t}
+            heute={data.heute}
+            jetztIso={data.jetzt}
+            timer={fremd ? null : anwesenheit.stand?.timer}
+            offen={offeneTage.includes(t.tag)}
+            onUmschalten={() => setOffeneTage((l) => (l.includes(t.tag) ? l.filter((x) => x !== t.tag) : [...l, t.tag]))}
+            kannAntrag={darfAntraege && t.neu}
+            antraegeTag={data.antraege.filter((a) => a.tag === t.tag && a.status === 'offen')}
+            onAntrag={setVorlage}
+          />
+        ))}
       </div>
 
       {data.antraege.length > 0 && (
