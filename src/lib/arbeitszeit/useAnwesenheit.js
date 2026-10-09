@@ -104,7 +104,11 @@ export function useAnwesenheit(email) {
   useEffect(() => {
     if (!moeglich || typeof BroadcastChannel === 'undefined') return undefined;
     const k = new BroadcastChannel('anwesenheit');
-    k.onmessage = (e) => { if (e.data === mail) qc.invalidateQueries({ queryKey: ANWESENHEIT_KEY(mail) }); };
+    k.onmessage = (e) => {
+      if (e.data !== mail) return;
+      qc.invalidateQueries({ queryKey: ANWESENHEIT_KEY(mail) });
+      qc.invalidateQueries({ queryKey: ['anwesenheitWoche'], refetchType: 'active' });
+    };
     kanal.current = k;
     return () => { k.close(); kanal.current = null; };
   }, [moeglich, mail, qc]);
@@ -168,6 +172,8 @@ export function useAnwesenheit(email) {
     // Nicht gestempelt (veraltet, Fehler) oder kein Timer gebucht: Pille wieder vom Server holen
     if (timerStopptMit && !daten?.gebucht) qc.invalidateQueries({ queryKey: timerKey });
     try { kanal.current?.postMessage(mail); } catch { /* egal */ }
+    // „Meine Zeiten“ zeigt Kommen/Pause/Gehen — dort nachziehen, falls die Seite offen ist
+    qc.invalidateQueries({ queryKey: ['anwesenheitWoche'], refetchType: 'active' });
     if (daten?.gebucht) {
       // Ein mitgestoppter Timer: Pille sofort leeren, Zeiten und Mein Tag beim nächsten Aufruf neu
       try { localStorage.removeItem('sprint_timer_cache'); } catch { /* egal */ }
