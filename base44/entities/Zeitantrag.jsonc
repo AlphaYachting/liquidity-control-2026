@@ -1,5 +1,5 @@
 {
-  "description": "Antrag auf Nachtragen, \u00c4ndern oder L\u00f6schen von Stempeln und Zeitbuchungen. Offene Antr\u00e4ge z\u00e4hlen nirgends \u2014 erst die Genehmigung (Funktion zeitAntragEntscheiden) legt Stempel bzw. Buchungen an oder \u00e4ndert sie.",
+  "description": "Antrag auf Nachtragen, \u00c4ndern oder L\u00f6schen von Stempeln und Zeitbuchungen. Offene Antr\u00e4ge z\u00e4hlen nirgends \u2014 erst die Genehmigung (Funktion zeitAntragEntscheiden) legt Stempel bzw. Buchungen an oder \u00e4ndert sie. Status entwurf = von der Automatik angelegt, wartet auf Angaben der Person (Gehen unklar, Timer-Ende).",
   "name": "Zeitantrag",
   "properties": {
     "angewendet_ids": {
@@ -45,6 +45,7 @@
     "status": {
       "default": "offen",
       "enum": [
+        "entwurf",
         "offen",
         "genehmigt",
         "abgelehnt",
@@ -84,6 +85,7 @@
     "art",
     "status"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "user_condition": {
@@ -112,6 +114,5 @@
         "role": "admin"
       }
     }
-  },
-  "type": "object"
+  }
 }
