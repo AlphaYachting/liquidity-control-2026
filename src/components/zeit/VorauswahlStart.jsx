@@ -81,7 +81,8 @@ export default function VorauswahlStart({ kontext, ortProjektId, ausOrt, onStart
         Starten
       </HauptKnopf>
 
-      <FussVerweise rechts={{ text: 'Zeit nachtragen', onClick: onNachtragen }} />
+      {/* Ohne onNachtragen (neue Arbeitszeiterfassung) gibt es kein manuelles Eintragen */}
+      <FussVerweise rechts={onNachtragen ? { text: 'Zeit nachtragen', onClick: onNachtragen } : null} />
     </div>
   );
 }
