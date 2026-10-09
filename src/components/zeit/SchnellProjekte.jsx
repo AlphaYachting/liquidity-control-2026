@@ -4,7 +4,8 @@ import { RITTLER } from '@/components/sprint/sprintConfig';
 import { useProjektSuche } from '@/lib/zeit/useProjektSuche';
 
 // Die drei Projekte, auf die zuletzt am häufigsten gebucht wurde — ein Klick startet.
-export default function SchnellProjekte({ email, onStart, onTippzeile }) {
+// ohneNachtragen: neue Arbeitszeiterfassung — kein manuelles Eintragen; „anderes Projekt“ öffnet die Projektsuche.
+export default function SchnellProjekte({ email, onStart, onTippzeile, ohneNachtragen = false }) {
   const { suche } = useProjektSuche(email);
   const [busy, setBusy] = useState('');
   const top = suche('').slice(0, 3);
@@ -55,14 +56,16 @@ export default function SchnellProjekte({ email, onStart, onTippzeile }) {
         </button>
       </div>
 
-      <button
-        type="button"
-        onClick={onTippzeile}
-        className="mt-4 text-xs underline"
-        style={{ color: RITTLER.textSecondary }}
-      >
-        Vergessen zu starten? Zeit nachtragen
-      </button>
+      {!ohneNachtragen && (
+        <button
+          type="button"
+          onClick={onTippzeile}
+          className="mt-4 text-xs underline"
+          style={{ color: RITTLER.textSecondary }}
+        >
+          Vergessen zu starten? Zeit nachtragen
+        </button>
+      )}
     </div>
   );
 }
