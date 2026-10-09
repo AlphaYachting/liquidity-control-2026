@@ -43,6 +43,15 @@ function useSchalter() {
   });
 }
 
+// Gilt die neue Arbeitszeiterfassung für diese Person heute? (Pilot oder ab Stichtag)
+// Für Menüpunkt und Seiten — eine kleine, lang zwischengespeicherte Abfrage der Settings.
+export function useArbeitszeitAktiv(email) {
+  const { data: schalter } = useSchalter();
+  const mail = String(email || '').toLowerCase();
+  return !!mail && !!schalter
+    && (schalter.pilot.includes(mail) || (!!schalter.neuAb && heuteWien() >= schalter.neuAb));
+}
+
 const neueVorgangsnummer = () => {
   try { return crypto.randomUUID(); } catch { return `${Date.now()}-${Math.random().toString(36).slice(2)}`; }
 };
