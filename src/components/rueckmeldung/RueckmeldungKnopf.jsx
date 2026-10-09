@@ -55,11 +55,12 @@ export default function RueckmeldungKnopf() {
         type="button"
         onClick={oeffnen}
         title={titel}
-        className="relative shrink-0 flex items-center gap-1.5 px-3 text-[13px] font-semibold hover:bg-muted transition-colors"
-        style={{ height: 38, borderRadius: 3, border: `1px solid ${RITTLER.line}`, color: RITTLER.black, backgroundColor: RITTLER.white }}
+        aria-label={titel}
+        // Nur noch das Symbol (Wunsch Alfons 09.10.2026: die Kollegen kennen den Knopf) — Platz für Kommen/Pause/Gehen
+        className="relative shrink-0 flex items-center justify-center hover:bg-muted transition-colors"
+        style={{ width: 38, height: 38, borderRadius: 3, border: `1px solid ${RITTLER.line}`, color: RITTLER.black, backgroundColor: RITTLER.white }}
       >
         <MessageSquarePlus className="w-4 h-4" style={{ color: RITTLER.textSecondary }} />
-        <span className="hidden sm:inline">Rückmeldung</span>
         {inhaber && anzahl > 0 && (
           <span
             className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10.5px] font-bold flex items-center justify-center"
