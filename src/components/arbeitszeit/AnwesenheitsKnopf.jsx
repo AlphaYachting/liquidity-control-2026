@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { LogIn, LogOut, Coffee, Play, RotateCw } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -149,8 +148,8 @@ export default function AnwesenheitsKnopf() {
         aria-label="Arbeitszeit"
       >
         {status && (
-          <Link to="/zeiten" className="flex items-center gap-1.5 px-3 text-[13px] font-semibold tabular-nums whitespace-nowrap hover:underline"
-            style={{ color: status.text, backgroundColor: RITTLER.surface }} title={`${status.title} — Klick öffnet „Meine Zeiten“`}>
+          <div className="flex items-center gap-1.5 px-3 text-[13px] font-semibold tabular-nums whitespace-nowrap"
+            style={{ color: status.text, backgroundColor: RITTLER.surface }} title={status.title}>
             <Punkt farbe={status.farbe} />
             <span className="hidden md:inline">{status.lang}</span>
             <span className="md:hidden">{status.kurz}</span>
@@ -160,15 +159,15 @@ export default function AnwesenheitsKnopf() {
                 {hinweis.text}
               </span>
             )}
-          </Link>
+          </div>
         )}
         {!status && hinweis && (
-          <Link to="/zeiten" className="flex items-center px-2" title={hinweis.title}>
+          <div className="flex items-center px-2" title={hinweis.title}>
             <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-[2px]"
               style={{ color: STATUS_COLORS.attention, backgroundColor: STATUS_COLORS.attentionSurface }}>
               {hinweis.text}
             </span>
-          </Link>
+          </div>
         )}
         <div className="flex items-stretch border-l first:border-l-0" style={{ borderColor: RITTLER.line }}>
           {fehlgeschlagen ? (

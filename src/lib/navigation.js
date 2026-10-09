@@ -18,7 +18,6 @@ export const NAV_GRUPPEN = [
     titel: null,
     items: [
       { path: '/sprint', label: 'Mein Tag', icon: Sun, regel: 'alle' },
-      // Im neuen Modus zeigt dieselbe Seite Anwesenheit und Projektarbeit in einer Liste (pages/Zeiten.jsx)
       { path: '/zeiten', label: 'Meine Zeiten', icon: Timer, regel: 'alle' },
       { path: '/freigaben', label: 'Freigaben', icon: ClipboardCheck, regel: ['leitung', 'geld'] },
       { path: '/rueckmeldungen', label: 'Rückmeldungen', icon: MessageSquarePlus, regel: 'admin', nurEmail: 'a.rittler@rittler.co', zaehler: 'rueckmeldungen' },

@@ -1,6 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-import { modusFuer, wienTag } from '../../shared/arbeitszeitKern.js';
-import { ladeEinstellungen } from '../../shared/arbeitszeitDaten.js';
 
 // Stoppen in EINEM serverseitigen Aufruf. Reihenfolge ist der Kern: erst buchen,
 // dann löschen. Scheitert das Buchen, bleibt der Timer stehen und die gemessene
@@ -93,11 +91,7 @@ export default async function (req: Request): Promise<Response> {
     const art = await taetigkeitVon(db, kategorie, laufende.ticket_id);
 
     const gemessen = Math.max(0, Math.floor((Date.now() - new Date(laufende.gestartet_am).getTime()) / 60000));
-    // Neue Arbeitszeiterfassung (Pilot oder ab Stichtag): gemessen ist gemessen — kein Abzug von Hand.
-    // Im alten Modus unverändert.
-    const einst = await ladeEinstellungen(db);
-    const neuerModus = modusFuer(String(user.email).toLowerCase(), wienTag(new Date()), einst).neu;
-    const minuten = Math.max(0, gemessen - (neuerModus ? 0 : (Number(abzug_minuten) || 0)));
+    const minuten = Math.max(0, gemessen - (Number(abzug_minuten) || 0));
     const tag = entry_date || String(laufende.gestartet_am).slice(0, 10);
 
     // Kontingent/Monatsrahmen bei Container, Support und Regie prüfen

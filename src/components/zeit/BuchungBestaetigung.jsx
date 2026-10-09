@@ -9,8 +9,7 @@ import FussVerweise from './FussVerweise';
 import KontingentHinweis from './KontingentHinweis';
 
 // Bestätigung im Fenster statt Toast — mit der Möglichkeit, die Buchung zurückzunehmen.
-// ohneRueckgaengig: neue Arbeitszeiterfassung — eine gemessene Buchung lässt sich nur per Antrag entfernen.
-export default function BuchungBestaetigung({ info, onFertig, onRueckgaengig, ohneRueckgaengig = false }) {
+export default function BuchungBestaetigung({ info, onFertig, onRueckgaengig }) {
   const [busy, setBusy] = useState(false);
   const [weg, setWeg] = useState(false);
   const { data: pk } = useProjektKontext(info.projectId);
@@ -73,7 +72,7 @@ export default function BuchungBestaetigung({ info, onFertig, onRueckgaengig, oh
       </HauptKnopf>
 
       <FussVerweise
-        rechts={!ohneRueckgaengig && !weg && info.eintragId && !busy ? { text: 'Rückgängig', onClick: rueckgaengig } : null}
+        rechts={!weg && info.eintragId && !busy ? { text: 'Rückgängig', onClick: rueckgaengig } : null}
       />
     </div>
   );

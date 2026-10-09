@@ -26,11 +26,9 @@ import { istAbwesend } from '@/lib/zeit/offeneTage';
 import { werteTagAus, wochentage, verschiebeTage, uhr, dauerText } from '@/lib/zeit/tagesAuswertung';
 import { fehlendeBeschreibungen } from '@/lib/zeit/beschreibungPflicht';
 import { ladeArbeitstage, beginnJeTag } from '@/lib/zeit/arbeitstag';
-import MeineZeitenNeu from '@/pages/MeineArbeitszeit';
-import { useArbeitszeitAktiv } from '@/lib/arbeitszeit/useAnwesenheit';
 
 // Die eigenen Zeiten: Woche im Rückblick, Erfassung, Tagesstreifen, Bilanz, Buchungen.
-function ZeitenAlt() {
+export default function Zeiten() {
   const { user } = useAuth();
   const email = user?.email;
   const qc = useQueryClient();
@@ -318,12 +316,4 @@ function ZeitenAlt() {
       />
     </div>
   );
-}
-// Neue Arbeitszeiterfassung (Pilot oder ab Stichtag): „Meine Zeiten“ zeigt je Tag EINE Liste nach Uhrzeit —
-// Kommen, Arbeit begonnen, Pause, Gehen. Kein Eintragen von Hand, Änderungen nur per Antrag.
-// Im alten Modus bleibt die bisherige Seite unverändert.
-export default function Zeiten() {
-  const { user } = useAuth();
-  const neu = useArbeitszeitAktiv(user?.email);
-  return neu ? <MeineZeitenNeu /> : <ZeitenAlt />;
 }
