@@ -7,25 +7,24 @@ import { Input } from '@/components/ui/input';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { useAnwesenheit, uhrzeit, dauer } from '@/lib/arbeitszeit/useAnwesenheit';
 
-// Kommen · Pause · Gehen — rechts neben der Kopfsuche, auf jeder Seite.
-// Zeigt immer den Zustand und nur den nächsten möglichen Schritt. Unsichtbar für alle,
-// für die die neue Arbeitszeiterfassung (noch) nicht gilt.
+// Kommen · Pause · Gehen — ganz rechts in der Kopfleiste, auf jeder Seite.
+// EIN geschlossener Block (gleicher Rahmen wie Suche und Rückmeldung): links der Zustand mit
+// Uhrzeit, rechts davon nur die Schritte, die jetzt möglich sind — durch feine Linien getrennt.
+// Unsichtbar für alle, für die die neue Arbeitszeiterfassung (noch) nicht gilt.
 
-const knopfStil = {
-  height: 38, borderRadius: 3, border: `1px solid ${RITTLER.line}`, color: RITTLER.black, backgroundColor: RITTLER.white,
-};
+const HOEHE = 38;
 
-// Kein Ausgrauen während des Sendens: Die Anzeige springt sofort um; ein zweiter Klick,
-// solange der erste noch unterwegs ist, wird nur ignoriert.
-function Knopf({ onClick, disabled, icon, children, kurz, betont, title }) {
+// Ein Segment im Block. Kein Ausgrauen während des Sendens: Die Anzeige springt sofort um;
+// ein zweiter Klick, solange der erste noch unterwegs ist, wird nur ignoriert.
+function Segment({ onClick, gesperrt, icon, children, kurz, stark, title }) {
   return (
     <button
       type="button"
-      onClick={disabled ? undefined : onClick}
-      aria-disabled={disabled || undefined}
+      onClick={gesperrt ? undefined : onClick}
+      aria-disabled={gesperrt || undefined}
       title={title}
-      className="shrink-0 flex items-center gap-1.5 px-3 text-[13px] font-semibold hover:bg-muted transition-colors"
-      style={{ ...knopfStil, ...(betont ? { borderColor: RITTLER.black } : {}) }}
+      className="h-full flex items-center gap-1.5 px-3 text-[13px] font-semibold hover:bg-muted transition-colors border-l first:border-l-0"
+      style={{ borderColor: RITTLER.line, color: RITTLER.black, ...(stark ? { fontWeight: 700 } : {}) }}
     >
       {icon}
       <span className={kurz ? 'hidden sm:inline' : ''}>{children}</span>
@@ -34,6 +33,7 @@ function Knopf({ onClick, disabled, icon, children, kurz, betont, title }) {
 }
 
 const Punkt = ({ farbe }) => <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: farbe }} />;
+const icon = (Icon) => <Icon className="w-4 h-4" style={{ color: RITTLER.textSecondary }} />;
 
 const MELDUNG = {
   veraltet: 'Der Stand hat sich inzwischen geändert (anderes Fenster oder Automatik). Angezeigt wird jetzt der aktuelle Stand.',
@@ -61,6 +61,7 @@ export default function AnwesenheitsKnopf() {
   const h = stand.heute || {};
   const seitStand = Math.max(0, Math.floor((jetzt().getTime() - Date.parse(stand.jetzt)) / 60000));
   const arbeitszeit = (h.arbeitszeitMin || 0) + (zustand === 'da' ? seitStand : 0);
+  const gesperrt = !!laeuft;
 
   const ausfuehren = async (art, extra = {}) => {
     const r = await stempeln(art, extra);
@@ -80,75 +81,102 @@ export default function AnwesenheitsKnopf() {
     setNotiz('');
   };
 
-  let anzeige = null;
-  let knoepfe = null;
-  const beschaeftigt = !!laeuft;
+  // Linkes Feld: der Zustand (nicht anklickbar — Statusfarben nie auf Knöpfen)
+  let status = null;
+  let schritte = null;
+  const warSchonDa = (h.bloecke || []).length > 0;
 
   if (zustand === 'da') {
-    anzeige = (
-      <span className="flex items-center gap-1.5 text-[13px] whitespace-nowrap" style={{ color: STATUS_COLORS.doneText }}
-        title={`Gekommen ${uhrzeit(h.kommen)} · Arbeitszeit ${dauer(arbeitszeit)} · davon auf Projekten ${dauer(h.projektzeitMin)}`}>
-        <Punkt farbe={STATUS_COLORS.done} />
-        <span className="hidden md:inline">da seit {uhrzeit(h.kommen)} · </span>{dauer(arbeitszeit)}
-      </span>
-    );
-    knoepfe = (
+    status = {
+      farbe: STATUS_COLORS.done,
+      text: STATUS_COLORS.doneText,
+      lang: `seit ${uhrzeit(h.kommen)} · ${dauer(arbeitszeit)}`,
+      kurz: dauer(arbeitszeit),
+      title: `Gekommen ${uhrzeit(h.kommen)} · Arbeitszeit ${dauer(arbeitszeit)} · davon auf Projekten ${dauer(h.projektzeitMin)}`,
+    };
+    schritte = (
       <>
-        <Knopf kurz disabled={beschaeftigt} onClick={() => ausfuehren('pause_start')} icon={<Coffee className="w-4 h-4" style={{ color: RITTLER.textSecondary }} />}
+        <Segment kurz gesperrt={gesperrt} onClick={() => ausfuehren('pause_start')} icon={icon(Coffee)}
           title={stand.timer ? `Pause — der Timer auf ${stand.timer.projekt_titel} stoppt mit` : 'Pause beginnen'}>
           Pause
-        </Knopf>
-        <Knopf kurz disabled={beschaeftigt} onClick={() => setGehenOffen(true)} icon={<LogOut className="w-4 h-4" style={{ color: RITTLER.textSecondary }} />} title="Gehen">
+        </Segment>
+        <Segment kurz gesperrt={gesperrt} onClick={() => setGehenOffen(true)} icon={icon(LogOut)} title="Gehen">
           Gehen
-        </Knopf>
+        </Segment>
       </>
     );
   } else if (zustand === 'pause') {
-    anzeige = (
-      <span className="flex items-center gap-1.5 text-[13px] whitespace-nowrap" style={{ color: STATUS_COLORS.attention }}>
-        <Punkt farbe={STATUS_COLORS.attention} />
-        <span className="hidden md:inline">Pause seit </span>{uhrzeit(stand.seit)}
-      </span>
-    );
-    knoepfe = (
-      <Knopf betont disabled={beschaeftigt} onClick={() => ausfuehren('pause_ende')} icon={<Play className="w-4 h-4" />}>
+    status = {
+      farbe: STATUS_COLORS.attention,
+      text: STATUS_COLORS.attention,
+      lang: `Pause seit ${uhrzeit(stand.seit)}`,
+      kurz: uhrzeit(stand.seit),
+      title: `Pause seit ${uhrzeit(stand.seit)} · Arbeitszeit bisher ${dauer(arbeitszeit)}`,
+    };
+    schritte = (
+      <Segment stark gesperrt={gesperrt} onClick={() => ausfuehren('pause_ende')} icon={<Play className="w-4 h-4" />}>
         Pause beenden
-      </Knopf>
+      </Segment>
     );
   } else {
-    const warSchonDa = (h.bloecke || []).length > 0;
-    anzeige = warSchonDa ? (
-      <span className="hidden md:inline text-[13px] whitespace-nowrap" style={{ color: RITTLER.textSecondary }}>heute {dauer(h.arbeitszeitMin)}</span>
-    ) : null;
-    knoepfe = (
-      <Knopf betont={!warSchonDa} disabled={beschaeftigt} onClick={() => ausfuehren('kommen')} icon={<LogIn className="w-4 h-4" />}>
+    status = warSchonDa ? {
+      farbe: RITTLER.line,
+      text: RITTLER.textSecondary,
+      lang: `heute ${dauer(h.arbeitszeitMin)}`,
+      kurz: dauer(h.arbeitszeitMin),
+      title: `Heute bisher ${dauer(h.arbeitszeitMin)} Arbeitszeit, davon ${dauer(h.projektzeitMin)} auf Projekten`,
+    } : null;
+    schritte = (
+      <Segment stark={!warSchonDa} gesperrt={gesperrt} onClick={() => ausfuehren('kommen')} icon={<LogIn className="w-4 h-4" />}>
         Kommen
-      </Knopf>
+      </Segment>
     );
   }
 
+  const hinweis = stand.zuKlaeren > 0
+    ? { text: `${stand.zuKlaeren} zu klären`, title: 'Automatisch beendete Zeiten, zu denen noch eine Angabe fehlt' }
+    : stand.gehenUnklar && zustand === 'weg'
+      ? { text: 'Gehen offen', title: 'Gehen wurde nicht gestempelt und automatisch beendet. Die Arbeitszeit dieses Blocks zählt erst, wenn das Gehen angegeben und genehmigt ist.' }
+      : null;
+
   return (
     <>
-      <div className="shrink-0 flex items-center gap-2">
-        {stand.gehenUnklar && zustand === 'weg' && (
-          <span className="hidden md:inline text-[12px] font-semibold whitespace-nowrap" style={{ color: STATUS_COLORS.attention }}
-            title="Gehen wurde nicht gestempelt und automatisch beendet. Die Arbeitszeit dieses Blocks zählt erst, wenn das Gehen angegeben und genehmigt ist.">
-            Gehen offen
-          </span>
+      <div
+        className="shrink-0 flex items-stretch overflow-hidden"
+        style={{ height: HOEHE, borderRadius: 3, border: `1px solid ${RITTLER.line}`, backgroundColor: RITTLER.white }}
+        role="group"
+        aria-label="Arbeitszeit"
+      >
+        {status && (
+          <div className="flex items-center gap-1.5 px-3 text-[13px] font-semibold tabular-nums whitespace-nowrap"
+            style={{ color: status.text, backgroundColor: RITTLER.surface }} title={status.title}>
+            <Punkt farbe={status.farbe} />
+            <span className="hidden md:inline">{status.lang}</span>
+            <span className="md:hidden">{status.kurz}</span>
+            {hinweis && (
+              <span className="ml-1 text-[11px] font-bold px-1.5 py-0.5 rounded-[2px]"
+                style={{ color: STATUS_COLORS.attention, backgroundColor: STATUS_COLORS.attentionSurface }} title={hinweis.title}>
+                {hinweis.text}
+              </span>
+            )}
+          </div>
         )}
-        {stand.zuKlaeren > 0 && (
-          <span className="text-[12px] font-semibold whitespace-nowrap px-1.5 py-0.5 rounded-[2px]"
-            style={{ color: STATUS_COLORS.attention, backgroundColor: STATUS_COLORS.attentionSurface }}
-            title="Automatisch beendete Zeiten, zu denen noch eine Angabe fehlt">
-            {stand.zuKlaeren} zu klären
-          </span>
+        {!status && hinweis && (
+          <div className="flex items-center px-2" title={hinweis.title}>
+            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-[2px]"
+              style={{ color: STATUS_COLORS.attention, backgroundColor: STATUS_COLORS.attentionSurface }}>
+              {hinweis.text}
+            </span>
+          </div>
         )}
-        {anzeige}
-        {fehlgeschlagen ? (
-          <Knopf betont onClick={erneut} icon={<RotateCw className="w-4 h-4" />} title="Keine Verbindung — derselbe Knopfdruck wird erneut gesendet, nichts doppelt">
-            Erneut senden
-          </Knopf>
-        ) : knoepfe}
+        <div className="flex items-stretch border-l first:border-l-0" style={{ borderColor: RITTLER.line }}>
+          {fehlgeschlagen ? (
+            <Segment stark onClick={erneut} icon={<RotateCw className="w-4 h-4" />}
+              title="Keine Verbindung — derselbe Knopfdruck wird erneut gesendet, nichts doppelt">
+              Erneut senden
+            </Segment>
+          ) : schritte}
+        </div>
       </div>
 
       <Dialog open={gehenOffen} onOpenChange={setGehenOffen}>
