@@ -78,6 +78,7 @@ const SprintUebersicht = lazy(() => import('@/pages/sprint/SprintUebersicht'));
 const SprintProjekte = lazy(() => import('@/pages/sprint/SprintProjekte'));
 const SprintIntelligence = lazy(() => import('@/pages/sprint/SprintIntelligence'));
 const Zeiten = lazy(() => import('@/pages/Zeiten'));
+const MeineArbeitszeit = lazy(() => import('@/pages/MeineArbeitszeit'));
 const SprintModulKatalog = lazy(() => import('@/pages/sprint/SprintModulKatalog'));
 const SprintAssistent = lazy(() => import('@/pages/sprint/SprintAssistent'));
 const SprintModuleHinzufuegen = lazy(() => import('@/pages/sprint/SprintModuleHinzufuegen'));
@@ -201,6 +202,7 @@ const AuthenticatedApp = () => {
         <Route path="/sprint/arbeitszeit" element={<AdminRoute><Arbeitszeitauswertung /></AdminRoute>} />
         <Route path="/rueckmeldungen" element={<AdminRoute><Rueckmeldungen /></AdminRoute>} />
         <Route path="/zeiten" element={<Zeiten />} />
+        <Route path="/arbeitszeit" element={<MeineArbeitszeit />} />
         <Route path="/sprint/projekte" element={<SprintProjekte />} />
         <Route path="/sprint/intelligence" element={<SprintIntelligence />} />
         <Route path="/sprint/katalog" element={<SprintModulKatalog />} />
