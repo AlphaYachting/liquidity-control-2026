@@ -26,7 +26,7 @@ import { istAbwesend } from '@/lib/zeit/offeneTage';
 import { werteTagAus, wochentage, verschiebeTage, uhr, dauerText } from '@/lib/zeit/tagesAuswertung';
 import { fehlendeBeschreibungen } from '@/lib/zeit/beschreibungPflicht';
 import { ladeArbeitstage, beginnJeTag } from '@/lib/zeit/arbeitstag';
-import { Link } from 'react-router-dom';
+import MeineZeitenNeu from '@/pages/MeineArbeitszeit';
 import { useArbeitszeitAktiv } from '@/lib/arbeitszeit/useAnwesenheit';
 
 // Die eigenen Zeiten: Woche im Rückblick, Erfassung, Tagesstreifen, Bilanz, Buchungen.
@@ -319,24 +319,11 @@ function ZeitenAlt() {
     </div>
   );
 }
-// Neue Arbeitszeiterfassung (Pilot oder ab Stichtag): Hier wird nichts mehr eingetragen,
-// abgeschlossen oder korrigiert — die Aufzeichnung steht unter „Meine Arbeitszeit“, Änderungen nur per Antrag.
-// Im alten Modus bleibt die Seite unverändert.
+// Neue Arbeitszeiterfassung (Pilot oder ab Stichtag): „Meine Zeiten“ zeigt je Tag EINE Liste nach Uhrzeit —
+// Kommen, Arbeit begonnen, Pause, Gehen. Kein Eintragen von Hand, Änderungen nur per Antrag.
+// Im alten Modus bleibt die bisherige Seite unverändert.
 export default function Zeiten() {
   const { user } = useAuth();
   const neu = useArbeitszeitAktiv(user?.email);
-  if (!neu) return <ZeitenAlt />;
-  return (
-    <div className="max-w-[720px] mx-auto mt-10 bg-white rounded border p-6 space-y-3" style={{ borderColor: RITTLER.line }}>
-      <h1 className="text-xl font-extrabold uppercase tracking-tight" style={{ color: RITTLER.black }}>Meine Zeiten ist umgezogen</h1>
-      <p className="text-sm" style={{ color: RITTLER.textSecondary }}>
-        Arbeitszeit und Projektzeit stehen jetzt gemeinsam unter „Meine Arbeitszeit“. Zeit entsteht nur über
-        Kommen, Pause, Gehen und den Timer. Eintragen von Hand gibt es nicht mehr; wenn etwas nicht stimmt,
-        stellst du dort einen Antrag.
-      </p>
-      <Link to="/arbeitszeit" className="inline-block h-9 leading-9 px-4 rounded border text-xs font-bold uppercase tracking-wide" style={{ borderColor: RITTLER.black, color: RITTLER.black }}>
-        Zu Meine Arbeitszeit
-      </Link>
-    </div>
-  );
+  return neu ? <MeineZeitenNeu /> : <ZeitenAlt />;
 }

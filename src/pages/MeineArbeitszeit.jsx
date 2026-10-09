@@ -14,11 +14,6 @@ import { wienTag, wienUhr, tagKurz, dauer, saldo, monatName, monatPlus } from '@
 // nach Uhrzeit (Kommen, Arbeit begonnen, Pause, Gehen). Wird von pages/Zeiten.jsx im neuen Modus gezeigt.
 // Hier wird NICHTS eingetragen. Jede Änderung ist ein Antrag und wirkt erst nach Genehmigung.
 
-const HINWEIS = {
-  gehen_unklar: 'Gehen offen',
-  pause_fehlt: 'Pause unter 30 min',
-  projektzeit_ueber_arbeitszeit: 'Projektzeit über Arbeitszeit',
-};
 const STATUS_TEXT = { offen: 'offen', genehmigt: 'genehmigt', abgelehnt: 'abgelehnt', zurueckgezogen: 'zurückgezogen' };
 const ANTRAG_TEXT = {
   'stempel:aendern': 'Uhrzeit ändern', 'stempel:loeschen': 'Stempel entfernen', 'stempel:nachtragen': 'Fehlender Stempel',

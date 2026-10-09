@@ -149,8 +149,8 @@ export default function AnwesenheitsKnopf() {
         aria-label="Arbeitszeit"
       >
         {status && (
-          <Link to="/arbeitszeit" className="flex items-center gap-1.5 px-3 text-[13px] font-semibold tabular-nums whitespace-nowrap hover:underline"
-            style={{ color: status.text, backgroundColor: RITTLER.surface }} title={`${status.title} — Klick öffnet „Meine Arbeitszeit“`}>
+          <Link to="/zeiten" className="flex items-center gap-1.5 px-3 text-[13px] font-semibold tabular-nums whitespace-nowrap hover:underline"
+            style={{ color: status.text, backgroundColor: RITTLER.surface }} title={`${status.title} — Klick öffnet „Meine Zeiten“`}>
             <Punkt farbe={status.farbe} />
             <span className="hidden md:inline">{status.lang}</span>
             <span className="md:hidden">{status.kurz}</span>
@@ -163,7 +163,7 @@ export default function AnwesenheitsKnopf() {
           </Link>
         )}
         {!status && hinweis && (
-          <Link to="/arbeitszeit" className="flex items-center px-2" title={hinweis.title}>
+          <Link to="/zeiten" className="flex items-center px-2" title={hinweis.title}>
             <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-[2px]"
               style={{ color: STATUS_COLORS.attention, backgroundColor: STATUS_COLORS.attentionSurface }}>
               {hinweis.text}
