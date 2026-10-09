@@ -142,7 +142,7 @@ export default function AnwesenheitsKnopf() {
   return (
     <>
       <div
-        className="shrink-0 flex items-stretch overflow-hidden"
+        className="shrink-0 flex items-stretch overflow-hidden sm:ml-2"
         style={{ height: HOEHE, borderRadius: 3, border: `1px solid ${RITTLER.line}`, backgroundColor: RITTLER.white }}
         role="group"
         aria-label="Arbeitszeit"
