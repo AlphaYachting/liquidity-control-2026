@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { wienTag, spieleAb, erlaubt, zustandJetzt, modusFuer, darfGenehmigen } from '../../shared/arbeitszeitKern.js';
 import {
   ladeEinstellungen, ladeStempel, stempelZuVorgang, automatikNachziehen, konflikteBereinigen,
-  nachweisNeu, statusAntwort,
+  timerAufraeumen, nachweisNeu, statusAntwort,
 } from '../../shared/arbeitszeitDaten.js';
 import { laufendeVon, timerVerbuchen } from '../../shared/zeitBuchung.js';
 
@@ -41,6 +41,8 @@ export default async function (req: Request): Promise<Response> {
 
     let stempel = await ladeStempel(db, email, tag);
     if (await automatikNachziehen(db, email, tag, stempel, jetztIso)) stempel = await ladeStempel(db, email, tag);
+    // Ein Timer vom Vortag oder außerhalb der Anwesenheit darf nie mit „jetzt“ als Ende gebucht werden.
+    await timerAufraeumen(db, email, jetztIso);
 
     const zustand = zustandJetzt(stempel, jetztIso).zustand;
     if (erwartet && erwartet !== zustand) return antwort({ fehler: 'veraltet' }, 409);
