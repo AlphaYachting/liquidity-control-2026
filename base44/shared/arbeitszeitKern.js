@@ -116,12 +116,17 @@ export function leseEinstellungen(settingRows = []) {
     if (roh && typeof roh === 'object' && roh.personen) modell = roh;
   } catch { /* kaputtes Modell = keine Personen, nie ein Absturz */ }
   const neuAb = String(wert('arbeitszeit_neu_ab') || '').slice(0, 10);
-  const pilot = String(wert('arbeitszeit_pilot') || '')
+  const liste = (k) => String(wert(k) || '')
     .split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
-  return { neuAb: istDatum(neuAb) ? neuAb : null, pilot, modell };
+  const pilot = liste('arbeitszeit_pilot');
+  // Wer Anträge entscheiden darf — Standard der Inhaber; eine Vertretung wird hier ergänzt.
+  const genehmiger = liste('arbeitszeit_genehmiger');
+  return { neuAb: istDatum(neuAb) ? neuAb : null, pilot, modell, genehmiger: genehmiger.length ? genehmiger : [INHABER_EMAIL] };
 }
 
-export const EINSTELLUNG_KEYS = ['arbeitszeit_neu_ab', 'arbeitszeit_pilot', 'arbeitszeit_modell'];
+export const INHABER_EMAIL = 'a.rittler@rittler.co';
+export const EINSTELLUNG_KEYS = ['arbeitszeit_neu_ab', 'arbeitszeit_pilot', 'arbeitszeit_modell', 'arbeitszeit_genehmiger'];
+export const darfGenehmigen = (email, einst) => einst.genehmiger.includes(String(email || '').toLowerCase());
 
 // Modus einer Person an einem Tag:
 //   neu      — neue Erfassung aktiv (Pilot oder ab Stichtag)
