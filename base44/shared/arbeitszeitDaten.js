@@ -24,7 +24,7 @@ export async function stempelnAblauf(db, email, einst, { art, vorgang_id, erwart
   let stempel = await ladeStempel(db, email, tag);
   if (await automatikNachziehen(db, email, tag, stempel, jetztIso)) stempel = await ladeStempel(db, email, tag);
   // Ein Timer vom Vortag oder außerhalb der Anwesenheit darf nie mit „jetzt“ als Ende gebucht werden.
-  await timerAufraeumen(db, email, jetztIso);
+  await timerAufraeumen(db, email, jetztIso, { bindung: bindungAktiv(einst, tag) });
 
   const zustand = zustandJetzt(stempel, jetztIso).zustand;
   if (erwartet && erwartet !== zustand) return { status: 409, extra: { fehler: 'veraltet' } };
@@ -35,7 +35,8 @@ export async function stempelnAblauf(db, email, einst, { art, vorgang_id, erwart
   let gebucht = null;
   if (art === 'pause_start' || art === 'gehen') {
     const laufende = await laufendeVon(db, email);
-    if (laufende) {
+    // Nur ein Timer von heute wird mitgestoppt — einer vom Vortag bliebe sonst bis jetzt gebucht.
+    if (laufende && wienTag(laufende.gestartet_am) === tag) {
       const r = await timerVerbuchen(db, laufende, { notiz, endeIso: jetztIso, tag: wienTag(laufende.gestartet_am) });
       gebucht = { id: r.eintrag.id, minuten: r.eintrag.duration_minutes, project_id: r.eintrag.project_id, projekt_titel: laufende.projekt_titel || '' };
     }
@@ -150,14 +151,20 @@ export async function timerAlsEntwurf(db, email, laufende, angehaltenAm, grund) 
   await laufendeEntfernen(db, email);
 }
 
+// Timer-Bindung an die Anwesenheit gilt erst ab dem Stichtag. Im Pilot davor läuft der Timer
+// wie bisher unabhängig — der Pilot darf die gewohnte Zeiterfassung nicht stören.
+export const bindungAktiv = (einst, tag) => !!einst.neuAb && tag >= einst.neuAb;
+
 // Ein Timer, der außerhalb der Anwesenheit läuft (vom Vortag übrig, vor dem Stichtag gestartet,
-// Gehen in einem anderen Fenster), wird zum Entwurf. Nur für Personen, die stempeln.
-export async function timerAufraeumen(db, email, jetztIso) {
+// Gehen in einem anderen Fenster), wird zum Entwurf. Nur für Personen, die stempeln, und nur
+// wenn die Bindung gilt; ein vergessenes Gehen wird immer nachgezogen.
+export async function timerAufraeumen(db, email, jetztIso, { bindung = true } = {}) {
   const laufende = await laufendeVon(db, email);
   if (!laufende) return false;
   const tagT = wienTag(laufende.gestartet_am);
   const stempel = await ladeStempel(db, email, tagT);
   if (await automatikNachziehen(db, email, tagT, stempel, jetztIso)) return true;
+  if (!bindung) return false;
   if (zustandJetzt(stempel, jetztIso).zustand === 'da') return false;
   await timerAlsEntwurf(db, email, laufende, jetztIso, 'Timer lief ohne Anwesenheit');
   return true;
