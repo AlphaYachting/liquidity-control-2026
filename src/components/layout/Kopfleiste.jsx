@@ -20,7 +20,6 @@ export default function Kopfleiste() {
             <GlobalSearch />
           </div>
           <RueckmeldungKnopf />
-          <div className="hidden sm:block w-2 shrink-0" aria-hidden="true" />
           <AnwesenheitsKnopf />
         </div>
       </div>
