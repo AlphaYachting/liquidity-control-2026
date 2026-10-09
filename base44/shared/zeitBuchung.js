@@ -73,18 +73,24 @@ export async function ueberKontingent(db, project, tag, minuten, ohneId = null) 
 // Laufenden Timer verbuchen. endeIso = Ende der Messung (Serverzeit), abzugMinuten nur im alten Modus.
 // Ergebnis: { eintrag, wiederholt }
 export async function timerVerbuchen(db, laufende, { notiz = '', endeIso, abzugMinuten = 0, tag } = {}) {
-  const schon = await db.TimeEntry.filter({ laufende_id: laufende.id }, '-created_date', 1);
+  // Wiederholungsprüfung und Projektdaten parallel
+  const [schon, bf] = await Promise.all([
+    db.TimeEntry.filter({ laufende_id: laufende.id }, '-created_date', 1),
+    buchungsfelder(db, laufende.project_id),
+  ]);
   if (schon[0]) {
     await laufendeEntfernen(db, laufende.person_email);
     return { eintrag: schon[0], wiederholt: true };
   }
-  const { felder, kategorie, project } = await buchungsfelder(db, laufende.project_id);
-  const art = await taetigkeitVon(db, kategorie, laufende.ticket_id);
+  const { felder, kategorie, project } = bf;
   const ende = endeIso ? new Date(endeIso) : new Date();
   const gemessen = Math.max(0, Math.floor((ende.getTime() - new Date(laufende.gestartet_am).getTime()) / 60000));
   const minuten = Math.max(0, gemessen - (Number(abzugMinuten) || 0));
   const buchTag = tag || String(laufende.gestartet_am).slice(0, 10);
-  const ueber = await ueberKontingent(db, project, buchTag, minuten);
+  const [art, ueber] = await Promise.all([
+    taetigkeitVon(db, kategorie, laufende.ticket_id),
+    ueberKontingent(db, project, buchTag, minuten),
+  ]);
 
   const eintrag = await db.TimeEntry.create({
     ...felder,
@@ -109,7 +115,7 @@ export async function timerVerbuchen(db, laufende, { notiz = '', endeIso, abzugM
 
 export async function laufendeEntfernen(db, email) {
   const alle = await db.LaufendeZeitbuchung.filter({ person_email: email }, '-gestartet_am', 50);
-  for (const row of alle) await db.LaufendeZeitbuchung.delete(row.id).catch(() => null);
+  await Promise.all(alle.map((row) => db.LaufendeZeitbuchung.delete(row.id).catch(() => null)));
 }
 
 export async function laufendeVon(db, email) {
