@@ -13,6 +13,7 @@ import AzVerlauf from '@/components/arbeitszeit/AzVerlauf';
 import AzPersonen from '@/components/arbeitszeit/AzPersonen';
 import AzVerteilung, { AzProjekte } from '@/components/arbeitszeit/AzVerteilung';
 import AzPersonTage from '@/components/arbeitszeit/AzPersonTage';
+import AzNichtVerrechenbar from '@/components/arbeitszeit/AzNichtVerrechenbar';
 
 const knopf = (aktiv) => `text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded border ${aktiv ? 'bg-foreground text-background border-foreground' : 'bg-white text-foreground border-border hover:bg-muted'}`;
 
@@ -36,6 +37,7 @@ export default function Arbeitszeitauswertung() {
   const qc = useQueryClient();
   const [key, setKey] = useState('monat');
   const [personKey, setPersonKey] = useState(null);
+  const [nvOffen, setNvOffen] = useState(false);
   const heute = isoVon(new Date());
   const zr = useMemo(() => berechneZeitraum(key, heute), [key, heute]);
 
@@ -108,7 +110,10 @@ export default function Arbeitszeitauswertung() {
             {data.abgeschnitten && <p className="text-destructive">Sehr viele Buchungen — es wurden nur die ersten 20.000 berücksichtigt. Bitte einen kürzeren Zeitraum wählen.</p>}
           </div>
 
-          <AzKennzahlen gesamt={ergebnis.gesamt} mitApp={q.app} />
+          <AzKennzahlen gesamt={ergebnis.gesamt} mitApp={q.app} nvOffen={nvOffen} onNvDetails={() => setNvOffen(!nvOffen)} />
+          {nvOffen && (
+            <AzNichtVerrechenbar key={`${zr.von}|${zr.auswertungBis}`} buchungen={ergebnis.nvBuchungen} onSchliessen={() => setNvOffen(false)} />
+          )}
           <AzVerlauf verlauf={ergebnis.verlauf} taeglich={ergebnis.taeglich} />
           <div className="space-y-2">
             <div className="flex items-baseline justify-between gap-3">
