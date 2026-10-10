@@ -128,9 +128,12 @@ export function werteAus({
   const nv = {};
   const taetigkeit = { beratung: 0, umsetzung: 0, vertrieb: 0, meeting: 0 };
   const projekte = {};
+  // Jede nicht verrechenbare Buchung einzeln — für die Detailansicht hinter der Kachel „Nicht verrechenbar“.
+  // Dieselbe Zählung wie nvMin, die Summe der Liste ist also immer gleich der Kachel.
+  const nvBuchungen = [];
   const gesamt = { erfasstMin: 0, verrMin: 0, nvMin: 0, mehrMin: 0, ueberMin: 0, appMin: 0, aworkMin: 0, wochenendMin: 0, feiertagMin: 0 };
 
-  const zaehle = ({ person, tag, minuten, verrechenbar, art, taet, projektKey, projektLabel, grund, mehr, ueber, quelle, gemessen = 0, nach = 0 }) => {
+  const zaehle = ({ person, tag, minuten, verrechenbar, art, taet, projektKey, projektLabel, grund, mehr, ueber, quelle, gemessen = 0, nach = 0, detail = {} }) => {
     if (!minuten) return;
     person.erfasstMin += minuten;
     person.gemessenMin += gemessen;
@@ -142,6 +145,16 @@ export function werteAus({
     else {
       person.nvMin += minuten; gesamt.nvMin += minuten;
       if (quelle === 'app') nv[grund || 'ohne'] = (nv[grund || 'ohne'] || 0) + minuten;
+      nvBuchungen.push({
+        id: detail.id || `${quelle}:${nvBuchungen.length}`,
+        tag, minuten, quelle,
+        personKey: person.key, personName: person.name,
+        projektKey, projektLabel, art: art || 'unklar',
+        grund: quelle === 'app' ? (grund || 'ohne') : null,
+        taetigkeit: taet || null,
+        von: detail.von || null, bis: detail.bis || null,
+        beschreibung: detail.beschreibung || '',
+      });
     }
     if (mehr) { person.mehrMin += minuten; gesamt.mehrMin += minuten; }
     if (ueber) { person.ueberMin += minuten; gesamt.ueberMin += minuten; }
@@ -188,6 +201,7 @@ export function werteAus({
       mehr: !!e.mehrleistung,
       ueber: !!e.ueber_kontingent,
       quelle: 'app',
+      detail: { id: e.id, von: e.started_at, bis: e.ended_at, beschreibung: e.note || '' },
     });
   });
 
@@ -211,6 +225,7 @@ export function werteAus({
       mehr: false,
       ueber: false,
       quelle: 'awork',
+      detail: { id: e.id, beschreibung: [e.task_name, e.note].filter(Boolean).join(' · ') },
     });
   });
 
@@ -248,6 +263,7 @@ export function werteAus({
     },
     arten: artenListe,
     taetigkeit: TAETIGKEIT.map((t) => ({ ...t, minuten: taetigkeit[t.key] })).filter((t) => t.minuten),
+    nvBuchungen: nvBuchungen.sort((a, b) => b.tag.localeCompare(a.tag) || String(b.von || '').localeCompare(String(a.von || ''))),
     nvGruende: Object.entries(nv).map(([k, m]) => ({ key: k, label: NV_GRUND[k] || k, minuten: m })).sort((a, b) => b.minuten - a.minuten),
     projekte: Object.values(projekte).map((p) => ({ ...p, personen: p.personen.size })).sort((a, b) => b.minuten - a.minuten),
     verlauf: Object.values(verlauf).sort((a, b) => a.ord.localeCompare(b.ord)),
