@@ -11,6 +11,7 @@ import EscalationThreadPreview from '@/components/crm/emails/EscalationThreadPre
 import ThreadActionBar from '@/components/crm/emails/ThreadActionBar';
 import { wartezeitText } from '@/components/crm/inboxZeit';
 import { KLASSE_LABEL } from '@/lib/crm/posteingang';
+import ZuweisungWahl, { ZustaendigHinweis } from '@/components/crm/ZuweisungWahl';
 
 // Unbeantwortete Konversation ohne KI-Anfrage-Eintrag (laufende Kundenkommunikation,
 // Antwort auf Angebot/Rechnung, Verwaltung). Dieselben Entscheidungen wie im Posteingang.
@@ -77,6 +78,7 @@ export default function InboxThreadCard({ eintrag, offen, onOeffnen, onChanged }
           <p className={cn('text-meta', zeit.ton === 'critical' ? 'font-semibold text-status-critical' : 'text-muted-foreground')}>
             {!eintrag.sichtbar && <Clock className="inline w-3 h-3 mr-1 -mt-0.5" />}{zeit.text}
           </p>
+          <ZustaendigHinweis eintrag={eintrag} />
         </div>
 
         <ChevronDown className={cn('w-4 h-4 text-muted-foreground', offen && 'rotate-180')} />
@@ -84,6 +86,7 @@ export default function InboxThreadCard({ eintrag, offen, onOeffnen, onChanged }
 
       {offen && (
         <div className="border-t px-4 pt-4 pb-4 pl-[66px] space-y-3">
+          <ZuweisungWahl eintrag={eintrag} onChanged={onChanged} />
           {/* Entscheidung zuerst — der Verlauf darunter ist oft lang und wird selten ganz gelesen */}
           <ThreadActionBar
             thread={{ id: Number(eintrag.threadId), subject: eintrag.betreff, customer: t.customer || '' }}
