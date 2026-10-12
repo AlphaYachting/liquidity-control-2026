@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SprintKopf from '@/components/sprint/SprintKopf';
 import EtappenListe from '@/components/sprint/etappen/EtappenListe';
 import ProjektUebersicht from '@/components/sprint/uebersicht/ProjektUebersicht';
-import KommentarStrang from '@/components/sprint/kommentare/KommentarStrang';
+import ProjektKommentare from '@/components/sprint/kommentare/ProjektKommentare';
 import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AbrechnungSektion from '@/components/sprint/abrechnung/AbrechnungSektion';
@@ -236,7 +236,7 @@ export default function SprintDetail() {
 
         <TabsContent value="kommentare" className="mt-0">
           <div className="bg-white rounded-lg border border-border p-4">
-            <KommentarStrang projectId={sprint.project_id} />
+            <ProjektKommentare projectId={sprint.project_id} aworkProjectId={project?.awork_project_id} members={members} />
           </div>
         </TabsContent>
 
