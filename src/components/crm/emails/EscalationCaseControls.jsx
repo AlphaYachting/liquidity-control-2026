@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Handshake, Clock, CheckCircle2, Loader2, Link2 } from 'lucide-react';
+import { zuweisenVerlauf } from '@/lib/crm/zuweisung';
 
 export const SEVERITY_STYLE = {
   1: 'bg-amber-100 text-amber-800',
@@ -52,6 +53,17 @@ export default function EscalationCaseControls({ caseRecord, thread }) {
   const severity = caseRecord?.severity || 0;
   const state = caseRecord?.state || 'offen';
 
+  // Eine Eskalation wird über ihre Mail zugewiesen: dieselbe Zuständigkeit wie im Posteingang,
+  // die Mail erscheint in „Mein Tag“ der Person, bis sie beantwortet ist.
+  const zuweisenAn = async (an) => {
+    try {
+      await zuweisenVerlauf({ threadId: thread.id, betreff: thread.subject, an });
+    } catch (_e) { /* Zuweisung der Mail ist Best-Effort, der Vorgang wird trotzdem gesetzt */ }
+    if (!caseRecord?.id) save.mutate({ assigned_to: an });
+    queryClient.invalidateQueries({ queryKey: ['crm-escalations'] });
+    queryClient.invalidateQueries({ queryKey: ['posteingang'] });
+  };
+
   return (
     <div className="border-t pt-2.5 space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
@@ -82,7 +94,7 @@ export default function EscalationCaseControls({ caseRecord, thread }) {
       <div className="flex items-center gap-2 flex-wrap">
         <Select
           value={caseRecord?.assigned_to || '__none__'}
-          onValueChange={(v) => save.mutate({ assigned_to: v === '__none__' ? '' : v })}
+          onValueChange={(v) => zuweisenAn(v === '__none__' ? '' : v)}
         >
           <SelectTrigger className="h-8 w-[200px] text-xs"><SelectValue placeholder="Zuweisen" /></SelectTrigger>
           <SelectContent>
