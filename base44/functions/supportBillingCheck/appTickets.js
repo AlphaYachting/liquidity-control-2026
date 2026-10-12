@@ -58,14 +58,20 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
     let ziel;
     if (e.ticket_id) {
       if (!ticketById[e.ticket_id]) continue; // Ticket noch nicht erledigt oder archiviert
-      ziel = proTicket[e.ticket_id] = proTicket[e.ticket_id] || { minuten: 0, ids: [], letzte: null };
+      ziel = proTicket[e.ticket_id] = proTicket[e.ticket_id] || { minuten: 0, ids: [], letzte: null, notizen: [], personen: new Set() };
     } else {
-      ziel = ohneTicket[e.project_id] = ohneTicket[e.project_id] || { minuten: 0, ids: [], letzte: null };
+      ziel = ohneTicket[e.project_id] = ohneTicket[e.project_id] || { minuten: 0, ids: [], letzte: null, notizen: [], personen: new Set() };
     }
     ziel.minuten += Number(e.duration_minutes) || 0;
     ziel.ids.push(e.id);
     if (!ziel.letzte || (e.entry_date || '') > ziel.letzte) ziel.letzte = e.entry_date || null;
+    // Bemerkungen der Buchungen mitführen (12.10.2026) — damit sichtbar ist, was abgerechnet wird
+    const person = nameByEmail[String(e.person_email || '').toLowerCase()] || e.person_email || '';
+    if (person) ziel.personen.add(person);
+    const notiz = String(e.note || '').trim();
+    if (notiz) ziel.notizen.push({ datum: e.entry_date || null, person, minuten: Number(e.duration_minutes) || 0, text: notiz });
   }
+  const notizListe = (z) => (z?.notizen || []).slice().sort((a, b) => String(a.datum || '').localeCompare(String(b.datum || '')));
 
   // Zusammenführen (06.10.2026): Ein erledigtes Ticket ohne Zeit und daneben Zeit ohne Ticket
   // im selben Support-Projekt sind fast immer dieselbe Arbeit — der Timer wurde am Projekt statt
@@ -95,7 +101,7 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
       .filter({ project_id: projectId, status: { $ne: 'erledigt' }, archiviert: { $ne: true } }, '-updated_date', 1)
       .catch(() => [{}]);
     if (offeneTickets.length) continue;
-    proTicket[t.id] = { minuten: z.minuten, ids: [...z.ids], letzte: z.letzte };
+    proTicket[t.id] = { minuten: z.minuten, ids: [...z.ids], letzte: z.letzte, notizen: [...z.notizen], personen: new Set(z.personen) };
     zugeordnet[t.id] = { minuten: z.minuten, ids: [...z.ids] };
     delete ohneTicket[projectId];
   }
@@ -134,6 +140,7 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
       // Zeit, die ohne Ticket gebucht war und diesem Ticket zugeordnet wurde
       zugeordnet_minuten: zugeordnet[t.id]?.minuten || 0,
       zugeordnet_ids: zugeordnet[t.id]?.ids || [],
+      buchungs_notizen: notizListe(proTicket[t.id]),
     };
     g.tasks.push(posten);
     g.open_minutes += offen;
@@ -145,10 +152,12 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
     const p = projektById[projectId];
     const g = gruppe(p);
     const posten = {
-      key: `ohne:${projectId}`, ticket_id: null, project_id: projectId, task_title: 'Zeit ohne Ticket', assignee_name: '',
+      key: `ohne:${projectId}`, ticket_id: null, project_id: projectId, task_title: 'Zeit ohne Ticket',
+      assignee_name: [...(z.personen || [])].join(', '),
       last_entry_date: z.letzte, open_minutes: z.minuten, vorleistung_minutes: 0,
       billable_minutes: supportVerrechnungsMinuten(z.minuten), time_entry_ids: z.ids, link: null,
       ohne_zeit: false, target_hours: null, erledigt_am: null, awork_task_id: null,
+      buchungs_notizen: notizListe(z),
     };
     g.tasks.push(posten);
     g.open_minutes += z.minuten;
