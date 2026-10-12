@@ -10,17 +10,18 @@ const utcString = (ms) => new Date(ms).toISOString().slice(0, 19).replace('T', '
 
 async function ladePosteingang() {
   const grenze = utcString(Date.now() - POSTEINGANG_TAGE * 864e5);
-  const [threads, items, regeln, faelle] = await Promise.all([
+  const [threads, items, regeln, faelle, zuweisungen] = await Promise.all([
     base44.entities.EmailThreadIndex.filter({ needs_reply: true, last_message_at: { $gte: grenze } }, '-last_message_at', 500),
     base44.entities.CrmInboxItem.filter({ status: 'new', decision: 'offen' }, '-created_date', 200),
     base44.entities.InboxBlockedSender.list('-created_date', 200),
     base44.entities.CrmEscalation.list('-created_at', 300).catch(() => []),
+    base44.entities.PostZuweisung.list('-zugewiesen_am', 1000).catch(() => []),
   ]);
   const ids = [...new Set(items.map(threadIdOf).filter(Boolean).map(String))];
   const itemZeilen = ids.length
     ? await base44.entities.EmailThreadIndex.filter({ thread_id: { $in: ids } }, '-last_message_at', 500)
     : [];
-  return { threads, items, regeln, faelle, itemZeilen };
+  return { threads, items, regeln, faelle, itemZeilen, zuweisungen };
 }
 
 // Eine Quelle für Liste, Navigationszähler und Pipeline-Knopf — Zahl und Liste laufen nie auseinander.
@@ -38,12 +39,15 @@ export function usePosteingang({ enabled = true } = {}) {
   const minute = Math.floor(Date.now() / 60000);
   const ergebnis = useMemo(() => {
     const d = query.data;
-    if (!d) return { eintraege: [], zahlen: {}, gesamt: 0, ueberfaellig: 0, eskalationen: 0 };
+    if (!d) return { eintraege: [], meine: [], zahlen: {}, gesamt: 0, ueberfaellig: 0, eskalationen: 0 };
     const eskalationen = new Set(
       d.faelle.filter((c) => isCaseVisible(c) && (c.severity || 0) >= 1).map((c) => String(c.thread_id)),
     );
-    const eintraege = baueEintraege({ ...d, eskalationen, jetzt: Date.now(), istAdmin });
-    return { eintraege, ...zaehle(eintraege) };
-  }, [query.data, minute, istAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+    const eintraege = baueEintraege({ ...d, eskalationen, jetzt: Date.now(), istAdmin, ich: (user?.email || '').toLowerCase() });
+    const ich = (user?.email || '').toLowerCase();
+    // Zugewiesene Post der angemeldeten Person — sofort, ohne die 4-Arbeitsstunden-Wartezeit
+    const meine = eintraege.filter((e) => ich && (e.zustaendig || '').toLowerCase() === ich);
+    return { eintraege, meine, ...zaehle(eintraege) };
+  }, [query.data, minute, istAdmin, user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
   return { ...ergebnis, isLoading: query.isLoading, isError: query.isError, error: query.error };
 }
