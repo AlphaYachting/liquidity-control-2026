@@ -11,6 +11,7 @@ import { FILTER, SCHWELLE_ARBEITSSTUNDEN } from '@/lib/crm/posteingang';
 export default function InboxFilterZeile({
   filter, onFilter, zahlen, reiterAnzeigen = true, imKanal = false,
   suche = '', onSuche, neuesteZuerst, onSortierung, jungAnzahl = 0, zeigeJung, onZeigeJung,
+  wer = 'alle', onWer, werZahlen = {},
 }) {
   return (
     <div className="space-y-2">
@@ -60,6 +61,21 @@ export default function InboxFilterZeile({
           )}
         </div>
         <span className="flex-1" />
+        {onWer && (
+          <div className="inline-flex rounded-md border overflow-hidden" role="group" aria-label="Zuständigkeit">
+            {[['alle', 'Alle'], ['meine', 'Meine'], ['offen', 'Nicht zugewiesen']].map(([k, l]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => onWer(k)}
+                className={cn('h-8 px-2.5 text-xs font-medium border-r last:border-r-0',
+                  wer === k ? 'bg-foreground text-background' : 'bg-background text-muted-foreground hover:text-foreground')}
+              >
+                {l}{k !== 'alle' && werZahlen[k] !== undefined ? ` (${werZahlen[k]})` : ''}
+              </button>
+            ))}
+          </div>
+        )}
         {(jungAnzahl > 0 || zeigeJung) && (
           <Button
             size="sm"
