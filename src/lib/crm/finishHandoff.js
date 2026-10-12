@@ -2,10 +2,10 @@ import { base44 } from '@/api/base44Client';
 import { fmtEUR, fmtDate } from '@/components/sprint/sprintConfig';
 
 // Schließt die Beauftragung ab, sobald der Wizard das Projekt angelegt hat:
-// Auftrag, Anzahlungs-Instruktion (nur bei AB-Pflicht) und Kundenakt hängen am
-// Projekt-Cockpit (Finanzsicht), Log am Deal.
+// Auftrag und Anzahlungs-Instruktion (nur bei AB-Pflicht) hängen am
+// Projekt-Cockpit (Finanzsicht), der Projektakt am Arbeitsprojekt, Log am Deal.
 // Der vereinbarte Umfang hat genau einen Platz: strukturiert in der AB. Er wird
-// nicht mehr als Text in die Projektbeschreibung oder den Kundenakt kopiert.
+// nicht mehr als Text in die Projektbeschreibung oder den Projektakt kopiert.
 export async function finishHandoff(handoff, project, cockpit) {
   if (!handoff?.confirmed_order_id || !project?.id) return;
   const finanzId = cockpit?.id || project.id;
@@ -45,10 +45,10 @@ export async function finishHandoff(handoff, project, cockpit) {
     });
   }
 
-  // Kommunikation aus dem Deal wandert als erster Eintrag in den Kundenakt
+  // Kommunikation aus dem Deal wandert als erster Eintrag in den Projektakt (Arbeitsprojekt)
   if (handoff.context_text) {
     await base44.entities.ProjectFileEntry.create({
-      project_id: finanzId,
+      project_id: project.id,
       entry_type: 'update',
       title: 'Kontext aus der Anfrage',
       content: handoff.context_text,
@@ -56,7 +56,7 @@ export async function finishHandoff(handoff, project, cockpit) {
     });
   }
 
-  // Kundenakt: ein kurzer Eintrag „Auftrag erteilt" mit dem Angebot als Dokument
+  // Projektakt: ein kurzer Eintrag „Auftrag erteilt" mit dem Angebot als Dokument
   if (order) {
     const nr = order.order_number || '';
     const angebotUrl = handoff.angebot_url || order.angebot_url || '';
@@ -66,7 +66,7 @@ export async function finishHandoff(handoff, project, cockpit) {
       order.liefertermin ? `Liefertermin ${fmtDate(order.liefertermin)}` : null,
     ].filter(Boolean).join(' · ');
     await base44.entities.ProjectFileEntry.create({
-      project_id: finanzId,
+      project_id: project.id,
       entry_type: 'vereinbarung',
       title: `Auftrag erteilt${nr ? ` · ${nr}` : ''}`,
       content: `${eckdaten}.\nDer vereinbarte Umfang steht im Projekt unter „Projektbeschreibung“.`,
