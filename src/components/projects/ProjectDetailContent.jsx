@@ -390,9 +390,6 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
       <AworkStatusBar
         data={aworkData}
         projectId={projectId}
-        onSelectProject={() => setShowAworkPicker(true)}
-        onSync={handleAworkSync}
-        isSyncing={isSyncing}
       />
       <FesthaltenKnopf onFesthalten={() => { setIntelligenzModus('erfassung'); setShowIntelligence(true); }} />
       </div>
@@ -428,9 +425,6 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
       <ProjektAufgabenListe
         projectId={aktProjektId}
         aworkProjectId={effectiveAworkProjectId}
-        onSelectProject={() => setShowAworkPicker(true)}
-        onSync={handleAworkSync}
-        isSyncing={isSyncing}
       />
 
       <ProjektKommunikationBlock customer={project.customer} />
