@@ -60,6 +60,7 @@ export default function CrmInbox() {
   };
   const [neuesteZuerst, setNeuesteZuerst] = useState(true);
   const [zeigeJung, setZeigeJung] = useState(false);
+  const [wer, setWer] = useState('alle');
   const [suche, setSuche] = useState('');
   // Beim Öffnen ist alles zugeklappt; jeder Eintrag klappt mit einem Klick auf und wieder zu,
   // mehrere dürfen gleichzeitig offen sein.
@@ -85,6 +86,10 @@ export default function CrmInbox() {
   // EIN Posteingang: nur unbeantwortete Konversationen (Regel im Backend) plus
   // Anfragen der Telefon-KI und manuell erfasste — siehe lib/crm/posteingang.js
   const { eintraege, zahlen, gesamt, ueberfaellig: overdue, isLoading } = usePosteingang();
+  const { user: angemeldet } = useAuth();
+  const ichMail = (angemeldet?.email || '').toLowerCase();
+  const passtWer = (e) => wer === 'alle'
+    || (wer === 'meine' ? (e.zustaendig || '').toLowerCase() === ichMail : !e.zustaendig);
 
   const sicht = imKanal(eintraege, kanal);
   const imFilter = sicht.filter(passtReiter(filter, kanal));
@@ -102,7 +107,8 @@ export default function CrmInbox() {
     e.item?.matched_customer_name, e.item?.sender_name, e.item?.sender_email, e.item?.body,
   ].some((v) => String(v || '').toLowerCase().includes(begriff));
   const gefilterte = imFilter
-    .filter((e) => e.sichtbar || zeigeJung || begriff)
+    .filter((e) => e.sichtbar || zeigeJung || begriff || (wer === 'meine' && e.zustaendig))
+    .filter(passtWer)
     .filter(trifft)
     .sort((a, b) => (neuesteZuerst ? b.eingang - a.eingang : a.eingang - b.eingang));
   const seitenTitel = kanal ? KANAELE[kanal].titel : 'Posteingang';
@@ -248,6 +254,12 @@ export default function CrmInbox() {
             jungAnzahl={kanal === 'support' ? 0 : jungAnzahl}
             zeigeJung={zeigeJung}
             onZeigeJung={() => setZeigeJung((v) => !v)}
+            wer={wer}
+            onWer={setWer}
+            werZahlen={{
+              meine: imFilter.filter((e) => (e.zustaendig || '').toLowerCase() === ichMail).length,
+              offen: imFilter.filter((e) => e.sichtbar && !e.zustaendig).length,
+            }}
           />
 
           {gefilterte.length === 0 ? (
