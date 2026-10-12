@@ -321,7 +321,7 @@ export default async function (req) {
         nicht_verrechenbar_stunden: r1(nichtVerrMin / 60), nicht_verrechenbar_nach_grund: nichtVerrGruende,
         ueber_kontingent_stunden: r1(ueberKontingentMin / 60),
         app_stunden_ohne_aufgabe: r1(ohneTicketMin / 60),
-        hinweis: 'Mehrleistung ist nur für App-Buchungen gekennzeichnet. Für die Zeit vor dem Stichtag: aWork-Aufgaben, Kundenakt und E-Mails heranziehen.',
+        hinweis: 'Mehrleistung ist nur für App-Buchungen gekennzeichnet. Für die Zeit vor dem Stichtag: aWork-Aufgaben, Projektakt und E-Mails heranziehen.',
       },
       zeit_nach_person: [
         ...stundenNach(aworkZeiten, 'user_name', (e) => Number(e.duration_minutes) || 0).map((x) => ({ ...x, quelle: 'aWork' })),
