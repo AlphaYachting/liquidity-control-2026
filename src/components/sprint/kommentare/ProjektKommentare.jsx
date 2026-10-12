@@ -16,7 +16,7 @@ const htmlZuText = (s) => {
     .replace(/<[^>]*$/, '') // abgeschnittenes Tag am Ende des Auszugs
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<li[^>]*>/gi, '\n• ')
-    .replace(/<\/(p|div|li|ul|ol|h[1-6]|blockquote|tr)>/gi, '\n');
+    .replace(/<\/(p|div|ul|ol|h[1-6]|blockquote|tr)>/gi, '\n');
   try {
     return new DOMParser().parseFromString(markiert, 'text/html').body.textContent || '';
   } catch {
