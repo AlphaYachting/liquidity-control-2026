@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/AuthContext';
 import { zuweisen } from '@/lib/crm/zuweisung';
+import { INHABER_EMAIL } from '@/lib/crm/vertraulich';
 
 export const TEAM_KEY = ['team-members-active'];
 
@@ -44,6 +45,12 @@ export default function ZuweisungWahl({ eintrag, onChanged }) {
   const [busy, setBusy] = useState(false);
   const aktuell = eintrag?.zustaendig || '';
   const ich = user?.email || '';
+  // Vertrauliche Post (Verwaltung, nur an den GF) sieht nur der Geschäftsführer — eine Zuweisung an
+  // Kollegen würde bei ihnen nicht erscheinen. Bis zu einer Freigabe nur an den GF zuweisbar.
+  const auswahl = eintrag?.vertraulich
+    ? team.filter((m) => (m.email || '').toLowerCase() === INHABER_EMAIL)
+    : team;
+  const darfMir = ich && (!eintrag?.vertraulich || ich.toLowerCase() === INHABER_EMAIL);
 
   const setzen = async (an) => {
     setBusy(true);
@@ -66,13 +73,16 @@ export default function ZuweisungWahl({ eintrag, onChanged }) {
         <SelectTrigger className="h-8 w-[200px] text-xs"><SelectValue placeholder="Zuweisen" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">Nicht zugewiesen</SelectItem>
-          {team.map((m) => <SelectItem key={m.id} value={m.email}>{m.name}</SelectItem>)}
+          {auswahl.map((m) => <SelectItem key={m.id} value={m.email}>{m.name}</SelectItem>)}
         </SelectContent>
       </Select>
-      {ich && aktuell.toLowerCase() !== ich.toLowerCase() && (
+      {darfMir && aktuell.toLowerCase() !== ich.toLowerCase() && (
         <Button size="sm" variant="outline" className="h-8 text-xs" disabled={busy} onClick={() => setzen(ich)}>
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />} Mir zuweisen
         </Button>
+      )}
+      {eintrag?.vertraulich && (
+        <span className="text-meta text-muted-foreground">vertraulich — nur an dich zuweisbar</span>
       )}
       {eintrag?.zuweisung?.quelle === 'automatisch' && (
         <span className="text-meta text-muted-foreground">automatisch zugewiesen — ein Arbeitstag ohne Reaktion</span>
