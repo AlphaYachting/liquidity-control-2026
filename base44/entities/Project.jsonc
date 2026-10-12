@@ -131,7 +131,7 @@
       }
     },
     "liquidity_project_id": {
-      "description": "Verkn\u00fcpftes Projekt-Cockpit (LiquidityProject.id). Auftrag, Anweisungen, Rechnungen, Abrechnungsplan und Kundenakt h\u00e4ngen dort.",
+      "description": "Verkn\u00fcpftes Projekt-Cockpit (LiquidityProject.id). Auftrag, Anweisungen, Rechnungen und Abrechnungsplan h\u00e4ngen dort; der Projektakt h\u00e4ngt am Arbeitsprojekt selbst.",
       "type": "string"
     },
     "mindestbuchung_minuten": {
