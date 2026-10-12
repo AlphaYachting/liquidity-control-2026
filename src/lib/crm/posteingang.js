@@ -23,7 +23,7 @@ function verborgen({ absender, empfaenger, regeln, istAdmin, zuweisung, ich }) {
   const grund = vertraulichGrund({ absender, empfaenger, regeln, istAdmin });
   if (!grund) return false;
   if (grund === 'masseverwalter') return true;
-  return !(ich && zuweisung?.zugewiesen_an === ich);
+  return !(ich && (zuweisung?.zugewiesen_an || '').toLowerCase() === ich);
 }
 
 export const SCHWELLE_ARBEITSSTUNDEN = 4;
