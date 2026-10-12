@@ -29,6 +29,21 @@ export default function SupportAppLine({ task, abrechenbar, darfAendern, onInvoi
           {task.vorleistung_minutes > 0 && ` · davon aus aWork ${std(task.vorleistung_minutes)} h`}
           {task.zugeordnet_minuten > 0 && ` · davon ${Math.round(task.zugeordnet_minuten)} min ohne Ticket gebucht, hier zugeordnet`}
         </p>
+        {/* Bemerkungen der Buchungen — was hier abgerechnet wird */}
+        {task.buchungs_notizen?.length > 0 ? (
+          <ul className="mt-1 space-y-0.5">
+            {task.buchungs_notizen.map((n, i) => (
+              <li key={i} className="text-xs">
+                <span className="text-muted-foreground">
+                  {n.datum ? `${n.datum.slice(8, 10)}.${n.datum.slice(5, 7)}.` : '—'}{n.person ? ` ${n.person}` : ''} · {Math.round(n.minuten)} min:
+                </span>{' '}
+                {n.text}
+              </li>
+            ))}
+          </ul>
+        ) : task.notizen?.length > 0 ? (
+          <p className="mt-1 text-xs">{task.notizen.join(' · ')}</p>
+        ) : null}
       </div>
       {task.link && (
         <Link to={task.link} title="Ticket öffnen" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
