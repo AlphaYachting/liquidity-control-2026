@@ -15,7 +15,9 @@ import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntry
 import { faktenBlock, lageBlock } from '@/components/projects/intelligenzFakten';
 
 const MARKER = '[FESTHALTEN_ANGEBOTEN]';
-const GESPEICHERT_HINWEIS = 'Soeben wurde folgender Eintrag im Kundenakt gespeichert:';
+const GESPEICHERT_HINWEIS = 'Soeben wurde folgender Eintrag im Projektakt gespeichert:';
+// Ältere Gespräche enthalten noch die frühere Quittung
+const istSpeicherQuittung = (t) => t.includes(GESPEICHERT_HINWEIS) || t.includes('Eintrag im Kundenakt gespeichert:');
 
 // Projektintelligenz als begleitendes Panel — die Seite dahinter bleibt sichtbar und bedienbar.
 export default function ProjectIntelligenceSheet({
@@ -44,6 +46,8 @@ export default function ProjectIntelligenceSheet({
   const projectLabel = [customer, projectName].filter(Boolean).join(' · ') || 'Projekt';
 
   const ausCockpit = appProjektId === undefined;
+  // Der Projektakt hängt immer am Arbeitsprojekt. Ohne Arbeitsprojekt (Cockpit ohne Verknüpfung) gibt es keinen.
+  const aktId = appProjektId || null;
   const liqId = ausCockpit ? projectId : (cockpitId || null);
   const arbeitsId = appProjektId || lage?.projekt?.project_id || null;
   const idZeile = [
@@ -52,7 +56,9 @@ export default function ProjectIntelligenceSheet({
       : 'kein Projekt-Cockpit verknüpft — Auftrags- und Rechnungsdaten gibt es am Projekt nicht, suche sie über den Kundennamen',
   ].filter(Boolean).join('; ');
 
-  const contextPrefix = `Kontext: Ausgangspunkt ist das Projekt "${projectName || ''}" des Kunden "${customer || ''}" (${idZeile}). Hat der Kunde weitere Aufträge oder Projekte, nenne sie und sage, ob deine Antwort sie abdeckt. Triff keine Aussage über einen Auftrag, den du nicht geladen hast. Lade dazu auch den digitalen Kundenakt (ProjectFileEntry nach project_id = ${projectId}) und gewichte dokumentierte Vereinbarungen am stärksten.\n\n${lageBlock(lage)}${faktenBlock(kennzahlen, finanzen, kontext)}Frage: `;
+  const contextPrefix = `Kontext: Ausgangspunkt ist das Projekt "${projectName || ''}" des Kunden "${customer || ''}" (${idZeile}). Hat der Kunde weitere Aufträge oder Projekte, nenne sie und sage, ob deine Antwort sie abdeckt. Triff keine Aussage über einen Auftrag, den du nicht geladen hast. ${aktId
+    ? `Lade dazu auch den Projektakt (ProjectFileEntry nach project_id = ${aktId}) und die Kommentare der Kollegen (Comment nach project_id = ${aktId}; Einträge mit author_email 'System' sind automatische Statuszeilen und zählen nicht) und gewichte dokumentierte Vereinbarungen am stärksten.`
+    : 'Mit diesem Cockpit ist kein Arbeitsprojekt verknüpft — einen Projektakt und Kommentare gibt es dafür nicht; sag das, wenn es für die Antwort fehlt.'}\n\n${lageBlock(lage)}${faktenBlock(kennzahlen, finanzen, kontext)}Frage: `;
 
   // Projektlage beim Öffnen laden — aWork-Altstand und App-Daten in einer Rechnung
   useEffect(() => {
@@ -95,10 +101,10 @@ export default function ProjectIntelligenceSheet({
   // Beim Öffnen den gewünschten Modus setzen und den Cursor direkt ins Feld legen
   useEffect(() => {
     if (!open) return;
-    setModus(startModus);
+    setModus(aktId ? startModus : 'frage');
     const t = setTimeout(() => feldRef.current?.focus(), 120);
     return () => clearTimeout(t);
-  }, [open, startModus]);
+  }, [open, startModus, aktId]);
 
   const neuesGespraech = async () => {
     if (gespraech) await base44.entities.ProjektIntelligenzGespraech.delete(gespraech.id);
@@ -158,12 +164,12 @@ export default function ProjectIntelligenceSheet({
   const vorschlagUebernehmen = async () => {
     setSpeichernd(true);
     try {
-      await speichereEintrag(projectId, vorschlag);
-      toast.success('Im Kundenakt festgehalten.');
+      await speichereEintrag(aktId, vorschlag);
+      toast.success('Im Projektakt festgehalten.');
       const gespeichert = vorschlag;
       zurueckInFragemodus();
       // Die Projektintelligenz soll den Eintrag einordnen — keine Frage, keine Rückfragen
-      send(`Soeben wurde folgender Eintrag im Kundenakt gespeichert:
+      send(`${GESPEICHERT_HINWEIS}
 Art: ${gespeichert.entry_type} | Datum: ${gespeichert.entry_date}
 ${gespeichert.title}
 ${gespeichert.content}
@@ -218,9 +224,9 @@ Bestätige den Eintrag in einem Satz und nenne dann höchstens zwei Konsequenzen
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
                   Frag zu diesem Projekt oder halte fest, was passiert ist — die Projektintelligenz
-                  kennt Auftrag, Aufgaben und Zeiten der App, den aWork-Altstand, Rechnungen, Kommunikation und den Kundenakt.
+                  kennt Auftrag, Aufgaben und Zeiten der App, den aWork-Altstand, Rechnungen, Kommunikation, Kommentare und den Projektakt.
                 </p>
-                <ProjektupdateEinstieg onStart={() => { setModus('erfassung'); feldRef.current?.focus(); }} />
+                {aktId && <ProjektupdateEinstieg onStart={() => { setModus('erfassung'); feldRef.current?.focus(); }} />}
                 {QUICK_FRAGEN.map((q, i) => (
                   <button key={i} onClick={() => send(q.text)} disabled={sending}
                     className="block w-full text-left text-sm px-3 py-2 rounded-xl border bg-card hover:bg-muted transition-colors disabled:opacity-50">
@@ -234,24 +240,24 @@ Bestätige den Eintrag in einem Satz und nenne dann höchstens zwei Konsequenzen
                 const vorText = typeof messages[i - 1]?.content === 'string' ? messages[i - 1].content : '';
                 // Antwort auf eine Speicher-Quittung — hier keine weiteren Festhalte-Angebote,
                 // sonst dreht sich die Erfassung im Kreis.
-                const istQuittung = m.role === 'assistant' && vorText.includes(GESPEICHERT_HINWEIS);
-                const angebot = m.role === 'assistant' && text.includes(MARKER) && !istQuittung;
+                const istQuittung = m.role === 'assistant' && istSpeicherQuittung(vorText);
+                const angebot = !!aktId && m.role === 'assistant' && text.includes(MARKER) && !istQuittung;
                 const sichtbar = text.includes(MARKER)
                   ? { ...m, content: text.replace(MARKER, '').trimEnd() } : m;
                 const vorherigeEingabe = () => vorText.split('Frage: ').pop().trim();
                 return (
                   <div key={m.id || `${m.role}-${i}`} className="space-y-1">
                     <MessageBubble message={sichtbar} />
-                    {m.role === 'assistant' && text.trim() && !istQuittung && (
+                    {aktId && m.role === 'assistant' && text.trim() && !istQuittung && (
                       <div className="flex flex-wrap items-center gap-3">
                         <button onClick={() => uebernehmen(m)}
                           className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                          <FolderPlus className="w-3 h-3" /> In den Kundenakt übernehmen
+                          <FolderPlus className="w-3 h-3" /> In den Projektakt übernehmen
                         </button>
                         {angebot && (
                           <button onClick={() => erfasse(vorherigeEingabe())}
                             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                            <PenLine className="w-3 h-3" /> Als Kundenakt-Eintrag festhalten
+                            <PenLine className="w-3 h-3" /> Als Projektakt-Eintrag festhalten
                           </button>
                         )}
                       </div>
@@ -357,7 +363,7 @@ Bestätige den Eintrag in einem Satz und nenne dann höchstens zwei Konsequenzen
         <KundenaktEntryDialog
           open={!!aktEntry}
           onClose={() => setAktEntry(null)}
-          projectId={projectId}
+          projectId={aktId}
           projectName={projectName}
           customer={customer}
           initialEntryType={aktEntry.entry_type || 'update'}
