@@ -23,7 +23,6 @@ import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { ohneArchiv } from '@/lib/sprint/aktivFilter';
 import { darfBereinigen } from '@/lib/sprint/ticketBereinigen';
-import useKundenaktProjektId from '@/hooks/useKundenaktProjektId';
 const ProjectIntelligenceSheet = React.lazy(() =>
   import('@/components/projects/ProjectIntelligenceSheet'));
 
@@ -69,12 +68,8 @@ export default function SprintMilestoneDetail() {
   const { setStatus: handleTicketStatus, dialog: routineDialog } = useTicketStatus(refresh);
 
   useMeldeZeitKontext({ project_id: data?.sprint?.project_id, quelle: 'sprint' });
-  const { projektId: aktProjektId } = useKundenaktProjektId({
-    customer: data?.client?.name,
-    title: data?.project?.title,
-    fallbackId: data?.sprint?.project_id,
-    liquidityProjectId: data?.project?.liquidity_project_id,
-  });
+  // Der Projektakt hängt immer am Arbeitsprojekt — nie am Projekt-Cockpit.
+  const aktProjektId = data?.sprint?.project_id;
 
   if (isLoading || !data) {
     return (
@@ -333,7 +328,7 @@ export default function SprintMilestoneDetail() {
             onClose={() => setIntelligenzOffen(false)}
             projectId={aktProjektId}
             appProjektId={data?.sprint?.project_id}
-            cockpitId={project?.liquidity_project_id || (aktProjektId && aktProjektId !== data?.sprint?.project_id ? aktProjektId : null)}
+            cockpitId={project?.liquidity_project_id || null}
             projectName={project?.title}
             customer={client?.name}
           />
