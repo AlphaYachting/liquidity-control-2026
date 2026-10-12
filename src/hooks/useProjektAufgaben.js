@@ -32,7 +32,7 @@ function mapAworkTask(t) {
   };
 }
 
-// Zweite Quelle: offene Zusagen aus dem digitalen Kundenakt — verbindlicher als eine Aufgabe.
+// Zweite Quelle: offene Zusagen aus dem Projektakt (hängt am Arbeitsprojekt) — verbindlicher als eine Aufgabe.
 function mapZusage(e) {
   return {
     id: e.id,

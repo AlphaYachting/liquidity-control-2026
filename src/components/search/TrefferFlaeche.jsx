@@ -88,7 +88,7 @@ export default function TrefferFlaeche({
 
         {tiefLaeuft && (
           <p className="px-3.5 py-2 text-[11.5px]" style={{ color: RITTLER.textSecondary }}>
-            ● Postfach und Kundenakt werden durchsucht …
+            ● Postfach und Projektakt werden durchsucht …
           </p>
         )}
       </div>
@@ -98,7 +98,7 @@ export default function TrefferFlaeche({
         style={{ borderColor: RITTLER.line, color: RITTLER.textSecondary }}
       >
         <span>↑↓ wählen · ↵ öffnen · → Cockpit/Kundendaten · esc schließen</span>
-        {darfTief && <span>Mails & Kundenakt werden mitdurchsucht</span>}
+        {darfTief && <span>Mails & Projektakt werden mitdurchsucht</span>}
       </div>
     </div>
   );

@@ -25,10 +25,10 @@ export const projektstandBlock = (kennzahlen, finanzen) => {
   return `Aktueller Projektstand (verbindlich, nicht neu herleiten):\n${teile.join(', ')}.\n`;
 };
 
-// Rohe Mitteilung zu einem Kundenakt-Eintrag ausformulieren — nichts hinzuerfinden.
+// Rohe Mitteilung zu einem Projektakt-Eintrag ausformulieren — nichts hinzuerfinden.
 export async function ausformuliereEintrag({ text, projectName, customer, kennzahlen, finanzen }) {
   const res = await base44.integrations.Core.InvokeLLM({
-    prompt: `Du unterstützt den digitalen Kundenakt der Agentur Rittler & Co.
+    prompt: `Du unterstützt den Projektakt der Agentur Rittler & Co.
 Heutiges Datum: ${heuteIso()}
 Projekt: ${projectName || '—'} | Kunde: ${customer || '—'}
 ${projektstandBlock(kennzahlen, finanzen)}
@@ -69,7 +69,7 @@ Erkenne zusätzlich: (a) auf welches Datum sich die Eingabe bezieht — relative
   };
 }
 
-// Vorschlag unverändert in den Kundenakt schreiben
+// Vorschlag unverändert in den Projektakt schreiben (projectId = Project.id)
 export async function speichereEintrag(projectId, v) {
   const me = await base44.auth.me().catch(() => null);
   return base44.entities.ProjectFileEntry.create({

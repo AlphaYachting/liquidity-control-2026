@@ -7,7 +7,7 @@ const tag = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('de-AT', {
   weekday: 'short', day: '2-digit', month: '2-digit',
 });
 
-// Vorschlag für einen Kundenakt-Eintrag — erscheint im Gesprächsverlauf an der Stelle der Antwort.
+// Vorschlag für einen Projektakt-Eintrag — erscheint im Gesprächsverlauf an der Stelle der Antwort.
 export default function KundenaktVorschlagKarte({ vorschlag, speichernd, onUebernehmen, onBearbeiten, onVerwerfen }) {
   const art = ENTRY_TYPES[vorschlag.entry_type] || ENTRY_TYPES.update;
   const Icon = art.icon;
@@ -39,7 +39,7 @@ export default function KundenaktVorschlagKarte({ vorschlag, speichernd, onUeber
       <div className="flex flex-wrap gap-2 pt-0.5">
         <Button size="sm" className="h-7 text-xs gap-1.5" disabled={speichernd} onClick={onUebernehmen}>
           {speichernd && <Loader2 className="w-3 h-3 animate-spin" />}
-          In den Kundenakt übernehmen
+          In den Projektakt übernehmen
         </Button>
         <Button size="sm" variant="outline" className="h-7 text-xs" disabled={speichernd} onClick={onBearbeiten}>
           Bearbeiten

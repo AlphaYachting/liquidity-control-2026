@@ -1,6 +1,6 @@
 import { Handshake, MessageSquare, FileText } from 'lucide-react';
 
-// Eintragsarten des digitalen Kundenakts — Symbol und Beschriftung an einer Stelle.
+// Eintragsarten des Projektakts — Symbol und Beschriftung an einer Stelle.
 export const ENTRY_TYPES = {
   vereinbarung: { icon: Handshake, label: 'Vereinbarung', color: 'bg-status-done-surface text-status-done-text' },
   update: { icon: MessageSquare, label: 'Update', color: 'bg-status-attention-surface text-status-attention' },

@@ -12,7 +12,7 @@ import KundenaktZusageFelder from '@/components/projects/kundenakt/KundenaktZusa
 
 import { heuteIso, projektstandBlock } from '@/components/projects/kundenakt/kundenaktAusformulierung';
 
-// Overlay zur Erfassung eines Kundenakt-Eintrags: tippen oder einsprechen,
+// Overlay zur Erfassung eines Projektakt-Eintrags: tippen oder einsprechen,
 // optional Dokument anhängen, Typ und Titel schlägt die Projektintelligenz vor.
 export default function KundenaktEntryDialog({
   open, onClose, projectId, projectName, customer, onSaved,
@@ -71,7 +71,7 @@ export default function KundenaktEntryDialog({
     setAnalysing(true); setError(null);
     try {
       const res = await base44.integrations.Core.InvokeLLM({
-        prompt: `Du unterstützt den digitalen Kundenakt der Agentur Rittler & Co.
+        prompt: `Du unterstützt den Projektakt der Agentur Rittler & Co.
 Heutiges Datum: ${heuteIso()}
 Projekt: ${projectName || '—'} | Kunde: ${customer || '—'}
 ${projektstandBlock(kennzahlen, finanzen)}
@@ -149,7 +149,7 @@ Wenn die Eingabe dem Projektstand widerspricht — etwa eine Aussage zum Budget,
     <Dialog open={open} onOpenChange={(v) => { if (!v) close(); }}>
       <DialogContent className="w-[80vw] max-w-[80vw] sm:max-w-[80vw]">
         <DialogHeader>
-          <DialogTitle className="text-base">Eintrag im Kundenakt erfassen</DialogTitle>
+          <DialogTitle className="text-base">Eintrag im Projektakt erfassen</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -241,7 +241,7 @@ Wenn die Eingabe dem Projektstand widerspricht — etwa eine Aussage zum Budget,
             <Button size="sm" variant="outline" onClick={close} disabled={saving}>Abbrechen</Button>
             <Button size="sm" onClick={save} disabled={saving || (!content && !file)} className="gap-2">
               {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              In den Kundenakt aufnehmen
+              In den Projektakt aufnehmen
             </Button>
           </div>
         </div>

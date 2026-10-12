@@ -11,7 +11,7 @@ export default function ProjektupdateEinstieg({ onStart }) {
           <PenLine className="w-4 h-4 text-primary" /> Projektupdate festhalten
         </span>
         <span className="block mt-1 text-xs text-muted-foreground">
-          Erzähl, was passiert ist — ich formuliere daraus einen Eintrag für den Kundenakt.
+          Erzähl, was passiert ist — ich formuliere daraus einen Eintrag für den Projektakt.
         </span>
       </button>
       <div className="border-t" />

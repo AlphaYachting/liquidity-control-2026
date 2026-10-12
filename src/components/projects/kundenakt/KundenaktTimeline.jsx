@@ -23,12 +23,12 @@ function EintragText({ text }) {
   );
 }
 
-// Kundenakt als Timeline nach unten — je Eintrag Symbol, Titel, Zeitpunkt, Inhalt, Dokument.
+// Projektakt als Timeline nach unten — je Eintrag Symbol, Titel, Zeitpunkt, Inhalt, Dokument.
 export default function KundenaktTimeline({ entries, onChanged }) {
   const [deletingId, setDeletingId] = useState(null);
 
   const deleteEntry = async (e) => {
-    if (!window.confirm('Diesen Eintrag endgültig aus dem Kundenakt löschen?')) return;
+    if (!window.confirm('Diesen Eintrag endgültig aus dem Projektakt löschen?')) return;
     setDeletingId(e.id);
     await base44.entities.ProjectFileEntry.delete(e.id);
     setDeletingId(null);
@@ -38,7 +38,7 @@ export default function KundenaktTimeline({ entries, onChanged }) {
   if (!entries?.length) {
     return (
       <p className="text-sm text-muted-foreground text-center py-8">
-        Noch keine Einträge im Kundenakt — Vereinbarungen, Updates und Dokumente hier erfassen.
+        Noch keine Einträge im Projektakt — Vereinbarungen, Updates und Dokumente hier erfassen.
       </p>
     );
   }
