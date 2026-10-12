@@ -8,10 +8,29 @@ import { Button } from '@/components/ui/button';
 const zeit = (d) =>
   d ? new Date(d).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 
-// aWork-Verweise (~[userId:…], ~[fileId:…]) sind ohne aWork nicht lesbar.
-const bereinige = (t) => String(t || '')
+// aWork speichert Kommentare als HTML — in reinen Text mit Zeilenumbrüchen umwandeln.
+// DOMParser führt nichts aus, er liest nur den Text und löst Zeichen wie &nbsp; auf.
+const htmlZuText = (s) => {
+  if (!/[<&]/.test(s)) return s;
+  const markiert = s
+    .replace(/<[^>]*$/, '') // abgeschnittenes Tag am Ende des Auszugs
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '\n• ')
+    .replace(/<\/(p|div|li|ul|ol|h[1-6]|blockquote|tr)>/gi, '\n');
+  try {
+    return new DOMParser().parseFromString(markiert, 'text/html').body.textContent || '';
+  } catch {
+    return markiert.replace(/<[^>]+>/g, '');
+  }
+};
+
+// aWork-Verweise (~[userId:…], ~[fileId:…]) und HTML sind ohne aWork nicht lesbar.
+const bereinige = (t) => htmlZuText(String(t || ''))
   .replace(/~\[userId:[^\]]+\]/g, '@')
   .replace(/~\[fileId:[^\]]+\]/g, '[Datei]')
+  .replace(/\u00a0/g, ' ')
+  .replace(/[ \t]+\n/g, '\n')
+  .replace(/\n{3,}/g, '\n\n')
   .trim();
 
 // Eine Abfrage für Reiter-Zähler und Verlauf — gleicher Schlüssel, daher nur einmal geladen.
@@ -24,8 +43,31 @@ export function useProjektKommentare(projectId) {
   });
 }
 
-// Zählt nur, was Kollegen geschrieben haben — keine automatischen Statuszeilen.
-export const zaehleKommentare = (liste = []) => liste.filter((c) => c.author_email !== 'System').length;
+// Kommentare aus der aWork-Zeit (eingefrorene Sicherung) — nur lesend, zehn Minuten zwischengespeichert.
+// Läuft im Hintergrund und hält das Laden der Seite nicht auf.
+export const AWORK_LIMIT = 200;
+export function useAworkKommentare(aworkProjectId) {
+  return useQuery({
+    enabled: !!aworkProjectId,
+    queryKey: ['aworkKommentare', aworkProjectId],
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+    queryFn: async () => {
+      const res = await base44.functions.invoke('aworkArchivApi', {
+        action: 'akte',
+        params: { project_id: aworkProjectId, art: 'comment', neueste_zuerst: true, limit: AWORK_LIMIT, zeichen: 2000 },
+      });
+      if (res?.data?.error) throw new Error(res.data.error);
+      return res?.data?.rows || [];
+    },
+  });
+}
+
+// Zählt, was Kollegen geschrieben haben — in der App und in der aWork-Zeit, ohne automatische Statuszeilen.
+export const zaehleKommentare = (liste = [], aworkListe = []) => {
+  const anzahl = liste.filter((c) => c.author_email !== 'System').length + aworkListe.length;
+  return aworkListe.length >= AWORK_LIMIT ? `${anzahl}+` : anzahl;
+};
 
 // Kommentare & Notizen des Projekts — die ganze Geschichte an einem Platz:
 // Notizen zum Projekt, alle Kommentare aus den Aufgaben darunter (mit Aufgabe),
@@ -58,20 +100,7 @@ export default function ProjektKommentare({ projectId, aworkProjectId, members =
   const titelJeAufgabe = useMemo(() => Object.fromEntries(aufgaben.map((t) => [t.id, t.title])), [aufgaben]);
 
   // Kommentare aus der aWork-Zeit (eingefrorene Sicherung) — nur lesend.
-  const { data: awork, isError: aworkFehler, isLoading: aworkLaedt } = useQuery({
-    enabled: !!aworkProjectId,
-    queryKey: ['aworkKommentare', aworkProjectId],
-    staleTime: 10 * 60 * 1000,
-    retry: false,
-    queryFn: async () => {
-      const res = await base44.functions.invoke('aworkArchivApi', {
-        action: 'akte',
-        params: { project_id: aworkProjectId, art: 'comment', neueste_zuerst: true, limit: 200, zeichen: 2000 },
-      });
-      if (res?.data?.error) throw new Error(res.data.error);
-      return res?.data?.rows || [];
-    },
-  });
+  const { data: awork, isError: aworkFehler, isLoading: aworkLaedt } = useAworkKommentare(aworkProjectId);
 
   const nameVon = (email) => members.find((m) => m.email === email)?.name || email;
 
@@ -94,7 +123,7 @@ export default function ProjektKommentare({ projectId, aworkProjectId, members =
       wer: 'aWork',
       wann: r.at,
       text: bereinige(r.auszug),
-      aufgabe: r.titel || null,
+      aufgabe: r.titel ? bereinige(r.titel) : null,
     }));
     return [...app, ...alt].sort((a, b) => String(b.wann || '').localeCompare(String(a.wann || '')));
     // eslint-disable-next-line react-hooks/exhaustive-deps
