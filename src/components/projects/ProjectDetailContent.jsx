@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, getMonthLabel } from '@/lib/liquidityUtils';
 import AworkStatusBar from '@/components/awork/AworkStatusBar';
-import AworkProjectPicker from '@/components/awork/AworkProjectPicker';
 import AworkTaskLinker from '@/components/awork/AworkTaskLinker';
 import ZumProjektLink from '@/components/projekt/ZumProjektLink';
 import AworkSignalBadge from '@/components/awork/AworkSignalBadge';
@@ -76,9 +75,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
   const [aktEingabe, setAktEingabe] = useState(null); // { text, analyse }
   const [editingPM, setEditingPM] = useState(false);
   const [pmValue, setPmValue] = useState('');
-  const [showAworkPicker, setShowAworkPicker] = useState(false);
   const [linkingBlock, setLinkingBlock] = useState(null);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [pdfViewer, setPdfViewer] = useState(null);
   const [editingNextInvoiceNote, setEditingNextInvoiceNote] = useState(false);
   const [nextInvoiceNote, setNextInvoiceNote] = useState('');
@@ -189,38 +186,8 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['billingBlocks'] })
   });
 
-  const handleSelectAworkProject = async (snapshot) => {
-    setShowAworkPicker(false);
-    await updateProjectMutation.mutateAsync({
-      awork_project_id: snapshot.awork_project_id,
-      awork_project_name: snapshot.name,
-      awork_project_status: snapshot.project_status,
-      awork_progress_percent: snapshot.progress_percent,
-      awork_last_synced_at: new Date().toISOString()
-    });
-    setIsSyncing(true);
-    await base44.functions.invoke('syncAworkTasksForProject', { awork_project_id: snapshot.awork_project_id });
-    queryClient.invalidateQueries({ queryKey: ['awork-tasks-project', snapshot.awork_project_id] });
-    setIsSyncing(false);
-  };
-
-  const handleAworkSync = async () => {
-    if (!effectiveAworkProjectId) return;
-    setIsSyncing(true);
-    await base44.functions.invoke('syncAworkTasksForProject', { awork_project_id: effectiveAworkProjectId });
-    queryClient.invalidateQueries({ queryKey: ['awork-tasks-project', effectiveAworkProjectId] });
-    for (const block of projectBlocks) {
-      const blockTasks = getTasksForBillingBlock(block, aworkTasks);
-      if (blockTasks.length > 0) {
-        const status = calculateAworkStatusForBillingBlock(block, blockTasks);
-        await base44.entities.ProjectBillingBlock.update(block.id, { ...status, awork_last_synced_at: new Date().toISOString() });
-      }
-    }
-    queryClient.invalidateQueries({ queryKey: ['billingBlocks-project', projectId] });
-    queryClient.invalidateQueries({ queryKey: ['awork-snapshot', effectiveAworkProjectId] });
-    await updateProjectMutation.mutateAsync({ awork_last_synced_at: new Date().toISOString() });
-    setIsSyncing(false);
-  };
+  // aWork-Projekt verknüpfen und „aWork sync“ entfernt: aWork ist abgelöst (Oktober 2026),
+  // die Projektdaten kommen nur noch aus dem Backup.
 
   const handleSaveTaskLink = async (data) => {
     const block = linkingBlock;
@@ -798,12 +765,6 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         </Suspense>
       )}
 
-      <AworkProjectPicker
-        open={showAworkPicker}
-        onClose={() => setShowAworkPicker(false)}
-        onSelect={handleSelectAworkProject}
-        selectedProjectId={effectiveAworkProjectId}
-      />
       {linkingBlock && (
         <AworkTaskLinker
           open={!!linkingBlock}
