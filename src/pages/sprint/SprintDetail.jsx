@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SprintKopf from '@/components/sprint/SprintKopf';
 import EtappenListe from '@/components/sprint/etappen/EtappenListe';
 import ProjektUebersicht from '@/components/sprint/uebersicht/ProjektUebersicht';
-import ProjektKommentare, { useProjektKommentare, zaehleKommentare } from '@/components/sprint/kommentare/ProjektKommentare';
+import ProjektKommentare, { useProjektKommentare, useAworkKommentare, zaehleKommentare } from '@/components/sprint/kommentare/ProjektKommentare';
 import CustomerEmailSection from '@/components/crm/emails/CustomerEmailSection';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AbrechnungSektion from '@/components/sprint/abrechnung/AbrechnungSektion';
@@ -80,7 +80,8 @@ export default function SprintDetail() {
   const aktProjektId = data?.sprint?.project_id;
   // Zähler am Reiter — dieselbe Abfrage wie im Verlauf, beim Öffnen des Reiters schon geladen
   const { data: projektKommentare } = useProjektKommentare(aktProjektId);
-  const kommentarAnzahl = zaehleKommentare(projektKommentare);
+  const { data: aworkKommentare } = useAworkKommentare(data?.project?.awork_project_id);
+  const kommentarAnzahl = zaehleKommentare(projektKommentare, aworkKommentare);
 
   useMeldeZeitKontext({ project_id: data?.sprint?.project_id, quelle: 'sprint' });
   usePrefetchProjektKontext(data?.sprint?.project_id);
@@ -168,7 +169,7 @@ export default function SprintDetail() {
               <TabsTrigger value="uebersicht">Projektübersicht</TabsTrigger>
               <TabsTrigger value="kundenakt">Projektakt</TabsTrigger>
               <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
-              <TabsTrigger value="kommentare">Kommentare & Notizen{kommentarAnzahl > 0 ? ` (${kommentarAnzahl})` : ''}</TabsTrigger>
+              <TabsTrigger value="kommentare">Kommentare & Notizen{kommentarAnzahl && kommentarAnzahl !== 0 ? ` (${kommentarAnzahl})` : ''}</TabsTrigger>
               <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
             </TabsList>
             <Button size="sm" className="mb-1.5 h-9 shrink-0 rounded bg-[#D6245A] px-4 font-semibold text-white hover:bg-[#C01F50]" onClick={() => oeffneIntelligenz('frage')}>
