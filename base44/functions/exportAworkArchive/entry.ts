@@ -28,6 +28,9 @@ const zeitfilter = (von, bis) =>
   `/timeentries?filterby=${encodeURIComponent(`startDateLocal ge datetime'${von}T00:00' and startDateLocal le datetime'${bis}T23:59'`)}`;
 
 export default async function (req) {
+  // aWork ist seit Oktober 2026 abgelöst (Abo gekündigt). Kein Live-Zugriff mehr —
+  // die Daten liegen im Backup (Snapshots, Zeitbuchungen, Archiv) und bleiben lesbar.
+  return Response.json({ error: 'aWork ist abgelöst — kein Live-Abgleich mehr. Die Daten stehen im Backup.', abgeloest: true }, { status: 410 });
   const base44 = createClientFromRequest(req);
   let syncLog = null;
 

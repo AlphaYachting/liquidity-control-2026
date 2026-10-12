@@ -4,6 +4,9 @@ import { taetigkeitAusAwork } from '../../shared/taetigkeitAusAwork.js';
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 Deno.serve(async (req) => {
+  // aWork ist seit Oktober 2026 abgelöst (Abo gekündigt). Kein Live-Zugriff mehr —
+  // die Daten liegen im Backup (Snapshots, Zeitbuchungen, Archiv) und bleiben lesbar.
+  return Response.json({ error: 'aWork ist abgelöst — kein Live-Abgleich mehr. Die Daten stehen im Backup.', abgeloest: true }, { status: 410 });
   const base44 = createClientFromRequest(req);
 
   const user = await base44.auth.me();

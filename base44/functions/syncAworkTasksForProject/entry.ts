@@ -13,6 +13,9 @@ function resolveStatusType(taskStatus) {
 }
 
 Deno.serve(async (req) => {
+  // aWork ist seit Oktober 2026 abgelöst (Abo gekündigt). Kein Live-Zugriff mehr —
+  // die Daten liegen im Backup (Snapshots, Zeitbuchungen, Archiv) und bleiben lesbar.
+  return Response.json({ error: 'aWork ist abgelöst — kein Live-Abgleich mehr. Die Daten stehen im Backup.', abgeloest: true }, { status: 410 });
   try {
     const base44 = createClientFromRequest(req);
 

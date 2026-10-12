@@ -4,6 +4,9 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 // synchronisiert pro Lauf die 2 am längsten nicht synchronisierten Projekte
 // (älter als 20h) — stündlich ausgeführt sind so alle Projekte täglich frisch.
 Deno.serve(async (req) => {
+  // aWork ist seit Oktober 2026 abgelöst (Abo gekündigt). Kein Live-Zugriff mehr —
+  // die Daten liegen im Backup (Snapshots, Zeitbuchungen, Archiv) und bleiben lesbar.
+  return Response.json({ error: 'aWork ist abgelöst — kein Live-Abgleich mehr. Die Daten stehen im Backup.', abgeloest: true }, { status: 410 });
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();

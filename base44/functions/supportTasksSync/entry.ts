@@ -3,6 +3,9 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 // Lädt die awork-Aufgaben jener Support-/Wartungsprojekte nach, auf die seit dem
 // Stichtag Zeit gebucht wurde. Nur so ist der Erledigt-Status dieser Projekte bekannt.
 export default async function (req) {
+  // aWork ist seit Oktober 2026 abgelöst (Abo gekündigt). Kein Live-Zugriff mehr —
+  // die Daten liegen im Backup (Snapshots, Zeitbuchungen, Archiv) und bleiben lesbar.
+  return Response.json({ error: 'aWork ist abgelöst — kein Live-Abgleich mehr. Die Daten stehen im Backup.', abgeloest: true }, { status: 410 });
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
