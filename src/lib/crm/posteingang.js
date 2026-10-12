@@ -17,13 +17,10 @@ export function istVertraulich({ absender, empfaenger, regeln = [], istAdmin = f
   return !!vertraulichGrund({ absender, empfaenger, regeln, istAdmin });
 }
 
-// Wer eine vertrauliche Konversation zugewiesen bekommt, sieht genau diese eine —
-// die Zuweisung ist die bewusste Freigabe. Masseverwalter-Post ist davon ausgenommen.
-function verborgen({ absender, empfaenger, regeln, istAdmin, zuweisung, ich }) {
-  const grund = vertraulichGrund({ absender, empfaenger, regeln, istAdmin });
-  if (!grund) return false;
-  if (grund === 'masseverwalter') return true;
-  return !(ich && (zuweisung?.zugewiesen_an || '').toLowerCase() === ich);
+// Vertrauliche Post bleibt verborgen, auch wenn sie zugewiesen ist. Ob eine Zuweisung eine Mail
+// „nur an den Geschäftsführer“ für die zuständige Person öffnen darf, ist noch nicht entschieden.
+function verborgen({ absender, empfaenger, regeln, istAdmin }) {
+  return !!vertraulichGrund({ absender, empfaenger, regeln, istAdmin });
 }
 
 export const SCHWELLE_ARBEITSSTUNDEN = 4;
@@ -129,8 +126,7 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
 
   for (const t of threads) {
     const absender = t.last_from || t.last_inbound_from || '';
-    const zw = zuweisungFuer({ thread: t, threadId: String(t.thread_id) }, zuweisungen);
-    if (verborgen({ absender: [absender, t.last_inbound_from], empfaenger: t.last_to, regeln: aktiv, istAdmin, zuweisung: zw, ich })) continue;
+    if (verborgen({ absender: [absender, t.last_inbound_from], empfaenger: t.last_to, regeln: aktiv, istAdmin })) continue;
     const e = {
       key: `t-${t.thread_id}`,
       threadId: String(t.thread_id),
@@ -155,8 +151,7 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
   for (const item of sortiert) {
     const tid = threadIdOf(item) ? String(threadIdOf(item)) : null;
     const absender = item.sender_email || '';
-    const zwItem = zuweisungFuer({ threadId: tid, item }, zuweisungen);
-    if (verborgen({ absender, empfaenger: item.recipient, regeln: aktiv, istAdmin, zuweisung: zwItem, ich })) continue;
+    if (verborgen({ absender, empfaenger: item.recipient, regeln: aktiv, istAdmin })) continue;
     if (tid) {
       const zeile = zeileNachThread.get(tid);
       if (zeile) {
