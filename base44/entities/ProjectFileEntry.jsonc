@@ -4,7 +4,7 @@
   "properties": {
     "project_id": {
       "type": "string",
-      "description": "Zugeh\u00f6riges LiquidityProject"
+      "description": "Arbeitsprojekt (Project.id), zu dem der Projektakt geh\u00f6rt \u2014 nie das Projekt-Cockpit"
     },
     "entry_type": {
       "type": "string",
@@ -14,7 +14,7 @@
         "dokument"
       ],
       "default": "update",
-      "description": "Art des Eintrags im Kundenakt"
+      "description": "Art des Eintrags im Projektakt"
     },
     "title": {
       "type": "string",
