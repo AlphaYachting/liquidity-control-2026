@@ -47,6 +47,8 @@ export default function KommentarStrang({ projectId, ticketId, milestoneId, comp
     setDatei(null);
     setSaving(false);
     queryClient.invalidateQueries({ queryKey: ['comments', ticketId || projectId] });
+    // Der Projektverlauf (Kommentare & Notizen des Projekts) zeigt Aufgaben-Kommentare mit
+    if (ticketId && projectId) queryClient.invalidateQueries({ queryKey: ['comments', projectId] });
   };
 
   return (
