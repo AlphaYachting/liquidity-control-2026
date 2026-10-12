@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import PageHeader from '@/components/shared/PageHeader';
 import ArchivExportPanel from '@/components/awork/ArchivExportPanel';
-import { Settings, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Clock, Loader2, ShieldCheck } from 'lucide-react';
+import { Settings, CheckCircle2, XCircle, AlertTriangle, Archive } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -35,14 +35,9 @@ const SYNC_TYPE_LABELS = {
   archive_export: 'Archiv-Export',
 };
 
+// aWork ist abgelöst (Abo gekündigt, Oktober 2026). Diese Seite zeigt nur noch den
+// Stand des Backups — kein Live-Abgleich, keine Knöpfe, die aWork anrufen.
 export default function AworkSettings() {
-  const queryClient = useQueryClient();
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isSyncingTime, setIsSyncingTime] = useState(false);
-  const [isCleaningUp, setIsCleaningUp] = useState(false);
-  const [syncResult, setSyncResult] = useState(null);
-  const [timeSyncProgress, setTimeSyncProgress] = useState(null); // { page, totalCreated, totalUpdated, hasMore }
-
   const { data: settings = [], isLoading: settingsLoading } = useQuery({
     queryKey: ['awork-settings'],
     queryFn: () => base44.entities.AworkIntegrationSetting.list()
@@ -60,91 +55,25 @@ export default function AworkSettings() {
 
   const setting = settings[0];
 
-  const handleSyncProjects = async () => {
-    setIsSyncing(true);
-    setSyncResult(null);
-    const resp = await base44.functions.invoke('syncAworkProjects', {});
-    setSyncResult(resp.data);
-    queryClient.invalidateQueries({ queryKey: ['awork-settings'] });
-    queryClient.invalidateQueries({ queryKey: ['awork-sync-logs'] });
-    queryClient.invalidateQueries({ queryKey: ['awork-project-snapshots-count'] });
-    queryClient.invalidateQueries({ queryKey: ['awork-project-snapshots'] });
-    setIsSyncing(false);
-  };
-
-  const handleSyncTimeEntries = async (page = 1, accCreated = 0, accUpdated = 0) => {
-    setIsSyncingTime(true);
-    setSyncResult(null);
-    setTimeSyncProgress({ page, totalCreated: accCreated, totalUpdated: accUpdated, hasMore: false });
-
-    const now = new Date();
-    const fromDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-    const toDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-
-    const resp = await base44.functions.invoke('syncAworkTimeEntries', { from: fromDate, to: toDate, page, pageSize: 50 });
-    const result = resp.data;
-
-    const newCreated = accCreated + (result.created || 0);
-    const newUpdated = accUpdated + (result.updated || 0);
-
-    if (result.has_more) {
-      setTimeSyncProgress({ page: result.next_page, totalCreated: newCreated, totalUpdated: newUpdated, hasMore: true });
-      setIsSyncingTime(false);
-      setSyncResult({ ...result, created: newCreated, updated: newUpdated, _partial: true });
-    } else {
-      setSyncResult({ ...result, created: newCreated, updated: newUpdated });
-      setTimeSyncProgress(null);
-      queryClient.invalidateQueries({ queryKey: ['aworkTimeEntries'] });
-      setIsSyncingTime(false);
-    }
-  };
-
-  const handleCleanupSnapshots = async () => {
-    setIsCleaningUp(true);
-    setSyncResult(null);
-    const resp = await base44.functions.invoke('syncAworkProjects', { cleanup: true });
-    setSyncResult(resp.data);
-    queryClient.invalidateQueries({ queryKey: ['awork-project-snapshots-count'] });
-    queryClient.invalidateQueries({ queryKey: ['aworkSnapshots'] });
-    setIsCleaningUp(false);
-  };
-
   const statusCfg = STATUS_CONFIG[setting?.connection_status || 'not_configured'];
   const StatusIcon = statusCfg.icon;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="awork Integration"
-        subtitle="Verbindungseinstellungen und Synchronisation"
+        title="awork Backup"
+        subtitle="aWork ist abgelöst — die Daten stehen nur noch im Backup"
         icon={Settings}
-        actions={
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={handleCleanupSnapshots} disabled={isCleaningUp || isSyncing}>
-              {isCleaningUp ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              {isCleaningUp ? 'Bereinige...' : 'Alte archivieren (50)'}
-            </Button>
-            <Button variant="outline" onClick={handleSyncTimeEntries} disabled={isSyncingTime}>
-              {isSyncingTime ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Clock className="w-4 h-4 mr-2" />}
-              Zeitbuchungen synchronisieren
-            </Button>
-            <Button onClick={handleSyncProjects} disabled={isSyncing}>
-              {isSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-              Aktive Projekte sync
-            </Button>
-          </div>
-        }
       />
 
-      {/* Security notice */}
-      <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200">
-        <ShieldCheck className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+      {/* aWork abgelöst */}
+      <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
+        <Archive className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
         <div>
-          <p className="text-sm font-medium text-blue-800">Sicherheitshinweis</p>
-          <p className="text-xs text-blue-700 mt-0.5">
-            Der awork API-Key wird ausschließlich als Backend-Secret gespeichert und ist niemals im Frontend oder in den Entitätsdaten sichtbar.
-            Diese Seite zeigt nur Verbindungsstatus und Sync-Protokolle — niemals den API-Key selbst.
-            Modus: <strong>Read-only</strong> — es werden keine Daten in awork geschrieben.
+          <p className="text-sm font-medium text-amber-900">aWork ist abgelöst</p>
+          <p className="text-xs text-amber-800 mt-0.5">
+            Das aWork-Abo ist gekündigt, ein Live-Abgleich findet nicht mehr statt. Projekte, Aufgaben,
+            Zeitbuchungen und das Archiv bleiben als Backup in der App lesbar (Stand des letzten Abgleichs).
           </p>
         </div>
       </div>
@@ -219,37 +148,6 @@ export default function AworkSettings() {
               ))}
             </CardContent>
           </Card>
-        </div>
-      )}
-
-      {/* Sync result */}
-      {syncResult && (
-        <div className={`p-4 rounded-xl border text-sm ${syncResult.error ? 'bg-red-50 border-red-200 text-red-700' : syncResult._partial ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
-          {syncResult.error ? (
-            <p>Fehler: {syncResult.error}</p>
-          ) : syncResult.entries_fetched !== undefined ? (
-            <div className="flex items-center justify-between gap-4">
-              <p>
-                {syncResult._partial ? '⏳ Läuft...' : '✓ Zeitbuchungen-Sync abgeschlossen:'} {syncResult.period?.from} – {syncResult.period?.to} |{' '}
-                {syncResult.created} neu, {syncResult.updated} aktualisiert
-                {syncResult.failed > 0 ? `, ${syncResult.failed} fehlgeschlagen` : ''}
-                {syncResult._partial ? ` (Seite ${timeSyncProgress?.page ? timeSyncProgress.page - 1 : '?'} fertig, mehr verfügbar)` : ''}
-              </p>
-              {syncResult._partial && timeSyncProgress?.hasMore && (
-                <Button size="sm" onClick={() => handleSyncTimeEntries(timeSyncProgress.page, syncResult.created, syncResult.updated)} disabled={isSyncingTime}>
-                  {isSyncingTime ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
-                  Weiter (Seite {timeSyncProgress.page})
-                </Button>
-              )}
-            </div>
-          ) : (
-            <p>
-              {syncResult.cleanup
-                ? `✓ Cleanup: ${syncResult.archived} alte Snapshots archiviert.`
-                : `✓ Projekte-Sync: ${syncResult.active_projects} aktive von ${syncResult.projects_fetched} gesamt — ${syncResult.created} neu, ${syncResult.updated} aktualisiert${syncResult.failed > 0 ? `, ${syncResult.failed} fehlgeschlagen` : ''}.`
-              }
-            </p>
-          )}
         </div>
       )}
 
