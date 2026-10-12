@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { emailDbGet } from '../../shared/emailDb.ts';
 import { recomputeWindow } from '../../shared/emailConversations.js';
+import { autoZuweisen } from '../../shared/postZuweisungAuto.js';
 
 // Die E-Mail-Datenbank kann seit API v2 seitenweise blättern (limit/offset,
 // has_more, next_offset). Der Verlaufs-Index wird daher direkt über die
@@ -202,6 +203,11 @@ export default async function (req) {
     try {
       stats.konversationen = await recomputeWindow(svc, body.window_days ?? 45);
     } catch (e) { stats.fehler.push(`Konversationen: ${e.message}`); }
+
+    // ---------- Phase 4: automatische Zuweisung nach einem Arbeitstag ohne Reaktion ----------
+    try {
+      stats.zuweisung = await autoZuweisen(svc);
+    } catch (e) { stats.fehler.push(`Zuweisung: ${e.message}`); }
 
     try {
       await svc.entities.EmailIndexState.update(state.id, {
