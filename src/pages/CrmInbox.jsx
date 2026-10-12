@@ -7,6 +7,7 @@ import { PenLine, KanbanSquare, AlertTriangle, ArrowDownToLine } from 'lucide-re
 import AworkUebernahmeDialog from '@/components/support/AworkUebernahmeDialog';
 import { SUPPORT_TICKETS_KEY } from '@/components/sprint/heute/MeinTagSupportTickets';
 import { useZugriff } from '@/lib/useZugriff';
+import { useAuth } from '@/lib/AuthContext';
 import { Link } from 'react-router-dom';
 import Seitenkopf from '@/components/shared/Seitenkopf';
 import { Box } from '@/components/shared/Box';
