@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Clock, ChevronDown, ChevronRight, AlertTriangle, TrendingUp, ExternalLink } from 'lucide-react';
+import { Clock, ChevronDown, ChevronRight, AlertTriangle, TrendingUp } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
