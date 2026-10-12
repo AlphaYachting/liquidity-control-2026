@@ -114,6 +114,10 @@ Wenn die Eingabe dem Projektstand widerspricht — etwa eine Aussage zum Budget,
   };
 
   const save = async () => {
+    if (!projectId) {
+      setError('Kein Arbeitsprojekt verknüpft — der Projektakt hängt am Arbeitsprojekt.');
+      return;
+    }
     setSaving(true); setError(null);
     try {
       let fileUrl = '';
