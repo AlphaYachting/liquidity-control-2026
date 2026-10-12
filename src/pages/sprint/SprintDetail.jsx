@@ -20,7 +20,6 @@ import NeueAufgabeDialog from '@/components/sprint/NeueAufgabeDialog';
 const ProjectIntelligenceSheet = React.lazy(() =>
   import('@/components/projects/ProjectIntelligenceSheet'));
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
-import useKundenaktProjektId from '@/hooks/useKundenaktProjektId';
 import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
 import { usePrefetchProjektKontext } from '@/lib/sprint/useProjektKontext';
 import { usePrefetchCustomerEmails } from '@/hooks/useCustomerEmailThreads';
@@ -77,12 +76,8 @@ export default function SprintDetail() {
     },
   });
 
-  const { projektId: aktProjektId } = useKundenaktProjektId({
-    customer: data?.client?.name,
-    title: data?.project?.title,
-    fallbackId: data?.sprint?.project_id,
-    liquidityProjectId: data?.project?.liquidity_project_id,
-  });
+  // Der Projektakt hängt immer am Arbeitsprojekt — nie am Projekt-Cockpit.
+  const aktProjektId = data?.sprint?.project_id;
 
   useMeldeZeitKontext({ project_id: data?.sprint?.project_id, quelle: 'sprint' });
   usePrefetchProjektKontext(data?.sprint?.project_id);
@@ -168,7 +163,7 @@ export default function SprintDetail() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TabsList className="bg-transparent p-0 h-auto rounded-none flex-wrap justify-start gap-0.5 [&>button]:rounded-none [&>button]:px-3 [&>button]:pt-3 [&>button]:pb-[13px] [&>button]:text-sm [&>button]:font-medium [&>button]:text-muted-foreground [&>button[data-state=active]]:bg-transparent [&>button[data-state=active]]:font-semibold [&>button[data-state=active]]:text-foreground [&>button[data-state=active]]:shadow-[inset_0_-2px_0_hsl(var(--foreground))]">
               <TabsTrigger value="uebersicht">Projektübersicht</TabsTrigger>
-              <TabsTrigger value="kundenakt">Kundenakt</TabsTrigger>
+              <TabsTrigger value="kundenakt">Projektakt</TabsTrigger>
               <TabsTrigger value="abrechnung">Abrechnung</TabsTrigger>
               <TabsTrigger value="kommentare">Kommentare & Notizen</TabsTrigger>
               <TabsTrigger value="kommunikation">Kommunikation</TabsTrigger>
@@ -287,7 +282,7 @@ export default function SprintDetail() {
             onClose={() => setIntelligenzOffen(false)}
             projectId={aktProjektId}
             appProjektId={sprint.project_id}
-            cockpitId={project?.liquidity_project_id || (aktProjektId && aktProjektId !== sprint.project_id ? aktProjektId : null)}
+            cockpitId={project?.liquidity_project_id || null}
             projectName={project?.title}
             customer={client?.name}
           />
