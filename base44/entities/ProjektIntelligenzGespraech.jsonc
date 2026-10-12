@@ -10,6 +10,10 @@
       "type": "string",
       "description": "Conversation der Projektintelligenz"
     },
+    "user_email": {
+      "type": "string",
+      "description": "Person, der das Gespr\u00e4ch geh\u00f6rt \u2014 jede Person hat pro Projekt ihr eigenes Gespr\u00e4ch"
+    },
     "letzter_zugriff": {
       "type": "string",
       "format": "date-time"
