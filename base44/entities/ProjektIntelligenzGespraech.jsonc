@@ -4,7 +4,7 @@
   "properties": {
     "project_id": {
       "type": "string",
-      "description": "LiquidityProject, zu dem das Gespr\u00e4ch geh\u00f6rt"
+      "description": "Arbeitsprojekt (Project.id), zu dem das Gespr\u00e4ch geh\u00f6rt; nur bei einem Cockpit ohne Arbeitsprojekt die Cockpit-ID"
     },
     "conversation_id": {
       "type": "string",
