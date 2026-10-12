@@ -167,9 +167,18 @@ export default async function (req) {
       if (!ids.length) return Response.json({ success: true, texte: {} });
       const tickets = await db.Ticket.filter({ id: { $in: ids } }, null, 100);
       const fallback = Object.fromEntries(tickets.map((t) => [t.id, t.title || '']));
+      // Bemerkungen der Zeitbuchungen mitgeben — oft steht dort, was tatsächlich gemacht wurde (12.10.2026)
+      const buchungen = await db.TimeEntry.filter({ ticket_id: { $in: ids } }, 'entry_date', 500).catch(() => []);
+      const notizenProTicket = {};
+      for (const b of buchungen) {
+        const n = String(b.note || '').trim();
+        if (!n || b.korrektur_zu) continue;
+        (notizenProTicket[b.ticket_id] = notizenProTicket[b.ticket_id] || new Set()).add(n);
+      }
       const quelle = tickets.map((t) => {
         const beschreibung = String(t.description || '').split('— Vollständiger E-Mail-Verlauf —')[0].trim().slice(0, 3000);
-        return `TICKET ${t.id}\nTITEL: ${t.title || ''}\nINHALT:\n${beschreibung || '(keine Beschreibung)'}`;
+        const notizen = [...(notizenProTicket[t.id] || [])].slice(0, 30).join('\n- ');
+        return `TICKET ${t.id}\nTITEL: ${t.title || ''}\nINHALT:\n${beschreibung || '(keine Beschreibung)'}${notizen ? `\nNOTIZEN AUS DEN ZEITBUCHUNGEN:\n- ${notizen}` : ''}`;
       }).join('\n\n=====\n\n');
 
       let texte = { ...fallback };
