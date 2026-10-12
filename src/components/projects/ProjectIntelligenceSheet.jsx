@@ -40,6 +40,7 @@ export default function ProjectIntelligenceSheet({
   const [formuliert, setFormuliert] = useState(false);
   const [speichernd, setSpeichernd] = useState(false);
   const endRef = useRef(null);
+  const meRef = useRef(null);
   const feldRef = useRef(null);
   const sprache = useSpracheingabe(setInput);
 
@@ -70,18 +71,35 @@ export default function ProjectIntelligenceSheet({
     return () => { aktiv = false; };
   }, [open, projectId, appProjektId]);
 
-  // Dauerhaft gespeichertes Gespräch beim Öffnen wiederherstellen
+  // Dauerhaft gespeichertes Gespräch beim Öffnen wiederherstellen — nur das EIGENE.
+  // Jede Person hat pro Projekt ihr eigenes Gespräch; ein fremdes Gespräch darf die Plattform
+  // nicht fortschreiben (dann bliebe das Panel nach dem Senden stumm).
   useEffect(() => {
     if (!open || conversation || !projectId) return;
     let aktiv = true;
     (async () => {
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) return;
+      meRef.current = me;
       const treffer = await base44.entities.ProjektIntelligenzGespraech.filter(
-        { project_id: projectId }, '-letzter_zugriff', 1
+        { project_id: projectId }, '-letzter_zugriff', 20
       );
-      if (!aktiv || !treffer[0]) return;
-      setGespraech(treffer[0]);
-      setConversation({ id: treffer[0].conversation_id });
-      base44.entities.ProjektIntelligenzGespraech.update(treffer[0].id, { letzter_zugriff: new Date().toISOString() });
+      let eigenes = treffer.find((g) => g.user_email && g.user_email === me.email) || null;
+      if (!eigenes) {
+        // Ältere Einträge ohne Person: über den Ersteller des Gesprächs zuordnen und die Person nachtragen
+        for (const g of treffer.filter((t) => !t.user_email)) {
+          const conv = await base44.agents.getConversation(g.conversation_id).catch(() => null);
+          if (conv?.created_by_id && conv.created_by_id === me.id) {
+            eigenes = g;
+            base44.entities.ProjektIntelligenzGespraech.update(g.id, { user_email: me.email }).catch(() => {});
+            break;
+          }
+        }
+      }
+      if (!aktiv || !eigenes) return;
+      setGespraech(eigenes);
+      setConversation({ id: eigenes.conversation_id });
+      base44.entities.ProjektIntelligenzGespraech.update(eigenes.id, { letzter_zugriff: new Date().toISOString() });
     })();
     return () => { aktiv = false; };
   }, [open, projectId, conversation]);
@@ -127,8 +145,10 @@ export default function ProjectIntelligenceSheet({
           metadata: { name: `${projectLabel} · ${new Date().toLocaleDateString('de-AT')}` },
         });
         setConversation(conv);
+        const me = meRef.current || await base44.auth.me().catch(() => null);
         const record = await base44.entities.ProjektIntelligenzGespraech.create({
           project_id: projectId, conversation_id: conv.id, letzter_zugriff: new Date().toISOString(),
+          user_email: me?.email || undefined,
         });
         setGespraech(record);
       }
