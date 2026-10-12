@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Link2, RefreshCw, Loader2, ExternalLink, ListChecks } from 'lucide-react';
+import { Link2, RefreshCw, Loader2, ListChecks } from 'lucide-react';
 import Sektion from '@/components/projects/Sektion';
 import Ampelpunkt from '@/components/sprint/Ampelpunkt';
 import useProjektAufgaben from '@/hooks/useProjektAufgaben';
