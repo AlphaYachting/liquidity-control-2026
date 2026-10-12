@@ -5,7 +5,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 // modus "pruefen" (Standard) zeigt nur die Vorschau, "anwenden" schreibt. Nichts wird gelöscht.
 
 const MODELL: Record<string, string> = { sprint: 'pauschal', legacy: 'pauschal', container: 'retainer', support: 'aufwand', regie: 'aufwand' };
-const ABHAENGIG = ['ConfirmedOrder', 'BillingInstruction', 'InvoiceRecord', 'MonthlyBillingPlan', 'ProjectFileEntry'];
+// Der Projektakt (ProjectFileEntry) bleibt am Arbeitsprojekt und wird nicht umgehängt.
+const ABHAENGIG = ['ConfirmedOrder', 'BillingInstruction', 'InvoiceRecord', 'MonthlyBillingPlan'];
 
 function typVon(p: any) {
   if (p.is_legacy) return 'legacy';
