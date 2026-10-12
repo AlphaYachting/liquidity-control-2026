@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { normalize } from '../../shared/searchNormalize.js';
 import { vertraulichGrund } from '../../shared/vertraulich.js';
 
-// Zweite Stufe: was nicht im Index liegt — Verläufe und Kundenakt im Volltext.
+// Zweite Stufe: was nicht im Index liegt — Verläufe und Projektakt im Volltext.
 export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -43,18 +43,26 @@ export default async function (req) {
       }));
 
     const akten = await sr.entities.ProjectFileEntry.list('-updated_date', 1500);
-    const akte = akten
+    const gefunden = akten
       .filter((a) => normalize(`${a.title} ${a.content} ${a.ai_summary} ${a.follow_up_text}`).includes(suche))
-      .slice(0, 4)
-      .map((a) => ({
-        entry_type: 'akte',
-        title: a.title || 'Kundenakt-Eintrag',
-        subtitle: String(a.content || a.ai_summary || '').slice(0, 120),
-        client_name: '',
-        route: `/projects/${a.project_id}`,
-        activity_at: a.entry_date || a.updated_date,
-        weight: 14,
-      }));
+      .slice(0, 4);
+    // Der Projektakt hängt am Arbeitsprojekt — Treffer öffnen dort den Reiter Projektakt.
+    // Ältere Einträge am Cockpit führen weiter ins Cockpit.
+    const routeFuer = async (projektId) => {
+      const arbeit = await sr.entities.Project.get(projektId).catch(() => null);
+      if (!arbeit) return `/projects/${projektId}`;
+      const sprints = await sr.entities.Sprint.filter({ project_id: projektId }, '-created_date', 1).catch(() => []);
+      return sprints[0] ? `/sprint/sprints/${sprints[0].id}?reiter=kundenakt` : '/sprint/projekte';
+    };
+    const akte = await Promise.all(gefunden.map(async (a) => ({
+      entry_type: 'akte',
+      title: a.title || 'Projektakt-Eintrag',
+      subtitle: String(a.content || a.ai_summary || '').slice(0, 120),
+      client_name: '',
+      route: await routeFuer(a.project_id),
+      activity_at: a.entry_date || a.updated_date,
+      weight: 14,
+    })));
 
     return Response.json({ treffer: [...postfach, ...akte] });
   } catch (error) {
