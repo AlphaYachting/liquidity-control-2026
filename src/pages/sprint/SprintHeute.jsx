@@ -16,6 +16,7 @@ import { Abschnitt, KlappAbschnitt, KurzListe, Zaehlerleiste } from '@/component
 import MeinTagProjektgruppen from '@/components/sprint/heute/MeinTagProjektgruppen';
 import { MeinTagZeit, MeinTagEingang, stundenVon } from '@/components/sprint/heute/MeinTagSeitenleiste';
 import MeinTagSupportTickets, { SUPPORT_TICKETS_KEY } from '@/components/sprint/heute/MeinTagSupportTickets';
+import MeinTagPost from '@/components/sprint/heute/MeinTagPost';
 import { RITTLER, STATUS_COLORS, todayIso } from '@/components/sprint/sprintConfig';
 import { ohneArchiv, PROJEKT_LAUFEND, istAktiv } from '@/lib/sprint/aktivFilter';
 import { gliedereMeinTag, nachProjekt } from '@/lib/sprint/meinTag';
@@ -255,6 +256,9 @@ export default function SprintHeute() {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
         <div className="space-y-5 min-w-0">
+          {/* Zugewiesene Post zuerst — ein Kunde wartet auf Antwort */}
+          <MeinTagPost />
+
           {offenGesamt === 0 && (
             <div className="bg-white rounded-lg border border-border px-5 py-4 text-sm" style={{ color: RITTLER.textSecondary }}>
               Dir sind aktuell keine offenen Aufgaben zugewiesen.
