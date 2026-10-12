@@ -14,6 +14,19 @@ const bereinige = (t) => String(t || '')
   .replace(/~\[fileId:[^\]]+\]/g, '[Datei]')
   .trim();
 
+// Eine Abfrage für Reiter-Zähler und Verlauf — gleicher Schlüssel, daher nur einmal geladen.
+export function useProjektKommentare(projectId) {
+  return useQuery({
+    enabled: !!projectId,
+    queryKey: ['comments', projectId],
+    queryFn: () => base44.entities.Comment.filter({ project_id: projectId }, '-created_date', 1000),
+    staleTime: 60 * 1000,
+  });
+}
+
+// Zählt nur, was Kollegen geschrieben haben — keine automatischen Statuszeilen.
+export const zaehleKommentare = (liste = []) => liste.filter((c) => c.author_email !== 'System').length;
+
 // Kommentare & Notizen des Projekts — die ganze Geschichte an einem Platz:
 // Notizen zum Projekt, alle Kommentare aus den Aufgaben darunter (mit Aufgabe),
 // und die Kommentare aus der aWork-Zeit vor der Umstellung. Neueste oben.
@@ -29,11 +42,7 @@ export default function ProjektKommentare({ projectId, aworkProjectId, members =
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => base44.auth.me() });
 
   // Alle Kommentare des Projekts — Projektnotizen und Aufgaben-Kommentare tragen dieselbe project_id.
-  const { data: kommentare = [], isLoading } = useQuery({
-    enabled: !!projectId,
-    queryKey: ['comments', projectId],
-    queryFn: () => base44.entities.Comment.filter({ project_id: projectId }, '-created_date', 1000),
-  });
+  const { data: kommentare = [], isLoading } = useProjektKommentare(projectId);
 
   // Aufgabentitel — auch archivierte Aufgaben, damit ältere Kommentare zuordenbar bleiben.
   const ticketIds = useMemo(
