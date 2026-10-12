@@ -184,7 +184,7 @@ export default function ProjektKommentare({ projectId, aworkProjectId, members =
                 {e.aufgabe && (
                   <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-foreground/70">
                     <ListChecks className="w-3 h-3" />
-                    {e.quelle === 'awork' ? 'aWork-Aufgabe' : 'Aufgabe'}: {e.aufgabe}
+                    {e.quelle === 'awork' ? 'aWork' : 'Aufgabe'}: {e.aufgabe}
                   </p>
                 )}
                 <p className={`text-xs mt-0.5 whitespace-pre-wrap ${e.system ? 'italic text-muted-foreground' : 'text-muted-foreground'}`}>
