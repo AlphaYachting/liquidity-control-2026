@@ -128,6 +128,8 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
     const absender = t.last_from || t.last_inbound_from || '';
     if (verborgen({ absender: [absender, t.last_inbound_from], empfaenger: t.last_to, regeln: aktiv, istAdmin })) continue;
     const e = {
+      // nur für Admins sichtbar (Verwaltung oder nur an den GF) — Zuweisung an Kollegen wäre wirkungslos
+      vertraulich: !!vertraulichGrund({ absender: [absender, t.last_inbound_from], empfaenger: t.last_to, regeln: aktiv, istAdmin: false }),
       key: `t-${t.thread_id}`,
       threadId: String(t.thread_id),
       thread: t,
@@ -166,6 +168,7 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
     }
     // Telefon-KI, manuell erfasst, oder Verlauf noch nicht im Verzeichnis
     eintraege.push({
+      vertraulich: !!vertraulichGrund({ absender, empfaenger: item.recipient, regeln: aktiv, istAdmin: false }),
       key: `i-${item.id}`,
       threadId: tid,
       thread: null,
