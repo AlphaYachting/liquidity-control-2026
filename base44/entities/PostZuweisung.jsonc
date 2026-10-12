@@ -1,0 +1,42 @@
+{
+  "name": "PostZuweisung",
+  "properties": {
+    "betreff": {
+      "type": "string"
+    },
+    "quelle": {
+      "default": "manuell",
+      "description": "manuell = von einer Person zugewiesen; automatisch = nach einem Arbeitstag ohne Reaktion",
+      "enum": [
+        "manuell",
+        "automatisch"
+      ],
+      "type": "string"
+    },
+    "schluessel": {
+      "description": "Konversation (conversation_key aus dem Verlaufs-Verzeichnis) oder item:<id> bei Anfragen ohne E-Mail",
+      "type": "string"
+    },
+    "thread_id": {
+      "description": "Verlauf, an dem zugewiesen wurde",
+      "type": "string"
+    },
+    "zugewiesen_am": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "zugewiesen_an": {
+      "description": "E-Mail der zust\u00e4ndigen Person \u2014 die Mail erscheint in ihrem \u201eMein Tag\u201c, bis sie beantwortet ist",
+      "type": "string"
+    },
+    "zugewiesen_von": {
+      "description": "E-Mail der zuweisenden Person oder \u201eautomatisch\u201c",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schluessel",
+    "zugewiesen_an"
+  ],
+  "type": "object"
+}
