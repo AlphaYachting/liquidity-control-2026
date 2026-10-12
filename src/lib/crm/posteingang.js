@@ -4,6 +4,7 @@
 import { isBlockedSender } from '@/lib/crm/blockedSenders';
 import { threadIdOf } from '@/components/crm/inboxDecision';
 import { vertraulichGrund } from '@/lib/crm/vertraulich';
+import { zuweisungFuer } from '@/lib/crm/zuweisung';
 
 /**
  * Vertrauliche Post gehört nicht in den gemeinsamen Posteingang (Entscheidung Alfons 05.10.2026),
@@ -14,6 +15,15 @@ import { vertraulichGrund } from '@/lib/crm/vertraulich';
  */
 export function istVertraulich({ absender, empfaenger, regeln = [], istAdmin = false }) {
   return !!vertraulichGrund({ absender, empfaenger, regeln, istAdmin });
+}
+
+// Wer eine vertrauliche Konversation zugewiesen bekommt, sieht genau diese eine —
+// die Zuweisung ist die bewusste Freigabe. Masseverwalter-Post ist davon ausgenommen.
+function verborgen({ absender, empfaenger, regeln, istAdmin, zuweisung, ich }) {
+  const grund = vertraulichGrund({ absender, empfaenger, regeln, istAdmin });
+  if (!grund) return false;
+  if (grund === 'masseverwalter') return true;
+  return !(ich && zuweisung?.zugewiesen_an === ich);
 }
 
 export const SCHWELLE_ARBEITSSTUNDEN = 4;
@@ -109,7 +119,7 @@ export function klasseVon(e) {
  *  eskalationen — Set offener Eskalations-Verläufe (thread_id)
  * Ein E-Mail-Item, dessen Konversation beantwortet oder erledigt ist, verlässt den Posteingang.
  */
-export function baueEintraege({ threads = [], items = [], itemZeilen = [], regeln = [], eskalationen = new Set(), jetzt = Date.now(), istAdmin = false }) {
+export function baueEintraege({ threads = [], items = [], itemZeilen = [], regeln = [], eskalationen = new Set(), jetzt = Date.now(), istAdmin = false, zuweisungen = [], ich = '' }) {
   const aktiv = regeln.filter((r) => r.is_active !== false);
   const verwaltung = aktiv.filter((r) => r.mode === 'verwaltung');
 
@@ -119,7 +129,8 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
 
   for (const t of threads) {
     const absender = t.last_from || t.last_inbound_from || '';
-    if (istVertraulich({ absender: [absender, t.last_inbound_from], empfaenger: t.last_to, regeln: aktiv, istAdmin })) continue;
+    const zw = zuweisungFuer({ thread: t, threadId: String(t.thread_id) }, zuweisungen);
+    if (verborgen({ absender: [absender, t.last_inbound_from], empfaenger: t.last_to, regeln: aktiv, istAdmin, zuweisung: zw, ich })) continue;
     const e = {
       key: `t-${t.thread_id}`,
       threadId: String(t.thread_id),
@@ -144,7 +155,8 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
   for (const item of sortiert) {
     const tid = threadIdOf(item) ? String(threadIdOf(item)) : null;
     const absender = item.sender_email || '';
-    if (istVertraulich({ absender, empfaenger: item.recipient, regeln: aktiv, istAdmin })) continue;
+    const zwItem = zuweisungFuer({ threadId: tid, item }, zuweisungen);
+    if (verborgen({ absender, empfaenger: item.recipient, regeln: aktiv, istAdmin, zuweisung: zwItem, ich })) continue;
     if (tid) {
       const zeile = zeileNachThread.get(tid);
       if (zeile) {
@@ -178,9 +190,12 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
     // Support-Mails sind oft dringend — sie erscheinen sofort, ohne die 4-Arbeitsstunden-Wartezeit
     const ab = e.sofort || e.eskalation || e.kanaele.includes('support') ? e.eingang : sichtbarAb(e.eingang);
     const klasse = klasseVon(e);
+    const zuweisung = zuweisungFuer(e, zuweisungen);
     return {
       ...e,
       klasse,
+      zuweisung,
+      zustaendig: zuweisung?.zugewiesen_an || '',
       sichtbarAb: ab,
       sichtbar: jetzt >= ab,
       ueberfaellig: jetzt - e.eingang >= UEBERFAELLIG_STUNDEN * 3600 * 1000,
