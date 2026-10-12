@@ -71,11 +71,16 @@ export default async function (req) {
       });
     }
 
-    // Zusagen und letzter Projektstand aus dem Kundenakt
+    // Zusagen und letzter Projektstand aus dem Projektakt. Der Projektakt hängt am
+    // Arbeitsprojekt (Project.id); diese Auswertung läuft je Cockpit — daher umrechnen.
     const zusagenNachProjekt = {};
     const letzterAktNachProjekt = {};
+    const liqNachArbeitsprojekt = {};
+    for (const sp of sprintProjekte) {
+      if (sp.liquidity_project_id) liqNachArbeitsprojekt[sp.id] = sp.liquidity_project_id;
+    }
     for (const e of akteEintraege) {
-      const pid = e.project_id;
+      const pid = liqNachArbeitsprojekt[e.project_id] || liqNachSprintProjekt[e.project_id] || e.project_id;
       if (!pid) continue;
       const datum = e.entry_date || e.created_date;
       if (datum && (!letzterAktNachProjekt[pid] || datum > letzterAktNachProjekt[pid])) {
