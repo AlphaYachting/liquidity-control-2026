@@ -41,6 +41,7 @@ import ProjectProgressBlock from '@/components/projects/ProjectProgressBlock';
 import ProjektAufgabenListe from '@/components/projects/ProjektAufgabenListe';
 import ProjektFaktenzeile from '@/components/projects/ProjektFaktenzeile';
 import useProjektAufgaben from '@/hooks/useProjektAufgaben';
+import useProjektaktId from '@/hooks/useProjektaktId';
 import useProjektIntelligenzKontext from '@/hooks/useProjektIntelligenzKontext';
 import KundenaktTab from '@/components/projects/kundenakt/KundenaktTab';
 import FesthaltenKnopf from '@/components/projects/kundenakt/FesthaltenKnopf';
@@ -86,6 +87,10 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
     queryKey: ['project', projectId],
     queryFn: () => base44.entities.LiquidityProject.filter({ id: projectId }).then(r => r[0] || null)
   });
+
+  // Projektakt und Zusagen hängen am verknüpften Arbeitsprojekt, nicht am Cockpit.
+  const { projektId: verknuepftesProjekt } = useProjektaktId({ cockpitId: projectId });
+  const aktProjektId = verknuepftesProjekt || project?.project_ref_id || null;
 
   const { data: allOrders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['confirmedOrders-project', projectId],
@@ -278,7 +283,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
   const isLoading = lpLoading || ordersLoading || blocksLoading || invoicesLoading;
 
   // Kennzahlen der Kontextzone — dieselben Werte gehen an die Projektintelligenz
-  const { kennzahlen: aufgabenKennzahlen } = useProjektAufgaben({ projectId, aworkProjectId: effectiveAworkProjectId });
+  const { kennzahlen: aufgabenKennzahlen } = useProjektAufgaben({ projectId: aktProjektId, aworkProjectId: effectiveAworkProjectId });
   const intelligenzFinanzen = {
     billingPct: commercialBaseNet > 0 ? (adjustedInvoicedNet / commercialBaseNet) * 100 : 0,
     paymentPct: commercialBaseNet > 0 ? (totalPaidGross / (commercialBaseNet * 1.2)) * 100 : 0,
@@ -400,7 +405,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
         {/* Ebene 2: Trennkante — Reiter auf durchgehender Linie */}
         <div className="flex items-center justify-between gap-2 border-b border-border">
         <TabsList className="bg-transparent p-0 h-auto rounded-none -mb-px">
-          <TabsTrigger value="akt" className={TAB_CLS}>Kundenakt</TabsTrigger>
+          <TabsTrigger value="akt" className={TAB_CLS}>Projektakt</TabsTrigger>
           <TabsTrigger value="stand" className={TAB_CLS}>Projektverlauf</TabsTrigger>
           <TabsTrigger value="abrechnung" className={TAB_CLS}>Abrechnung</TabsTrigger>
         </TabsList>
@@ -412,7 +417,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
 
         <TabsContent value="akt" className="space-y-6 mt-4">
           <KundenaktTab
-            projectId={projectId}
+            projectId={aktProjektId}
             projectName={project.project_name}
             customer={project.customer}
             onFesthalten={() => { setIntelligenzModus('erfassung'); setShowIntelligence(true); }}
@@ -421,7 +426,7 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
 
         <TabsContent value="stand" className="space-y-6 mt-4">
       <ProjektAufgabenListe
-        projectId={projectId}
+        projectId={aktProjektId}
         aworkProjectId={effectiveAworkProjectId}
         onSelectProject={() => setShowAworkPicker(true)}
         onSync={handleAworkSync}
@@ -771,14 +776,14 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
       <KundenaktEntryDialog
         open={!!aktEingabe}
         onClose={() => setAktEingabe(null)}
-        projectId={projectId}
+        projectId={aktProjektId}
         projectName={project.project_name}
         customer={project.customer}
         initialContent={aktEingabe?.text || ''}
         autoAnalyse={aktEingabe?.analyse}
         kennzahlen={aufgabenKennzahlen}
         finanzen={intelligenzFinanzen}
-        onSaved={() => queryClient.invalidateQueries({ queryKey: ['projektZusagen', projectId] })}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ['projektZusagen', aktProjektId] })}
       />
 
       {schonGeoeffnet && (
@@ -787,7 +792,9 @@ export default function ProjectDetailContent({ projectId, onClose, embedded = fa
             open={showIntelligence}
             startModus={intelligenzModus}
             onClose={() => setShowIntelligence(false)}
-            projectId={projectId}
+            projectId={aktProjektId || projectId}
+            appProjektId={aktProjektId || undefined}
+            cockpitId={projectId}
             projectName={project.project_name}
             customer={project.customer}
             kennzahlen={aufgabenKennzahlen}
