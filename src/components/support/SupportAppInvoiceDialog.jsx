@@ -37,7 +37,11 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
   };
   const startText = (t) => {
     if (t.ticket_id) return '';
-    if (!regie) return 'Supportleistungen ohne Ticketzuordnung';
+    if (!regie) {
+      // Bemerkungen der Buchungen als Leistungstext (12.10.2026)
+      const texte = [...new Set((t.buchungs_notizen || []).map((n) => n.text).filter(Boolean))];
+      return texte.join(', ') || 'Supportleistungen ohne Ticketzuordnung';
+    }
     return (t.notizen || []).join(', ') || 'Regieleistungen';
   };
   const [rate, setRate] = useState(row.stundensatz || 130);
