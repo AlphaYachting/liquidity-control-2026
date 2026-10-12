@@ -49,9 +49,11 @@ export default function AworkStatusBar({ data, projectId, onSelectProject, onSyn
               Um den Fortschritt je Leistungspaket zu sehen: <strong>1. awork-Projekt verknüpfen</strong> → <strong>2. Leistungspakete mit awork-Tasklisten oder Tasks verbinden</strong>
             </p>
           </div>
-          <Button size="sm" variant="outline" onClick={onSelectProject} className="h-7 text-xs flex-shrink-0">
-            <Link2 className="w-3 h-3 mr-1" /> awork-Projekt verknüpfen
-          </Button>
+          {onSelectProject && (
+            <Button size="sm" variant="outline" onClick={onSelectProject} className="h-7 text-xs flex-shrink-0">
+              <Link2 className="w-3 h-3 mr-1" /> awork-Projekt verknüpfen
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -64,15 +66,10 @@ export default function AworkStatusBar({ data, projectId, onSelectProject, onSyn
         <div className="w-5 h-5 rounded bg-primary flex items-center justify-center flex-shrink-0">
           <span className="text-primary-foreground text-xs font-bold">a</span>
         </div>
-        <a
-          href={`https://app.awork.com/projects/${src.awork_project_id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm font-semibold text-primary truncate hover:underline"
-          title="In awork öffnen"
-        >
+        {/* aWork ist abgelöst — kein Link mehr in die aWork-Oberfläche, nur der Backup-Stand */}
+        <span className="text-sm font-semibold text-foreground truncate" title="aWork-Backup">
           {src.awork_project_name || '—'}
-        </a>
+        </span>
         {src.awork_project_status && (
           <span className={`text-xs px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColor(src.awork_project_status)}`}>
             {src.awork_project_status}
@@ -83,17 +80,23 @@ export default function AworkStatusBar({ data, projectId, onSelectProject, onSyn
           {freshnessLabel}
         </span>
         <AworkLastBookers aworkProjectId={src.awork_project_id} />
-        <div className="flex items-center gap-1 flex-shrink-0 ml-auto">
-          <Button size="icon" variant="ghost" onClick={onSync} disabled={isSyncing}
-            title="awork Daten synchronisieren"
-            className="h-6 w-6 text-primary hover:bg-muted">
-            {isSyncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onSelectProject}
-            className="h-6 text-xs text-primary hover:bg-muted px-2">
-            <Link2 className="w-3 h-3 mr-1" /> Ändern
-          </Button>
-        </div>
+        {(onSync || onSelectProject) && (
+          <div className="flex items-center gap-1 flex-shrink-0 ml-auto">
+            {onSync && (
+              <Button size="icon" variant="ghost" onClick={onSync} disabled={isSyncing}
+                title="awork Daten synchronisieren"
+                className="h-6 w-6 text-primary hover:bg-muted">
+                {isSyncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              </Button>
+            )}
+            {onSelectProject && (
+              <Button size="sm" variant="ghost" onClick={onSelectProject}
+                className="h-6 text-xs text-primary hover:bg-muted px-2">
+                <Link2 className="w-3 h-3 mr-1" /> Ändern
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Zeile 2: Fakten — Frist, offene/blockierte Aufgaben, letzte Aktivität */}
