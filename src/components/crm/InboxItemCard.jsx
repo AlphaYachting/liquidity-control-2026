@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Phone, Mail, PenLine, UserPlus, MailCheck, LifeBuoy, Sparkles, ChevronDown, Check, Archive, Siren, Clock } from 'lucide-react';
 import { wartezeitText } from '@/components/crm/inboxZeit';
 import { KLASSE_LABEL } from '@/lib/crm/posteingang';
+import ZuweisungWahl, { ZustaendigHinweis } from '@/components/crm/ZuweisungWahl';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
@@ -134,6 +135,7 @@ export default function InboxItemCard({ item, eintrag, offen, onOeffnen, onConve
           ) : (
             <p className="text-meta text-muted-foreground">{tageOffen === 1 ? 'seit 1 Tag' : 'heute'}</p>
           )}
+          {eintrag && <ZustaendigHinweis eintrag={eintrag} />}
         </div>
 
         <ChevronDown className={cn('w-4 h-4 text-muted-foreground', offen && 'rotate-180')} />
@@ -141,6 +143,7 @@ export default function InboxItemCard({ item, eintrag, offen, onOeffnen, onConve
 
       {offen && (
         <div className="border-t px-4 pt-4 pb-4 pl-[66px]">
+          {eintrag && <div className="mb-3"><ZuweisungWahl eintrag={eintrag} onChanged={onChanged} /></div>}
           {/* Entscheidung zuerst — Text, Verlauf und KI-Einschätzung stehen darunter */}
           <div className="mb-4 pb-3.5 border-b flex flex-wrap items-center gap-2">
             <Button variant={knopf('anfrage')} disabled={busy} onClick={() => onConvert(item)}>
