@@ -409,17 +409,23 @@ export function zeileDeal(d, q) {
   }, [firma, d.linked_customer_name, d.contact_name, d.contact_email, verloren ? null : 'lead']);
 }
 
+// Projektakt-Eintrag — hängt am Arbeitsprojekt (Project.id) und öffnet dort den Projektakt.
+// Ältere Einträge am Cockpit führen weiter ins Cockpit.
 export function zeileAkte(a, q) {
-  const projekt = q.projekte.find((p) => p.id === a.project_id);
+  const arbeit = q.projektNachId.get(a.project_id);
+  const cockpit = arbeit ? null : q.projekte.find((p) => p.id === a.project_id);
+  const route = arbeit
+    ? `${projektRoute(q, arbeit.id)}${q.sprintJe.get(arbeit.id) ? '?reiter=kundenakt' : ''}`
+    : `/projects/${a.project_id}`;
   return mach({
     entry_type: 'akte',
     ref_entity: 'ProjectFileEntry',
     ref_id: a.id,
-    client_name: projekt?.customer || '',
-    title: a.title || 'Kundenakt-Eintrag',
+    client_name: (arbeit ? q.kundeNachId.get(arbeit.client_id)?.name : cockpit?.customer) || '',
+    title: a.title || 'Projektakt-Eintrag',
     subtitle: String(a.content || a.ai_summary || '').slice(0, 120),
     area: 'projects',
-    route: `/projects/${a.project_id}`,
+    route,
     activity_at: a.entry_date || a.updated_date,
   });
 }
