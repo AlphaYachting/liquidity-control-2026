@@ -96,11 +96,11 @@ export default function ProjektAufgabenListe({
       <Sektion
         titel="Aufgaben"
         symbol={ListChecks}
-        aktion={
+        aktion={onSelectProject ? (
           <Button size="sm" variant="outline" onClick={onSelectProject} className="h-7 text-xs">
             <Link2 className="w-3 h-3 mr-1" /> awork-Projekt verknüpfen
           </Button>
-        }
+        ) : null}
       >
         <p className="text-sm text-muted-foreground">Kein awork-Projekt verknüpft</p>
       </Sektion>
@@ -132,24 +132,18 @@ export default function ProjektAufgabenListe({
     <Sektion
       titel="Aufgaben"
       symbol={ListChecks}
-      aktion={
-        <a
-          href={`https://app.awork.com/projects/${aworkProjectId}`}
-          target="_blank" rel="noopener noreferrer"
-          className="text-xs text-primary hover:underline flex items-center gap-1"
-        >
-          <ExternalLink className="w-3 h-3" /> in awork
-        </a>
-      }
+      aktion={<span className="text-xs text-muted-foreground">aWork-Backup</span>}
     >
 
       {kennzahlen.daten_veraltet && (
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">Stand vom {standLabel || '—'}</p>
-          <Button size="sm" variant="ghost" onClick={onSync} disabled={isSyncing} className="h-6 text-xs">
-            {isSyncing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
-            Synchronisieren
-          </Button>
+          {onSync && (
+            <Button size="sm" variant="ghost" onClick={onSync} disabled={isSyncing} className="h-6 text-xs">
+              {isSyncing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+              Synchronisieren
+            </Button>
+          )}
         </div>
       )}
 
