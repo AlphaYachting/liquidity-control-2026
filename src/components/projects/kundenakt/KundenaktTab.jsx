@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -6,20 +6,31 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PenLine, FolderOpen } from 'lucide-react';
 import Sektion from '@/components/projects/Sektion';
 import KundenaktTimeline from '@/components/projects/kundenakt/KundenaktTimeline';
-import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntryDialog';
 
-// Digitaler Kundenakt des Projekts — Vereinbarungen, Updates und Dokumente
-// als Timeline, neueste Eingabe oben.
-export default function KundenaktTab({ projectId, projectName, customer, onFesthalten, titel = 'Kundenakt' }) {
+// Projektakt — Vereinbarungen, Updates und Dokumente des Projekts als Timeline,
+// neueste Eingabe oben. Hängt immer am Arbeitsprojekt (Project.id).
+// Erfasst wird über die Projektintelligenz (onFesthalten).
+export default function KundenaktTab({ projectId, projectName, customer, onFesthalten, titel = 'Projektakt' }) {
   const queryClient = useQueryClient();
-  const [showDialog, setShowDialog] = useState(false);
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['projectFileEntries', projectId],
     queryFn: () => base44.entities.ProjectFileEntry.filter({ project_id: projectId }, '-entry_date'),
+    enabled: !!projectId,
   });
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['projectFileEntries', projectId] });
+
+  if (!projectId) {
+    return (
+      <Sektion titel={titel} symbol={FolderOpen}>
+        <p className="text-sm text-muted-foreground">
+          Mit diesem Cockpit ist kein Arbeitsprojekt verknüpft. Der Projektakt hängt am Arbeitsprojekt —
+          bitte zuerst ein Projekt verknüpfen.
+        </p>
+      </Sektion>
+    );
+  }
 
   return (
     <Sektion
@@ -40,15 +51,6 @@ export default function KundenaktTab({ projectId, projectName, customer, onFesth
       ) : (
         <KundenaktTimeline entries={entries} onChanged={refresh} />
       )}
-
-      <KundenaktEntryDialog
-        open={showDialog}
-        onClose={() => setShowDialog(false)}
-        projectId={projectId}
-        projectName={projectName}
-        customer={customer}
-        onSaved={refresh}
-      />
     </Sektion>
   );
 }
