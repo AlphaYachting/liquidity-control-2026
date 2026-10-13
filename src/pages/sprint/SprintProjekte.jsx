@@ -20,6 +20,7 @@ import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { NICHT_ARCHIVIERT } from '@/lib/sprint/aktivFilter';
 import ProjektFilterLeiste from '@/components/sprint/uebersicht/ProjektFilterLeiste';
 import ProjektGruppe from '@/components/sprint/uebersicht/ProjektGruppe';
+import { TagNullLeiste } from '@/components/sprint/uebersicht/TagNull';
 import { personenMitLeitung } from '@/lib/sprint/personenMitLeitung';
 import {
   PROJEKT_GRUPPEN, gruppeVon, standVon, meineProjektIds, passtZurSuche, merkLesen, merkSchreiben,
@@ -27,6 +28,7 @@ import {
 
 const MERK_SICHT = 'projekte.sicht';
 const MERK_GRUPPEN = 'projekte.gruppenOffen';
+const MERK_TAG_NULL = 'projekte.tagNull';
 
 // S3 — Projektliste + Stammdaten für Client und Project (gleicher Informationsgehalt wie die Übersicht)
 export default function SprintProjekte() {
@@ -55,6 +57,19 @@ export default function SprintProjekte() {
   const kundendatenOeffnen = params.get('kundendaten') === '1';
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => base44.auth.me() });
+
+  // Tag-Null-Sicht ab Sanierungsstichtag (Testbetrieb, nur Admin) — eigene Abfrage, lädt nur für Admins
+  const istAdmin = me?.role === 'admin';
+  const [tagNullAn, setTagNullAn] = useState(() => merkLesen(MERK_TAG_NULL, true) !== false);
+  const tagNullQuery = useQuery({
+    queryKey: ['tagNullUebersicht'],
+    enabled: istAdmin,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => (await base44.functions.invoke('tagNullUebersicht', {}))?.data,
+  });
+  const tagNullDaten = istAdmin ? tagNullQuery.data : null;
+  const tagNullFuer = (projectId) => (istAdmin && tagNullAn ? tagNullDaten?.projekte?.[projectId] : undefined);
+  const tagNullUmschalten = (wert) => { setTagNullAn(wert); merkSchreiben(MERK_TAG_NULL, wert); };
 
   const { data, isLoading } = useQuery({
     queryKey: ['sprintProjekte'],
@@ -217,6 +232,8 @@ export default function SprintProjekte() {
           people={z.people}
           currentUserEmail={me?.email}
           onEdit={() => setProjectDialog({ open: true, project: z.project })}
+          tagNull={tagNullFuer(z.project.id)}
+          tagNullTag={tagNullDaten?.tag_null}
         />
       ) : z.sprint ? (
         <ProjektZeile
@@ -228,6 +245,8 @@ export default function SprintProjekte() {
           people={z.people}
           currentUserEmail={me?.email}
           onEdit={() => setProjectDialog({ open: true, project: z.project })}
+          tagNull={tagNullFuer(z.project.id)}
+          tagNullTag={tagNullDaten?.tag_null}
         />
       ) : (
         <ProjektZeileOhneSprint
@@ -318,6 +337,15 @@ export default function SprintProjekte() {
             suche={projektSuche} onSuche={setProjektSuche}
             gesperrt={!!filterKunde}
           />
+          {istAdmin && (
+            <TagNullLeiste
+              daten={tagNullDaten}
+              laedt={tagNullQuery.isLoading}
+              fehler={tagNullQuery.error}
+              an={tagNullAn}
+              onAn={tagNullUmschalten}
+            />
+          )}
           {gruppen.map(({ gruppe, zeilen: gruppenZeilen }) => {
             const offen = istOffen(gruppe);
             return (
