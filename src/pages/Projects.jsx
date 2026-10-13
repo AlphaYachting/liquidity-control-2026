@@ -14,6 +14,7 @@ import { calculateProjectFinancials } from '@/lib/projectFinancials';
 import BillingProgressBar from '@/components/projects/BillingProgressBar';
 import ProjectStateCell from '@/components/projects/ProjectStateCell';
 import { computeProjectState, aggregateOpenTasks, PROJECT_STATE_RANK } from '@/lib/aworkProjectState';
+import { wirksamerPlanStatus, VERRECHNET } from '@/lib/billing/planFolgt';
 
 const PM_OPTIONS = ['Anna', 'Lara', 'Mathias', 'Pascal', 'Sebastian'].map(v => ({ value: v, label: v }));
 const STATUS_OPTIONS = ['active', 'completed', 'on_hold', 'cancelled', 'unclear'].map(v => ({ value: v, label: v }));
@@ -170,15 +171,19 @@ export default function Projects() {
     return map;
   }, [billingPlans]);
 
-  // Helper: planned amount for a given month from billing plans
+  // Anweisungen und Rechnungen nachschlagen: der wirksame Planungsstand folgt der Anweisung
+  const instrById = useMemo(() => Object.fromEntries(billingInstructions.map(i => [i.id, i])), [billingInstructions]);
+  const planStatus = (p) => wirksamerPlanStatus(p, instrById);
+
+  // Helper: noch erwarteter Betrag eines Monats — ohne bereits Verrechnetes
   const getPlannedForMonth = (month) => {
     let total = 0;
     billingPlans
-      .filter(p => p.planning_month === month && !['invoiced','postponed','on_hold'].includes(p.billing_status))
+      .filter(p => p.planning_month === month && !['invoiced','postponed','on_hold'].includes(planStatus(p)))
       .forEach(p => total += Number(p.planned_amount_net) || 0);
-    // From BillingInstructions planned for that month (not already in a plan)
+    // From BillingInstructions planned for that month (not already in a plan, not yet invoiced)
     billingInstructions.filter(i => {
-      if (['invoiced','paid','cancelled'].includes(i.status)) return false;
+      if (['invoice_created','paid','cancelled'].includes(i.status)) return false;
       return i.planned_invoice_date?.startsWith(month);
     }).forEach(i => {
       const alreadyInPlan = billingPlans.some(p => p.linked_billing_instruction_id === i.id);
@@ -187,21 +192,30 @@ export default function Projects() {
     return total;
   };
 
-  const expectedCurrentMonth = useMemo(() => getPlannedForMonth(currentMonth), [billingPlans, billingInstructions, currentMonth]);
-  const expectedNextMonth = useMemo(() => getPlannedForMonth(nextMonth), [billingPlans, billingInstructions, nextMonth]);
+  const expectedCurrentMonth = useMemo(() => getPlannedForMonth(currentMonth), [billingPlans, billingInstructions, instrById, currentMonth]);
+  const expectedNextMonth = useMemo(() => getPlannedForMonth(nextMonth), [billingPlans, billingInstructions, instrById, nextMonth]);
 
-  // Abgerechnet = BillingInstructions die tatsächlich an sevDesk übermittelt wurden
-  // (status: sent_to_backoffice, invoice_created, paid) für akt. oder nächsten Monat
-  const billedThisMonth = useMemo(() => {
-    return billingInstructions
-      .filter(i => SUBMITTED_STATUSES.includes(i.status) && i.planned_invoice_date?.startsWith(currentMonth))
-      .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0);
-  }, [billingInstructions, currentMonth]);
-  const billedNextMonth = useMemo(() => {
-    return billingInstructions
-      .filter(i => SUBMITTED_STATUSES.includes(i.status) && i.planned_invoice_date?.startsWith(nextMonth))
-      .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0);
-  }, [billingInstructions, nextMonth]);
+  // Verrechnet = Projektanweisungen, deren Rechnung in sevDesk ausgestellt ist — nach dem
+  // tatsächlichen Rechnungsdatum (nicht dem geplanten Datum der Anweisung).
+  const invoiceById = useMemo(() => Object.fromEntries(invoices.map(r => [r.id, r])), [invoices]);
+  const invoiceBySevdeskId = useMemo(() => Object.fromEntries(invoices.filter(r => r.sevdesk_id).map(r => [String(r.sevdesk_id), r])), [invoices]);
+  const verrechnetImMonat = (month) => billingInstructions
+    .filter(i => i.project_id && VERRECHNET.includes(i.status))
+    .filter(i => {
+      const rg = (i.linked_invoice_id && invoiceById[i.linked_invoice_id])
+        || (i.sevdesk_invoice_id && invoiceBySevdeskId[String(i.sevdesk_invoice_id)]) || null;
+      const datum = rg?.invoice_date || (i.invoice_created_at || '').slice(0, 10);
+      return datum.startsWith(month);
+    })
+    .reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0);
+  const billedThisMonth = useMemo(() => verrechnetImMonat(currentMonth), [billingInstructions, invoiceById, invoiceBySevdeskId, currentMonth]);
+  const billedNextMonth = useMemo(() => verrechnetImMonat(nextMonth), [billingInstructions, invoiceById, invoiceBySevdeskId, nextMonth]);
+
+  // In Verrechnung = beim Backoffice bzw. als Entwurf in sevDesk, noch nicht ausgestellt
+  const inVerrechnung = useMemo(() => {
+    const offen = billingInstructions.filter(i => i.project_id && i.status === 'sent_to_backoffice');
+    return { betrag: offen.reduce((s, i) => s + (Number(i.instruction_amount_net) || 0), 0), anzahl: offen.length };
+  }, [billingInstructions]);
 
   // Per-project financials using shared helper — allBlocks now passed correctly
   const projectFinancialsMap = useMemo(() => {
@@ -226,12 +240,12 @@ export default function Projects() {
     const map = {};
     projects.forEach(p => {
       const plans = (plansByProject[p.id] || []).filter(pl =>
-        pl.planning_month === currentMonth && !['invoiced','postponed','on_hold'].includes(pl.billing_status) && (Number(pl.planned_amount_net) || 0) > 0
+        pl.planning_month === currentMonth && !['invoiced','postponed','on_hold'].includes(planStatus(pl)) && (Number(pl.planned_amount_net) || 0) > 0
       );
       map[p.id] = plans.reduce((s, pl) => s + (Number(pl.planned_amount_net) || 0), 0);
     });
     return map;
-  }, [projects, plansByProject, currentMonth]);
+  }, [projects, plansByProject, currentMonth, instrById]);
 
   const filtered = projects
     .filter(p => {
@@ -418,7 +432,7 @@ export default function Projects() {
     }},
     // 4. Erwartung dieser Monat
     { key: '_curPlan', label: 'Erwartung d. Monat', width: '130px', render: (_, row) => {
-      const plans = (plansByProject[row.id] || []).filter(p => p.planning_month === currentMonth && !['invoiced','postponed'].includes(p.billing_status) && (Number(p.planned_amount_net) || 0) > 0);
+      const plans = (plansByProject[row.id] || []).filter(p => p.planning_month === currentMonth && !['invoiced','postponed'].includes(planStatus(p)) && (Number(p.planned_amount_net) || 0) > 0);
       const risk = row.risk_status;
       const amtColor = risk === 'critical' ? 'text-red-800 font-bold'
         : risk === 'high' ? 'text-red-600 font-semibold'
@@ -489,19 +503,19 @@ export default function Projects() {
           title={`Geplant ${currentMonthLabel}`}
           value={formatCurrency(expectedCurrentMonth)}
           variant="success"
-          subtitle={billedThisMonth > 0 ? `✓ ${formatCurrency(billedThisMonth)} übermittelt` : 'noch nicht übermittelt'}
+          subtitle={billedThisMonth > 0 ? `✓ ${formatCurrency(billedThisMonth)} verrechnet` : 'noch nichts verrechnet'}
         />
         <KpiCard
           title={`Geplant ${nextMonthLabel}`}
           value={formatCurrency(expectedNextMonth)}
           variant="info"
-          subtitle={billedNextMonth > 0 ? `✓ ${formatCurrency(billedNextMonth)} übermittelt` : 'noch nicht übermittelt'}
+          subtitle={billedNextMonth > 0 ? `✓ ${formatCurrency(billedNextMonth)} verrechnet` : 'noch nichts verrechnet'}
         />
         <KpiCard
-          title="Übermittelt gesamt"
-          value={formatCurrency(billedThisMonth + billedNextMonth)}
-          subtitle={`${billingInstructions.filter(i => SUBMITTED_STATUSES.includes(i.status)).length} Anweisungen`}
-          variant={billedThisMonth + billedNextMonth > 0 ? 'success' : undefined}
+          title="In Verrechnung"
+          value={formatCurrency(inVerrechnung.betrag)}
+          subtitle={`${inVerrechnung.anzahl} Anweisung${inVerrechnung.anzahl === 1 ? '' : 'en'} beim Backoffice / Entwurf in sevDesk`}
+          variant={inVerrechnung.anzahl > 0 ? 'warning' : undefined}
         />
       </div>
 
