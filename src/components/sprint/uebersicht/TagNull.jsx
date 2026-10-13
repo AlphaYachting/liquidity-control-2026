@@ -95,7 +95,7 @@ export function TagNullZelle({ t, tag }) {
 
   let oben;
   if (t.ampel === 'kein_massstab') oben = 'kein Auftragswert';
-  else if (t.ampel === 'abrechnen') oben = `fertig · ${fmtEUR(t.noch_zu_verrechnen)} offen`;
+  else if (t.ampel === 'abrechnen') oben = `fertig · ${fmtEUR(t.noch_zu_verrechnen)} abrechnen`;
   else if (t.gedeckt_std < 0) oben = `${h1(-t.gedeckt_std)} h ungedeckt`;
   else oben = `${h1(t.gedeckt_std)} h gedeckt`;
 
