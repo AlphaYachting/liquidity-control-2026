@@ -54,7 +54,7 @@ export default async function (req) {
     const standardSatz = Number(satzRows[0]?.value) || 120;
 
     // 1. Projekte mit festem Auftragswert: Pauschalprojekte und Sprintprojekte, nicht abgeschlossen
-    const projekte = (await alleSeiten((l, s) => db.Project.filter({ status: { $ne: 'abgeschlossen' } }, '-created_date', l, s)))
+    const projekte = (await alleSeiten((l, s) => db.Project.filter({ status: { $ne: 'abgeschlossen' } }, 'id', l, s)))
       .filter((p) => p.is_legacy || ['sprint', 'pauschal'].includes(p.abrechnungsmodell));
     if (!projekte.length) return Response.json({ tag_null: tagNull, projekte: {}, summen: null });
 
@@ -68,7 +68,7 @@ export default async function (req) {
     const projektVonTraeger = (id) => projektVonLiq[id] || (projektIds.includes(id) ? id : null);
 
     // 2. Aufträge (AB) am Cockpit oder am Projekt
-    const auftraege = (await alleSeiten((l, s) => db.ConfirmedOrder.filter({ project_id: { $in: traeger } }, '-created_date', l, s)))
+    const auftraege = (await alleSeiten((l, s) => db.ConfirmedOrder.filter({ project_id: { $in: traeger } }, 'id', l, s)))
       .filter((o) => o.status !== 'cancelled');
     const projektVonAuftrag = {};
     const auftragNach = {};
@@ -82,8 +82,8 @@ export default async function (req) {
 
     // 3. Rechnungen — am Cockpit/Projekt oder nur am Auftrag; Dubletten über die Id
     const [rgTraeger, rgAuftrag] = await Promise.all([
-      alleSeiten((l, s) => db.InvoiceRecord.filter({ project_id: { $in: traeger } }, '-invoice_date', l, s)),
-      auftragIds.length ? alleSeiten((l, s) => db.InvoiceRecord.filter({ confirmed_order_id: { $in: auftragIds } }, '-invoice_date', l, s)) : [],
+      alleSeiten((l, s) => db.InvoiceRecord.filter({ project_id: { $in: traeger } }, 'id', l, s)),
+      auftragIds.length ? alleSeiten((l, s) => db.InvoiceRecord.filter({ confirmed_order_id: { $in: auftragIds } }, 'id', l, s)) : [],
     ]);
     const rechnungen = new Map();
     for (const r of [...rgTraeger, ...rgAuftrag]) {
@@ -95,10 +95,10 @@ export default async function (req) {
     const [aworkZeiten, appZeiten, tickets] = await Promise.all([
       aworkIds.length
         ? alleSeiten((l, s) => db.AworkTimeEntry.filter(
-          { awork_project_id: { $in: aworkIds }, entry_date: { $gte: tagNull, $lte: umstellung } }, 'entry_date', l, s))
+          { awork_project_id: { $in: aworkIds }, entry_date: { $gte: tagNull, $lte: umstellung } }, 'id', l, s))
         : [],
-      alleSeiten((l, s) => db.TimeEntry.filter({ project_id: { $in: projektIds }, entry_date: { $gte: tagNull } }, 'entry_date', l, s)),
-      alleSeiten((l, s) => db.Ticket.filter({ project_id: { $in: projektIds }, status: { $ne: 'erledigt' }, archiviert: { $ne: true } }, 'order', l, s)),
+      alleSeiten((l, s) => db.TimeEntry.filter({ project_id: { $in: projektIds }, entry_date: { $gte: tagNull } }, 'id', l, s)),
+      alleSeiten((l, s) => db.Ticket.filter({ project_id: { $in: projektIds }, status: { $ne: 'erledigt' }, archiviert: { $ne: true } }, 'id', l, s)),
     ]);
 
     const leer = () => ({
