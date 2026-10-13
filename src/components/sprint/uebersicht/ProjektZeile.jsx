@@ -5,12 +5,14 @@ import Ampelpunkt from '@/components/sprint/Ampelpunkt';
 import PersonenStapel from '@/components/sprint/PersonenStapel';
 import TypPill from '@/components/sprint/TypPill';
 import { RITTLER, STATUS_COLORS, STATE_LABELS, fmtEUR, fmtDate } from '@/components/sprint/sprintConfig';
+import { TagNullZelle } from '@/components/sprint/uebersicht/TagNull';
 
 const AMPEL_COLOR = { plan: 'transparent', attention: STATUS_COLORS.attention, action: STATUS_COLORS.critical };
 const AMPEL_SHAPE = { plan: 'plan', attention: 'attention', action: 'critical' };
 
 // X4 Block 3 — Projektzeile: Kunde ist die Überschrift, alle Werte aus sprintStatus.
-export default function ProjektZeile({ sprint, project, client, milestones, status, people, currentUserEmail, onEdit }) {
+// tagNull (nur Admin, Testbetrieb): ersetzt die Betragsspalte durch die Sicht ab Tag Null.
+export default function ProjektZeile({ sprint, project, client, milestones, status, people, currentUserEmail, onEdit, tagNull, tagNullTag }) {
   const fristFarbe = status.urgency <= 2 ? AMPEL_COLOR[status.ampel] : RITTLER.black;
 
   return (
@@ -74,11 +76,17 @@ export default function ProjektZeile({ sprint, project, client, milestones, stat
           </p>
         </div>
 
+        {tagNull ? (
+          <div className="hidden lg:block w-[190px] shrink-0 text-right min-w-0">
+            <TagNullZelle t={tagNull} tag={tagNullTag} />
+          </div>
+        ) : (
         <div className="hidden lg:block w-[150px] shrink-0 text-right">
           <p className="text-[15px] font-bold" style={{ color: status.releasedAmount > 0 ? STATUS_COLORS.doneText : RITTLER.black }}>
             {fmtEUR(status.releasedAmount)} von {fmtEUR(status.sprintAmount)}
           </p>
         </div>
+        )}
 
         {onEdit && (
           <button
