@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { CalendarCheck, FileText, CheckCircle2, Circle } from 'lucide-react';
+import { CalendarCheck, FileText, Circle } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import { Badge } from '@/components/ui/badge';
