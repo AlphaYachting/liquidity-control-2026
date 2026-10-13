@@ -325,12 +325,15 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
                 onMove={handleMovePlan}
                 isPending={movePlanMutation.isPending} />
             )}
-            <button
-              title="Bearbeiten"
-              onClick={() => handleEdit(plan, month)}
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-              <Pencil className="w-3 h-3" />
-            </button>
+            {/* Überfällige Planungen werden verschoben, nicht im alten Monat bearbeitet */}
+            {!mitMonat && (
+              <button
+                title="Bearbeiten"
+                onClick={() => handleEdit(plan, plan.planning_month)}
+                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                <Pencil className="w-3 h-3" />
+              </button>
+            )}
             {!plan.linked_billing_instruction_id && (
               confirmDeletePlanId === plan.id ? (
                 <span className="flex items-center gap-1">
