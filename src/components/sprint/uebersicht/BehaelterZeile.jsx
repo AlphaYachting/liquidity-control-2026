@@ -7,12 +7,14 @@ import TypPill from '@/components/sprint/TypPill';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { h1 } from '@/lib/sprint/behaelterZahlen';
 import { RITTLER, STATUS_COLORS, fmtEUR } from '@/components/sprint/sprintConfig';
+import { TagNullZelle } from '@/components/sprint/uebersicht/TagNull';
 
 const AMPEL_COLOR = { plan: 'transparent', attention: STATUS_COLORS.attention, action: STATUS_COLORS.critical };
 const AMPEL_SHAPE = { plan: 'plan', attention: 'attention', action: 'critical' };
 
 // Projektzeile für Container, Support, Regie, Intern, Alt — gleiches Raster wie ProjektZeile.
-export default function BehaelterZeile({ sprint, project, client, status, people = [], currentUserEmail, onEdit }) {
+// tagNull (nur Admin, Testbetrieb): ersetzt bei Pauschalprojekten die Gesamtbudget-Angabe durch die Sicht ab Tag Null.
+export default function BehaelterZeile({ sprint, project, client, status, people = [], currentUserEmail, onEdit, tagNull, tagNullTag }) {
   const navigate = useNavigate();
   const ziel = sprint ? `/sprint/sprints/${sprint.id}` : null;
   const typ = projectTypeOf(project);
@@ -72,6 +74,11 @@ export default function BehaelterZeile({ sprint, project, client, status, people
           <p className="text-[13px]" style={{ color: RITTLER.textSecondary }}>diesen Monat</p>
         </div>
 
+        {tagNull ? (
+          <div className="hidden lg:block w-[190px] shrink-0 text-right min-w-0">
+            <TagNullZelle t={tagNull} tag={tagNullTag} />
+          </div>
+        ) : (
         <div className="hidden lg:block w-[150px] shrink-0 text-right">
           <p
             className="text-[13px]"
@@ -80,6 +87,7 @@ export default function BehaelterZeile({ sprint, project, client, status, people
             {geld}
           </p>
         </div>
+        )}
 
         {onEdit && (
           <button type="button" title="Stammdaten bearbeiten" onClick={(e) => { e.stopPropagation(); onEdit(); }}
