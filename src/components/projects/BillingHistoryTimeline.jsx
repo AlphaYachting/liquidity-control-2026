@@ -5,6 +5,7 @@ import { format, parseISO, differenceInDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { History } from 'lucide-react';
 import Sektion from '@/components/projects/Sektion';
+import { istEntwurf } from '@/lib/billing/rechnungsStatus';
 
 const INVOICE_TYPE_SHORT = {
   advance_invoice: 'AZ',
@@ -24,7 +25,8 @@ export default function BillingHistoryTimeline({ projectInvoices = [], commercia
   const monthlyData = useMemo(() => {
     const map = {};
     projectInvoices
-      .filter(inv => inv.invoice_date && !inv.is_credit_note)
+      // sevDesk-Entwürfe sind noch nicht verrechnet
+      .filter(inv => inv.invoice_date && !inv.is_credit_note && !istEntwurf(inv))
       .forEach(inv => {
         const month = inv.invoice_date.slice(0, 7);
         if (!map[month]) map[month] = { net: 0, invoices: [] };
