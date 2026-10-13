@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Archive } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale/de';
+import { de } from 'date-fns/locale';
 import ArchivLaufZeile from '@/components/awork/ArchivLaufZeile';
 
 // Vollständiger Rohexport des awork-Bestands — der Beleg für Migration und Sanierung.

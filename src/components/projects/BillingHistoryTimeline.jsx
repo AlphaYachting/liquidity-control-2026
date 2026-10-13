@@ -2,7 +2,7 @@ import React from 'react';
 import { useMemo } from 'react';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { format, parseISO, differenceInDays } from 'date-fns';
-import { de } from 'date-fns/locale/de';
+import { de } from 'date-fns/locale';
 import { History } from 'lucide-react';
 import Sektion from '@/components/projects/Sektion';
 import { istEntwurf } from '@/lib/billing/rechnungsStatus';

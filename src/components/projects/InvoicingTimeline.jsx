@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { format, parseISO } from 'date-fns';
-import { de } from 'date-fns/locale/de';
+import { de } from 'date-fns/locale';
 
 /**
  * Zeigt eine horizontale Monats-Tabelle mit verrechneten Beträgen pro Monat.

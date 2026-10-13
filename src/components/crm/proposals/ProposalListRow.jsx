@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, Mail, Zap, Trash2, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale/de';
+import { de } from 'date-fns/locale';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import moment from 'moment';
 

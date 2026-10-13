@@ -26,7 +26,7 @@ import OrderItemsView from '@/components/projects/OrderItemsView';
 import ProjectInvoiceSection from '@/components/projects/ProjectInvoiceSection';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale/de';
+import { de } from 'date-fns/locale';
 import PdfViewerDialog from '@/components/shared/PdfViewerDialog';
 import { FileText } from 'lucide-react';
 import BillingHistoryTimeline from '@/components/projects/BillingHistoryTimeline';
