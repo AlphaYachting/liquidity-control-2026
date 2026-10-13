@@ -19,16 +19,18 @@ const z1 = (v) => r1(v).toLocaleString('de-AT');
 const z0 = (v) => r0(v).toLocaleString('de-AT');
 const aufgaben = (n) => `${n} ${n === 1 ? 'Aufgabe' : 'Aufgaben'}`;
 
+// Seitenweise laden — immer nach Id sortiert (eindeutig), sonst rutschen bei gleichem Datum
+// Datensätze zwischen den Seiten durch; zusätzlich Dubletten über die Id entfernen.
 async function alleSeiten(holen) {
-  const out = [];
+  const out = new Map();
   let skip = 0;
   while (true) {
     const page = await holen(500, skip);
-    out.push(...page);
+    page.forEach((r) => out.set(r.id, r));
     if (page.length < 500 || skip > 20000) break;
     skip += 500;
   }
-  return out;
+  return [...out.values()];
 }
 
 // Gültig verrechnet: keine Entwürfe und Stornos; versendet oder (auch ohne Versandkennzeichen) bezahlt
