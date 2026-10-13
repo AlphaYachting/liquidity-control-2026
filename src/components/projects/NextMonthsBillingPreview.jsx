@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import Sektion from '@/components/projects/Sektion';
@@ -13,6 +13,7 @@ import { de } from 'date-fns/locale';
 import { Plus, CalendarDays, Bell, Pencil, CheckCircle2, Loader2, Trash2 } from 'lucide-react';
 import GenerateBillingReasonButton from '@/components/billing/GenerateBillingReasonButton';
 import PlanMoveControl from '@/components/projects/PlanMoveControl';
+import { wirksamerPlanStatus } from '@/lib/billing/planFolgt';
 
 const PLAN_TYPE_TO_INVOICE_TYPE = {
   AZ: 'advance_invoice',
@@ -44,6 +45,27 @@ function getMonthStr(offset) {
 
 function getMonthLabel(ym) {
   try { return format(parseISO(ym + '-01'), 'MMMM yyyy', { locale: de }); } catch { return ym; }
+}
+
+const fmtTag = (d) => { try { return format(parseISO(d), 'dd.MM.yyyy'); } catch { return d || ''; } };
+
+// Echter Stand der verknüpften Anweisung statt eines pauschalen grünen Hakens.
+// Die Rechnung in sevDesk führt: Entwurf → verrechnet (mit Rechnungsnummer) → bezahlt.
+function anweisungsStand(instr, rechnung) {
+  if (!instr) return { label: 'Anweisung nicht mehr vorhanden', klasse: 'bg-gray-100 text-gray-500' };
+  const nr = rechnung?.invoice_number ? ` · RE ${rechnung.invoice_number}` : '';
+  switch (instr.status) {
+    case 'draft': return { label: 'Anweisung: Entwurf', klasse: 'bg-gray-100 text-gray-600' };
+    case 'ready_for_backoffice': return { label: 'Anweisung bereit', klasse: 'bg-blue-100 text-blue-700' };
+    case 'sent_to_backoffice': return instr.sevdesk_invoice_id
+      ? { label: 'Entwurf in sevDesk', klasse: 'bg-amber-100 text-amber-700' }
+      : { label: 'An Backoffice gesendet', klasse: 'bg-amber-100 text-amber-700' };
+    case 'invoice_created': return { label: `Verrechnet${nr}`, klasse: 'bg-emerald-100 text-emerald-700' };
+    case 'paid': return { label: `Bezahlt${nr}`, klasse: 'bg-emerald-600 text-white' };
+    case 'blocked': return { label: 'Anweisung blockiert', klasse: 'bg-red-100 text-red-700' };
+    case 'cancelled': return { label: 'Anweisung storniert', klasse: 'bg-gray-200 text-gray-500' };
+    default: return { label: 'Anweisung erstellt', klasse: 'bg-gray-100 text-gray-600' };
+  }
 }
 
 /**
@@ -93,6 +115,30 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
     queryKey: ['monthlyBillingPlans', project.id],
     queryFn: () => base44.entities.MonthlyBillingPlan.filter({ project_id: project.id }),
   });
+
+  // Anweisungen und Rechnungen nachschlagen — für den echten Stand je Planung
+  const anweisungNachId = useMemo(
+    () => Object.fromEntries(allInstructions.map(i => [i.id, i])),
+    [allInstructions]
+  );
+  const projektRechnungen = fin?.linkedInvoices || [];
+  const rechnungZu = (instr) => {
+    if (!instr) return null;
+    return projektRechnungen.find(r => (instr.linked_invoice_id && r.id === instr.linked_invoice_id)
+      || (instr.sevdesk_invoice_id && String(r.sevdesk_id) === String(instr.sevdesk_invoice_id))) || null;
+  };
+  const istVerrechnet = (plan) => wirksamerPlanStatus(plan, anweisungNachId) === 'invoiced';
+
+  // Verrechnete Planungen wandern nach oben in „Abgerechnet“ (letzte zwei Monate und später),
+  // nicht verrechnete aus Vormonaten stehen als „überfällig“ oben statt still zu verschwinden.
+  const abgerechnetAb = getMonthStr(-2);
+  const abgerechnet = plans
+    .filter(p => istVerrechnet(p) && (p.planning_month || '') >= abgerechnetAb)
+    .sort((a, b) => (b.planning_month || '').localeCompare(a.planning_month || ''));
+  const ueberfaellig = plans
+    .filter(p => (p.planning_month || '') < getMonthStr(0) && !istVerrechnet(p) && (Number(p.planned_amount_net) || 0) > 0)
+    .sort((a, b) => (a.planning_month || '').localeCompare(b.planning_month || ''));
+  const [ueberfaelligOffen, setUeberfaelligOffen] = useState(false);
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.MonthlyBillingPlan.create(data),
