@@ -23,15 +23,43 @@ export const laufenderSprint = (sprints = []) => {
     .sort((a, b) => (a.start_date || '9999-12-31').localeCompare(b.start_date || '9999-12-31'))[0] || null;
 };
 
+const KONTINGENT_TYPEN = ['container', 'support', 'regie', 'intern'];
+
+// Grenzen eines Monats 'JJJJ-MM' als Filter auf entry_date ('JJJJ-MM-TT').
+function monatsFilter(monat) {
+  const [j, m] = monat.split('-').map(Number);
+  const naechster = m === 12 ? `${j + 1}-01` : `${j}-${String(m + 1).padStart(2, '0')}`;
+  return { $gte: `${monat}-01`, $lt: `${naechster}-01` };
+}
+
+// Performance (O8): Projekt und Monatsbuchungen EINMAL laden, damit Sperre und
+// Kontingentprüfung beim Speichern nicht je zweimal nacheinander dieselben Daten holen.
+// Die Monatsbuchungen werden nur geladen, wenn eine der beiden Prüfungen sie braucht,
+// und direkt in der Abfrage auf den Monat gefiltert (vorher: letzte 500/1000 Buchungen,
+// Monat erst im Browser gefiltert). Ergebnis der Prüfungen bleibt gleich.
+export async function ladeKontingentVorab({ projectId, tag }) {
+  const project = await base44.entities.Project.get(projectId);
+  const monat = String(tag || '').slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(monat)) return { project, monatsRows: null };
+  const kontingent = Number(project.support_kontingent_stunden) || 0;
+  const brauchtSperre = !project.is_legacy && project.kontingent_sperre && kontingent > 0;
+  const brauchtUeber = KONTINGENT_TYPEN.includes(projectTypeOf(project)) && kontingent > 0;
+  const monatsRows = brauchtSperre || brauchtUeber
+    ? await base44.entities.TimeEntry.filter({ project_id: projectId, entry_date: monatsFilter(monat) }, '-entry_date', 5000)
+    : null;
+  return { project, monatsRows };
+}
+
 // Container, Support, Regie: liegt die Buchung über dem Monatskontingent bzw. -rahmen?
 // ohneId: bei Änderungen die ursprüngliche Buchung nicht mitzählen.
-export async function ueberKontingentPruefen({ projectId, tag, minuten, ohneId }) {
-  const project = await base44.entities.Project.get(projectId);
-  if (!['container', 'support', 'regie', 'intern'].includes(projectTypeOf(project))) return false;
+// vorab: optional { project, monatsRows } aus ladeKontingentVorab — spart die Abfragen.
+export async function ueberKontingentPruefen({ projectId, tag, minuten, ohneId, vorab }) {
+  const project = vorab?.project || await base44.entities.Project.get(projectId);
+  if (!KONTINGENT_TYPEN.includes(projectTypeOf(project))) return false;
   const kontingent = Number(project.support_kontingent_stunden) || 0;
   if (!kontingent) return false;
   const monat = String(tag || '').slice(0, 7);
-  const rows = await base44.entities.TimeEntry.filter({ project_id: projectId }, '-entry_date', 500);
+  const rows = vorab?.monatsRows || await base44.entities.TimeEntry.filter({ project_id: projectId }, '-entry_date', 500);
   const bisher = rows
     .filter((r) => r.id !== ohneId && String(r.entry_date || '').slice(0, 7) === monat)
     .reduce((s, r) => s + (Number(r.duration_minutes) || 0), 0);
@@ -43,8 +71,8 @@ const fmtStd = (n) => (Math.round(n * 100) / 100).toLocaleString('de-DE', { maxi
 
 // Buchungssperre: nur wenn ein Admin sie am Projekt eingeschaltet hat und ein Kontingent besteht.
 // Jeder Kalendermonat beginnt wieder bei null. Werte in Stunden.
-export async function kontingentGesperrt({ projectId, tag, minuten, ohneId }) {
-  const project = await base44.entities.Project.get(projectId);
+export async function kontingentGesperrt({ projectId, tag, minuten, ohneId, vorab }) {
+  const project = vorab?.project || await base44.entities.Project.get(projectId);
   const monat = String(tag || '').slice(0, 7);
   // Pauschalprojekt: Sperre gegen das Gesamtbudget (aWork-Stand plus alle Buchungen), nicht je Monat
   if (project.is_legacy) {
@@ -71,7 +99,7 @@ export async function kontingentGesperrt({ projectId, tag, minuten, ohneId }) {
   if (!project.kontingent_sperre || !(kontingent > 0)) {
     return { gesperrt: false, kontingent, gebucht: 0, rest: kontingent, project, monat };
   }
-  const rows = await base44.entities.TimeEntry.filter({ project_id: projectId }, '-entry_date', 1000);
+  const rows = vorab?.monatsRows || await base44.entities.TimeEntry.filter({ project_id: projectId }, '-entry_date', 1000);
   const bisher = rows
     .filter((r) => r.id !== ohneId && String(r.entry_date || '').slice(0, 7) === monat)
     .reduce((s, r) => s + (Number(r.duration_minutes) || 0), 0);
@@ -101,9 +129,9 @@ export async function sperrMeldung({ project, monat, gebucht, kontingent, rest, 
 // Prüft die Sperre für eine neue oder geänderte Buchung.
 // Nicht-Admins: Fehler mit Meldung. Admins: Fehler mit bestaetigen=true, solange nicht trotzdem.
 // Rückgabe true = Admin bucht trotz Sperre (ueber_kontingent setzen).
-export async function sperreDurchsetzen({ projectId, tag, minuten, ohneId, trotzdem }) {
+export async function sperreDurchsetzen({ projectId, tag, minuten, ohneId, trotzdem, vorab }) {
   if (!(Number(minuten) > 0)) return false;
-  const info = await kontingentGesperrt({ projectId, tag, minuten, ohneId });
+  const info = await kontingentGesperrt({ projectId, tag, minuten, ohneId, vorab });
   if (!info.gesperrt) return false;
   const me = await base44.auth.me().catch(() => null);
   if (me?.role !== 'admin') {
