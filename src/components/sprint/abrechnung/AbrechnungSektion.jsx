@@ -105,8 +105,12 @@ export default function AbrechnungSektion({ project, milestones = [], tickets = 
             abrechnungNeuLaden(queryClient);
           }}
           onDelete={async (id) => {
+            // Wie im Projekt-Cockpit: Verknüpfung in der Verrechnungsplanung lösen, sonst bleibt sie ins Leere zeigend
+            const plaene = await base44.entities.MonthlyBillingPlan.filter({ linked_billing_instruction_id: id }, '-created_date', 20).catch(() => []);
+            await Promise.all(plaene.map((p) => base44.entities.MonthlyBillingPlan.update(p.id, { linked_billing_instruction_id: null })));
             await base44.entities.BillingInstruction.delete(id);
             invalidate();
+            abrechnungNeuLaden(queryClient);
           }}
           onDuplicate={async (instr) => {
             const { id, created_date, updated_date, created_by_id, ...rest } = instr;
