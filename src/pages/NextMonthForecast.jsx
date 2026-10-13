@@ -12,6 +12,8 @@ import ProjectDetailSlideOver from '@/components/projects/ProjectDetailSlideOver
 import BillingMonthXlsExport from '@/components/forecast/BillingMonthXlsExport';
 import { invoicedKpi, instructionsWithoutProof } from '@/lib/forecastInvoicedKpi';
 import AnweisungOhneBelegHinweis from '@/components/forecast/AnweisungOhneBelegHinweis';
+import { wirksamerPlanStatus } from '@/lib/billing/planFolgt';
+import { anweisungsStand, rechnungZuAnweisung } from '@/lib/billing/anweisungsStand';
 
 const WORK_STATUS_COLORS = {
   not_started: 'bg-gray-100 text-gray-600',
@@ -144,12 +146,20 @@ export default function NextMonthForecast() {
     instructionsByProjectId[i.project_id].push(i);
   });
 
-  const curMonthPlans = billingPlans.filter(p =>
+  // Wirksamer Stand je Planung: ist die verknüpfte Anweisung verrechnet/bezahlt, gilt die
+  // Planung als verrechnet — auch bevor der gespeicherte Stand nachgezogen ist (nur Anzeige).
+  const instructionsById = Object.fromEntries(instructions.map(i => [i.id, i]));
+  const mitWirksamemStand = (p) => ({ ...p, billing_status: wirksamerPlanStatus(p, instructionsById) });
+  // „Angewiesen“ heißt: eine (noch vorhandene) Anweisung hängt an der Planung
+  const hatAnweisung = (p) => Boolean(p.linked_billing_instruction_id && instructionsById[p.linked_billing_instruction_id]);
+  const nochNichtAngewiesen = (p) => ['open','planned','in_review'].includes(p.billing_status) && !hatAnweisung(p);
+
+  const curMonthPlans = billingPlans.map(mitWirksamemStand).filter(p =>
     p.planning_month === curMonthStr &&
     PLAN_ACTIVE_STATUSES.includes(p.billing_status) &&
     Number(p.planned_amount_net) > 0
   );
-  const nextMonthPlans = billingPlans.filter(p =>
+  const nextMonthPlans = billingPlans.map(mitWirksamemStand).filter(p =>
     p.planning_month === nextMonthStr &&
     PLAN_ACTIVE_STATUSES.includes(p.billing_status) &&
     Number(p.planned_amount_net) > 0
@@ -220,10 +230,10 @@ export default function NextMonthForecast() {
           <KpiCard title="Rechnungsplanung" value={formatCurrency(totalCurPlansNet)} variant="info"
             subtitle={`${curMonthPlans.length} geplante Abrechnungen`} />
           <KpiCard title="Noch nicht angewiesen" value={formatCurrency(
-            curMonthPlans.filter(p => ['open','planned','in_review'].includes(p.billing_status))
+            curMonthPlans.filter(nochNichtAngewiesen)
               .reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0)
           )} variant="warning"
-            subtitle={`${curMonthPlans.filter(p => ['open','planned','in_review'].includes(p.billing_status)).length} Einträge offen`} />
+            subtitle={`${curMonthPlans.filter(nochNichtAngewiesen).length} Einträge offen`} />
           <KpiCard title="Abrechnungsanweisungen" value={formatCurrency(totalCurInstructionNet)} variant="info"
             subtitle={`${curMonthInstructions.length} Anweisung(en)`} />
           <KpiCard title="Bereits verrechnet" value={formatCurrency(curInvoiced.amount)} variant="success"
@@ -246,10 +256,10 @@ export default function NextMonthForecast() {
           <KpiCard title="Rechnungsplanung" value={formatCurrency(totalNextPlansNet)} variant="info"
             subtitle={`${nextMonthPlans.length} geplante Abrechnungen`} />
           <KpiCard title="Noch nicht angewiesen" value={formatCurrency(
-            nextMonthPlans.filter(p => ['open','planned','in_review'].includes(p.billing_status))
+            nextMonthPlans.filter(nochNichtAngewiesen)
               .reduce((s, p) => s + (Number(p.planned_amount_net) || 0), 0)
           )} variant="warning"
-            subtitle={`${nextMonthPlans.filter(p => ['open','planned','in_review'].includes(p.billing_status)).length} Einträge offen`} />
+            subtitle={`${nextMonthPlans.filter(nochNichtAngewiesen).length} Einträge offen`} />
           <KpiCard title="Abrechnungsanweisungen" value={formatCurrency(totalInstructionNet)} variant="info"
             subtitle={`${nextMonthInstructions.length} Anweisung(en)`} />
           <KpiCard title="Bereits verrechnet" value={formatCurrency(nextInvoiced.amount)} variant="success"
@@ -367,7 +377,10 @@ export default function NextMonthForecast() {
                     </td>
                     <td className="p-3">
                       {hasInstruction
-                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500" title="Abrechnungsanweisung erstellt" />
+                        ? (() => {
+                            const stand = anweisungsStand(linkedInstr, rechnungZuAnweisung(linkedInstr, invoices));
+                            return <Badge className={`text-xs whitespace-nowrap ${stand.klasse}`}>{stand.label}</Badge>;
+                          })()
                         : <Circle className="w-4 h-4 text-slate-300" title="Keine Anweisung" />}
                     </td>
                     <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{instrDate || '—'}</td>
@@ -497,7 +510,10 @@ export default function NextMonthForecast() {
                     </td>
                     <td className="p-3">
                       {hasInstruction
-                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500" title="Abrechnungsanweisung erstellt" />
+                        ? (() => {
+                            const stand = anweisungsStand(linkedInstr, rechnungZuAnweisung(linkedInstr, invoices));
+                            return <Badge className={`text-xs whitespace-nowrap ${stand.klasse}`}>{stand.label}</Badge>;
+                          })()
                         : <Circle className="w-4 h-4 text-slate-300" title="Keine Anweisung" />}
                     </td>
                     <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{instrDate || '—'}</td>
