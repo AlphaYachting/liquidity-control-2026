@@ -6,7 +6,11 @@
  * gross_amount is used as paid amount. This handles PDF-imported invoices
  * where payment_status was set correctly but paid_amount was not populated.
  * DATA IS NEVER WRITTEN — read-only advisory only.
+ *
+ * ENTWÜRFE: Ein sevDesk-Entwurf (noch nicht versendet) erscheint in der Rechnungsliste,
+ * zählt aber nicht als abgerechnet — gleiche Regel wie Arbeitsprojekt und Projektintelligenz.
  */
+import { istEntwurf } from '@/lib/billing/rechnungsStatus';
 
 /**
  * Calculate effective paid amount for a single invoice.
@@ -112,8 +116,12 @@ export function calculateProjectFinancials({ project, allOrders, allBlocks, allI
   }
 
   // ── Invoice aggregation (linked only) ─────────────────────────────────
-  const realInvoices = linkedInvoices.filter(i => !i.is_credit_note);
-  const creditNotes = linkedInvoices.filter(i => i.is_credit_note);
+  // Entwürfe zählen nicht als abgerechnet (bleiben aber in linkedInvoices für die Liste)
+  const draftInvoices = linkedInvoices.filter(i => istEntwurf(i));
+  const countedInvoices = linkedInvoices.filter(i => !istEntwurf(i));
+  const realInvoices = countedInvoices.filter(i => !i.is_credit_note);
+  const creditNotes = countedInvoices.filter(i => i.is_credit_note);
+  const draftNet = draftInvoices.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
 
   const invoicedNet = realInvoices.reduce((s, i) => s + (Number(i.net_amount) || 0), 0);
   const invoicedGross = realInvoices.reduce((s, i) => s + (Number(i.gross_amount) || 0), 0);
@@ -201,6 +209,8 @@ export function calculateProjectFinancials({ project, allOrders, allBlocks, allI
     linkedBlocks,
     linkedBlockIds,
     linkedInvoices,
+    draftInvoices,
+    draftNet,
     orphanOrderInvoices,
     likelyUnmatchedInvoices,
     ordersWithoutProjectId,
