@@ -10,7 +10,10 @@ export const TON_KLASSEN = {
   neutral: 'bg-status-info-surface text-status-info',
 };
 
-export const istEntwurf = (inv) => inv.payment_status === 'draft' || inv.is_sent === false;
+// Entwurf = in sevDesk noch nicht versendet. Eine bezahlte oder teilbezahlte Rechnung ist nie
+// ein Entwurf, auch wenn ein Altimport is_sent=false trägt (z. B. PDF-Import ohne Versandkennzeichen).
+export const istEntwurf = (inv) => inv.payment_status === 'draft'
+  || (inv.is_sent === false && inv.payment_status !== 'paid' && inv.payment_status !== 'partially_paid');
 
 // Netto mit Vorzeichen: Gutschriften negativ
 export const nettoVorzeichen = (inv) => (inv.is_credit_note ? -Math.abs(Number(inv.net_amount) || 0) : Number(inv.net_amount) || 0);
