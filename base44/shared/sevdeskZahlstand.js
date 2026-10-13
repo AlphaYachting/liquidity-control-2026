@@ -69,6 +69,11 @@ export async function zahlstandNachziehen({
       await sleep(300);
     }
 
+    // „überfällig“ kennt sevDesk nicht als eigenen Status — wer in der App so geführt
+    // wird und in sevDesk noch offen ist, bleibt überfällig.
+    if (r.payment_status === 'overdue' && felder.payment_status === 'open') {
+      felder = { ...felder, payment_status: 'overdue' };
+    }
     const anders = felder.payment_status !== r.payment_status
       || !gleich(felder.paid_amount, r.paid_amount)
       || !gleich(felder.open_amount, r.open_amount)
