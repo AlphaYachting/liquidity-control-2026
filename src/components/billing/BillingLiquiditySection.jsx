@@ -9,6 +9,9 @@ import BillingInstructionWizard from './BillingInstructionWizard';
 import BillingInstructionList from './BillingInstructionList';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import PmReminderButton from '@/components/projects/PmReminderButton';
+import { anweisungSpeichern, abrechnungNeuLaden } from '@/lib/billing/planFolgt';
+import { useSevdeskLiveAbgleich } from '@/hooks/useSevdeskLiveAbgleich';
+import SevdeskAbgleichHinweis from './SevdeskAbgleichHinweis';
 
 function ProgressCompare({ performancePct, billingPct, paymentPct }) {
   const bars = [
@@ -47,24 +50,13 @@ export default function BillingLiquiditySection({
 
   const projectInstructions = allInstructions.filter(i => i.project_id === project.id);
 
+  // Statusänderung zieht die verknüpfte Verrechnungsplanung nach (gleiche Regel wie sevDesk-Abgleich)
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
-      await base44.entities.BillingInstruction.update(id, data);
-      // Wenn Status auf invoice_created geht → verknüpften MonthlyBillingPlan auf 'invoiced' setzen
-      if (data.status === 'invoice_created' || data.status === 'paid') {
-        const linkedPlan = allBillingPlans.find(p => p.linked_billing_instruction_id === id);
-        if (linkedPlan) {
-          const newPlanStatus = data.status === 'paid' ? 'invoiced' : 'invoiced';
-          await base44.entities.MonthlyBillingPlan.update(linkedPlan.id, { billing_status: newPlanStatus });
-        }
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['billingInstructions'] });
-      queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlans', project.id] });
-      queryClient.invalidateQueries({ queryKey: ['monthlyBillingPlansAll'] });
-    }
+    mutationFn: ({ id, data }) => anweisungSpeichern(id, data, allInstructions.find(i => i.id === id)),
+    onSuccess: () => abrechnungNeuLaden(queryClient)
   });
+
+  const sevdeskAbgleich = useSevdeskLiveAbgleich(projectInstructions);
 
   const { data: allBillingPlans = [] } = useQuery({
     queryKey: ['monthlyBillingPlans', project.id],
@@ -173,6 +165,7 @@ export default function BillingLiquiditySection({
         )}
 
         {/* Instruction list */}
+        <SevdeskAbgleichHinweis abgleich={sevdeskAbgleich} />
         <BillingInstructionList
           instructions={projectInstructions}
           projectBlocks={projectBlocks}
