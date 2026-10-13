@@ -19,15 +19,19 @@ export function statusAusSevdesk(sevStatus) {
   return 'invoice_created';
 }
 
-// Seitenweise laden — ein einzelner Aufruf liefert nicht beliebig viele Zeilen.
+// Seitenweise laden — ein einzelner Aufruf liefert nicht beliebig viele Zeilen
+// (list(sort, 1000) kam mit nur 50 zurück). Geblättert wird, bis eine leere Seite
+// kommt; doppelte Zeilen beenden die Schleife, falls skip einmal ignoriert würde.
 export async function alleSeiten(holen, seite = 500) {
   const alle = [];
+  const gesehen = new Set();
   let skip = 0;
-  while (true) {
+  for (let runde = 0; runde < 100; runde++) {
     const page = (await holen(seite, skip)) || [];
-    alle.push(...page);
-    if (page.length < seite || skip > 20000) break;
-    skip += seite;
+    const neu = page.filter((r) => r && !gesehen.has(r.id));
+    if (neu.length === 0) break;
+    for (const r of neu) { gesehen.add(r.id); alle.push(r); }
+    skip += page.length;
   }
   return alle;
 }
