@@ -12,6 +12,9 @@ import { formatCurrency } from '@/lib/liquidityUtils';
 import { finanzIdVon } from '@/lib/projekt/cockpitSicherstellen';
 import RechnungenTabelle from '@/components/sprint/abrechnung/RechnungenTabelle';
 import { rechnungsStatus, nettoVorzeichen } from '@/lib/billing/rechnungsStatus';
+import { anweisungSpeichern, abrechnungNeuLaden } from '@/lib/billing/planFolgt';
+import { useSevdeskLiveAbgleich } from '@/hooks/useSevdeskLiveAbgleich';
+import SevdeskAbgleichHinweis from '@/components/billing/SevdeskAbgleichHinweis';
 
 // Abrechnung eines Projekts: Auftrag, Anweisungen, ausgestellte Rechnungen.
 // sevDesk bleibt Ausstellungssystem — hier wird nur angestoßen und abgeglichen.
@@ -37,6 +40,8 @@ export default function AbrechnungSektion({ project, milestones = [], tickets = 
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['projektAbrechnung', projectId] });
+  // Der Hook steht vor jedem frühen return (Hook-Reihenfolge bleibt stabil)
+  const sevdeskAbgleich = useSevdeskLiveAbgleich(data?.instructions || []);
 
   if (!projectId) return null;
   if (isLoading || !data) return <Skeleton className="h-32 w-full bg-muted" />;
@@ -87,14 +92,17 @@ export default function AbrechnungSektion({ project, milestones = [], tickets = 
       ))}
       {orders.length > 0 && <OrderItemsView linkedOrders={orders} ohneStatus={standAusEtappen} />}
 
+      {instructions.length > 0 && <SevdeskAbgleichHinweis abgleich={sevdeskAbgleich} />}
       {instructions.length > 0 && (
         <BillingInstructionList
           instructions={instructions}
           invoices={invoices}
           projectBlocks={[]}
           onUpdate={async (id, patch) => {
-            await base44.entities.BillingInstruction.update(id, patch);
+            // Statusänderung zieht die verknüpfte Verrechnungsplanung im Projekt-Cockpit nach
+            await anweisungSpeichern(id, patch, instructions.find((i) => i.id === id));
             invalidate();
+            abrechnungNeuLaden(queryClient);
           }}
           onDelete={async (id) => {
             await base44.entities.BillingInstruction.delete(id);
