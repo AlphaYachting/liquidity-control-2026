@@ -77,7 +77,7 @@ export default function ProjektZeile({ sprint, project, client, milestones, stat
         </div>
 
         {tagNull ? (
-          <div className="hidden lg:block w-[190px] shrink-0 text-right min-w-0">
+          <div className="hidden lg:block w-[160px] shrink-0 text-right min-w-0">
             <TagNullZelle t={tagNull} tag={tagNullTag} />
           </div>
         ) : (
