@@ -5,12 +5,12 @@ import { abrechnungNeuLaden } from '@/lib/billing/planFolgt';
 
 // Holt den echten sevDesk-Stand der offenen Abrechnungsanweisungen — beim Öffnen der
 // Ansicht und wenn man aus einem anderen Tab (etwa sevDesk) zurückkommt.
-// Jede Anweisung höchstens einmal pro Minute; der Abgleich selbst schreibt nur, was in
+// Jede Anweisung höchstens alle 20 Sekunden; der Abgleich selbst schreibt nur, was in
 // sevDesk Tatsache ist (Status, Rechnungsdatensatz), nie Beträge.
 const istOffen = (b) => Boolean(b?.sevdesk_invoice_id)
   && (b.status === 'sent_to_backoffice' || (b.status === 'invoice_created' && !b.linked_invoice_id));
 
-const SPERRE_MS = 60 * 1000;
+const SPERRE_MS = 20 * 1000;
 const zuletztGeprueft = new Map(); // id → Zeitpunkt, für alle Ansichten gemeinsam
 
 export function useSevdeskLiveAbgleich(anweisungen = []) {
