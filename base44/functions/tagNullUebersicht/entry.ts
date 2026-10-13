@@ -14,6 +14,10 @@ const TAG_NULL_STANDARD = '2026-07-24';
 const r1 = (v) => Math.round((Number(v) || 0) * 10) / 10;
 const r0 = (v) => Math.round(Number(v) || 0);
 const datum = (v) => String(v || '').slice(0, 10);
+// Anzeige in Sätzen: deutsches Zahlenformat
+const z1 = (v) => r1(v).toLocaleString('de-AT');
+const z0 = (v) => r0(v).toLocaleString('de-AT');
+const aufgaben = (n) => `${n} ${n === 1 ? 'Aufgabe' : 'Aufgaben'}`;
 
 async function alleSeiten(holen) {
   const out = [];
@@ -173,32 +177,32 @@ export default async function (req) {
       const altlast = altstandFehlt ? null : vorStd * satz - a.vor;
       if (altstandFehlt) hinweise.push('aWork-Altstand fehlt — Altlast nicht bewertbar');
 
-      if (a.rechnung_ohne_versand) hinweise.push(`Bezahlte Rechnung ohne Versandkennzeichen mitgezählt (${r0(a.rechnung_ohne_versand)} € netto)`);
-      if (a.altforderung > 0) hinweise.push(`Altforderung vor Tag Null offen: ${r0(a.altforderung)} € netto`);
+      if (a.rechnung_ohne_versand) hinweise.push(`Bezahlte Rechnung ohne Versandkennzeichen mitgezählt (${z0(a.rechnung_ohne_versand)} € netto)`);
+      if (a.altforderung > 0) hinweise.push(`Altforderung vor Tag Null offen: ${z0(a.altforderung)} € netto`);
       if (a.vor > auftrag) hinweise.push('Vor Tag Null mehr verrechnet als Auftragswert — Auftrag oder Rechnungszuordnung prüfen');
       if (a.offene && !a.offene_mit_soll) hinweise.push('Offene Aufgaben ohne Sollstunden — Restaufwand unbekannt');
 
       if (!a.offene && nochZuVerrechnen > 0) {
         ampel = 'abrechnen';
-        aussage = `Keine offenen Aufgaben — ${r0(nochZuVerrechnen)} € netto sind noch zu verrechnen.`;
+        aussage = `Keine offenen Aufgaben — ${z0(nochZuVerrechnen)} € netto sind noch zu verrechnen.`;
       } else if (!a.offene) {
         ampel = 'gruen';
         aussage = 'Keine offenen Aufgaben, alles verrechnet.';
       } else if (restBudget <= 0) {
         ampel = 'rot';
-        aussage = `Schon vor Tag Null voll verrechnet, noch ${a.offene} Aufgaben offen — jede Stunde ist ungedeckt.`;
+        aussage = `Schon vor Tag Null voll verrechnet, noch ${aufgaben(a.offene)} offen — jede Stunde ist ungedeckt.`;
       } else if (gedeckt < 0) {
         ampel = 'rot';
-        aussage = `Restbudget ab Tag Null aufgebraucht: ${r1(seitStd)} von ${r1(restStd)} Std., noch ${a.offene} Aufgaben offen.`;
+        aussage = `Restbudget ab Tag Null aufgebraucht: ${z1(seitStd)} von ${z1(restStd)} Std., noch ${aufgaben(a.offene)} offen.`;
       } else if (a.offene_soll > gedeckt) {
         ampel = 'gelb';
-        aussage = `Offene Aufgaben mit ${r1(a.offene_soll)} Std. geplant, gedeckt sind noch ${r1(gedeckt)} Std.`;
+        aussage = `Offene Aufgaben mit ${z1(a.offene_soll)} Std. geplant, gedeckt sind noch ${z1(gedeckt)} Std.`;
       } else if (seitStd > 0.7 * restStd) {
         ampel = 'gelb';
-        aussage = `${Math.round((seitStd / restStd) * 100)} % des Restbudgets verbraucht, noch ${a.offene} Aufgaben offen.`;
+        aussage = `${Math.round((seitStd / restStd) * 100)} % des Restbudgets verbraucht, noch ${aufgaben(a.offene)} offen.`;
       } else {
         ampel = 'gruen';
-        aussage = `Noch ${r1(gedeckt)} Std. gedeckt, ${a.offene} Aufgaben offen.`;
+        aussage = `Noch ${z1(gedeckt)} Std. gedeckt, ${aufgaben(a.offene)} offen.`;
       }
 
       ergebnis[p.id] = {
