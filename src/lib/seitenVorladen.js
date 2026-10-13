@@ -25,6 +25,10 @@ const ALLTAGSSEITEN = [
 let gestartet = false;
 
 export function ladeAlltagsseitenVor() {
+  // Nur in der veröffentlichten App: In der Vorschau (Entwicklungsserver) ist der Code nicht
+  // gebündelt — Vorladen hieße dort rund 315 Einzeldateien (~10 MB) im Hintergrund, die mit
+  // der gerade geöffneten Seite um die Leitung konkurrieren. Live ändert sich nichts.
+  if (import.meta.env.DEV) return;
   if (gestartet) return;
   gestartet = true;
   const start = () => {
