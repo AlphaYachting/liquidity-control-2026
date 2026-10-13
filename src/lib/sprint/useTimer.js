@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { todayIso } from '@/components/sprint/sprintConfig';
-import { ermittleBuchungsfelder, ueberKontingentPruefen, sperreDurchsetzen, kontingentGesperrt, sperrMeldung } from './buchungsfelder';
+import { ermittleBuchungsfelder, ueberKontingentPruefen, sperreDurchsetzen, kontingentGesperrt, sperrMeldung, ladeKontingentVorab } from './buchungsfelder';
 import { vorbelegeTaetigkeit } from '@/lib/zeit/taetigkeit';
 import { vorbelegeBereich } from '@/lib/zeit/leistungsbereich';
 
@@ -65,9 +65,14 @@ export async function bucheZeit({
   startedAt, endedAt, taetigkeit, verrechenbar, nichtVerrechenbarGrund,
   ueberKontingent, quelle = 'timer', korrekturZu, ticketId, ausCrm, moduleTemplateId, mehrleistung, trotzdem,
 }) {
-  const felder = await ermittleBuchungsfelder(projectId);
   const minuten = Math.round(Number(durationMinutes) || 0);
   const tag = entryDate || todayIso();
+  // Buchungsfelder und Kontingentdaten gleichzeitig laden (O8) — Sperre und
+  // Kontingentprüfung nutzen danach dieselben Daten, statt sie je neu zu holen.
+  const [felder, vorab] = await Promise.all([
+    ermittleBuchungsfelder(projectId),
+    minuten > 0 ? ladeKontingentVorab({ projectId, tag }) : Promise.resolve(null),
+  ]);
   // Tätigkeit: die Vorbelegung greift immer, eine ausdrückliche Wahl hat Vorrang.
   const art = taetigkeit || (await vorbelegeTaetigkeit({
     kategorie: felder.kategorie,
@@ -76,12 +81,12 @@ export async function bucheZeit({
     ausCrm,
   }));
   // Buchungssperre bei verbrauchtem Kontingent (nur wenn am Projekt eingeschaltet)
-  const trotzSperre = await sperreDurchsetzen({ projectId, tag, minuten, trotzdem });
+  const trotzSperre = await sperreDurchsetzen({ projectId, tag, minuten, trotzdem, vorab });
   // Support über dem Monatskontingent wird als Mehrleistung gekennzeichnet.
   const ueber = trotzSperre ? true : ueberKontingent !== undefined
     ? ueberKontingent
     : minuten > 0
-      ? await ueberKontingentPruefen({ projectId, tag, minuten })
+      ? await ueberKontingentPruefen({ projectId, tag, minuten, vorab })
       : false;
   return base44.entities.TimeEntry.create({
     ...felder,
@@ -146,8 +151,9 @@ export async function aendereZeit(id, patch = {}) {
       ohneId: id,
     };
     // Admins ändern trotz Sperre (markiert), alle anderen werden abgewiesen.
-    const trotzSperre = await sperreDurchsetzen({ ...pruef, trotzdem: true });
-    daten.ueber_kontingent = trotzSperre || await ueberKontingentPruefen(pruef);
+    const vorab = Number(pruef.minuten) > 0 ? await ladeKontingentVorab({ projectId: pruef.projectId, tag: pruef.tag }) : null;
+    const trotzSperre = await sperreDurchsetzen({ ...pruef, trotzdem: true, vorab });
+    daten.ueber_kontingent = trotzSperre || await ueberKontingentPruefen({ ...pruef, vorab });
   }
   // Nachträglich geänderte Zeiten kennzeichnen: eine gestoppte Timer-Buchung, deren
   // Beginn, Ende oder Dauer von Hand geändert wird, ist nicht mehr gemessen.
