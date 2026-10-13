@@ -17,6 +17,7 @@ import MeinTagProjektgruppen from '@/components/sprint/heute/MeinTagProjektgrupp
 import { MeinTagZeit, MeinTagEingang, stundenVon } from '@/components/sprint/heute/MeinTagSeitenleiste';
 import MeinTagSupportTickets, { SUPPORT_TICKETS_KEY } from '@/components/sprint/heute/MeinTagSupportTickets';
 import MeinTagPost from '@/components/sprint/heute/MeinTagPost';
+import { brauchtAntwort } from '@/lib/sprint/uebernahme';
 import { RITTLER, STATUS_COLORS, todayIso } from '@/components/sprint/sprintConfig';
 import { ohneArchiv, PROJEKT_LAUFEND, istAktiv } from '@/lib/sprint/aktivFilter';
 import { gliedereMeinTag, nachProjekt } from '@/lib/sprint/meinTag';
@@ -128,6 +129,12 @@ export default function SprintHeute() {
   const sprintProject = Object.fromEntries(sprints.map((s) => [s.id, s.project_id]));
   const projectTitleById = Object.fromEntries(projects.map((p) => [p.id, p.title]));
 
+  // Übernahme-Knopf (O7): gleiche Regel wie ladeMeineUebernahme — eigene offene Alttickets
+  // ohne Antwort in laufenden (nicht abgeschlossenen) Projekten —, aber aus den schon
+  // geladenen Tickets statt einer zweiten Abfrage.
+  const uebernahmeOffen = myTickets.filter((t) => t.status !== 'erledigt' && brauchtAntwort(t)
+    && projectById[t.project_id] && projectById[t.project_id].status !== 'abgeschlossen').length;
+
   // Pausierte und abgeschlossene Projekte erzeugen keine Arbeit in „Mein Tag"
   const aktiveIds = new Set(projects.filter(istAktiv).map((p) => p.id));
   const g = gliedereMeinTag(myTickets.filter((t) => aktiveIds.has(t.project_id)), today);
@@ -224,7 +231,7 @@ export default function SprintHeute() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <MeinTagUebernahme email={email} />
+          <MeinTagUebernahme email={email} anzahlOffen={uebernahmeOffen} />
           <button
             type="button"
             onClick={() => setNeueAufgabe(true)}
