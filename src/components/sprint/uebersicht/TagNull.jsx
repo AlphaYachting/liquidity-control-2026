@@ -100,8 +100,8 @@ export function TagNullZelle({ t, tag }) {
   else oben = `${h1(t.gedeckt_std)} h gedeckt`;
 
   const unten = t.ampel === 'kein_massstab'
-    ? `seit ${datumKurz(tag)}: ${h1(t.std_seit)} h`
-    : `seit ${datumKurz(tag)}: ${h1(t.std_seit)} von ${h1(t.rest_std)} h`;
+    ? `ab ${datumKurz(tag)}: ${h1(t.std_seit)} h`
+    : `ab ${datumKurz(tag)}: ${h1(t.std_seit)} / ${h1(t.rest_std)} h`;
 
   return (
     <div title={zeilen}>
