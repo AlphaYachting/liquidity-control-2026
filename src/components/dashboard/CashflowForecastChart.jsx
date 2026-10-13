@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { addDays, format, parseISO, isValid, startOfDay, isBefore } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { de } from 'date-fns/locale/de';
 import { RefreshCw, Zap } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 

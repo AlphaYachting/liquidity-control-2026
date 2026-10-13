@@ -8,7 +8,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import ArchivExportPanel from '@/components/awork/ArchivExportPanel';
 import { Settings, CheckCircle2, XCircle, AlertTriangle, Archive } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { de } from 'date-fns/locale/de';
 
 const STATUS_CONFIG = {
   not_configured: { label: 'Nicht konfiguriert', color: 'bg-gray-100 text-gray-600', icon: AlertTriangle },

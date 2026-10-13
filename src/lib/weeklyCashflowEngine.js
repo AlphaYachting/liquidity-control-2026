@@ -17,7 +17,7 @@
  */
 
 import { addDays, startOfWeek, format, isWithinInterval, parseISO } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { de } from 'date-fns/locale/de';
 import { isLiquidityRelevantInvoice } from './invoiceLiquidityFilter';
 
 const WEEKS_AHEAD = 8;

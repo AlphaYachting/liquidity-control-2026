@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format, parseISO } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { de } from 'date-fns/locale/de';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const MONTHS_FORWARD = 12;

@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Link2, Loader2, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow, differenceInHours } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { de } from 'date-fns/locale/de';
 import AworkLastBookers from '@/components/awork/AworkLastBookers';
 import ProjektFaktenzeile from '@/components/projects/ProjektFaktenzeile';
 
