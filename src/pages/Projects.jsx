@@ -52,7 +52,6 @@ const BILLING_STATUS_COLORS = {
 };
 
 const INVOICE_TYPE_SHORT = { advance_invoice:'AZ', partial_invoice:'TR', final_invoice:'ER', correction:'KO', credit_note:'GS' };
-const SUBMITTED_STATUSES = ['sent_to_backoffice', 'invoice_created', 'paid'];
 
 function getCurrentMonth() {
   const d = new Date();
@@ -458,7 +457,8 @@ export default function Projects() {
       const activePlan = plans.find(p => p.planning_month === currentMonth)
         || plans.find(p => p.planning_month === nextMonth)
         || plans.sort((a, b) => (b.planning_month || '').localeCompare(a.planning_month || ''))[0];
-      const status = activePlan?.billing_status || 'open';
+      // Wirksamer Stand: ist die verknüpfte Anweisung verrechnet, gilt die Planung als verrechnet
+      const status = (activePlan && planStatus(activePlan)) || 'open';
       if (!activePlan) {
         return <span className="text-xs text-muted-foreground">—</span>;
       }
