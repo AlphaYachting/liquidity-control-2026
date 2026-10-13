@@ -129,6 +129,11 @@ export default async function (req) {
       zahlstand = await zahlstandNachziehen({ db, apiKey, nurPruefen });
     }
 
+    // Prüflauf: Ergebnis ins Protokoll, damit es auch aus einem Workflow heraus lesbar ist
+    if (nurPruefen) {
+      console.log(JSON.stringify({ geprueft: kandidaten.length, ergebnis, zahlstand }));
+    }
+
     return Response.json({
       ok: true,
       modus: nurPruefen ? 'nur_pruefen' : 'angewendet',
