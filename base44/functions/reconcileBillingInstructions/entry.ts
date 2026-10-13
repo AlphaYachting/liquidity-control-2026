@@ -28,6 +28,11 @@ export default async function (req) {
       }).catch(() => {});
     }
 
+    // Prüflauf: Abweichungen ins Protokoll (lesbar auch aus einem Workflow heraus)
+    if (!apply) {
+      console.log(JSON.stringify({ zusammenfassung, abweichungen: faelle.filter((f) => f.art !== 'stimmt').map((f) => ({ kunde: f.kunde, netto: f.netto, art: f.art, app: f.status_app, sevdesk: f.sevdesk_status || '', vorschlag: f.vorschlag?.status || null, abw: f.abweichungen || [] })) }));
+    }
+
     return Response.json({ ok: true, modus: apply ? 'angewendet' : 'nur_pruefung', angewendet, zusammenfassung, faelle });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
