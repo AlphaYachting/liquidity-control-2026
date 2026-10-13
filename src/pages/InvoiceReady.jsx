@@ -5,6 +5,9 @@ import { useNavigate } from 'react-router-dom';
 import { CheckSquare, ExternalLink, Info, AlertTriangle, ChevronDown, ChevronUp, Filter, FileText, Loader2, Pencil } from 'lucide-react';
 import BillingInstructionEditDialog from '@/components/billing/BillingInstructionEditDialog';
 import SevdeskAbgleichPanel from '@/components/billing/SevdeskAbgleichPanel';
+import SevdeskAbgleichHinweis from '@/components/billing/SevdeskAbgleichHinweis';
+import { useSevdeskLiveAbgleich } from '@/hooks/useSevdeskLiveAbgleich';
+import { anweisungSpeichern, abrechnungNeuLaden } from '@/lib/billing/planFolgt';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiCard from '@/components/shared/KpiCard';
 import { Card, CardContent } from '@/components/ui/card';
@@ -85,10 +88,14 @@ export default function InvoiceReady() {
     queryKey: ['billingBlocks'], queryFn: () => base44.entities.ProjectBillingBlock.list()
   });
 
+  // Statusänderung zieht die verknüpfte Verrechnungsplanung im Projekt nach
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.BillingInstruction.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['billingInstructions'] })
+    mutationFn: ({ id, data }) => anweisungSpeichern(id, data, instructions.find(i => i.id === id)),
+    onSuccess: () => abrechnungNeuLaden(queryClient)
   });
+
+  // Beim Öffnen und bei Rückkehr aus sevDesk: offene Anweisungen live gegen sevDesk prüfen
+  const sevdeskAbgleich = useSevdeskLiveAbgleich(instructions);
 
   const isLoading = i1 || i2 || i3;
 
@@ -138,6 +145,7 @@ export default function InvoiceReady() {
       </Alert>
 
       <SevdeskAbgleichPanel />
+      <SevdeskAbgleichHinweis abgleich={sevdeskAbgleich} />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
