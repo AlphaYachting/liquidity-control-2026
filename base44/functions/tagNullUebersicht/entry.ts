@@ -168,7 +168,10 @@ export default async function (req) {
       const restStd = restBudget / satz;
       const gedeckt = restStd - seitStd;
       const nochZuVerrechnen = Math.max(0, auftrag - a.vor - a.seit);
-      const altlast = vorStd * satz - a.vor;
+      // Ohne aWork-Gesamtstand ist die Altlast nicht bewertbar (Projekt mit aWork-Herkunft, Stand fehlt)
+      const altstandFehlt = !!p.awork_project_id && p.awork_altstand_stunden == null;
+      const altlast = altstandFehlt ? null : vorStd * satz - a.vor;
+      if (altstandFehlt) hinweise.push('aWork-Altstand fehlt — Altlast nicht bewertbar');
 
       if (a.rechnung_ohne_versand) hinweise.push(`Bezahlte Rechnung ohne Versandkennzeichen mitgezählt (${r0(a.rechnung_ohne_versand)} € netto)`);
       if (a.altforderung > 0) hinweise.push(`Altforderung vor Tag Null offen: ${r0(a.altforderung)} € netto`);
@@ -202,7 +205,7 @@ export default async function (req) {
         project_id: p.id, ampel, aussage, stundensatz: satz,
         auftrag: r0(auftrag), verrechnet_vor: r0(a.vor), verrechnet_seit: r0(a.seit),
         rest_budget: r0(restBudget), rest_std: r1(restStd), std_seit: r1(seitStd), gedeckt_std: r1(gedeckt),
-        noch_zu_verrechnen: r0(nochZuVerrechnen), std_vor: r1(vorStd), altlast: r0(altlast),
+        noch_zu_verrechnen: r0(nochZuVerrechnen), std_vor: altstandFehlt ? null : r1(vorStd), altlast: altlast === null ? null : r0(altlast),
         altforderung: r0(a.altforderung), letzte_buchung: a.letzte,
         offene_aufgaben: a.offene, offene_soll_std: r1(a.offene_soll), offene_mit_soll: a.offene_mit_soll,
         rechnungen_vor: a.rechnungen_vor, rechnungen_seit: a.rechnungen_seit, hinweise,
