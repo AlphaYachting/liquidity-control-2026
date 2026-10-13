@@ -280,11 +280,199 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
     });
   };
 
+  // Eine Planungszeile — in den Monatskarten und bei den überfälligen Planungen
+  const planZeile = (plan, { mitMonat = false } = {}) => (
+        <div key={plan.id} className="flex items-center justify-between gap-2 p-2 bg-white/80 rounded-lg border text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={`text-xs py-0 ${TYPE_CFG[plan.planned_invoice_type]?.color || 'bg-gray-100 text-gray-600'}`}>
+              {plan.planned_invoice_type}
+            </Badge>
+            <span className="font-semibold">{formatCurrency(plan.planned_amount_net)}</span>
+            {mitMonat && <span className="text-muted-foreground">{getMonthLabel(plan.planning_month)}</span>}
+            {plan.planned_percent > 0 && <span className="text-muted-foreground">{Math.round(plan.planned_percent)}%</span>}
+            <Badge className={`text-xs py-0 ${STATUS_CFG[plan.billing_status]?.color || ''}`}>
+              {STATUS_CFG[plan.billing_status]?.label || plan.billing_status}
+            </Badge>
+            {plan.postponed_from_month && (
+              <Badge className="text-xs py-0 bg-orange-100 text-orange-700" title={plan.postpone_reason || ''}>
+                ↷ aus {getMonthLabel(plan.postponed_from_month)}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {plan.reminder_date && (
+              <span className="flex items-center gap-0.5 text-amber-600">
+                <Bell className="w-3 h-3" />
+                {plan.reminder_date}
+              </span>
+            )}
+            <Select value={plan.billing_status}
+              onValueChange={v => updateMutation.mutate({ id: plan.id, data: { billing_status: v } })}>
+              <SelectTrigger className="h-6 text-xs w-32 border-0 bg-transparent shadow-none p-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(STATUS_CFG).map(([v, { label }]) => (
+                  <SelectItem key={v} value={v} className="text-xs">{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {plan.billing_status !== 'invoiced' && (
+              <PlanMoveControl
+                plan={plan}
+                monthOptions={moveMonthOptions}
+                getMonthLabel={getMonthLabel}
+                onMove={handleMovePlan}
+                isPending={movePlanMutation.isPending} />
+            )}
+            <button
+              title="Bearbeiten"
+              onClick={() => handleEdit(plan, month)}
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+              <Pencil className="w-3 h-3" />
+            </button>
+            {!plan.linked_billing_instruction_id && (
+              confirmDeletePlanId === plan.id ? (
+                <span className="flex items-center gap-1">
+                  <span className="text-xs text-destructive font-medium">Löschen?</span>
+                  <button
+                    onClick={() => { deletePlanMutation.mutate(plan.id); setConfirmDeletePlanId(null); }}
+                    className="text-xs text-white bg-destructive hover:bg-destructive/80 px-1.5 py-0.5 rounded">
+                    Ja
+                  </button>
+                  <button onClick={() => setConfirmDeletePlanId(null)}
+                    className="text-xs border px-1.5 py-0.5 rounded hover:bg-muted">
+                    Nein
+                  </button>
+                </span>
+              ) : (
+                <button
+                  title="Planung löschen"
+                  onClick={() => setConfirmDeletePlanId(plan.id)}
+                  className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-destructive transition-colors">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )
+            )}
+            {/* Instruction create button / status */}
+            {plan.linked_billing_instruction_id ? (() => {
+              const instr = allInstructions.find(i => i.id === plan.linked_billing_instruction_id);
+              const isDeletable = !instr || ['draft', 'blocked', 'cancelled'].includes(instr?.status);
+              return confirmUnlinkPlanId === plan.id ? (
+                <span className="flex items-center gap-1">
+                  <span className="text-xs text-destructive font-medium">Löschen?</span>
+                  <button
+                    onClick={() => deleteInstructionMutation.mutate({ planId: plan.id, instructionId: plan.linked_billing_instruction_id })}
+                    className="text-xs text-white bg-destructive hover:bg-destructive/80 px-1.5 py-0.5 rounded">
+                    Ja
+                  </button>
+                  <button onClick={() => setConfirmUnlinkPlanId(null)}
+                    className="text-xs border px-1.5 py-0.5 rounded hover:bg-muted">
+                    Nein
+                  </button>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  {(() => {
+                    const stand = anweisungsStand(instr, rechnungZu(instr));
+                    return <Badge className={`text-xs py-0 ${stand.klasse}`}>{stand.label}</Badge>;
+                  })()}
+                  {isDeletable && (
+                    <button
+                      title="Anweisung löschen & Verknüpfung aufheben"
+                      onClick={() => setConfirmUnlinkPlanId(plan.id)}
+                      className="p-0.5 rounded hover:bg-red-50 text-muted-foreground hover:text-destructive transition-colors ml-0.5">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </span>
+              );
+            })() : (
+              plan.planned_amount_net > 0 && (
+                <button
+                  title="Abrechnungsanweisung erstellen"
+                  disabled={creatingInstructionForPlanId === plan.id}
+                  onClick={() => handleCreateInstruction(plan)}
+                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium px-2 py-0.5 rounded border border-primary/30 hover:bg-primary/5 transition-colors disabled:opacity-50">
+                  {creatingInstructionForPlanId === plan.id
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <CheckCircle2 className="w-3 h-3" />}
+                  Anweisung erstellen
+                </button>
+              )
+            )}
+          </div>
+        </div>
+  );
+
+  // Kompakte Zeile im Block „Abgerechnet“: was tatsächlich verrechnet ist, mit Rechnungsnummer
+  const abgerechnetZeile = (plan) => {
+    const instr = plan.linked_billing_instruction_id ? anweisungNachId[plan.linked_billing_instruction_id] : null;
+    const rechnung = rechnungZu(instr);
+    const stand = instr ? anweisungsStand(instr, rechnung) : { label: '✓ Verrechnet', klasse: 'bg-emerald-100 text-emerald-700' };
+    return (
+      <div key={plan.id} className="flex items-center justify-between gap-2 p-2 bg-white/80 rounded-lg border text-xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge className={`text-xs py-0 ${TYPE_CFG[plan.planned_invoice_type]?.color || 'bg-gray-100 text-gray-600'}`}>
+            {plan.planned_invoice_type}
+          </Badge>
+          <span className="font-semibold">{formatCurrency(plan.planned_amount_net)}</span>
+          <Badge className={`text-xs py-0 ${stand.klasse}`}>{stand.label}</Badge>
+          {rechnung?.invoice_date && <span className="text-muted-foreground">am {fmtTag(rechnung.invoice_date)}</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">geplant {getMonthLabel(plan.planning_month)}</span>
+          {!instr && (
+            <Select value={plan.billing_status}
+              onValueChange={v => updateMutation.mutate({ id: plan.id, data: { billing_status: v } })}>
+              <SelectTrigger className="h-6 text-xs w-28 border-0 bg-transparent shadow-none p-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(STATUS_CFG).map(([v, { label }]) => (
+                  <SelectItem key={v} value={v} className="text-xs">{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Sektion titel="Verrechnungsplanung — 4 Monate" symbol={CalendarDays}>
+        {abgerechnet.length > 0 && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Abgerechnet</span>
+              <span className="text-xs text-emerald-800">
+                {formatCurrency(abgerechnet.reduce((sum, p) => sum + (Number(p.planned_amount_net) || 0), 0))} netto
+              </span>
+            </div>
+            {abgerechnet.map(abgerechnetZeile)}
+          </div>
+        )}
+
+        {ueberfaellig.length > 0 && (
+          <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-3 space-y-2">
+            <button type="button" onClick={() => setUeberfaelligOffen(o => !o)}
+              className="w-full flex items-center justify-between text-left">
+              <span className="text-xs font-semibold text-orange-800 uppercase tracking-wider">
+                Überfällig — {ueberfaellig.length} Planung{ueberfaellig.length === 1 ? '' : 'en'} aus Vormonaten nicht verrechnet
+              </span>
+              <span className="text-xs text-orange-800">
+                {formatCurrency(ueberfaellig.reduce((sum, p) => sum + (Number(p.planned_amount_net) || 0), 0))} netto {ueberfaelligOffen ? '▲' : '▼'}
+              </span>
+            </button>
+            {ueberfaelligOffen && ueberfaellig.map(plan => planZeile(plan, { mitMonat: true }))}
+          </div>
+        )}
+
         {months.map((month, idx) => {
           const planningType = idx === 0 ? 'current_month' : idx === 1 ? 'next_month' : 'future_month';
-          const monthPlans = plans.filter(p => p.planning_month === month);
+          const monthPlans = plans.filter(p => p.planning_month === month && !istVerrechnet(p));
+          const verrechnetImMonat = plans.filter(p => p.planning_month === month && istVerrechnet(p)).length;
           const isAdding = addingMonth === month;
 
           return (
@@ -302,128 +490,8 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
                 )}
               </div>
 
-              {/* Existing plans */}
-              {monthPlans.map(plan => (
-                editingPlanId === plan.id ? null :
-                <div key={plan.id} className="flex items-center justify-between gap-2 p-2 bg-white/80 rounded-lg border text-xs">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge className={`text-xs py-0 ${TYPE_CFG[plan.planned_invoice_type]?.color || 'bg-gray-100 text-gray-600'}`}>
-                      {plan.planned_invoice_type}
-                    </Badge>
-                    <span className="font-semibold">{formatCurrency(plan.planned_amount_net)}</span>
-                    {plan.planned_percent > 0 && <span className="text-muted-foreground">{Math.round(plan.planned_percent)}%</span>}
-                    <Badge className={`text-xs py-0 ${STATUS_CFG[plan.billing_status]?.color || ''}`}>
-                      {STATUS_CFG[plan.billing_status]?.label || plan.billing_status}
-                    </Badge>
-                    {plan.postponed_from_month && (
-                      <Badge className="text-xs py-0 bg-orange-100 text-orange-700" title={plan.postpone_reason || ''}>
-                        ↷ aus {getMonthLabel(plan.postponed_from_month)}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {plan.reminder_date && (
-                      <span className="flex items-center gap-0.5 text-amber-600">
-                        <Bell className="w-3 h-3" />
-                        {plan.reminder_date}
-                      </span>
-                    )}
-                    <Select value={plan.billing_status}
-                      onValueChange={v => updateMutation.mutate({ id: plan.id, data: { billing_status: v } })}>
-                      <SelectTrigger className="h-6 text-xs w-32 border-0 bg-transparent shadow-none p-0">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(STATUS_CFG).map(([v, { label }]) => (
-                          <SelectItem key={v} value={v} className="text-xs">{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {plan.billing_status !== 'invoiced' && (
-                      <PlanMoveControl
-                        plan={plan}
-                        monthOptions={moveMonthOptions}
-                        getMonthLabel={getMonthLabel}
-                        onMove={handleMovePlan}
-                        isPending={movePlanMutation.isPending} />
-                    )}
-                    <button
-                      title="Bearbeiten"
-                      onClick={() => handleEdit(plan, month)}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                    {!plan.linked_billing_instruction_id && (
-                      confirmDeletePlanId === plan.id ? (
-                        <span className="flex items-center gap-1">
-                          <span className="text-xs text-destructive font-medium">Löschen?</span>
-                          <button
-                            onClick={() => { deletePlanMutation.mutate(plan.id); setConfirmDeletePlanId(null); }}
-                            className="text-xs text-white bg-destructive hover:bg-destructive/80 px-1.5 py-0.5 rounded">
-                            Ja
-                          </button>
-                          <button onClick={() => setConfirmDeletePlanId(null)}
-                            className="text-xs border px-1.5 py-0.5 rounded hover:bg-muted">
-                            Nein
-                          </button>
-                        </span>
-                      ) : (
-                        <button
-                          title="Planung löschen"
-                          onClick={() => setConfirmDeletePlanId(plan.id)}
-                          className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-destructive transition-colors">
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )
-                    )}
-                    {/* Instruction create button / status */}
-                    {plan.linked_billing_instruction_id ? (() => {
-                      const instr = allInstructions.find(i => i.id === plan.linked_billing_instruction_id);
-                      const isDeletable = !instr || ['draft', 'blocked', 'cancelled'].includes(instr?.status);
-                      return confirmUnlinkPlanId === plan.id ? (
-                        <span className="flex items-center gap-1">
-                          <span className="text-xs text-destructive font-medium">Löschen?</span>
-                          <button
-                            onClick={() => deleteInstructionMutation.mutate({ planId: plan.id, instructionId: plan.linked_billing_instruction_id })}
-                            className="text-xs text-white bg-destructive hover:bg-destructive/80 px-1.5 py-0.5 rounded">
-                            Ja
-                          </button>
-                          <button onClick={() => setConfirmUnlinkPlanId(null)}
-                            className="text-xs border px-1.5 py-0.5 rounded hover:bg-muted">
-                            Nein
-                          </button>
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span className="text-emerald-600 text-xs font-medium">Anweisung erstellt</span>
-                          {isDeletable && (
-                            <button
-                              title="Anweisung löschen & Verknüpfung aufheben"
-                              onClick={() => setConfirmUnlinkPlanId(plan.id)}
-                              className="p-0.5 rounded hover:bg-red-50 text-muted-foreground hover:text-destructive transition-colors ml-0.5">
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          )}
-                        </span>
-                      );
-                    })() : (
-                      plan.planned_amount_net > 0 && (
-                        <button
-                          title="Abrechnungsanweisung erstellen"
-                          disabled={creatingInstructionForPlanId === plan.id}
-                          onClick={() => handleCreateInstruction(plan)}
-                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium px-2 py-0.5 rounded border border-primary/30 hover:bg-primary/5 transition-colors disabled:opacity-50">
-                          {creatingInstructionForPlanId === plan.id
-                            ? <Loader2 className="w-3 h-3 animate-spin" />
-                            : <CheckCircle2 className="w-3 h-3" />}
-                          Anweisung erstellen
-                        </button>
-                      )
-                    )}
-                  </div>
-                </div>
-              ))}
+              {/* Offene Planungen dieses Monats (verrechnete stehen oben unter „Abgerechnet“) */}
+              {monthPlans.map(plan => (editingPlanId === plan.id ? null : planZeile(plan)))}
 
               {/* Inline add form */}
               {isAdding && (
@@ -519,17 +587,21 @@ export default function NextMonthsBillingPreview({ project, fin, linkedOrders })
               )}
 
               {monthPlans.length === 0 && !isAdding && (
-                <p className="text-xs text-muted-foreground italic">Noch keine Planung für diesen Monat</p>
+                <p className="text-xs text-muted-foreground italic">
+                  {verrechnetImMonat > 0
+                    ? `Keine offene Planung — ${verrechnetImMonat} verrechnet (oben unter „Abgerechnet“)`
+                    : 'Noch keine Planung für diesen Monat'}
+                </p>
               )}
             </div>
           );
         })}
 
         {/* Planungen, die über das 4-Monats-Fenster hinaus verschoben wurden */}
-        {plans.some(p => p.planning_month > months[3]) && (
+        {plans.some(p => p.planning_month > months[3] && !istVerrechnet(p)) && (
           <div className="rounded-xl border border-dashed p-3 space-y-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Später geplant</span>
-            {plans.filter(p => p.planning_month > months[3]).map(plan => (
+            {plans.filter(p => p.planning_month > months[3] && !istVerrechnet(p)).map(plan => (
               <div key={plan.id} className="flex items-center justify-between gap-2 p-2 bg-white/80 rounded-lg border text-xs">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge className={`text-xs py-0 ${TYPE_CFG[plan.planned_invoice_type]?.color || 'bg-gray-100 text-gray-600'}`}>
