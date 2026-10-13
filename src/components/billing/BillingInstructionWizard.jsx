@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import {
 import { formatCurrency } from '@/lib/liquidityUtils';
 import { schliesseZeitenAb } from '@/lib/zeit/abrechnungsstatus';
 import RundungsDifferenzZeile from '@/components/billing/RundungsDifferenzZeile';
+import { abrechnungNeuLaden } from '@/lib/billing/planFolgt';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { generateDeterministicBillingSuggestion, checkBillingInstructionOverlap } from '@/lib/billingSuggestionUtils';
 import {
@@ -400,6 +401,15 @@ export default function BillingInstructionWizard({
   const [appliedSuggestionType, setAppliedSuggestionType] = useState(null); // 'deterministic' | 'llm' | null
   const [suggestionApplied, setSuggestionApplied] = useState(false);
 
+  // Verknüpfung mit einer offenen Verrechnungsplanung — damit die Planung der Rechnung folgt
+  const [planWahl, setPlanWahl] = useState('');
+  const [planManuell, setPlanManuell] = useState(false);
+  const { data: projektPlaene = [] } = useQuery({
+    queryKey: ['monthlyBillingPlans', project?.id],
+    queryFn: () => base44.entities.MonthlyBillingPlan.filter({ project_id: project.id }),
+    enabled: Boolean(open && project?.id),
+  });
+
   const [form, setForm] = useState({
     additional_billing_percent: '',
     new_billing_percent: '',
@@ -419,8 +429,12 @@ export default function BillingInstructionWizard({
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data) => {
+    mutationFn: async ({ _planId, ...data }) => {
       const instruction = await base44.entities.BillingInstruction.create(data);
+      // Gewählte Verrechnungsplanung verknüpfen — nur die Verknüpfung, Monat und Betrag bleiben
+      if (_planId) {
+        await base44.entities.MonthlyBillingPlan.update(_planId, { linked_billing_instruction_id: instruction.id });
+      }
       // Erst damit ist beantwortbar, welche Stunden noch nicht fakturiert sind.
       await schliesseZeitenAb({
         projectId: data.project_id,
@@ -430,7 +444,7 @@ export default function BillingInstructionWizard({
       return instruction;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['billingInstructions'] });
+      abrechnungNeuLaden(queryClient);
       onClose();
       resetWizard();
     }
@@ -443,6 +457,7 @@ export default function BillingInstructionWizard({
     setLlmSafetyBlocked(false); setLlmSafetyDowngraded(false);
     setActiveTab('deterministic');
     setAppliedSuggestionType(null); setSuggestionApplied(false);
+    setPlanWahl(''); setPlanManuell(false);
     setForm({
       additional_billing_percent: '', new_billing_percent: '', instruction_amount_net: '',
       invoice_type: 'partial_invoice', invoice_reason: '', invoice_instruction_text: '',
@@ -507,6 +522,17 @@ export default function BillingInstructionWizard({
   }, [instructionType, selectedBlock, derivedAmountNet, form.instruction_amount_net]);
 
   const finalAmountGross = finalAmountNet * (1 + (Number(form.vat_rate) || 20) / 100);
+
+  // Offene Planungen dieses Projekts (noch ohne Anweisung, nicht verrechnet)
+  const offenePlaene = useMemo(() => projektPlaene
+    .filter(p => !p.linked_billing_instruction_id && p.billing_status !== 'invoiced' && (Number(p.planned_amount_net) || 0) > 0)
+    .sort((a, b) => (a.planning_month || '').localeCompare(b.planning_month || '')), [projektPlaene]);
+  // Vorschlag nur bei eindeutigem Treffer (genau eine Planung mit gleichem Betrag, ±1 €)
+  const planVorschlag = useMemo(() => {
+    const treffer = offenePlaene.filter(p => Math.abs((Number(p.planned_amount_net) || 0) - finalAmountNet) <= 1);
+    return treffer.length === 1 ? treffer[0].id : '';
+  }, [offenePlaene, finalAmountNet]);
+  const gewaehlterPlan = planManuell ? planWahl : planVorschlag;
   const newBillingPercentCalc = totalOrderNet > 0 ? ((alreadyInvoicedNet + finalAmountNet) / totalOrderNet) * 100 : 0;
   const remainingAfter = openToInvoiceNet - finalAmountNet;
 
@@ -920,7 +946,7 @@ export default function BillingInstructionWizard({
       ai_applied_at: form.ai_applied_at || null, ai_applied_by: form.ai_applied_by || null,
       ai_modified_after_apply: form.ai_modified_after_apply,
     };
-    createMutation.mutate(payload);
+    createMutation.mutate({ ...payload, _planId: gewaehlterPlan || null });
   }
 
   // ── Suggestion section (shared for 2B + 2C) ──────────────────────────────
@@ -1266,6 +1292,27 @@ export default function BillingInstructionWizard({
               </div>
             </div>
             <RundungsDifferenzZeile projectId={project?.id} />
+            {offenePlaene.length > 0 && (
+              <div>
+                <Label className="text-xs">
+                  Verrechnungsplanung verknüpfen
+                  <span className="text-muted-foreground font-normal ml-1">(die Planung folgt dann der Rechnung)</span>
+                </Label>
+                <Select value={gewaehlterPlan || 'keine'}
+                  onValueChange={v => { setPlanManuell(true); setPlanWahl(v === 'keine' ? '' : v); }}>
+                  <SelectTrigger className="h-8 text-xs mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="keine" className="text-xs">Keine Verknüpfung</SelectItem>
+                    {offenePlaene.map(p => (
+                      <SelectItem key={p.id} value={p.id} className="text-xs">
+                        {p.planning_month} · {p.planned_invoice_type || 'TR'} · {formatCurrency(p.planned_amount_net)}
+                        {p.id === planVorschlag ? ' — passt zum Betrag' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">
