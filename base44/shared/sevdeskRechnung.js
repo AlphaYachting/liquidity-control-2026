@@ -221,3 +221,43 @@ export function buildRecord(inv, matchResult, existing, recordIdBySevdeskId = {}
     source_file: JSON.stringify(inv),
   };
 }
+
+// Vorrang: Verknüpfung über die Abrechnungsanweisung (auch für Entwürfe).
+// Wortgleich zum bisherigen Block im 6-Stunden-Lauf, jetzt für beide Wege.
+export function mitAnweisungVerknuepfen(record, instr, existing) {
+  if (!instr || existing?.match_status === 'manually_matched') return false;
+  record.confirmed_order_id = instr.confirmed_order_id || record.confirmed_order_id;
+  record.project_id = existing?.project_id || instr.project_id || record.project_id;
+  record.match_status = 'auto_matched';
+  record.match_confidence = 100;
+  return true;
+}
+
+// Nur die Zahlungsfelder einer sevDesk-Rechnung — dieselbe Berechnung wie in buildRecord.
+// Für das Nachziehen des Zahlstands älterer Rechnungen, ohne Zuordnung oder Beträge anzufassen.
+export function zahlfelder(inv) {
+  const grossAmount = parseAmount(inv.sumGross);
+  const paymentStatus = mapInvoiceStatus(inv);
+  const paymentDate = inv.payDate ? inv.payDate.substring(0, 10) : null;
+  const rawPaidAmount = parseAmount(inv.sumGrossPay || '0');
+  const paidAmount = rawPaidAmount > 0 ? rawPaidAmount :
+                     (paymentStatus === 'paid' ? grossAmount : 0);
+  const rawRemaining = parseAmount(inv.sumRemaining || '0');
+  let openAmount;
+  if (paymentStatus === 'paid') {
+    openAmount = 0;
+  } else if (rawRemaining > 0) {
+    openAmount = rawRemaining;
+  } else if (paidAmount > 0) {
+    openAmount = Math.max(0, grossAmount - paidAmount);
+  } else {
+    openAmount = grossAmount;
+  }
+  return {
+    payment_status: paymentStatus,
+    paid_amount: paidAmount,
+    open_amount: openAmount,
+    payment_date: paymentStatus === 'paid' ? paymentDate : null,
+    is_sent: inv.status !== '100',
+  };
+}
