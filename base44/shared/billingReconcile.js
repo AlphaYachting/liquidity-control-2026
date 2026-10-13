@@ -1,19 +1,13 @@
 // Abgleich der Abrechnungsanweisungen mit den Belegen in sevDesk.
 // Wird von der manuellen Prüfung und vom täglichen Lauf gemeinsam genutzt.
+// Jede Statusänderung zieht die verknüpfte Verrechnungsplanung mit (billingFollow).
+
+import { statusAusSevdesk, alleSeiten, anweisungAngleichen, planFolgtAnweisung } from './billingFollow.js';
+
+export { statusAusSevdesk };
 
 const SEVDESK_BASE = 'https://my.sevdesk.de/api/v1';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-// sevDesk-Belegstatus → Status der Abrechnungsanweisung.
-// 100 = Entwurf: der Beleg ist NICHT verrechnet, die Anweisung liegt beim Backoffice.
-export function statusAusSevdesk(sevStatus) {
-  const s = String(sevStatus || '');
-  if (s === '1000') return 'paid';
-  if (s === '750' || s === '300') return 'invoice_created';
-  if (s === '50') return 'cancelled';
-  if (s === '100') return 'sent_to_backoffice';
-  return 'invoice_created';
-}
 
 const norm = (v) => (v || '').toLowerCase().replace(/\s+/g, ' ').trim();
 
@@ -21,9 +15,11 @@ const norm = (v) => (v || '').toLowerCase().replace(/\s+/g, ' ').trim();
 export const AUTOMATISCHE_ARTEN = ['abweichung', 'beleg_in_sevdesk_nicht_vorhanden'];
 
 export async function pruefeAnweisungen({ base44, apiKey, apply = false, ids = [], autoArten = null }) {
+  const db = base44.asServiceRole.entities;
+  // Seitenweise: ein Einzelaufruf lieferte nur die 50 neuesten Anweisungen.
   const [instructions, invoiceRecords] = await Promise.all([
-    base44.asServiceRole.entities.BillingInstruction.list('-created_date', 1000),
-    base44.asServiceRole.entities.InvoiceRecord.filter({ source_type: 'sevdesk' }),
+    alleSeiten((l, s) => db.BillingInstruction.list('-created_date', l, s)),
+    alleSeiten((l, s) => db.InvoiceRecord.filter({ source_type: 'sevdesk' }, '-invoice_date', l, s)),
   ]);
 
   const recordById = {};
@@ -85,7 +81,8 @@ export async function pruefeAnweisungen({ base44, apiKey, apply = false, ids = [
           begruendung: 'sevDesk kennt diese Rechnungs-ID nicht (Entwurf gelöscht). Verknüpfung lösen und Anweisung wieder als offen führen.',
         };
         if (darfSchreiben(b, fall.art)) {
-          await base44.asServiceRole.entities.BillingInstruction.update(b.id, fall.vorschlag);
+          await db.BillingInstruction.update(b.id, fall.vorschlag);
+          await planFolgtAnweisung(db, b.id, fall.vorschlag.status, b.status);
           fall.angewendet = true; angewendet++;
         }
         faelle.push(fall);
@@ -111,9 +108,8 @@ export async function pruefeAnweisungen({ base44, apiKey, apply = false, ids = [
       // Betragsabweichungen werden NIE automatisch überschrieben — das ist eine
       // inhaltliche Entscheidung (Anweisung falsch oder Rechnung geändert).
       if (fall.vorschlag && darfSchreiben(b, fall.art)) {
-        const extra = sollStatus === 'invoice_created' && !b.invoice_created_at
-          ? { invoice_created_at: new Date().toISOString() } : {};
-        await base44.asServiceRole.entities.BillingInstruction.update(b.id, { ...fall.vorschlag, ...extra });
+        // Setzt invoice_created_at wie bisher und zieht die Planung nach.
+        await anweisungAngleichen(db, b, sollStatus);
         fall.angewendet = true; angewendet++;
       }
       faelle.push(fall);
@@ -147,7 +143,8 @@ export async function pruefeAnweisungen({ base44, apiKey, apply = false, ids = [
         vorschlag: sollStatus === b.status ? null : { status: sollStatus },
       };
       if (fall.vorschlag && darfSchreiben(b, fall.art)) {
-        await base44.asServiceRole.entities.BillingInstruction.update(b.id, fall.vorschlag);
+        await db.BillingInstruction.update(b.id, fall.vorschlag);
+        await planFolgtAnweisung(db, b.id, fall.vorschlag.status, b.status);
         fall.angewendet = true; angewendet++;
       }
       faelle.push(fall);
@@ -169,7 +166,8 @@ export async function pruefeAnweisungen({ base44, apiKey, apply = false, ids = [
       };
       // Verknüpfen bleibt immer eine menschliche Entscheidung — nie im automatischen Lauf.
       if (!autoArten && darfSchreiben(b, fall.art)) {
-        await base44.asServiceRole.entities.BillingInstruction.update(b.id, fall.vorschlag);
+        await db.BillingInstruction.update(b.id, fall.vorschlag);
+        await planFolgtAnweisung(db, b.id, fall.vorschlag.status, b.status);
         if (k.sevdesk_id) belegtVon[String(k.sevdesk_id)] = b.id;
         fall.angewendet = true; angewendet++;
       }
