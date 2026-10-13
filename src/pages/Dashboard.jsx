@@ -13,6 +13,7 @@ import LiquidityTrendChart from '@/components/dashboard/LiquidityTrendChart';
 import NonBillableWidget from '@/components/dashboard/NonBillableWidget';
 import CashflowForecastChart from '@/components/dashboard/CashflowForecastChart';
 import { Skeleton } from '@/components/ui/skeleton';
+import { istEntwurf } from '@/lib/billing/rechnungsStatus';
 
 export default function Dashboard() {
   const { data: projects = [], isLoading: pLoading } = useQuery({
@@ -83,7 +84,8 @@ export default function Dashboard() {
     const invoicesByBlockId = {};
     const invoicesByOrderNumber = {};
     invoices.forEach(i => {
-      if (i.payment_status === 'cancelled') return;
+      // Storniert und sevDesk-Entwurf zählen nicht als abgerechnet (wie im Projekt-Cockpit)
+      if (i.payment_status === 'cancelled' || istEntwurf(i)) return;
       if (i.project_id) {
         if (!invoicesByProjectId[i.project_id]) invoicesByProjectId[i.project_id] = [];
         invoicesByProjectId[i.project_id].push(i);
