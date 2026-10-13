@@ -50,4 +50,6 @@ export function abrechnungNeuLaden(queryClient) {
   queryClient.invalidateQueries({ queryKey: ['projektAbrechnung'] });
   queryClient.invalidateQueries({ queryKey: ['invoiceRecords'] });
   queryClient.invalidateQueries({ queryKey: ['invoiceRecords-project'] });
+  queryClient.invalidateQueries({ queryKey: ['myday-instructions'] });
+  queryClient.invalidateQueries({ queryKey: ['myday-plans'] });
 }
