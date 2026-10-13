@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import {
   sevdeskGet, fetchPaidAmount, findMatchingOrder, shouldSkipMatching, buildRecord, mitAnweisungVerknuepfen,
+  extractSevdeskIdFromNotes,
 } from "../../shared/sevdeskRechnung.js";
 import { statusAusSevdesk, anweisungAngleichen, alleSeiten } from "../../shared/billingFollow.js";
 

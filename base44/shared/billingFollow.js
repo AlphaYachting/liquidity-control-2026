@@ -66,6 +66,7 @@ export async function planFolgtAnweisung(db, instrId, neuerStatus, alterStatus) 
 // Liefert true, wenn etwas geändert wurde.
 export async function anweisungAngleichen(db, instr, sollStatus, extra = {}) {
   if (!instr || !sollStatus || sollStatus === instr.status) return false;
+  /** @type {Record<string, any>} */
   const patch = { status: sollStatus, ...extra };
   if (sollStatus === 'invoice_created' && !instr.invoice_created_at) {
     patch.invoice_created_at = new Date().toISOString();

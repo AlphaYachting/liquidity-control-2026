@@ -90,7 +90,7 @@ export default async function (req) {
       }
 
       const soll = statusAusSevdesk(inv.status);
-      const eintrag = {
+      const eintrag: Record<string, unknown> = {
         id: b.id, kunde: b.customer_name || '', rechnung: inv.invoiceNumber || '',
         sevdesk_status: String(inv.status || ''), status_vorher: b.status, status_nachher: soll,
         rechnungsdatensatz: existing ? 'aktualisieren' : 'anlegen',
