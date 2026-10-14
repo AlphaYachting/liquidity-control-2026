@@ -26,6 +26,40 @@ export function monateZwischen(beginn, bis) {
   return (y2 - y1) * 12 + (m2 - m1) + 1;
 }
 
+// Alle Monate YYYY-MM von beginn bis bis, beide inklusive (Datum oder Monat als Eingabe)
+export function monateListe(beginn, bis) {
+  const a = String(beginn || '').slice(0, 7);
+  const b = String(bis || '').slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(a) || !/^\d{4}-\d{2}$/.test(b) || a > b) return [];
+  const out = [];
+  let [y, m] = a.split('-').map(Number);
+  for (let i = 0; i < 600; i += 1) {
+    const mm = `${y}-${String(m).padStart(2, '0')}`;
+    if (mm > b) break;
+    out.push(mm);
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+// Belegtes Kontingent eines Monats aus project.kontingent_verlauf, sonst der Standardwert der Periode.
+// Leerer Verlauf = Standardwert für jeden Monat — damit bleibt jede bisherige Rechnung unverändert.
+export function kontingentImMonat(project, monat, standard) {
+  const verlauf = Array.isArray(project?.kontingent_verlauf) ? project.kontingent_verlauf : [];
+  for (const v of verlauf) {
+    const von = String(v?.von || '').slice(0, 7);
+    const bis = String(v?.bis || '').slice(0, 7);
+    if (von && bis && monat >= von && monat <= bis) return Number(v.stunden) || 0;
+  }
+  return Number(standard) || 0;
+}
+
+// Summe der Monatskontingente für die angefangenen Monate von beginn bis bis
+export function kontingentSumme(project, beginn, bis, standard) {
+  return monateListe(beginn, bis).reduce((s, m) => s + kontingentImMonat(project, m, standard), 0);
+}
+
 // Stunden einer App-Buchung — wie in projektZeitSummen
 export const stundenVon = (e) => Number(e.hours) || (Number(e.duration_minutes) || 0) / 60;
 
@@ -109,7 +143,8 @@ export function laufzeitAusSummen({ project, beginn, quelle, ab_nummer = null, s
   if (!beginn) return { beginn: null, kontingent_monat: kontingent };
   const monate = monateZwischen(beginn, heute);
   const uebertrag = Number(project.kontingent_uebertrag_stunden) || 0;
-  const verfuegbar = monate * kontingent + uebertrag;
+  // Ohne Kontingentverlauf identisch mit monate × kontingent
+  const verfuegbar = (beginn <= heute ? kontingentSumme(project, beginn, heute, kontingent) : 0) + uebertrag;
   const altstandRelevant = beginn <= stichtag;
   const gebucht_awork = altstandRelevant ? Number(project.awork_altstand_stunden) || 0 : 0;
   const altstand_fehlt = altstandRelevant && (
