@@ -72,6 +72,30 @@
       "description": "Retainer: Anfangsstand der Periode in Stunden \u2014 normalerweise 0; positiv = Guthaben, negativ = \u00fcbernommenes Minus",
       "type": "number"
     },
+    "kontingent_verlauf": {
+      "description": "Retainer: belegte fr\u00fchere Monatskontingente als Zeitr\u00e4ume (von/bis = YYYY-MM, beide inklusive). Monate au\u00dferhalb gelten mit dem Standardkontingent der Periode. Leer = keine \u00c4nderung der Rechnung. Nur mit Beleg (AB, Vertrag) eintragen.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "von": {
+            "type": "string",
+            "description": "Erster Monat YYYY-MM"
+          },
+          "bis": {
+            "type": "string",
+            "description": "Letzter Monat YYYY-MM"
+          },
+          "stunden": {
+            "type": "number"
+          },
+          "beleg": {
+            "type": "string",
+            "description": "z. B. AB-Nummer oder Vertrag vom ..."
+          }
+        }
+      }
+    },
     "kontingent_sperre": {
       "default": false,
       "description": "Ist das Monatskontingent verbraucht, sind neue Buchungen gesperrt \u2014 nur von Admins einstellbar",
