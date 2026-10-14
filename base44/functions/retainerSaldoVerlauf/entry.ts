@@ -17,7 +17,9 @@ const GRUND_TEXT = {
   akquise: 'Akquise', intern: 'Intern', ohne: 'ohne Grund',
 };
 
-const minMonat = (a, b) => (a < b ? a : b);
+// Liegt der Monat in einem eingetragenen (belegten) Kontingentzeitraum?
+const imVerlauf = (project, m) => (Array.isArray(project.kontingent_verlauf) ? project.kontingent_verlauf : [])
+  .some((v) => v?.von && v?.bis && m >= String(v.von).slice(0, 7) && m <= String(v.bis).slice(0, 7));
 const monatMinus = (monat, n) => {
   let [y, m] = monat.split('-').map(Number);
   m -= n;
@@ -229,7 +231,7 @@ export default async function (req) {
         zeilen.push({
           monat: m,
           kontingent: r2(k),
-          kontingent_belegt: kontingentImMonat(project, m, null) !== 0 || (Array.isArray(project.kontingent_verlauf) && project.kontingent_verlauf.some((v) => m >= v.von && m <= v.bis)),
+          kontingent_belegt: imVerlauf(project, m),
           awork: awErwartet && m <= awBis.slice(0, 7) ? r2(awH) : null,
           awork_nicht_abrechenbar: awErwartet && m <= awBis.slice(0, 7) ? r2(aw[m]?.nicht_abr || 0) : null,
           app: r2(ap.h),
