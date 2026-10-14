@@ -15,6 +15,24 @@ import ProjectTypeFields from '@/components/sprint/ProjectTypeFields';
 import { pauschalBudgetGueltig } from '@/components/sprint/PauschalBudgetFelder';
 import RundungsFelder from '@/components/sprint/RundungsFelder';
 import { useTeamMitglieder } from '@/components/sprint/projekt/ProjektleitungWahl';
+import { toast } from 'sonner';
+
+// Kontingentverlauf prüfen: jede Zeile braucht von, bis (von ≤ bis), Stunden und einen Beleg; Zeiträume dürfen sich nicht überschneiden
+function pruefeVerlauf(roh) {
+  const zeilen = (Array.isArray(roh) ? roh : [])
+    .filter((z) => z && (z.von || z.bis || z.stunden !== '' || z.beleg))
+    .map((z) => ({ von: String(z.von || '').slice(0, 7), bis: String(z.bis || '').slice(0, 7), stunden: Number(String(z.stunden ?? '').replace(',', '.')), beleg: String(z.beleg || '').trim() }));
+  for (const z of zeilen) {
+    if (!/^\d{4}-\d{2}$/.test(z.von) || !/^\d{4}-\d{2}$/.test(z.bis) || z.von > z.bis) return { fehler: 'Frühere Monatskontingente: Bitte bei jedem Zeitraum „von“ und „bis“ richtig setzen.' };
+    if (!Number.isFinite(z.stunden) || z.stunden < 0) return { fehler: 'Frühere Monatskontingente: Bitte die Stunden pro Monat eintragen.' };
+    if (!z.beleg) return { fehler: 'Frühere Monatskontingente: Ohne Beleg (AB, Vertrag) wird kein Zeitraum gespeichert.' };
+  }
+  const sortiert = [...zeilen].sort((a, b) => a.von.localeCompare(b.von));
+  for (let i = 1; i < sortiert.length; i += 1) {
+    if (sortiert[i].von <= sortiert[i - 1].bis) return { fehler: 'Frühere Monatskontingente: Die Zeiträume überschneiden sich.' };
+  }
+  return { zeilen: sortiert };
+}
 
 const EMPTY = {
   client_id: '', title: '', pm_email: '', status: 'aktiv', total_budget: '', target_hours: '',
@@ -93,9 +111,11 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
 
   const handleSave = async () => {
     if (!form.client_id || !form.title || !form.pm_email || budgetFehlt) return;
+    const isContainer = type === 'container';
+    const verlauf = isContainer ? pruefeVerlauf(form.kontingent_verlauf) : { zeilen: undefined };
+    if (verlauf.fehler) { toast.error(verlauf.fehler); return; }
     setSaving(true);
     const def = PROJECT_TYPES[type];
-    const isContainer = type === 'container';
 
     // Periodenwechsel erkennen: bestehender Beginn, neuer Wert liegt später
     const altBeginn = project.laufzeit_beginn ? String(project.laufzeit_beginn).slice(0, 10) : null;
@@ -142,7 +162,10 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
     Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
 
     if (isContainer) {
+      data.kontingent_verlauf = verlauf.zeilen;
       if (isPeriodChange) {
+        // Verlauf zuerst speichern, damit der Periodenabschluss ihn schon verwendet
+        await base44.entities.Project.update(project.id, { kontingent_verlauf: verlauf.zeilen });
         // Zunächst Periode abschließen, dann restliche Felder ohne Beginn/Übertrag
         await base44.functions.invoke('kontingentPeriodeAbschliessen', {
           project_id: project.id,
