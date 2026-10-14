@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import {
   darfVerwalten, wirksamerBeginn, ladeStichtag, monateZwischen, tagDavor,
-  appStunden, r2,
+  appStunden, r2, kontingentSumme,
 } from '../../shared/kontingentLaufzeit.js';
 
 // Bisherige Retainer-Periode abschließen und eine neue beginnen.
@@ -32,7 +32,8 @@ export default async function (req) {
     const kontingent = Number(project.support_kontingent_stunden) || 0;
     const uebertrag = Number(project.kontingent_uebertrag_stunden) || 0;
     const monate = monateZwischen(alt, ende);
-    const verfuegbar = monate * kontingent + uebertrag;
+    // Ohne Kontingentverlauf identisch mit monate × kontingent
+    const verfuegbar = kontingentSumme(project, alt, ende, kontingent) + uebertrag;
 
     // Gebucht = aWork-Altstand (manuell übertragen, alt bis Stichtag) + App (alt bis ende, nach stichtag)
     const gebucht_awork = alt <= stichtag
