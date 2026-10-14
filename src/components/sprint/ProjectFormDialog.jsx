@@ -190,6 +190,8 @@ export default function ProjectFormDialog({ open, onOpenChange, project, clients
     if (def.container) await ensureContainer(saved);
 
     queryClient.invalidateQueries({ queryKey: ['projektKontext'] });
+    queryClient.invalidateQueries({ queryKey: ['retainerSaldoVerlauf'] });
+    queryClient.invalidateQueries({ queryKey: ['retainerSaldoMonat'] });
     setSaving(false);
     onOpenChange(false);
     onSaved?.();
