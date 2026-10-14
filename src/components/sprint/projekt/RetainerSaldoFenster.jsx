@@ -267,7 +267,7 @@ export default function RetainerSaldoFenster({ project, client, open, onOpenChan
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
+      <SheetContent side="right" className="w-full sm:max-w-[922px] overflow-y-auto p-0">
         <SheetHeader className="px-5 pt-5 pb-3 pr-12 border-b border-border space-y-1">
           <SheetTitle className="text-section font-bold uppercase tracking-tight">Wie der Saldo entstanden ist</SheetTitle>
           <SheetDescription className="text-meta">
