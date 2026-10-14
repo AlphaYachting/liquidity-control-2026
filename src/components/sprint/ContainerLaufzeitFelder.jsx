@@ -39,6 +39,11 @@ export default function ContainerLaufzeitFelder({ form, setForm, project, abVors
 
   const showAltstand = neueBeginn && neueBeginn <= stichtag;
 
+  // Kontingentverlauf: frühere, belegte Monatskontingente (von/bis als YYYY-MM)
+  const verlauf = Array.isArray(form.kontingent_verlauf) ? form.kontingent_verlauf : [];
+  const setVerlauf = (neu) => setForm((f) => ({ ...f, kontingent_verlauf: neu }));
+  const aendereZeile = (i, k, v) => setVerlauf(verlauf.map((z, j) => (j === i ? { ...z, [k]: v } : z)));
+
   return (
     <>
       <div>
@@ -68,6 +73,30 @@ export default function ContainerLaufzeitFelder({ form, setForm, project, abVors
           placeholder="0"
         />
         <p className="mt-1 text-xs text-muted-foreground">Anfangsstand der Periode — normalerweise 0</p>
+      </div>
+
+      <div>
+        <Label>Frühere Monatskontingente</Label>
+        <p className="mt-0.5 mb-1.5 text-xs text-muted-foreground">
+          Nur eintragen, wenn sich das Kontingent geändert hat — und nur mit Beleg (AB, Vertrag). Monate außerhalb gelten mit dem Kontingent oben.
+        </p>
+        {verlauf.map((z, i) => (
+          <div key={i} className="flex flex-wrap items-center gap-1.5 mb-1.5">
+            <Input className="w-[130px]" type="month" value={z.von || ''} onChange={(e) => aendereZeile(i, 'von', e.target.value)} aria-label="von Monat" />
+            <span className="text-xs text-muted-foreground">bis</span>
+            <Input className="w-[130px]" type="month" value={z.bis || ''} onChange={(e) => aendereZeile(i, 'bis', e.target.value)} aria-label="bis Monat" />
+            <Input className="w-[80px]" type="number" step="0.25" value={z.stunden ?? ''} onChange={(e) => aendereZeile(i, 'stunden', e.target.value)} placeholder="h" aria-label="Stunden pro Monat" />
+            <Input className="flex-1 min-w-[140px]" value={z.beleg || ''} onChange={(e) => aendereZeile(i, 'beleg', e.target.value)} placeholder="Beleg, z. B. AB-Nummer" aria-label="Beleg" />
+            <button type="button" className="text-xs underline text-muted-foreground" onClick={() => setVerlauf(verlauf.filter((_, j) => j !== i))}>entfernen</button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="text-xs underline text-muted-foreground"
+          onClick={() => setVerlauf([...verlauf, { von: '', bis: '', stunden: '', beleg: '' }])}
+        >
+          + Zeitraum mit anderem Kontingent
+        </button>
       </div>
 
       {showAltstand && (
