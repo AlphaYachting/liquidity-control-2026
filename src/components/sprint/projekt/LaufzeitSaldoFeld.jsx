@@ -28,7 +28,8 @@ function buildTooltip(lz) {
   return lines.join('\n');
 }
 
-export default function LaufzeitSaldoFeld({ laufzeit, loading, fehlgrund }) {
+export default function LaufzeitSaldoFeld({ laufzeit, loading, fehlgrund, onOeffnen }) {
+  const klick = onOeffnen ? { onClick: onOeffnen, klickHinweis: 'Aufstellung ansehen' } : {};
   if (loading) {
     return <KennzahlFeld label="Saldo Laufzeit" value="…" />;
   }
@@ -63,6 +64,7 @@ export default function LaufzeitSaldoFeld({ laufzeit, loading, fehlgrund }) {
         hint="aWork-Stand fehlt – bitte im Projekt eintragen"
         hintColor={STATUS_COLORS.attention}
         tooltip={tooltip}
+        {...klick}
       />
     );
   }
@@ -78,6 +80,7 @@ export default function LaufzeitSaldoFeld({ laufzeit, loading, fehlgrund }) {
       valueColor={valueColor}
       hint={hint}
       tooltip={tooltip}
+      {...klick}
     />
   );
 }
