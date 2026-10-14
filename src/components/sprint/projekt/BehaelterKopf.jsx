@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Lock } from 'lucide-react';
 import KennzahlFeld from '@/components/sprint/KennzahlFeld';
 import ProjektKopfTitel from '@/components/sprint/projekt/ProjektKopfTitel';
 import { KopfKennzahlLeiste } from '@/components/sprint/KopfKennzahl';
 import KontingentFeld from '@/components/sprint/projekt/KontingentFeld';
 import LaufzeitSaldoFeld from '@/components/sprint/projekt/LaufzeitSaldoFeld';
+import RetainerSaldoFenster from '@/components/sprint/projekt/RetainerSaldoFenster';
 import { projectTypeOf, istWartung, KALKULATIONSSATZ } from '@/components/sprint/projectTypes';
 import { STATUS_COLORS, fmtDate, fmtEUR, todayIso } from '@/components/sprint/sprintConfig';
 import { istFaellig, istUeberfaellig } from '@/lib/sprint/faelligkeit';
@@ -15,6 +16,8 @@ import { useProjektKontext } from '@/lib/sprint/useProjektKontext';
 // Gleicher Aufbau wie beim Sprint: Titelblock mit Verwaltung rechts, darunter die Kennzahlenleiste.
 export default function BehaelterKopf({ project, client, tickets, timeEntries, members, vertrag, aktionen }) {
   const typ = projectTypeOf(project);
+  // Seitenfenster „Wie der Saldo entstanden ist“ — lädt erst beim Öffnen
+  const [saldoOffen, setSaldoOffen] = useState(false);
   const { data: kontext } = useProjektKontext(project?.id);
   const laufzeit = kontext?.summen?.laufzeit;
   const monat = laufenderMonat();
@@ -54,6 +57,7 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
             laufzeit={laufzeit}
             loading={!kontext}
             fehlgrund={!(Number(project?.support_kontingent_stunden) > 0) ? 'Monatskontingent fehlt' : 'Saldo nicht verfügbar'}
+            onOeffnen={() => setSaldoOffen(true)}
           />
           <KennzahlFeld
             label="Routinen"
@@ -133,6 +137,9 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
         {felder()}
         {schloss}
       </KopfKennzahlLeiste>
+      {typ === 'container' && saldoOffen && (
+        <RetainerSaldoFenster project={project} client={client} open={saldoOffen} onOpenChange={setSaldoOffen} />
+      )}
     </>
   );
 }
