@@ -794,15 +794,15 @@ export function berichtAusLage(lage) {
   if (kp.length) {
     z.push('| Person | frei Std./Woche | Restarbeit Festpreis | frei ab |');
     z.push('| --- | ---: | ---: | --- |');
-    for (const k of kp) z.push(`| ${k.name} | ${k.frei_std_woche ?? '—'} | ${std(k.rest_festpreis_std)} | ${k.frei_ab ? fmtDatum(k.frei_ab) : (k.grund || '—')} |`);
+    for (const k of kp) z.push(`| ${k.name} | ${k.frei_std_woche == null ? '—' : r1(k.frei_std_woche).toLocaleString('de-AT')} | ${std(k.rest_festpreis_std)} | ${k.frei_ab ? fmtDatum(k.frei_ab) : (k.grund || '—')} |`);
   }
   z.push('');
 
   z.push('## Nachpflege');
   const d = lage.datenqualitaet;
-  z.push(`- ${d.tickets_ohne_sollstunden.anzahl} offene Tickets ohne Sollstunden (mit Erfahrungswert geschätzt).`);
-  z.push(`- ${d.projekte_ohne_auftrag.anzahl} laufende Projekte ohne Auftragswert.`);
-  if (d.nicht_zugewiesene_tickets) z.push(`- ${d.nicht_zugewiesene_tickets} offene Tickets ohne Zuständigen (${std(d.nicht_zugewiesene_restarbeit_std)}).`);
+  z.push(`- Offene Tickets ohne Sollstunden: ${d.tickets_ohne_sollstunden.anzahl} (mit Erfahrungswert geschätzt).`);
+  z.push(`- Laufende Projekte ohne Auftragswert: ${d.projekte_ohne_auftrag.anzahl}.`);
+  if (d.nicht_zugewiesene_tickets) z.push(`- Offene Tickets ohne Zuständigen: ${d.nicht_zugewiesene_tickets} (${std(d.nicht_zugewiesene_restarbeit_std)}).`);
   z.push('');
   const k = lage.methodik.kalibrierung;
   z.push(`_Stand ${fmtDatum(lage.stand.heute)} · Tag Null ${fmtDatum(lage.stand.tag_null)} · Rechnungen synchronisiert ${lage.stand.letzte_rechnung_sync || '—'} · Erfahrungswerte: ${k.quelle}, Faktor Ist/Plan gesamt ${k.gesamt.faktor}._`);
