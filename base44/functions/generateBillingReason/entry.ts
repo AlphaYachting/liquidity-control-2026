@@ -139,7 +139,8 @@ Antworte nur mit den Zeilen des Positionstexts.`;
   // Ohne verwertbare KI-Antwort bleibt die Eingabe des Projektmanagers stehen
   if (!zeilen.length && userHint) zeilen = [userHint.replace(/\s+/g, ' ')];
   if (!zeilen.length) {
-    return Response.json({ error: 'KI konnte keinen Text generieren.' }, { status: 502 });
+    // Status 200, damit der Knopf seine Fehlermeldung zeigt statt hängen zu bleiben
+    return Response.json({ error: 'KI konnte keinen Text generieren.' });
   }
 
   const text = [...zeilen, referenzZeile(typ, Number(planned_percent) || 0, order?.order_number || '')].join('\n');
