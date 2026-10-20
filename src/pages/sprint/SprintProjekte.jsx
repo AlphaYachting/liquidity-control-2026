@@ -22,6 +22,7 @@ import ProjektFilterLeiste from '@/components/sprint/uebersicht/ProjektFilterLei
 import ProjektGruppe from '@/components/sprint/uebersicht/ProjektGruppe';
 import { TagNullLeiste } from '@/components/sprint/uebersicht/TagNull';
 import { personenMitLeitung } from '@/lib/sprint/personenMitLeitung';
+import { zustaendigeVon } from '@/lib/sprint/zustaendige';
 import {
   PROJEKT_GRUPPEN, gruppeVon, standVon, meineProjektIds, passtZurSuche, merkLesen, merkSchreiben,
 } from '@/lib/sprint/projektGruppen';
@@ -165,7 +166,7 @@ export default function SprintProjekte() {
     const sprint = projectSprints.find((s) => s.status === 'laufend') || projectSprints.find((s) => s.status === 'geplant');
     if (projectTypeOf(project) !== 'sprint') {
       const projectTickets = tickets.filter((t) => t.project_id === project.id);
-      const emails = [...new Set(projectTickets.filter((t) => t.assignee_email).map((t) => t.assignee_email))];
+      const emails = [...new Set(projectTickets.flatMap(zustaendigeVon))];
       return {
         project, client: clientById[project.client_id], sprint: sprint || null, projectSprints, behaelter: true,
         status: behaelterStatus({
@@ -190,7 +191,7 @@ export default function SprintProjekte() {
       focusDays: focusDays.filter((f) => f.project_id === project.id && f.type === 'focus'),
       signals: signals.filter((s) => s.sprint_id === sprint.id || s.project_id === project.id),
     });
-    const emails = [...new Set(sprintTickets.filter((t) => t.assignee_email).map((t) => t.assignee_email))];
+    const emails = [...new Set(sprintTickets.flatMap(zustaendigeVon))];
     return {
       project,
       client: clientById[project.client_id],
