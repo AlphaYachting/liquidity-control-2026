@@ -1,6 +1,7 @@
 import { base44 } from '@/api/base44Client';
 import { kundenSchluessel } from '@/lib/kunden/kundeAnlegen';
 import { resolveSupportProject } from '@/components/crm/support/supportTicket';
+import { zustaendigFelder } from '@/lib/sprint/zustaendige';
 
 // Offene aWork-Support-Aufgaben einmalig als App-Tickets übernehmen.
 export const AWORK_SUPPORT_PROJEKT = 'a523ca25-5b9c-eb11-a607-00155d314496';
