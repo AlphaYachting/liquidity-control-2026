@@ -7,6 +7,7 @@ import BehaelterAufgaben from '@/components/sprint/projekt/BehaelterAufgaben';
 import useTicketStatus from '@/hooks/useTicketStatus';
 import { base44 } from '@/api/base44Client';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
+import { istZustaendig, hatZustaendige, zustaendigeAendern, alsAenderung } from '@/lib/sprint/zustaendige';
 
 // Hauptinhalt der Projektseite für Nicht-Sprint-Projekte.
 // aktionen: Knöpfe wie „Aufgabe hinzufügen“ — stehen direkt über der Aufgabenliste.
@@ -17,16 +18,16 @@ export default function BehaelterInhalt({ project, tickets, members, timeEntries
 
   const counts = {
     alle: tickets.length,
-    meine: tickets.filter((t) => t.assignee_email && t.assignee_email === myEmail).length,
-    offen_zuweisung: tickets.filter((t) => !t.assignee_email).length,
+    meine: tickets.filter((t) => istZustaendig(t, myEmail)).length,
+    offen_zuweisung: tickets.filter((t) => !hatZustaendige(t)).length,
   };
   const matches = (t) => {
-    if (filter === 'meine') return t.assignee_email && t.assignee_email === myEmail;
-    if (filter === 'offen_zuweisung') return !t.assignee_email;
+    if (filter === 'meine') return istZustaendig(t, myEmail);
+    if (filter === 'offen_zuweisung') return !hatZustaendige(t);
     return true;
   };
-  const onAssignee = async (ticket, email) => {
-    await base44.entities.Ticket.update(ticket.id, { assignee_email: email });
+  const onAssignee = async (ticket, wert) => {
+    await zustaendigeAendern(ticket.id, alsAenderung(wert));
     onRefresh();
   };
 
