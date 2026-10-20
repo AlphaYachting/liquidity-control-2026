@@ -1,6 +1,7 @@
 import { base44 } from '@/api/base44Client';
 import { ohneArchiv, PROJEKT_LAUFEND } from '@/lib/sprint/aktivFilter';
 import { ticketBereinigen } from '@/lib/sprint/ticketBereinigen';
+import { zustaendigeAendern, zustaendigeVon, zugewiesenAnFilter } from '@/lib/sprint/zustaendige';
 
 // Einmalige Übernahme der Alttickets: jede Person bestätigt, was wirklich bei ihr liegt.
 // Zur Übernahme gehört alles, was vor dem Live-Gang angelegt wurde (Montag 05.10.2026, 00:00 Wien).
@@ -72,7 +73,7 @@ export const vorschlag = (ticket) => (['offen', 'in_arbeit', 'wartet'].includes(
 // Meine Übernahme: was mir zugeteilt ist, plus was ich schon beantwortet habe (auch Zurückgegebenes).
 export async function ladeMeineUebernahme(email) {
   const [zugeteilt, beantwortet, projekte, members] = await Promise.all([
-    base44.entities.Ticket.filter(ohneArchiv({ assignee_email: email, status: { $ne: 'erledigt' } }), 'order', 2000),
+    base44.entities.Ticket.filter(ohneArchiv({ ...zugewiesenAnFilter(email), status: { $ne: 'erledigt' } }), 'order', 2000),
     base44.entities.Ticket.filter(ohneArchiv({ uebernahme_von: email }), 'order', 2000),
     base44.entities.Project.filter(PROJEKT_LAUFEND, 'title', 500),
     base44.entities.TeamMember.filter({ active: { $ne: false } }, 'name', 200),
@@ -99,26 +100,29 @@ export async function antworte(ticket, wert, { email, darfArchivieren = false } 
 
   if (['offen', 'in_arbeit', 'wartet', 'erledigt'].includes(wert)) {
     if (ticket.status !== wert) { patch.status = wert; patch.last_status_change = jetzt; }
-    if (!gleich(ticket.assignee_email, email)) patch.assignee_email = email;
     if (wert === 'wartet' && !ticket.wartet_auf) patch.wartet_auf = 'kunde';
+    // Wer antwortet, wird zuständig — hinzugefügt, nicht an Stelle der anderen
+    const mit = await zustaendigeAendern(ticket.id, { dazu: email });
     await base44.entities.Ticket.update(ticket.id, patch);
-    return { ...ticket, ...patch };
+    return { ...ticket, ...patch, assignee_email: mit.assignee_email, assignee_emails: mit.assignee_emails };
   }
 
   if (wert === 'zurueck') {
-    // Zurück in den Topf: niemandem zugeteilt, der Projektverantwortliche verteilt neu.
-    try {
-      await base44.entities.Ticket.update(ticket.id, { ...patch, assignee_email: null });
-      return { ...ticket, ...patch, assignee_email: null };
-    } catch (_) {
-      await base44.entities.Ticket.update(ticket.id, patch);
-      return { ...ticket, ...patch };
-    }
+    // Zurück: nur die eigene Person geht vom Ticket. Bleibt niemand übrig, liegt es im Topf
+    // und der Projektverantwortliche verteilt neu.
+    let ohneMich = null;
+    try { ohneMich = await zustaendigeAendern(ticket.id, { weg: email }); } catch (_) { /* Antwort trotzdem speichern */ }
+    await base44.entities.Ticket.update(ticket.id, patch);
+    return ohneMich
+      ? { ...ticket, ...patch, assignee_email: ohneMich.assignee_email, assignee_emails: ohneMich.assignee_emails }
+      : { ...ticket, ...patch };
   }
 
   if (wert === 'entfaellt') {
-    if (!gleich(ticket.assignee_email, email)) patch.assignee_email = email;
-    await base44.entities.Ticket.update(ticket.id, patch);
+    const mit = await zustaendigeAendern(ticket.id, { dazu: email });
+    patch.assignee_email = mit.assignee_email;
+    patch.assignee_emails = mit.assignee_emails;
+    await base44.entities.Ticket.update(ticket.id, { uebernahme_antwort: patch.uebernahme_antwort, uebernahme_am: patch.uebernahme_am, uebernahme_von: patch.uebernahme_von });
     if (darfArchivieren) {
       const res = await ticketBereinigen('archivieren', [ticket.id], 'nicht_mehr_relevant');
       if (res.abgelehnt.length) throw new Error(res.abgelehnt[0].grund || 'Archivieren abgelehnt');
@@ -180,7 +184,7 @@ export function fortschrittJePerson(tickets, members) {
   };
   members.forEach((m) => zeile(m.email));
   tickets.forEach((t) => {
-    if (brauchtAntwort(t) && t.assignee_email) zeile(t.assignee_email).offen += 1;
+    if (brauchtAntwort(t)) zustaendigeVon(t).forEach((e) => { zeile(e).offen += 1; });
     if (istBestaetigt(t) && t.uebernahme_von) {
       const z = zeile(t.uebernahme_von);
       z.bestaetigt += 1;
@@ -200,9 +204,10 @@ export const istArchivVorschlag = (t) => t.uebernahme_antwort === 'entfaellt' &&
 
 // Neu verteilen: die neue Person bestätigt das Ticket selbst in ihrer Übernahme.
 export async function verteileNeu(ticket, email) {
-  const patch = { assignee_email: email, uebernahme_antwort: null, uebernahme_am: null, uebernahme_von: null };
+  const patch = { uebernahme_antwort: null, uebernahme_am: null, uebernahme_von: null };
+  const neu = await zustaendigeAendern(ticket.id, { setzen: email ? [email] : [] });
   await base44.entities.Ticket.update(ticket.id, patch);
-  return { ...ticket, ...patch };
+  return { ...ticket, ...patch, assignee_email: neu.assignee_email, assignee_emails: neu.assignee_emails };
 }
 
 // Archiv-Vorschlag ablehnen: das Ticket bleibt und geht zurück an die zuständige Person.
