@@ -201,7 +201,7 @@ export default function Uebernahme() {
   // Weitergeben: das Ticket liegt danach unbestätigt bei der gewählten Person und verschwindet hier.
   const beiWeitergeben = async (ticket, an) => {
     setLaeuft((l) => ({ ...l, [ticket.id]: true }));
-    try { await verteileNeu(ticket, an); entferne(ticket.id); nachAenderung(); } catch (e) { merkeFehler(ticket.id, e); }
+    try { await verteileNeu(ticket, an, { von: email }); entferne(ticket.id); nachAenderung(); } catch (e) { merkeFehler(ticket.id, e); }
     setLaeuft((l) => ({ ...l, [ticket.id]: false }));
   };
 
@@ -212,7 +212,7 @@ export default function Uebernahme() {
       const an = wahl.slice(3);
       let n = 0;
       for (const t of ziel) {
-        try { await verteileNeu(t, an); entferne(t.id); } catch (_) { fehlgeschlagen += 1; }
+        try { await verteileNeu(t, an, { von: email }); entferne(t.id); } catch (_) { fehlgeschlagen += 1; }
         n += 1;
         setStand(`${n} von ${ziel.length} …`);
       }
