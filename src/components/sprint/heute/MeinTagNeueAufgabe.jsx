@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { zustaendigFelder } from '@/lib/sprint/zustaendige';
 
 // Neue Aufgabe aus „Mein Tag": Projekt wählen, Titel, optional Termin und Sollstunden.
 // Die Aufgabe gehört der angemeldeten Person und landet in der gewählten Etappe des Projekts.
@@ -42,7 +43,7 @@ export default function MeinTagNeueAufgabe({ open, onOpenChange, email, projects
       milestone_id: etappe.id,
       project_id: projectId,
       title: title.trim(),
-      assignee_email: email,
+      ...zustaendigFelder([email]),
       status: 'offen',
       milestone_state: etappe.state && etappe.state !== 'freigegeben' ? etappe.state : 'produktion',
       // Nach der Freigabe ist jede Aufgabe ein Change Request (wie beim Anlegen auf der Etappe)
