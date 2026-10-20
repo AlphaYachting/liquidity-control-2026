@@ -23,6 +23,7 @@ import { useMeldeZeitKontext } from '@/lib/sprint/ZeitKontext';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { ohneArchiv } from '@/lib/sprint/aktivFilter';
 import { darfBereinigen } from '@/lib/sprint/ticketBereinigen';
+import { istZustaendig, hatZustaendige, zustaendigeAendern, alsAenderung } from '@/lib/sprint/zustaendige';
 const ProjectIntelligenceSheet = React.lazy(() =>
   import('@/components/projects/ProjectIntelligenceSheet'));
 
@@ -94,12 +95,12 @@ export default function SprintMilestoneDetail() {
   const myEmail = me?.email;
   const counts = {
     alle: tickets.length,
-    meine: tickets.filter((t) => t.assignee_email && t.assignee_email === myEmail).length,
-    offen_zuweisung: tickets.filter((t) => !t.assignee_email).length,
+    meine: tickets.filter((t) => istZustaendig(t, myEmail)).length,
+    offen_zuweisung: tickets.filter((t) => !hatZustaendige(t)).length,
   };
   const matchesFilter = (t) => {
-    if (filter === 'meine') return t.assignee_email && t.assignee_email === myEmail;
-    if (filter === 'offen_zuweisung') return !t.assignee_email;
+    if (filter === 'meine') return istZustaendig(t, myEmail);
+    if (filter === 'offen_zuweisung') return !hatZustaendige(t);
     return true;
   };
 
@@ -173,8 +174,8 @@ export default function SprintMilestoneDetail() {
     return res;
   };
 
-  const handleAssignee = async (ticket, email) => {
-    await base44.entities.Ticket.update(ticket.id, { assignee_email: email });
+  const handleAssignee = async (ticket, wert) => {
+    await zustaendigeAendern(ticket.id, alsAenderung(wert));
     refresh();
   };
 
