@@ -9,6 +9,7 @@
 // eigene Zeile in der Gruppe Geld.
 import { haystackVon, normalize } from './searchNormalize.js';
 import { NAV_TARGETS } from './navTargets.js';
+import { zustaendigeVon } from './zustaendige.js';
 
 export const GEWICHT = {
   kunde: 60, projekt: 45, auftrag: 35, seite: 34, rechnung: 30, cockpit: 30, deal: 32,
@@ -37,6 +38,7 @@ function mach(o, stichworte = []) {
     is_due: !!o.is_due,
     area: o.area,
     owner_email: o.owner_email || '',
+    owner_emails: Array.isArray(o.owner_emails) ? o.owner_emails : [],
     route: o.route,
     route_cockpit: o.route_cockpit || '',
     kuerzel: o.kuerzel ? normalize(o.kuerzel) : '',
@@ -356,7 +358,8 @@ export function zeileVertrag(v) {
 export function zeileTicket(t, q) {
   const projekt = q.projektNachId.get(t.project_id);
   const kundeName = q.kundeNachId.get(projekt?.client_id)?.name || t.customer_name || '';
-  const person = personName(q, t.assignee_email);
+  const zust = zustaendigeVon(t);
+  const person = zust.map((e) => personName(q, e)).filter(Boolean).join(', ');
   const pfad = [kundeName, projekt?.title].filter(Boolean).join(' › ');
   return mach({
     entry_type: 'ticket',
@@ -365,9 +368,10 @@ export function zeileTicket(t, q) {
     client_id: projekt?.client_id || '',
     client_name: kundeName,
     title: t.title,
-    subtitle: [pfad, STATUS_TEXT[t.status] || t.status, vorname(person)].filter(Boolean).join(' · '),
+    subtitle: [pfad, STATUS_TEXT[t.status] || t.status, zust.map((e) => vorname(personName(q, e))).filter(Boolean).join(', ')].filter(Boolean).join(' · '),
     area: 'projects',
-    owner_email: t.assignee_email || '',
+    owner_email: zust[0] || '',
+    owner_emails: zust,
     route: ticketRoute(q, t),
     kuerzel: projekt?.kuerzel,
     ist_erledigt: t.status === 'erledigt',
