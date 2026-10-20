@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { ticketBereinigen } from '@/lib/sprint/ticketBereinigen';
+import { namenVon } from '@/lib/sprint/zustaendige';
 import {
   fortschrittJePerson, imTopf, istArchivVorschlag, verteileNeu, vorschlagAblehnen, WARTET_AUF,
 } from '@/lib/sprint/uebernahme';
@@ -169,7 +170,7 @@ export default function UebernahmeTeam({ team, email, istFuehrung, zeigeFortschr
                 {projektName(t)} · {AUF_LABEL[t.wartet_auf] || 'Kunde'}
                 {t.wartet_worauf ? ` · ${t.wartet_worauf}` : ''}
                 {tage !== null ? ` · seit ${tage} ${tage === 1 ? 'Tag' : 'Tagen'}` : ''}
-                {` · bei ${nameVon(t.assignee_email)}`}
+                {` · bei ${namenVon(t, members, '—')}`}
               </p>
             </div>
           );
