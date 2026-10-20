@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, Coins } from 'lucide-react';
 import { STATE_LABELS } from '@/components/sprint/sprintConfig';
+import { zustaendigFelder } from '@/lib/sprint/zustaendige';
 
 const ROLES = ['Beratung', 'Konzept', 'Text', 'Grafik', 'Web', 'Media', 'QS'];
 const PHASES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
@@ -46,7 +47,7 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
       order: (tickets.length || 0) + 1,
       title: title.trim(),
       role: role || undefined,
-      assignee_email: assignee || undefined,
+      ...zustaendigFelder(assignee ? [assignee] : []),
       milestone_state: phase,
       status: 'offen',
       origin: isChangeRequest ? 'change_request' : 'pflicht',
