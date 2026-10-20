@@ -47,9 +47,14 @@ export default async function (req) {
     const zeilen = [];
     for (const z of roh) {
       if (since && z.updated_date <= since) continue;
+      // „Eigene“: die Person steht unter den Zuständigen (Liste, sonst Einzelfeld)
+      const ich = String(user.email || '').trim().toLowerCase();
+      const besitzer = Array.isArray(z.owner_emails) && z.owner_emails.length
+        ? z.owner_emails.map((e) => String(e || '').trim().toLowerCase())
+        : (z.owner_email ? [String(z.owner_email).trim().toLowerCase()] : []);
       const sichtbar = darfBereich(z.area)
         && z.is_active !== false
-        && !(scope === 'own' && z.owner_email && z.owner_email !== user.email);
+        && !(scope === 'own' && besitzer.length && !besitzer.includes(ich));
       if (!sichtbar) { if (since) entfernt.push(z.id); continue; }
 
       const zeile = {
@@ -70,6 +75,7 @@ export default async function (req) {
         // Cockpit-Verweis am Projekt nur mit Finanzrecht.
         route_cockpit: darfGeld ? (z.route_cockpit || '') : '',
         owner_email: z.owner_email || '',
+        owner_emails: besitzer,
         kuerzel: z.kuerzel || '',
         ist_erledigt: !!z.ist_erledigt,
         activity_at: z.activity_at,
