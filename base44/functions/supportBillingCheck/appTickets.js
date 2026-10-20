@@ -1,4 +1,5 @@
 // App-Quelle der Support-Abrechnung: erledigte Support-Tickets + offene, verrechenbare Zeitbuchungen.
+import { zustaendigeVon } from '../../shared/zustaendige.js';
 
 // Identische Kopie von supportVerrechnungsMinuten aus src/lib/zeit/rundung.js —
 // Minimum 30 Minuten, darüber auf volle 15 Minuten aufgerundet, 0 bleibt 0.
@@ -129,7 +130,7 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
     if (offen <= 0 && (hatAbgerechnet.has(t.id) || t.awork_vorleistung_abgerechnet)) continue;
     const posten = {
       key: t.id, ticket_id: t.id, project_id: t.project_id, task_title: t.title,
-      assignee_name: nameByEmail[String(t.assignee_email || '').toLowerCase()] || t.assignee_email || '',
+      assignee_name: zustaendigeVon(t).map((e) => nameByEmail[e] || e).join(', '),
       last_entry_date: z.letzte, open_minutes: offen, vorleistung_minutes: vorleistung,
       billable_minutes: supportVerrechnungsMinuten(offen), time_entry_ids: z.ids,
       link,
