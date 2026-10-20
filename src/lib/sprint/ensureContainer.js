@@ -3,6 +3,7 @@ import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { resolveAssignee } from '@/lib/sprint/assignment';
 import { addWorkdays, isWeekend } from '@/lib/sprint/deadlines';
 import { todayIso } from '@/components/sprint/sprintConfig';
+import { zustaendigFelder } from '@/lib/sprint/zustaendige';
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -106,7 +107,7 @@ export async function modulTicketsAnlegen(project, milestone, auswahl = []) {
       const person = routine
         ? a.betreuer_email || project.pm_email
         : resolveAssignee(t.role, members) || a.betreuer_email || project.pm_email;
-      if (person) ticket.assignee_email = person;
+      if (person) Object.assign(ticket, zustaendigFelder([person]));
       if (routine) {
         const termin = a.erste_termine?.[t.id] || standardTermin(t.rhythmus);
         Object.assign(ticket, {
