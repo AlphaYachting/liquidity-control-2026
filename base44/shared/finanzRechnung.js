@@ -1,5 +1,6 @@
 import { berechneTagNull, alleSeiten } from './tagNullRechnung.js';
 import { heuteWien } from './kontingentLaufzeit.js';
+import { zustaendigeVon } from './zustaendige.js';
 
 // Finanzlage — die EINE Rechenstelle der KI-Finanzanalyse und des Wochenberichts.
 // Leitfragen: Was ist noch zu tun, was kommt dafür noch herein, wird es wirtschaftlich fertig,
@@ -620,12 +621,17 @@ export async function berechneFinanzLage(db, { wochen = 13 } = {}) {
     if (!fixIds.has(tk.project_id)) continue;
     const r = restNachTicket[tk.id];
     if (!r || ['routine', 'verwaltung'].includes(r.art)) continue;
-    if (!tk.assignee_email) { nichtZugewiesen.rest_std += r.std; nichtZugewiesen.tickets += 1; continue; }
-    const pr = person(tk.assignee_email);
-    pr.rest_fix += r.std;
-    pr.tickets += 1;
-    if (r.art === 'erfahrungswert') pr.rest_erfahrung += r.std;
-    if (r.art === 'erfahrungswert' || r.art === 'unbekannt') pr.ohne_soll += 1;
+    const zust = zustaendigeVon(tk);
+    if (!zust.length) { nichtZugewiesen.rest_std += r.std; nichtZugewiesen.tickets += 1; continue; }
+    // Mehrere Zuständige teilen sich den Rest gleichmäßig; bei einer Person wie bisher
+    const anteil = 1 / zust.length;
+    for (const mail of zust) {
+      const pr = person(mail);
+      pr.rest_fix += r.std * anteil;
+      pr.tickets += 1;
+      if (r.art === 'erfahrungswert') pr.rest_erfahrung += r.std * anteil;
+      if (r.art === 'erfahrungswert' || r.art === 'unbekannt') pr.ohne_soll += 1;
+    }
   }
   const kapazitaet = Object.values(personen)
     .filter((pr) => pr.soll_std_woche > 1 || pr.rest_fix > 0)
