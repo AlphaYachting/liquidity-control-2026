@@ -13,6 +13,7 @@ import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { RITTLER, fmtEUR, todayIso } from '@/components/sprint/sprintConfig';
 import { NICHT_ARCHIVIERT } from '@/lib/sprint/aktivFilter';
 import { personenMitLeitung } from '@/lib/sprint/personenMitLeitung';
+import { zustaendigeVon } from '@/lib/sprint/zustaendige';
 
 const mondayOf = (iso) => {
   const d = new Date(iso);
@@ -101,7 +102,7 @@ export default function SprintUebersicht() {
       focusDays: focusDays.filter((f) => f.project_id === sprint.project_id && f.type === 'focus'),
       signals: signals.filter((s) => s.sprint_id === sprint.id || s.project_id === sprint.project_id),
     });
-    const emails = [...new Set(sprintTickets.filter((t) => t.assignee_email).map((t) => t.assignee_email))];
+    const emails = [...new Set(sprintTickets.flatMap(zustaendigeVon))];
     return {
       sprint,
       behaelter,
