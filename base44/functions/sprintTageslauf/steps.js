@@ -2,6 +2,7 @@ import {
   todayInVienna, workdaysBetween, calendarDaysBetween, fmtDateDe, fillPlaceholders,
   loadTemplate, sendAndLog,
 } from './helpers.js';
+import { zustaendigeVon } from '../../shared/zustaendige.js';
 
 const ACTIVE_SPRINT = ['geplant', 'laufend'];
 
@@ -273,7 +274,7 @@ export async function schritt6(ctx) {
         ctx.addSignal({
           signal_type: 'W3',
           severity: 'hinweis',
-          recommendation: `Aufgabe ${t.title} steht seit ${tage} Arbeitstagen. Rückfrage an ${t.assignee_email || pm || 'den PM'}.`,
+          recommendation: `Aufgabe ${t.title} steht seit ${tage} Arbeitstagen. Rückfrage an ${zustaendigeVon(t).join(', ') || pm || 'den PM'}.`,
           project_id: project?.id,
           sprint_id: sprint.id,
           ticket_id: t.id,
