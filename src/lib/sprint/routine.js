@@ -1,6 +1,7 @@
 import { base44 } from '@/api/base44Client';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { istAktiv } from '@/lib/sprint/aktivFilter';
+import { zustaendigeVon, zustaendigFelder } from '@/lib/sprint/zustaendige';
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const parse = (s) => new Date(`${s}T00:00:00`);
@@ -55,13 +56,15 @@ export async function ticketStatusSetzen(ticket, status, { folgetermin } = {}) {
   if (projectTypeOf(project) !== 'container' || !istAktiv(project)) return;
   const vorhanden = await base44.entities.Ticket.filter({ vorgaenger_id: ticket.id }, 'order', 1);
   if (vorhanden.length) return;
-  const felder = ['milestone_id', 'project_id', 'order', 'title', 'description', 'role', 'assignee_email',
+  const felder = ['milestone_id', 'project_id', 'order', 'title', 'description', 'role',
     'milestone_state', 'target_hours', 'origin', 'module_template_id', 'ticket_template_id',
     'rhythmus', 'fenster_tage', 'rhythmus_anker'];
   const neu = {};
   felder.forEach((f) => { if (ticket[f] !== undefined && ticket[f] !== null) neu[f] = ticket[f]; });
   await base44.entities.Ticket.create({
     ...neu,
+    // Das Folgeticket übernimmt alle Zuständigen
+    ...zustaendigFelder(zustaendigeVon(ticket)),
     checklist: (ticket.checklist || []).map((c) => ({ ...c, done: false })),
     status: 'offen',
     vorgaenger_id: ticket.id,
