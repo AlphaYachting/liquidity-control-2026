@@ -1,4 +1,5 @@
 import { projectTypeOf, istWartung, PROJECT_TYPES, WARTUNG_STYLE } from '@/components/sprint/projectTypes';
+import { istZustaendig } from '@/lib/sprint/zustaendige';
 
 // Gliederung der Projektliste: ein Abschnitt je Projekttyp, Wartungsverträge als eigene Klasse.
 // Reihenfolge = Reihenfolge auf der Seite. Wartung steht zuletzt und ist anfangs eingeklappt,
@@ -41,7 +42,7 @@ export function meineProjektIds({ projects = [], tickets = [], email }) {
   if (!ich) return ids;
   projects.forEach((p) => { if (klein(p.pm_email) === ich) ids.add(p.id); });
   tickets.forEach((t) => {
-    if (t.project_id && t.status !== 'erledigt' && klein(t.assignee_email) === ich) ids.add(t.project_id);
+    if (t.project_id && t.status !== 'erledigt' && istZustaendig(t, ich)) ids.add(t.project_id);
   });
   return ids;
 }
