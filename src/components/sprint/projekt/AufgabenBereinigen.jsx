@@ -11,6 +11,7 @@ import { RHYTHMUS_LABEL } from '@/components/sprint/paket/paketZaehler';
 import { ARCHIV_GRUENDE, ARCHIV_GRUND_LABEL } from '@/lib/sprint/aktivFilter';
 import { ticketBereinigen } from '@/lib/sprint/ticketBereinigen';
 import { ladeAnsichtenNachTicketAenderung } from '@/lib/sprint/ansichtenNeuLaden';
+import { namenVon } from '@/lib/sprint/zustaendige';
 
 const STATUS_FILTER = [
   { value: 'alle', label: 'Alle Status' },
@@ -283,7 +284,7 @@ export default function AufgabenBereinigen({ project, me, open, onOpenChange, on
                       TICKET_STATUS_LABELS[t.status] || t.status,
                       t.rhythmus ? `Routine · ${RHYTHMUS_LABEL[t.rhythmus] || t.rhythmus}` : null,
                       t.planned_for ? `fällig ${fmtDate(t.planned_for)}` : null,
-                      t.assignee_email ? (personName[t.assignee_email] || t.assignee_email) : 'nicht zugewiesen',
+                      namenVon(t, team),
                       t.module_template_id ? modulName[t.module_template_id] : null,
                     ].filter(Boolean).join(' · ')
                     : [
