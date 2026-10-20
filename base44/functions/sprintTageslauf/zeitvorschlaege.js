@@ -1,3 +1,5 @@
+import { zustaendigeVon, normMail } from '../../shared/zustaendige.js';
+
 // SCHRITT 8 — Zeitvorschläge aus den Spuren des Tages.
 // Es wird nie gebucht: jeder Vorschlag ist eine Erinnerungshilfe.
 
@@ -120,9 +122,16 @@ export async function schritt8(ctx) {
       const kandidaten = [];
 
       // a) Aufgaben, die an diesem Tag auf erledigt gesetzt wurden
+      // Bei mehreren Zuständigen nur für Personen, die auf diese Aufgabe schon gebucht haben —
+      // sonst bekäme jemand einen Vorschlag für Arbeit, die ein anderer gemacht hat.
+      const ich = normMail(email);
       const erledigt = tickets
-        .filter((t) => t.assignee_email === email && t.status === 'erledigt'
-          && t.last_status_change && tagVon(t.last_status_change) === day && t.project_id)
+        .filter((t) => {
+          if (t.status !== 'erledigt' || !t.last_status_change || tagVon(t.last_status_change) !== day || !t.project_id) return false;
+          const zust = zustaendigeVon(t);
+          if (!zust.includes(ich)) return false;
+          return zust.length === 1 || timeEntries.some((e) => e.ticket_id === t.id && normMail(e.person_email) === ich);
+        })
         .map((t) => ({ min: minuteVon(t.last_status_change), projectId: t.project_id, ticketId: t.id, titel: t.title }));
       const nachProjekt = {};
       erledigt.forEach((e) => { (nachProjekt[e.projectId] = nachProjekt[e.projectId] || []).push(e); });
