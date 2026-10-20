@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { sprintZuordnung } from '../../shared/projektTyp.js';
 import { ladeStichtag } from '../../shared/kontingentLaufzeit.js';
+import { zustaendigeVon } from '../../shared/zustaendige.js';
 
 // Handlungsorientierte Projektintelligenz: wo muss jemand etwas TUN.
 // Kein Geldfokus — Feedback einfordern, Zusagen einhalten, Projekte am Leben halten.
@@ -65,7 +66,7 @@ export default async function (req) {
       liste.push({
         title: t.title,
         auf_kunde: wartetAufKunde,
-        assignee: t.assignee_email || null,
+        assignee: zustaendigeVon(t).join(', ') || null,
         worauf: t.wartet_worauf || null,
         tage: tageSeit(t.wartet_seit || t.last_status_change) ?? null,
       });
