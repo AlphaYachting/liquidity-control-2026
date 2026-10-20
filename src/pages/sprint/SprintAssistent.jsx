@@ -22,6 +22,7 @@ import StepZustaendigkeit from '@/components/sprint/assistent/StepZustaendigkeit
 import { buildTicketPlan, ticketValue, unresolvedTickets, OPEN } from '@/lib/sprint/ticketPlan';
 import { finishHandoff } from '@/lib/crm/finishHandoff';
 import { PROJEKT_LAUFEND } from '@/lib/sprint/aktivFilter';
+import { zustaendigFelder } from '@/lib/sprint/zustaendige';
 
 // Allgemeiner Anlage-Wizard: Schritt 1 Rahmen für alle Typen, danach die
 // Sprintplanung nur für Sprintprojekte. Beträge und Termine werden gerechnet.
