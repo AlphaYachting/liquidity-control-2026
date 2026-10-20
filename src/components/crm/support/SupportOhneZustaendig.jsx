@@ -5,6 +5,7 @@ import { UserPlus, AlertTriangle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
+import { hatZustaendige, zustaendigeAendern } from '@/lib/sprint/zustaendige';
 
 export const OHNE_ZUSTAENDIG_KEY = ['support-ohne-zustaendig'];
 
@@ -18,7 +19,7 @@ export default function SupportOhneZustaendig() {
     staleTime: 60 * 1000,
     queryFn: async () => {
       const alle = await base44.entities.Ticket.filter({ origin: 'support', status: { $ne: 'erledigt' } }, '-created_date', 300);
-      const ohne = alle.filter((t) => !t.archiviert && !t.assignee_email);
+      const ohne = alle.filter((t) => !t.archiviert && !hatZustaendige(t));
       if (!ohne.length) return [];
       const ids = [...new Set(ohne.map((t) => t.milestone_id).filter(Boolean))];
       const etappen = ids.length ? await base44.entities.Milestone.filter({ id: { $in: ids } }, null, 300).catch(() => []) : [];
@@ -30,7 +31,7 @@ export default function SupportOhneZustaendig() {
   if (!tickets.length) return null;
 
   const mirZuweisen = async (t) => {
-    await base44.entities.Ticket.update(t.id, { assignee_email: user?.email || '' });
+    if (user?.email) await zustaendigeAendern(t.id, { dazu: user.email });
     qc.invalidateQueries({ queryKey: OHNE_ZUSTAENDIG_KEY });
   };
 
