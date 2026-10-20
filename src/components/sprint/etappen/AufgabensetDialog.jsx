@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { resolveAssignee } from '@/lib/sprint/assignment';
 import { initials } from '@/components/sprint/PersonenChip';
+import { zustaendigFelder } from '@/lib/sprint/zustaendige';
 
 const norm = (s) => (s || '').trim().toLowerCase();
 const h = (v) => (Number(v) || 0).toLocaleString('de-AT', { maximumFractionDigits: 1 });
@@ -109,8 +110,9 @@ export default function AufgabensetDialog({ open, onOpenChange, milestones = [],
     try {
       const start = tickets.filter((t) => t.milestone_id === etappe.id).reduce((m, t) => Math.max(m, Number(t.order) || 0), 0);
       const jetzt = new Date().toISOString();
-      await base44.entities.Ticket.bulkCreate(plan.neu.map(({ doppelt, ...t }, i) => ({
+      await base44.entities.Ticket.bulkCreate(plan.neu.map(({ doppelt, assignee_email, ...t }, i) => ({
         ...t,
+        ...zustaendigFelder(assignee_email ? [assignee_email] : []),
         milestone_id: etappe.id,
         project_id: projectId,
         order: start + i + 1,
