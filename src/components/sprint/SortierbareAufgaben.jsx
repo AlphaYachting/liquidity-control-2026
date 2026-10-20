@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { GripVertical } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { base44 } from '@/api/base44Client';
+import { zustaendigeVon } from '@/lib/sprint/zustaendige';
 
 // Per Drag-and-Drop sortierbare Aufgabenliste — speichert die Reihenfolge im Feld order
 export default function SortierbareAufgaben({ id, tickets, renderZeile }) {
   const [liste, setListe] = useState(tickets);
-  const schluessel = tickets.map((t) => `${t.id}:${t.order}:${t.status}:${t.planned_for}:${t.assignee_email}`).join('|');
+  const schluessel = tickets.map((t) => `${t.id}:${t.order}:${t.status}:${t.planned_for}:${zustaendigeVon(t).join(',')}`).join('|');
   useEffect(() => { setListe(tickets); }, [schluessel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onDragEnd = async ({ source, destination }) => {
