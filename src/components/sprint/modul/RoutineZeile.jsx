@@ -4,7 +4,7 @@ import TicketStatusElement from '@/components/sprint/TicketStatusElement';
 import PersonenChip from '@/components/sprint/PersonenChip';
 import { RITTLER, STATUS_COLORS, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
-import { zustaendigeVon, istZustaendig, personVon, namenVon } from '@/lib/sprint/zustaendige';
+import { personenVon, namenVon } from '@/lib/sprint/zustaendige';
 
 const RHYTHMUS = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', '2monatlich': 'alle 2 Monate', quartalsweise: 'quartalsweise', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich', manuell: 'manuell' };
 
@@ -30,11 +30,12 @@ export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssi
       <div className="flex items-center gap-3">
         {aktuell && (
           <PersonenChip
-            member={zustaendigeVon(aktuell)[0] ? personVon(zustaendigeVon(aktuell)[0], members) : undefined}
+            zustaendige={personenVon(aktuell, members)}
+            currentUserEmail={myEmail}
             members={members}
             role={aktuell.role}
-            isMe={istZustaendig(aktuell, myEmail)}
-            onAssign={(email) => onAssignee(aktuell, email)}
+            onToggle={(email, war) => onAssignee(aktuell, war ? { weg: email } : { dazu: email })}
+            onLeeren={() => onAssignee(aktuell, { setzen: [] })}
           />
         )}
         <div className="flex-1 min-w-0">
