@@ -83,6 +83,11 @@ export async function zustaendigeAendern(ticketId, aenderung) {
   return { ...frisch, ...felder };
 }
 
+// Handler für Personen-Chips: nimmt eine Adresse (Einzelauswahl, '' = niemand) oder eine Änderung.
+export const alsAenderung = (wert) => (typeof wert === 'string' || wert == null
+  ? { setzen: wert ? [wert] : [] }
+  : wert);
+
 // Person zur Anzeige — unbekannte oder ausgeschiedene Personen erscheinen mit ihrer Adresse.
 export function personVon(email, members = []) {
   const m = normMail(email);
