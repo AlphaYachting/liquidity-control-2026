@@ -10,6 +10,7 @@ import { schreibeSystemEintrag } from '@/lib/sprint/systemComment';
 import { STATUS_COLORS, todayIso } from '@/components/sprint/sprintConfig';
 import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
 import { ladeAnsichtenNachTicketAenderung } from '@/lib/sprint/ansichtenNeuLaden';
+import { zustaendigeVon, istZustaendig, personVon } from '@/lib/sprint/zustaendige';
 
 const ORIGIN_LABEL = { addon: 'Zusatz', change_request: 'Change Request · nach Aufwand' };
 const h = (v) => (Number(v) || 0).toLocaleString('de-AT', { maximumFractionDigits: 1 });
@@ -19,8 +20,9 @@ const h = (v) => (Number(v) || 0).toLocaleString('de-AT', { maximumFractionDigit
 export default function EtappeAufgabeZeile({ ticket, members, currentUserEmail, editable, onStatus, onAssignee, startOffen = false }) {
   const [panel, setPanel] = useState(startOffen);
   const queryClient = useQueryClient();
-  const member = members.find((m) => m.email === ticket.assignee_email);
-  const isMe = !!ticket.assignee_email && ticket.assignee_email === currentUserEmail;
+  const erste = zustaendigeVon(ticket)[0];
+  const member = erste ? personVon(erste, members) : undefined;
+  const isMe = istZustaendig(ticket, currentUserEmail);
 
   // Ist das Panel offen, kennt der Timer die Aufgabe.
   useEffect(() => {
