@@ -122,7 +122,7 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
     description: beschreibung,
     role: values.role,
     target_hours: Number(values.target_hours) || 0,
-    assignee_email: values.assignee_email || '',
+    ...zustaendigFelder(values.assignee_email ? [values.assignee_email] : []),
     origin: 'support',
     status: 'offen',
     // Jedes Support-Ticket hat eine Fälligkeit: 4 Tage, bei dringender Störung sofort
