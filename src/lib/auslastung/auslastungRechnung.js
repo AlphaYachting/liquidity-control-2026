@@ -1,5 +1,6 @@
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { artVon } from '@/lib/auslastung/arbeitsart';
+import { zustaendigeVon } from '@/lib/sprint/zustaendige';
 
 export const fmtH = (v) => new Intl.NumberFormat('de-AT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v || 0);
 export const fmtEUR = (v) => new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v || 0);
@@ -29,12 +30,14 @@ export function ticketStand(t, appH, aworkMinuten) {
 
 const leer = () => ({ tickets: 0, rest: 0, ohne: 0, plan: 0, geleistet: 0, unbekannt: 0 });
 
-function addiere(sum, st) {
+// anteil < 1, wenn sich mehrere Zuständige eine Aufgabe teilen — Stunden werden gleichmäßig
+// aufgeteilt, die Aufgabe zählt bei jeder Person. Bei einer Person (anteil 1) wie bisher.
+function addiere(sum, st, anteil = 1) {
   sum.tickets += 1;
-  sum.plan += st.plan || 0;
-  sum.geleistet += st.geleistet;
+  sum.plan += (st.plan || 0) * anteil;
+  sum.geleistet += st.geleistet * anteil;
   if (st.unbekannt) sum.unbekannt += 1;
-  if (st.rest == null) sum.ohne += 1; else sum.rest += st.rest;
+  if (st.rest == null) sum.ohne += anteil; else sum.rest += st.rest * anteil;
 }
 
 function abrechenbar(lp) {
@@ -66,29 +69,36 @@ export function berechne(daten, { pauschal, rolle, typ }) {
     const st = ticketStand(t, gebucht[t.id], aworkMinuten);
     if (p.status === 'pausiert') { addiere(pausiert, st); return; }
     if (p.status && p.status !== 'aktiv') return;
-    const key = t.assignee_email ? t.assignee_email.toLowerCase() : '__nicht';
-    if (!personen[key]) {
-      personen[key] = neuePerson(key, key === '__nicht' ? 'Nicht zugewiesen' : t.assignee_email, [], key !== '__nicht');
-    }
-    const ps = personen[key];
-    if (st.verbraucht) verbraucht.push({ id: t.id, projekt: p.title, ticket: t.title, person: ps.name, plan: st.plan, geleistet: st.geleistet });
-    const topf = topfVon(t);
-    addiere(ps[topf], st);
-    if (topf !== 'projekt') return;
-    if (t.planned_for && (!ps.bis || t.planned_for > ps.bis)) ps.bis = t.planned_for;
-    const offenEuro = p.liquidity_project_id ? abrechenbar(lpById[p.liquidity_project_id]) : null;
-    const pr = ps.projekte[p.id] || (ps.projekte[p.id] = {
-      id: p.id, titel: p.title, kunde: kundeById[p.client_id] || '—', typ: projectTypeOf(p),
-      link: sprintByProj[p.id] ? `/sprint/sprints/${sprintByProj[p.id]}` : null, ...leer(), bis: null, abrechenbar: offenEuro,
+    const zust = zustaendigeVon(t);
+    const keys = zust.length ? zust : ['__nicht'];
+    const anteil = 1 / keys.length;
+    const leute = keys.map((key) => {
+      if (!personen[key]) {
+        personen[key] = neuePerson(key, key === '__nicht' ? 'Nicht zugewiesen' : key, [], key !== '__nicht');
+      }
+      return personen[key];
     });
-    addiere(pr, st);
-    if (t.planned_for && (!pr.bis || t.planned_for > pr.bis)) pr.bis = t.planned_for;
-    if (artVon(p, t) === 'fix') {
+    // Einmal je Aufgabe, nicht je Person
+    if (st.verbraucht) verbraucht.push({ id: t.id, projekt: p.title, ticket: t.title, person: leute.map((x) => x.name).join(', '), plan: st.plan, geleistet: st.geleistet });
+    const topf = topfVon(t);
+    const offenEuro = p.liquidity_project_id ? abrechenbar(lpById[p.liquidity_project_id]) : null;
+    if (topf === 'projekt' && artVon(p, t) === 'fix') {
       const fp = fixProjekte[p.id] || (fixProjekte[p.id] = { rest: 0, abrechenbar: offenEuro });
       fp.rest += st.rest || 0;
     }
-    const monat = !t.planned_for ? 'ohne' : t.planned_for < heute() ? 'ueber' : t.planned_for.slice(0, 7);
-    ps.monate[monat] = (ps.monate[monat] || 0) + (st.rest == null ? pauschal : st.rest);
+    leute.forEach((ps) => {
+      addiere(ps[topf], st, anteil);
+      if (topf !== 'projekt') return;
+      if (t.planned_for && (!ps.bis || t.planned_for > ps.bis)) ps.bis = t.planned_for;
+      const pr = ps.projekte[p.id] || (ps.projekte[p.id] = {
+        id: p.id, titel: p.title, kunde: kundeById[p.client_id] || '—', typ: projectTypeOf(p),
+        link: sprintByProj[p.id] ? `/sprint/sprints/${sprintByProj[p.id]}` : null, ...leer(), bis: null, abrechenbar: offenEuro,
+      });
+      addiere(pr, st, anteil);
+      if (t.planned_for && (!pr.bis || t.planned_for > pr.bis)) pr.bis = t.planned_for;
+      const monat = !t.planned_for ? 'ohne' : t.planned_for < heute() ? 'ueber' : t.planned_for.slice(0, 7);
+      ps.monate[monat] = (ps.monate[monat] || 0) + (st.rest == null ? pauschal : st.rest) * anteil;
+    });
   });
 
   const zeilen = Object.values(personen)
