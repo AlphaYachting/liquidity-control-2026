@@ -12,14 +12,13 @@ import { schreibeSystemEintrag } from '@/lib/sprint/systemComment';
 import { RITTLER, STATUS_COLORS, todayIso } from '@/components/sprint/sprintConfig';
 import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
 import { ladeAnsichtenNachTicketAenderung } from '@/lib/sprint/ansichtenNeuLaden';
-import { zustaendigeVon, istZustaendig, personVon } from '@/lib/sprint/zustaendige';
+import { istZustaendig, personenVon } from '@/lib/sprint/zustaendige';
 
 const ORIGIN_LABEL = { addon: 'Zusatz', change_request: 'Change Request · nach Aufwand abrechenbar' };
 
 // V3 — feste Zeilenhöhe, senkrechte Achsen, genau ein Bedienelement für den Status.
 export default function TicketZeile({ ticket, members, currentUserEmail, editable, onStatus, onAssignee }) {
-  const erste = zustaendigeVon(ticket)[0];
-  const member = erste ? personVon(erste, members) : undefined;
+  const zustaendige = personenVon(ticket, members);
   const isMe = istZustaendig(ticket, currentUserEmail);
   const originLabel = ORIGIN_LABEL[ticket.origin];
   // Direktsprung aus der Übersicht (?aufgabe=id): Aufgabe aufgeklappt öffnen
@@ -58,12 +57,13 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
       >
         <div onClick={stop}>
           <PersonenChip
-            member={member}
+            zustaendige={zustaendige}
+            currentUserEmail={currentUserEmail}
             members={members}
             role={ticket.role}
-            isMe={isMe}
             disabled={!editable}
-            onAssign={(email) => onAssignee(ticket, email)}
+            onToggle={(email, war) => onAssignee(ticket, war ? { weg: email } : { dazu: email })}
+            onLeeren={() => onAssignee(ticket, { setzen: [] })}
           />
         </div>
 
