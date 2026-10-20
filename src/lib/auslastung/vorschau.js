@@ -1,5 +1,6 @@
 import { artVon, LAUFEND, ART_LABEL } from '@/lib/auslastung/arbeitsart';
 import { fmtH, appGebucht, ticketStand } from '@/lib/auslastung/auslastungRechnung';
+import { zustaendigeVon } from '@/lib/sprint/zustaendige';
 
 export function naechsteMonate(n = 6) {
   const d = new Date();
@@ -16,14 +17,19 @@ export function offenJeArt(daten) {
   const out = {};
   daten.tickets.forEach((t) => {
     const p = projById[t.project_id];
-    if (!p || (p.status && p.status !== 'aktiv') || !t.assignee_email) return;
+    const zust = zustaendigeVon(t);
+    if (!p || (p.status && p.status !== 'aktiv') || !zust.length) return;
     const art = artVon(p, t);
     if (!art) return;
     const basis = ticketStand(t, gebucht[t.id], daten.aworkMinuten).rest;
-    const ps = out[t.assignee_email.toLowerCase()] || (out[t.assignee_email.toLowerCase()] = {});
-    const a = ps[art] || (ps[art] = { tickets: 0, rest: 0, ohne: 0 });
-    a.tickets += 1;
-    if (basis == null) a.ohne += 1; else a.rest += basis;
+    // Mehrere Zuständige teilen sich den Rest gleichmäßig; bei einer Person wie bisher
+    const anteil = 1 / zust.length;
+    zust.forEach((key) => {
+      const ps = out[key] || (out[key] = {});
+      const a = ps[art] || (ps[art] = { tickets: 0, rest: 0, ohne: 0 });
+      a.tickets += 1;
+      if (basis == null) a.ohne += anteil; else a.rest += basis * anteil;
+    });
   });
   return out;
 }
