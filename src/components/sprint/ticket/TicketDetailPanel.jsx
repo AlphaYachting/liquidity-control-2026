@@ -20,6 +20,7 @@ import { RHYTHMUS_LABEL } from '@/components/sprint/paket/paketZaehler';
 import { ARCHIV_GRUENDE, ARCHIV_GRUND_LABEL } from '@/lib/sprint/aktivFilter';
 import { ticketBereinigen, darfBereinigen } from '@/lib/sprint/ticketBereinigen';
 import { useZugriff } from '@/lib/useZugriff';
+import { zustaendigeVon, zustaendigeAendern, normMail } from '@/lib/sprint/zustaendige';
 
 const STATES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
 const ORIGIN_LABEL = {
@@ -46,7 +47,7 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
   const [saving, setSaving] = useState(false);
   const [speicherFehler, setSpeicherFehler] = useState('');
 
-  useEffect(() => { setForm(ticket || {}); setSpeicherFehler(''); }, [ticket?.id, open]);
+  useEffect(() => { setForm({ ...(ticket || {}), zustaendige: zustaendigeVon(ticket) }); setSpeicherFehler(''); }, [ticket?.id, open]);
 
   const { data: gebucht = 0 } = useQuery({
     enabled: Boolean(open && ticket?.id),
@@ -156,6 +157,13 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
   const plan = Number(form.target_hours) || 0;
   const pct = plan > 0 ? Math.min(100, Math.round((gebucht / plan) * 100)) : 0;
 
+  // Zuständige nur speichern, wenn sie hier geändert wurden — sonst würde ein länger offenes
+  // Fenster eine inzwischen von anderen geänderte Zuweisung überschreiben.
+  const zustaendigeAlt = zustaendigeVon(ticket);
+  const zustaendigeNeu = form.zustaendige || zustaendigeAlt;
+  const zustaendigeGeaendert = zustaendigeNeu.length !== zustaendigeAlt.length
+    || zustaendigeNeu.some((e, i) => e !== zustaendigeAlt[i]);
+
   const faelligNeu = form.planned_for || '';
   const faelligGeaendert = faelligNeu !== (ticket.planned_for || '') && !(ticket.rhythmus && !faelligNeu);
 
@@ -180,7 +188,6 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
       description: form.description || '',
       checklist: form.checklist || [],
       links: form.links || [],
-      assignee_email: form.assignee_email || '',
       role: form.role,
       milestone_state: form.milestone_state,
       status: form.status,
@@ -189,6 +196,7 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
       ...(faelligGeaendert ? { planned_for: form.planned_for || null } : {}),
       ...(form.status !== ticket.status ? { last_status_change: new Date().toISOString() } : {}),
     });
+    if (zustaendigeGeaendert) await zustaendigeAendern(ticket.id, { setzen: zustaendigeNeu });
     if (form.status !== ticket.status) {
       await schreibeSystemEintrag({
         project_id: ticket.project_id,
@@ -299,12 +307,12 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
           <div className="grid grid-cols-2 gap-x-4 gap-y-3.5">
             <div>
               <Feld>Zuständig</Feld>
-              <Select value={form.assignee_email || 'none'}
-                onValueChange={(v) => set({ assignee_email: v === 'none' ? '' : v })}>
+              <Select value={zustaendigeNeu[0] || 'none'}
+                onValueChange={(v) => set({ zustaendige: v === 'none' ? [] : [v] })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">nicht zugewiesen</SelectItem>
-                  {members.map((m) => <SelectItem key={m.email} value={m.email}>{m.name}</SelectItem>)}
+                  {members.map((m) => <SelectItem key={m.email} value={normMail(m.email)}>{m.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
