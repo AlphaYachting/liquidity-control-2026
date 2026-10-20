@@ -10,6 +10,7 @@ import AufgabeAnlegenDialog from '@/components/sprint/etappen/AufgabeAnlegenDial
 import AufgabensetDialog from '@/components/sprint/etappen/AufgabensetDialog';
 import ZusammenfuehrenDialog from '@/components/sprint/etappen/ZusammenfuehrenDialog';
 import { doppelteStandardaufgaben, etappenText } from '@/lib/sprint/doppelteStandardaufgaben';
+import { zustaendigeVon, personVon as personAus } from '@/lib/sprint/zustaendige';
 
 const kurz = (d) => (d ? fmtDate(d).slice(0, 6) : '—');
 const h = (v) => (Number(v) || 0).toLocaleString('de-AT', { maximumFractionDigits: 1 });
@@ -46,7 +47,7 @@ export default function EtappenListe({
     onChanged?.();
   };
 
-  const personVon = (email) => members.find((m) => m.email === email) || { email, name: email };
+  const personVon = (email) => personAus(email, members);
 
   return (
     <section className="bg-card rounded border border-border">
@@ -92,7 +93,7 @@ export default function EtappenListe({
         let zaehler = `${total} ${total === 1 ? 'Aufgabe' : 'Aufgaben'}`;
         if (done > 0 && done < total) zaehler = `${done} von ${total} erledigt`;
         if (total > 0 && done === total) zaehler = `alle ${total} erledigt`;
-        const leute = [...new Set(eigene.map((t) => t.assignee_email).filter(Boolean))].map(personVon);
+        const leute = [...new Set(eigene.flatMap(zustaendigeVon))].map(personVon);
         const offen = offenId === m.id;
         const freigegeben = m.state === 'freigegeben';
 
@@ -134,7 +135,8 @@ export default function EtappenListe({
                   <p className="py-2 text-meta text-muted-foreground">Noch keine Aufgaben in dieser Etappe.</p>
                 )}
                 {eigene.map((t) => {
-                  const p = t.assignee_email ? personVon(t.assignee_email) : null;
+                  const personen = zustaendigeVon(t).map(personVon);
+                  const p = personen.length === 1 ? personen[0] : null;
                   return (
                     <Link
                       key={t.id}
@@ -142,7 +144,9 @@ export default function EtappenListe({
                       className="mb-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded border border-[#EEEEEE] bg-card px-3 py-2.5 hover:border-[#D4D4D4]"
                     >
                       <span className="min-w-0 flex-[1_1_260px] text-sm text-foreground">{t.title}</span>
-                      {p ? (
+                      {personen.length > 1 ? (
+                        <PersonenStapel members={personen} currentUserEmail={me?.email} size={22} />
+                      ) : p ? (
                         <span
                           title={p.name}
                           className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full text-[10px] font-bold uppercase text-white"
