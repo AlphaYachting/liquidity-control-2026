@@ -1,6 +1,6 @@
 import React from 'react';
 import PersonenChip from '@/components/sprint/PersonenChip';
-import { zustaendigeVon, zustaendigeAendern, personVon } from '@/lib/sprint/zustaendige';
+import { zustaendigeVon, zustaendigeAendern, personVon, normMail } from '@/lib/sprint/zustaendige';
 import RoutineZeile from './RoutineZeile';
 import StartAbschnitt from './StartAbschnitt';
 
@@ -41,7 +41,7 @@ export default function ModulKarte({ name, tickets, matches, members, myEmail, i
             <PersonenChip
               member={betreuer ? personVon(betreuer, members) : undefined}
               members={members}
-              isMe={betreuer === myEmail}
+              isMe={!!betreuer && betreuer === normMail(myEmail)}
               disabled={!istPm || !offeneRoutinen.length}
               onAssign={betreuerSetzen}
             />
