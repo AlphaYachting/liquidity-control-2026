@@ -257,7 +257,7 @@ export default function SprintAssistent() {
             order: idx + 1,
             title: t.title,
             role: t.role || undefined,
-            assignee_email: person === OPEN ? undefined : person,
+            ...zustaendigFelder(person === OPEN || !person ? [] : [person]),
             milestone_state: t.milestone_state,
             blocks_others: t.blocks_others,
             status: 'offen',
