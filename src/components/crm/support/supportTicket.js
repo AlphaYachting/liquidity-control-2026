@@ -5,6 +5,7 @@ import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { findeKunde } from '@/lib/kunden/kundeAnlegen';
 import { threadTranscript } from '@/components/crm/support/threadDescription';
 import { faelligAm } from '@/components/crm/support/faelligkeit';
+import { zustaendigFelder } from '@/lib/sprint/zustaendige';
 
 export const SUPPORT_MODELS = ['aufwand', 'support'];
 export const DEFAULT_SUPPORT_RATE = 130;
