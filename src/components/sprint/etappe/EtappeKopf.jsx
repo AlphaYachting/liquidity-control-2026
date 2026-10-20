@@ -21,8 +21,7 @@ export default function EtappeKopf({
   const nr = Math.max(1, reihe.findIndex((m) => m.id === milestone.id) + 1);
   const stil = typeStyleOf(project);
 
-  const personVon = (email) => members.find((m) => m.email === email) || { email, name: email };
-  const beteiligte = [...new Set(tickets.map((t) => t.assignee_email).filter(Boolean))].map(personVon);
+  const beteiligte = [...new Set(tickets.flatMap(zustaendigeVon))].map((e) => personVon(e, members));
   const freigegeben = milestone.state === 'freigegeben';
 
   const pfad = [
