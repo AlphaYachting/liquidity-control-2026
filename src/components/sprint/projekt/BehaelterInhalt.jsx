@@ -5,7 +5,6 @@ import ModulAnsicht from '@/components/sprint/ModulAnsicht';
 import StundenNachBereich from '@/components/sprint/projekt/StundenNachBereich';
 import BehaelterAufgaben from '@/components/sprint/projekt/BehaelterAufgaben';
 import useTicketStatus from '@/hooks/useTicketStatus';
-import { base44 } from '@/api/base44Client';
 import { projectTypeOf } from '@/components/sprint/projectTypes';
 import { istZustaendig, hatZustaendige, zustaendigeAendern, alsAenderung } from '@/lib/sprint/zustaendige';
 
