@@ -97,6 +97,9 @@ export const namenVon = (ticket, members = [], leer = 'nicht zugewiesen') => {
 };
 
 // Abfragebedingung „mir zugewiesen“ — deckt Liste und Einzelfeld ab.
-export const zugewiesenAnFilter = (email) => ({
-  $or: [{ assignee_email: email }, { assignee_emails: normMail(email) }],
-});
+export const zugewiesenAnFilter = (email) => {
+  const m = normMail(email);
+  const bedingungen = [{ assignee_email: email }, { assignee_emails: m }];
+  if (m !== email) bedingungen.push({ assignee_email: m });
+  return { $or: bedingungen };
+};
