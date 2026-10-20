@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { ticketBereinigen } from '@/lib/sprint/ticketBereinigen';
+import { zustaendigeVon, zustaendigFelder, MAX_ZUSTAENDIGE } from '@/lib/sprint/zustaendige';
 
 // Erkennt Etappen, die beim Anlegen dieselben Standardaufgaben eines mehrfach gewählten Moduls
 // bekommen haben (z. B. „Website Service / Anpassung" für mehrere Positionen).
@@ -32,16 +33,18 @@ export function doppelteStandardaufgaben({ milestones = [], tickets = [], timeEn
       const { m, eigene, key } = i;
       if (idx === 0 || m.state === 'freigegeben' || eigene.length < 2 || anzahl[key] < 2) return;
       if (eigene.some((t) => t.status !== 'offen' || gebucht.has(t.id))) return;
-      const haupt = eigene.find((t) => t.milestone_state === 'produktion' && t.assignee_email)
-        || eigene.find((t) => t.assignee_email)
+      const haupt = eigene.find((t) => t.milestone_state === 'produktion' && zustaendigeVon(t).length)
+        || eigene.find((t) => zustaendigeVon(t).length)
         || eigene[0];
+      // Zuständige aller alten Aufgaben vereinigen — die bisherige Hauptperson zuerst
+      const personen = [...new Set([haupt, ...eigene].flatMap(zustaendigeVon))].slice(0, MAX_ZUSTAENDIGE);
       vorschlaege.push({
         milestone: m,
         modulId,
         alte: eigene,
         neu: {
           title: m.title,
-          assignee_email: haupt.assignee_email || undefined,
+          ...zustaendigFelder(personen),
           role: haupt.role || undefined,
           milestone_state: 'produktion',
           target_hours: eigene.reduce((s, t) => s + (Number(t.target_hours) || 0), 0),
