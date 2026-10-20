@@ -4,6 +4,7 @@ import TicketStatusElement from '@/components/sprint/TicketStatusElement';
 import PersonenChip from '@/components/sprint/PersonenChip';
 import { RITTLER, STATUS_COLORS, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
+import { zustaendigeVon, istZustaendig, personVon, namenVon } from '@/lib/sprint/zustaendige';
 
 const RHYTHMUS = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', '2monatlich': 'alle 2 Monate', quartalsweise: 'quartalsweise', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich', manuell: 'manuell' };
 
@@ -14,7 +15,6 @@ export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssi
   const erledigt = kette.filter((t) => t.status === 'erledigt')
     .sort((a, b) => (b.last_status_change || '').localeCompare(a.last_status_change || ''));
   const ref = aktuell || kette[0];
-  const name = (e) => members.find((m) => m.email === e)?.name || e || '—';
 
   const heute = todayIso();
   const ueberfaellig = !!aktuell && istUeberfaellig(aktuell, heute);
@@ -30,10 +30,10 @@ export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssi
       <div className="flex items-center gap-3">
         {aktuell && (
           <PersonenChip
-            member={members.find((m) => m.email === aktuell.assignee_email)}
+            member={zustaendigeVon(aktuell)[0] ? personVon(zustaendigeVon(aktuell)[0], members) : undefined}
             members={members}
             role={aktuell.role}
-            isMe={aktuell.assignee_email === myEmail}
+            isMe={istZustaendig(aktuell, myEmail)}
             onAssign={(email) => onAssignee(aktuell, email)}
           />
         )}
@@ -66,7 +66,7 @@ export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssi
         <ul className="mt-2 ml-10 space-y-0.5">
           {erledigt.map((t) => (
             <li key={t.id} className="text-xs text-muted-foreground">
-              {fmtDate(t.last_status_change)} · {name(t.assignee_email)}
+              {fmtDate(t.last_status_change)} · {namenVon(t, members, '—')}
             </li>
           ))}
         </ul>
