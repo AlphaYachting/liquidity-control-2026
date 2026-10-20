@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Mail, Archive, Repeat, Trash2, RotateCcw, ArrowRightLeft } from 'lucide-react';
+import { Mail, Archive, Repeat, Trash2, RotateCcw, ArrowRightLeft, Check, ChevronDown } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { base44 } from '@/api/base44Client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
@@ -20,7 +21,7 @@ import { RHYTHMUS_LABEL } from '@/components/sprint/paket/paketZaehler';
 import { ARCHIV_GRUENDE, ARCHIV_GRUND_LABEL } from '@/lib/sprint/aktivFilter';
 import { ticketBereinigen, darfBereinigen } from '@/lib/sprint/ticketBereinigen';
 import { useZugriff } from '@/lib/useZugriff';
-import { zustaendigeVon, zustaendigeAendern, normMail } from '@/lib/sprint/zustaendige';
+import { zustaendigeVon, zustaendigeAendern, normMail, personVon, MAX_ZUSTAENDIGE } from '@/lib/sprint/zustaendige';
 
 const STATES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
 const ORIGIN_LABEL = {
@@ -311,14 +312,42 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
           <div className="grid grid-cols-2 gap-x-4 gap-y-3.5">
             <div>
               <Feld>Zuständig</Feld>
-              <Select value={zustaendigeNeu[0] || 'none'}
-                onValueChange={(v) => set({ zustaendige: v === 'none' ? [] : [v] })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">nicht zugewiesen</SelectItem>
-                  {members.map((m) => <SelectItem key={m.email} value={normMail(m.email)}>{m.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {/* Gleiches Auswahlfeld wie bisher — beim Aufklappen mit Häkchen, bis zu vier Personen */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-lg border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="truncate">
+                    {zustaendigeNeu.length
+                      ? zustaendigeNeu.map((e) => personVon(e, members).name).join(', ')
+                      : 'nicht zugewiesen'}
+                  </span>
+                  <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto min-w-[var(--radix-dropdown-menu-trigger-width)]">
+                  {members.map((m) => {
+                    const key = normMail(m.email);
+                    const gewaehlt = zustaendigeNeu.includes(key);
+                    const voll = !gewaehlt && zustaendigeNeu.length >= MAX_ZUSTAENDIGE;
+                    return (
+                      <DropdownMenuItem
+                        key={m.email}
+                        disabled={voll}
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          set({ zustaendige: gewaehlt ? zustaendigeNeu.filter((x) => x !== key) : [...zustaendigeNeu, key] });
+                        }}
+                      >
+                        <span className="flex-1">{m.name}</span>
+                        {gewaehlt && <Check className="h-4 w-4" />}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  <DropdownMenuItem onSelect={() => set({ zustaendige: [] })} className="text-muted-foreground">
+                    nicht zugewiesen
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             <div>
               <Feld>Status</Feld>
