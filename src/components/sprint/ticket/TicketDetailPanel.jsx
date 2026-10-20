@@ -47,7 +47,11 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
   const [saving, setSaving] = useState(false);
   const [speicherFehler, setSpeicherFehler] = useState('');
 
-  useEffect(() => { setForm({ ...(ticket || {}), zustaendige: zustaendigeVon(ticket) }); setSpeicherFehler(''); }, [ticket?.id, open]);
+  useEffect(() => {
+    const z = zustaendigeVon(ticket);
+    setForm({ ...(ticket || {}), zustaendige: z, zustaendigeStart: z });
+    setSpeicherFehler('');
+  }, [ticket?.id, open]);
 
   const { data: gebucht = 0 } = useQuery({
     enabled: Boolean(open && ticket?.id),
@@ -159,7 +163,7 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
 
   // Zuständige nur speichern, wenn sie hier geändert wurden — sonst würde ein länger offenes
   // Fenster eine inzwischen von anderen geänderte Zuweisung überschreiben.
-  const zustaendigeAlt = zustaendigeVon(ticket);
+  const zustaendigeAlt = form.zustaendigeStart || zustaendigeVon(ticket);
   const zustaendigeNeu = form.zustaendige || zustaendigeAlt;
   const zustaendigeGeaendert = zustaendigeNeu.length !== zustaendigeAlt.length
     || zustaendigeNeu.some((e, i) => e !== zustaendigeAlt[i]);
