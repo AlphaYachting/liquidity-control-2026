@@ -69,7 +69,18 @@ export function wendeAn(alt, aenderung = {}) {
 // Ändert die Zuständigen eines Tickets. Lädt das Ticket frisch, damit gleichzeitige Änderungen
 // anderer nicht überschrieben werden, und schreibt nur die zwei Zuständigkeitsfelder.
 // aenderung: { setzen: [..] } | { dazu: email } | { weg: email } | { ersetzen: { alt, neu } }
-export async function zustaendigeAendern(ticketId, aenderung) {
+// Änderungen am selben Ticket laufen nacheinander — schnelles Anhaken mehrerer Personen
+// überschreibt sich so nicht gegenseitig.
+const warteschlange = new Map();
+export function zustaendigeAendern(ticketId, aenderung) {
+  const vorher = warteschlange.get(ticketId) || Promise.resolve();
+  const lauf = vorher.catch(() => {}).then(() => aendereJetzt(ticketId, aenderung));
+  warteschlange.set(ticketId, lauf);
+  lauf.finally(() => { if (warteschlange.get(ticketId) === lauf) warteschlange.delete(ticketId); }).catch(() => {});
+  return lauf;
+}
+
+async function aendereJetzt(ticketId, aenderung) {
   const frisch = (await base44.entities.Ticket.filter({ id: ticketId }, null, 1))[0];
   if (!frisch) throw new Error('Aufgabe nicht gefunden');
   const vorher = zustaendigeVon(frisch);
