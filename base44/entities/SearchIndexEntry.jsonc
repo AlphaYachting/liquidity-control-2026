@@ -69,7 +69,14 @@
     },
     "owner_email": {
       "type": "string",
-      "description": "zust\u00e4ndige Person (bei Aufgaben)"
+      "description": "zust\u00e4ndige Person (bei Aufgaben) \u2014 erste der Zust\u00e4ndigen"
+    },
+    "owner_emails": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "alle zust\u00e4ndigen Personen (bei Aufgaben), klein geschrieben"
     },
     "route": {
       "type": "string"
