@@ -1,6 +1,6 @@
 import React from 'react';
-import { base44 } from '@/api/base44Client';
 import PersonenChip from '@/components/sprint/PersonenChip';
+import { zustaendigeVon, zustaendigeAendern, personVon } from '@/lib/sprint/zustaendige';
 import RoutineZeile from './RoutineZeile';
 import StartAbschnitt from './StartAbschnitt';
 
@@ -13,7 +13,8 @@ const haeufigste = (liste) => {
 export default function ModulKarte({ name, tickets, matches, members, myEmail, istPm, onStatus, onAssignee, onRefresh }) {
   const routinen = tickets.filter((t) => t.rhythmus);
   const offeneRoutinen = routinen.filter((t) => t.status !== 'erledigt');
-  const betreuer = haeufigste(offeneRoutinen.map((t) => t.assignee_email));
+  // Betreuer = wer in den meisten offenen Routinen zuständig ist (Einzelauswahl, eine Rolle)
+  const betreuer = haeufigste(offeneRoutinen.flatMap(zustaendigeVon));
   const ketten = Object.values(routinen.reduce((acc, t) => {
     const k = t.ticket_template_id || t.title;
     (acc[k] = acc[k] || []).push(t);
@@ -21,8 +22,12 @@ export default function ModulKarte({ name, tickets, matches, members, myEmail, i
   }, {})).filter((k) => k.some(matches));
   const einmalig = tickets.filter((t) => !t.rhythmus);
 
+  // Betreuer wechseln: in jeder offenen Routine nur den bisherigen Betreuer ersetzen —
+  // weitere Zuständige der Routine bleiben stehen.
   const betreuerSetzen = async (email) => {
-    await Promise.all(offeneRoutinen.map((t) => base44.entities.Ticket.update(t.id, { assignee_email: email })));
+    await Promise.all(offeneRoutinen.map((t) => zustaendigeAendern(t.id, email
+      ? { ersetzen: { alt: betreuer, neu: email } }
+      : { weg: betreuer })));
     onRefresh();
   };
 
@@ -34,7 +39,7 @@ export default function ModulKarte({ name, tickets, matches, members, myEmail, i
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Betreuer</span>
             <PersonenChip
-              member={members.find((m) => m.email === betreuer)}
+              member={betreuer ? personVon(betreuer, members) : undefined}
               members={members}
               isMe={betreuer === myEmail}
               disabled={!istPm || !offeneRoutinen.length}
