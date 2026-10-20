@@ -89,7 +89,9 @@ export function suche(zeilen, eingabe, meineEmail = '') {
     if (kuerzel && z.kuerzel && z.kuerzel === kuerzel) p += z.entry_type === 'projekt' ? 2000 : 500;
     if (z.entry_type === 'ticket') {
       if (z.ist_erledigt) p -= ABZUG_ERLEDIGT;
-      else if (ich && String(z.owner_email || '').toLowerCase() === ich) p += BONUS_EIGENE;
+      else if (ich && (Array.isArray(z.owner_emails) && z.owner_emails.length
+        ? z.owner_emails.some((e) => String(e || '').toLowerCase() === ich)
+        : String(z.owner_email || '').toLowerCase() === ich)) p += BONUS_EIGENE;
     }
     return { ...z, punkte: p };
   });
