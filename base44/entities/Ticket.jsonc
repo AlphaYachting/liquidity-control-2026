@@ -10,7 +10,15 @@
   "properties": {
     "assignee_email": {
       "format": "email",
-      "type": "string"
+      "type": "string",
+      "description": "Spiegel der ersten zust\u00e4ndigen Person aus assignee_emails \u2014 nur \u00fcber src/lib/sprint/zustaendige.js schreiben"
+    },
+    "assignee_emails": {
+      "description": "Zust\u00e4ndige Personen (E-Mail, klein geschrieben), gleichwertig, h\u00f6chstens 4. F\u00fchrendes Feld; assignee_email wird als erste Person mitgeschrieben.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     },
     "blocks_others": {
       "default": false,
