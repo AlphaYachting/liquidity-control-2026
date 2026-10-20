@@ -8,6 +8,7 @@ import ProjektleitungWahl from '@/components/sprint/projekt/ProjektleitungWahl';
 import { typeStyleOf } from '@/components/sprint/projectTypes';
 import { STATUS_COLORS, SPRINT_SIZES, fmtDate, fmtEUR } from '@/components/sprint/sprintConfig';
 import { etappeKennzahlen } from '@/lib/sprint/etappeKennzahlen';
+import { zustaendigeVon, personVon } from '@/lib/sprint/zustaendige';
 
 // Kopf der Etappenseite — gleicher Aufbau wie der Projektkopf: Pfad zum Projekt,
 // Titelblock mit Projektleitung und Beteiligten, Timer rechts, Kennzahlenleiste,
