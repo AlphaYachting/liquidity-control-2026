@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Coins } from 'lucide-react';
+import { zustaendigFelder } from '@/lib/sprint/zustaendige';
 
 const OFFEN = '__offen';
 const PHASEN = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
@@ -41,7 +42,7 @@ export default function AufgabeAnlegenDialog({ open, onOpenChange, milestones = 
         project_id: projectId,
         order: vorhandene.reduce((m, t) => Math.max(m, Number(t.order) || 0), 0) + 1,
         title: titel.trim(),
-        assignee_email: person === OFFEN ? undefined : person,
+        ...zustaendigFelder(person === OFFEN ? [] : [person]),
         milestone_state: PHASEN.includes(etappe.state) ? etappe.state : 'produktion',
         status: 'offen',
         origin: istChangeRequest ? 'change_request' : 'pflicht',
