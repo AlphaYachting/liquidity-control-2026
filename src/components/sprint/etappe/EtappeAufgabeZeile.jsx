@@ -10,7 +10,7 @@ import { schreibeSystemEintrag } from '@/lib/sprint/systemComment';
 import { STATUS_COLORS, todayIso } from '@/components/sprint/sprintConfig';
 import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
 import { ladeAnsichtenNachTicketAenderung } from '@/lib/sprint/ansichtenNeuLaden';
-import { zustaendigeVon, istZustaendig, personVon } from '@/lib/sprint/zustaendige';
+import { istZustaendig, personenVon } from '@/lib/sprint/zustaendige';
 
 const ORIGIN_LABEL = { addon: 'Zusatz', change_request: 'Change Request · nach Aufwand' };
 const h = (v) => (Number(v) || 0).toLocaleString('de-AT', { maximumFractionDigits: 1 });
@@ -20,8 +20,7 @@ const h = (v) => (Number(v) || 0).toLocaleString('de-AT', { maximumFractionDigit
 export default function EtappeAufgabeZeile({ ticket, members, currentUserEmail, editable, onStatus, onAssignee, startOffen = false }) {
   const [panel, setPanel] = useState(startOffen);
   const queryClient = useQueryClient();
-  const erste = zustaendigeVon(ticket)[0];
-  const member = erste ? personVon(erste, members) : undefined;
+  const zustaendige = personenVon(ticket, members);
   const isMe = istZustaendig(ticket, currentUserEmail);
 
   // Ist das Panel offen, kennt der Timer die Aufgabe.
@@ -86,12 +85,13 @@ export default function EtappeAufgabeZeile({ ticket, members, currentUserEmail, 
 
         <div onClick={stop}>
           <PersonenChip
-            member={member}
+            zustaendige={zustaendige}
+            currentUserEmail={currentUserEmail}
             members={members}
             role={ticket.role}
-            isMe={isMe}
             disabled={!editable}
-            onAssign={(email) => onAssignee(ticket, email)}
+            onToggle={(email, war) => onAssignee(ticket, war ? { weg: email } : { dazu: email })}
+            onLeeren={() => onAssignee(ticket, { setzen: [] })}
           />
         </div>
         <span className="w-12 shrink-0 text-right text-[13px] text-muted-foreground">{h(ticket.target_hours)} h</span>
