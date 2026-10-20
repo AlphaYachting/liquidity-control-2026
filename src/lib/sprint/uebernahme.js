@@ -203,9 +203,13 @@ export const imTopf = (t) => t.uebernahme_antwort === 'zurueck';
 export const istArchivVorschlag = (t) => t.uebernahme_antwort === 'entfaellt' && !t.archiviert;
 
 // Neu verteilen: die neue Person bestätigt das Ticket selbst in ihrer Übernahme.
-export async function verteileNeu(ticket, email) {
+// von = wer weitergibt: nur diese Person wird ersetzt, weitere Zuständige bleiben.
+// Ohne von (Verteilen aus dem Topf durch die Projektleitung) wird die Zuständigkeit gesetzt.
+export async function verteileNeu(ticket, email, { von } = {}) {
   const patch = { uebernahme_antwort: null, uebernahme_am: null, uebernahme_von: null };
-  const neu = await zustaendigeAendern(ticket.id, { setzen: email ? [email] : [] });
+  const neu = await zustaendigeAendern(ticket.id, von
+    ? { ersetzen: { alt: von, neu: email } }
+    : { setzen: email ? [email] : [] });
   await base44.entities.Ticket.update(ticket.id, patch);
   return { ...ticket, ...patch, assignee_email: neu.assignee_email, assignee_emails: neu.assignee_emails };
 }
