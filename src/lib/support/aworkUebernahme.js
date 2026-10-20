@@ -83,7 +83,7 @@ export async function uebernehmen(eintraege, clients) {
       origin: 'support',
       status: e.status,
       customer_name: client.name,
-      assignee_email: e.assignee_email || undefined,
+      ...zustaendigFelder(e.assignee_email ? [e.assignee_email] : []),
       awork_task_id: e.awork_task_id,
       awork_vorleistung_minuten: e.vorleistung_minuten,
       awork_vorleistung_abgerechnet: false,
