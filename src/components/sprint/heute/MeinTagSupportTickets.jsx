@@ -6,6 +6,7 @@ import { RITTLER } from '@/components/sprint/sprintConfig';
 import { ohneArchiv } from '@/lib/sprint/aktivFilter';
 import { Titel, KARTE } from '@/components/sprint/heute/MeinTagBausteine';
 import { alsDatum } from '@/lib/zeitpunkt';
+import { hatZustaendige, istZustaendig, zustaendigeAendern, namenVon } from '@/lib/sprint/zustaendige';
 
 export const SUPPORT_TICKETS_KEY = ['meinTagSupportTickets'];
 
@@ -45,13 +46,12 @@ export default function MeinTagSupportTickets({ email, istFuehrung, members = []
   });
   if (isLoading) return null;
 
-  const ohne = tickets.filter((t) => !t.assignee_email);
-  const meine = tickets.filter((t) => t.assignee_email === email);
-  const andere = istFuehrung ? tickets.filter((t) => t.assignee_email && t.assignee_email !== email) : [];
-  const name = (mail) => members.find((m) => m.email === mail)?.name || mail;
+  const ohne = tickets.filter((t) => !hatZustaendige(t));
+  const meine = tickets.filter((t) => istZustaendig(t, email));
+  const andere = istFuehrung ? tickets.filter((t) => hatZustaendige(t) && !istZustaendig(t, email)) : [];
 
   const uebernehmen = async (t) => {
-    await base44.entities.Ticket.update(t.id, { assignee_email: email });
+    await zustaendigeAendern(t.id, { dazu: email });
     queryClient.invalidateQueries({ queryKey: SUPPORT_TICKETS_KEY });
     onUebernommen?.();
   };
@@ -77,7 +77,7 @@ export default function MeinTagSupportTickets({ email, istFuehrung, members = []
           <button type="button" onClick={() => setAndereOffen((o) => !o)} className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[1px]" style={{ color: RITTLER.textSecondary }}>
             <Icon className="w-3.5 h-3.5" /> Bei anderen ({andere.length})
           </button>
-          {andereOffen && andere.map((t) => <Zeile key={t.id} t={t} zusatz={name(t.assignee_email)} onOeffnen={onOeffnen} />)}
+          {andereOffen && andere.map((t) => <Zeile key={t.id} t={t} zusatz={namenVon(t, members)} onOeffnen={onOeffnen} />)}
         </div>
       )}
     </div>
