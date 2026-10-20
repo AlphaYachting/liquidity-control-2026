@@ -21,6 +21,7 @@ import { brauchtAntwort } from '@/lib/sprint/uebernahme';
 import { RITTLER, STATUS_COLORS, todayIso } from '@/components/sprint/sprintConfig';
 import { ohneArchiv, PROJEKT_LAUFEND, istAktiv } from '@/lib/sprint/aktivFilter';
 import { gliedereMeinTag, nachProjekt } from '@/lib/sprint/meinTag';
+import { zugewiesenAnFilter } from '@/lib/sprint/zustaendige';
 
 const eindeutig = (liste) => [...new Set(liste.filter(Boolean))];
 // Über dieser Menge wird nicht mehr gezielt per ID geladen, sondern die Liste geholt.
@@ -47,9 +48,9 @@ export default function SprintHeute() {
     queryFn: async () => {
       const tagesbeginn = new Date(`${today}T00:00:00`).toISOString();
       const [offene, erledigtHeute, focusDays, pmProjects, settings, todayEntries, members] = await Promise.all([
-        base44.entities.Ticket.filter(ohneArchiv({ assignee_email: email, status: { $ne: 'erledigt' } }), 'order', 1000),
+        base44.entities.Ticket.filter(ohneArchiv({ ...zugewiesenAnFilter(email), status: { $ne: 'erledigt' } }), 'order', 1000),
         base44.entities.Ticket.filter(
-          ohneArchiv({ assignee_email: email, status: 'erledigt', last_status_change: { $gte: tagesbeginn } }),
+          ohneArchiv({ ...zugewiesenAnFilter(email), status: 'erledigt', last_status_change: { $gte: tagesbeginn } }),
           '-last_status_change', 200,
         ),
         base44.entities.FocusDay.filter({ person_email: email, day: today }),
@@ -58,7 +59,7 @@ export default function SprintHeute() {
         base44.entities.TimeEntry.filter({ person_email: email, entry_date: today }),
         base44.entities.TeamMember.filter({ active: { $ne: false } }, 'name', 200),
       ]);
-      const myTickets = [...offene, ...erledigtHeute];
+      const myTickets = [...new Map([...offene, ...erledigtHeute].map((t) => [t.id, t])).values()];
       const focusDay = focusDays[0] || null;
 
       // Nur die Projekte, Kunden, Sprints und Etappen laden, die diese Person wirklich betreffen.
