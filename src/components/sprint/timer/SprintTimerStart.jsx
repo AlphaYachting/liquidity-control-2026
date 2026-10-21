@@ -29,14 +29,18 @@ export default function SprintTimerStart({ project, client, ticketId: festeTicke
     setBusy(true);
     if (laeuftHier) {
       const res = await stop();
-      if (res?.fehler) {
+      if (res?.code === 'beschreibung_fehlt') {
+        toast({ variant: 'destructive', description: 'Nicht gebucht: Support ohne Ticket braucht eine Beschreibung. Bitte über die Timer-Pille unten rechts stoppen und kurz beschreiben, was gemacht wurde — der Timer läuft weiter.' });
+      } else if (res?.fehler) {
         toast({ variant: 'destructive', description: `Nicht gebucht: ${res.fehler} — der Timer läuft weiter.` });
       } else if (res) {
         toast({ description: `${res.hours} h auf ${res.projekt || project.title} gebucht.` });
       }
     } else {
       const res = await start(project, (client?.name || project.title).slice(0, 3).toUpperCase(), '', { force: true, ticketId });
-      if (res?.fehler) {
+      if (res?.code === 'beschreibung_fehlt') {
+        toast({ variant: 'destructive', description: 'Nicht umgeschaltet: Der laufende Support-Timer ohne Ticket braucht zuerst eine Beschreibung. Bitte über die Timer-Pille unten rechts stoppen und kurz beschreiben, was gemacht wurde.' });
+      } else if (res?.fehler) {
         toast({ variant: 'destructive', description: `Nicht umgeschaltet: ${res.fehler} — der bisherige Timer läuft weiter.` });
       } else {
         toast({ description: 'Timer läuft.' });
