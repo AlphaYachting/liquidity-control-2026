@@ -9,7 +9,10 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 //   awork_loesen      { ticket_id }                       → Zuordnung wieder lösen (Führung, nur solange nicht verrechnet)
 //   leistungstext     { ticket_ids }                      → Vorschlag für den Rechnungstext je Ticket (lesen)
 //   sevdesk_verknuepfen { client_id, kontakt }            → Kunde der App mit sevDesk-Kontakt verknüpfen (Führung)
-// Zeitbuchungen werden hier nie verändert — ein „nicht verrechnet"-Ticket fällt nur aus der Abrechnungsliste.
+//   zeit_zuordnen     { time_entry_ids, ticket_id }       → ohne Ticket gebuchte, offene Support-Zeit einem Ticket
+//                                                          desselben Projekts zuordnen (Führung, 21.10.2026)
+// Zeitbuchungen werden hier sonst nie verändert — ein „nicht verrechnet"-Ticket fällt nur aus der Abrechnungsliste.
+// zeit_zuordnen setzt ausschließlich ticket_id an offenen Buchungen ohne Ticket; Dauer, Status und Betrag bleiben.
 
 const GRUENDE = ['wartungsvertrag', 'anderer_auftrag', 'kulanz', 'keine_gesonderte_abrechnung', 'sonstiges'];
 const AWORK_SUPPORT_PROJEKT = 'RITTLER - Supportanfragen';
@@ -72,7 +75,7 @@ export default async function (req) {
     const { aktion } = body;
     const db = base44.asServiceRole.entities;
     const jetzt = new Date().toISOString();
-    const schreibend = ['nicht_verrechnen', 'rueckgaengig', 'awork_zuordnen', 'awork_loesen', 'sevdesk_verknuepfen'];
+    const schreibend = ['nicht_verrechnen', 'rueckgaengig', 'awork_zuordnen', 'awork_loesen', 'sevdesk_verknuepfen', 'zeit_zuordnen'];
     if (schreibend.includes(aktion) && !(await istFuehrung(db, user))) {
       return Response.json({ error: 'Nur Führungskräfte oder Admins dürfen das ändern' }, { status: 403 });
     }
@@ -214,6 +217,25 @@ ${quelle}`,
         texte = { ...fallback };
       }
       return Response.json({ success: true, texte });
+    }
+
+    if (aktion === 'zeit_zuordnen') {
+      const ids = [...new Set((body.time_entry_ids || []).filter(Boolean))].slice(0, 200);
+      const t = await ladeTicket(body.ticket_id);
+      if (!t) return Response.json({ error: 'Ticket nicht gefunden' }, { status: 404 });
+      if (t.archiviert) return Response.json({ error: 'Das Ticket ist archiviert' }, { status: 409 });
+      if (t.verrechnung_status === 'verrechnet') return Response.json({ error: 'Das Ticket ist bereits verrechnet — bitte ein anderes wählen' }, { status: 409 });
+      if (!ids.length) return Response.json({ error: 'Keine Buchungen gewählt' }, { status: 400 });
+      const eintraege = await db.TimeEntry.filter({ id: { $in: ids } }, null, 500);
+      let zugeordnet = 0;
+      const uebersprungen = [];
+      for (const e of eintraege) {
+        const offen = (e.abrechnungsstatus || 'offen') === 'offen';
+        if (e.ticket_id || !offen || e.project_id !== t.project_id) { uebersprungen.push(e.id); continue; }
+        await db.TimeEntry.update(e.id, { ticket_id: t.id });
+        zugeordnet++;
+      }
+      return Response.json({ success: true, zugeordnet, uebersprungen: uebersprungen.length });
     }
 
     if (aktion === 'sevdesk_verknuepfen') {
