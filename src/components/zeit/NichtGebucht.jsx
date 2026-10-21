@@ -59,7 +59,7 @@ export default function NichtGebucht({ info, onNochmal, onWeiterlaufen }) {
 
       <HauptKnopf
         disabled={busy || (mitNotiz && !notiz.trim())}
-        grund={mitNotiz ? 'Es fehlt noch die Beschreibung.' : undefined}
+        grund={mitNotiz && !notiz.trim() ? 'Es fehlt noch die Beschreibung.' : undefined}
         onClick={nochmal}
       >
         {mitNotiz ? 'Mit Beschreibung buchen' : 'Nochmal versuchen'}
