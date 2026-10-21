@@ -10,6 +10,7 @@ import SupportNichtVerrechnenDialog from '@/components/support/SupportNichtVerre
 import SupportAworkZeitDialog from '@/components/support/SupportAworkZeitDialog';
 import SevdeskVerknuepfenDialog from '@/components/support/SevdeskVerknuepfenDialog';
 import SupportInstructionBadge from '@/components/support/SupportInstructionBadge';
+import SupportZeitZuordnenDialog from '@/components/support/SupportZeitZuordnenDialog';
 
 // Ein Kunde mit seinen erledigten App-Tickets — eine Rechnung, je Ticket eine Position
 export default function SupportAppRow({ row, onDone }) {
@@ -20,6 +21,7 @@ export default function SupportAppRow({ row, onDone }) {
   const [nichtTask, setNichtTask] = useState(null);
   const [aworkTask, setAworkTask] = useState(null);
   const [sevdesk, setSevdesk] = useState(false);
+  const [zuordnenTask, setZuordnenTask] = useState(null);
   const verknuepft = Boolean(row.sevdesk_contact_id);
   const regie = row.art === 'regie';
   const ohneZeit = row.tasks.filter((t) => t.ohne_zeit).length;
@@ -69,6 +71,7 @@ export default function SupportAppRow({ row, onDone }) {
               onInvoice={(task) => setDialogTasks([task])}
               onNichtVerrechnen={setNichtTask}
               onAworkZeit={setAworkTask}
+              onZuordnen={setZuordnenTask}
               regie={regie}
             />
           ))}
@@ -89,6 +92,9 @@ export default function SupportAppRow({ row, onDone }) {
       )}
       {aworkTask && (
         <SupportAworkZeitDialog task={aworkTask} open={true} onOpenChange={(o) => { if (!o) setAworkTask(null); }} onDone={onDone} />
+      )}
+      {zuordnenTask && (
+        <SupportZeitZuordnenDialog task={zuordnenTask} open={true} onOpenChange={(o) => { if (!o) setZuordnenTask(null); }} onDone={onDone} />
       )}
       {sevdesk && (
         <SevdeskVerknuepfenDialog clientId={row.client_id} kundenname={row.customer_name} open={true} onOpenChange={setSevdesk} onDone={onDone} />
