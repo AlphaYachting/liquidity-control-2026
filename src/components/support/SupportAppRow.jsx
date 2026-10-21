@@ -24,7 +24,8 @@ export default function SupportAppRow({ row, onDone }) {
   const [zuordnenTask, setZuordnenTask] = useState(null);
   const verknuepft = Boolean(row.sevdesk_contact_id);
   const regie = row.art === 'regie';
-  const ohneZeit = row.tasks.filter((t) => t.ohne_zeit).length;
+  // „ohne gebuchte Zeit“ zählt nicht mit, was bewusst als nicht verrechenbar gebucht wurde
+  const ohneZeit = row.tasks.filter((t) => t.ohne_zeit && !(t.nicht_verrechenbar_minutes > 0)).length;
   const stunden = row.billable_minutes / 60;
   const vorbehalt = (row.vorbehalt_minutes || 0) / 60;
 
