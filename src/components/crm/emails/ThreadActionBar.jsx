@@ -107,10 +107,10 @@ export default function ThreadActionBar({ thread, messages = [], onChanged }) {
         open={supportOpen}
         onOpenChange={setSupportOpen}
         item={supportOpen ? item : null}
-        onDone={(ticket, back, hinweis) => {
+        onDone={(ticket, back, hinweis, info) => {
           onChanged?.();
           toast({
-            title: `Support-Ticket „${ticket.title}" angelegt`,
+            title: info?.angehaengt ? `An Ticket „${ticket.title}" angehängt` : `Support-Ticket „${ticket.title}" angelegt`,
             description: [hinweis, back.ok ? '' : 'Der Thread konnte in der E-Mail-Zentrale nicht markiert werden.'].filter(Boolean).join(' ') || undefined,
           });
         }}
