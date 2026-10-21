@@ -5,6 +5,7 @@ import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { findeKunde } from '@/lib/kunden/kundeAnlegen';
 import { threadTranscript, ohneZitat, istSystemMail } from '@/components/crm/support/threadDescription';
 import { formatMailDate } from '@/components/crm/emails/emailConfig';
+import { alsDatum } from '@/lib/zeitpunkt';
 import { faelligAm } from '@/components/crm/support/faelligkeit';
 import { zustaendigFelder } from '@/lib/sprint/zustaendige';
 
@@ -86,13 +87,15 @@ export async function offeneTicketsZurKonversation(item) {
 // wird wieder offen, Posteingang und E-Mail-Datenbank werden wie beim Anlegen geschlossen.
 export async function anTicketAnhaengen({ item, ticket }) {
   const threadId = threadIdOf(item);
-  const seit = String(ticket.created_date || '');
+  // Beide Zeitpunkte sind UTC ohne Zonenangabe — als Zeitpunkt vergleichen, nicht als Text
+  const seit = alsDatum(ticket.created_date)?.getTime() || 0;
+  const mailZeit = (s) => new Date(`${String(s || '').slice(0, 19).replace(' ', 'T')}Z`).getTime() || 0;
   let text = '';
   if (threadId) {
     const data = await emailApi('thread', { params: { id: threadId, msgs: 30, full: 1 } }).catch(() => null);
     const neu = (data?.messages || [])
-      .filter((m) => !istSystemMail(m) && String(m.received_at || '') > seit)
-      .sort((a, b) => String(a.received_at || '').localeCompare(String(b.received_at || '')));
+      .filter((m) => !istSystemMail(m) && mailZeit(m.received_at) > seit)
+      .sort((a, b) => mailZeit(a.received_at) - mailZeit(b.received_at));
     text = neu.map((m) => {
       const kopf = `${m.from_name || m.from || 'Unbekannt'} · ${formatMailDate(m.received_at)} · ${m.direction === 'in' ? 'eingehend' : 'ausgehend'}`;
       return `${kopf}\n${ohneZitat(String(m.text || m.preview || '').trim())}`;
