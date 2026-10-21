@@ -199,9 +199,10 @@ export default function TimerKnopf() {
           ) : nichtGebucht ? (
             <NichtGebucht
               info={nichtGebucht}
-              onNochmal={async () => {
+              onNochmal={async (neueNotiz) => {
                 setNichtGebucht(null);
-                await stoppen(letzterStopp.note, letzterStopp.abzugMinuten);
+                // Fehlte die Beschreibung (Support ohne Ticket), kommt sie aus dem Fenster
+                await stoppen(neueNotiz || letzterStopp.note, letzterStopp.abzugMinuten);
               }}
               onWeiterlaufen={schliessen}
             />
