@@ -45,7 +45,12 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
     return (t.notizen || []).join(', ') || 'Regieleistungen';
   };
   const [rate, setRate] = useState(row.stundensatz || 130);
-  const [selected, setSelected] = useState(() => row.tasks.filter((t) => !t.vorbehalt).map((t) => t.key));
+  // Nicht vorausgewählt: Buchungen vor der Umstellung, und Tickets ohne verrechenbare Zeit, bei denen
+  // bewusst nicht verrechenbar gebucht oder „ohne Zeit erledigt“ mit Grund angegeben wurde (21.10.2026)
+  const vorauswahl = (t) => !t.vorbehalt && !(t.ohne_zeit && (t.nicht_verrechenbar_minutes > 0 || t.ohne_zeit_grund));
+  const [selected, setSelected] = useState(() => row.tasks.filter(vorauswahl).map((t) => t.key));
+  // Eingetippte Stunden ohne Buchung brauchen eine interne Begründung (steht nicht auf der Rechnung)
+  const [begruendung, setBegruendung] = useState({});
   const [stunden, setStunden] = useState(() => Object.fromEntries(row.tasks.map((t) => [t.key, startStunden(t)])));
   const [texte, setTexte] = useState(() => Object.fromEntries(row.tasks.map((t) => [t.key, startText(t)])));
   const [laedtTexte, setLaedtTexte] = useState(false);
@@ -98,14 +103,16 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
       text: [leistung, fusszeile].filter(Boolean).join('\n'),
       quantity: menge,
       price: Number(rate || 0),
+      ...(t.ohne_zeit ? { ohne_buchung: true, stunden_begruendung: String(begruendung[t.key] || '').trim() } : {}),
     };
   });
   const fehlendeStunden = positionen.filter((p) => p.quantity <= 0).length;
   const fehlendeTexte = positionen.filter((p) => !p.leistung).length;
+  const fehlendeBegruendung = positionen.filter((p) => p.ohne_buchung && !p.stunden_begruendung).length;
   const summeStunden = positionen.reduce((s, p) => s + p.quantity, 0);
   const netto = Math.round(summeStunden * Number(rate || 0) * 100) / 100;
   const kundeOk = Boolean(row.sevdesk_contact_id);
-  const bereit = kundeOk && positionen.length > 0 && !fehlendeStunden && !fehlendeTexte && netto > 0 && !laedtTexte;
+  const bereit = kundeOk && positionen.length > 0 && !fehlendeStunden && !fehlendeTexte && !fehlendeBegruendung && netto > 0 && !laedtTexte;
 
   const anlegen = async () => {
     setBusy(true);
@@ -237,8 +244,27 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
                   </div>
                   {leer && (
                     <p className="text-xs text-red-600 ml-7">
-                      Keine Zeit gebucht — bitte Stunden eintragen{t.target_hours ? ` (Plan: ${t.target_hours} h)` : ''}.
+                      Keine verrechenbare Zeit gebucht — bitte Stunden eintragen{t.target_hours ? ` (Plan: ${t.target_hours} h)` : ''}.
                     </p>
+                  )}
+                  {t.ohne_zeit && (t.nicht_verrechenbar_minutes > 0 || t.ohne_zeit_grund) && (
+                    <p className="text-xs text-amber-800 ml-7">
+                      {t.nicht_verrechenbar_minutes > 0
+                        ? `${(t.nicht_verrechenbar_minutes / 60).toFixed(2)} h als nicht verrechenbar gebucht (${(t.nicht_verrechenbar_gruende || []).join(', ')}).`
+                        : ''}
+                      {t.ohne_zeit_grund ? ` Ohne Zeit erledigt: ${t.ohne_zeit_grund}${t.ohne_zeit_notiz ? ` — ${t.ohne_zeit_notiz}` : ''}.` : ''}
+                    </p>
+                  )}
+                  {t.ohne_zeit && aktiv && (
+                    <div className="ml-7">
+                      <Label className="text-xs">Begründung für die Stunden (intern, nicht auf der Rechnung) *</Label>
+                      <Input
+                        value={begruendung[t.key] || ''}
+                        placeholder="z. B. Zeit lag in aWork, 30 min laut Kollegen"
+                        onChange={(e) => setBegruendung((s) => ({ ...s, [t.key]: e.target.value }))}
+                        className={String(begruendung[t.key] || '').trim() ? '' : 'border-red-500'}
+                      />
+                    </div>
                   )}
                   <div className="ml-7">
                     <Label className="text-xs">Leistungsbeschreibung (erscheint auf der Rechnung)</Label>
@@ -279,7 +305,7 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
         <DialogFooter className="px-6 py-3 border-t shrink-0 sm:items-center">
           {!bereit && kundeOk && positionen.length > 0 && !laedtTexte && (
             <p className="text-xs text-muted-foreground sm:mr-auto">
-              {fehlendeStunden ? `${fehlendeStunden} Position(en) ohne Stunden. ` : ''}{fehlendeTexte ? `${fehlendeTexte} Position(en) ohne Leistungsbeschreibung.` : ''}
+              {fehlendeStunden ? `${fehlendeStunden} Position(en) ohne Stunden. ` : ''}{fehlendeTexte ? `${fehlendeTexte} Position(en) ohne Leistungsbeschreibung. ` : ''}{fehlendeBegruendung ? `${fehlendeBegruendung} Position(en) ohne gebuchte Zeit brauchen eine Begründung.` : ''}
             </p>
           )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
