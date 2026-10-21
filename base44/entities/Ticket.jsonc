@@ -294,6 +294,28 @@
     "verrechnung_text": {
       "description": "Leistungsbeschreibung, die auf der Rechnung stand",
       "type": "string"
+    },
+    "ohne_zeit_grund": {
+      "description": "Support-Ticket ohne Zeitbuchung erledigt: warum keine Zeit gebucht wurde (entscheidet nicht \u00fcber die Verrechnung \u2014 das macht die F\u00fchrung in der Support-Abrechnung)",
+      "enum": [
+        "zeit_in_awork",
+        "kein_aufwand",
+        "doppelt",
+        "anderer_auftrag",
+        "sonstiges"
+      ],
+      "type": "string"
+    },
+    "ohne_zeit_notiz": {
+      "type": "string"
+    },
+    "ohne_zeit_von": {
+      "format": "email",
+      "type": "string"
+    },
+    "ohne_zeit_am": {
+      "format": "date-time",
+      "type": "string"
     }
   }
 }
