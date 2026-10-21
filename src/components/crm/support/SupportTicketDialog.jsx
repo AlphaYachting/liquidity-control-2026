@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { resolveSupportProject, createSupportTicket, SUPPORT_MODELS, DEFAULT_SUPPORT_RATE } from '@/components/crm/support/supportTicket';
+import { resolveSupportProject, createSupportTicket, SUPPORT_MODELS, DEFAULT_SUPPORT_RATE, offeneTicketsZurKonversation, anTicketAnhaengen } from '@/components/crm/support/supportTicket';
+import { TICKET_STATUS_LABELS } from '@/components/sprint/sprintConfig';
 import { descriptionFromThread } from '@/components/crm/support/threadDescription';
 import { kundenSchluessel } from '@/lib/kunden/kundeAnlegen';
 import { dringlichkeit, faelligAm, SUPPORT_FRIST_TAGE } from '@/components/crm/support/faelligkeit';
@@ -30,6 +31,17 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
   // Kundensuche statt langer Auswahlliste; fehlt der Kunde, direkt aus sevDesk übernehmen oder anlegen
   const [kundeSuche, setKundeSuche] = useState('');
   const [neuAnlegen, setNeuAnlegen] = useState(false);
+  // Doppelticket-Schutz (21.10.2026): gibt es zur Konversation schon ein offenes Ticket,
+  // wird angehängt — ein zweites Ticket nur, wenn es ausdrücklich eine neue Anfrage ist.
+  const [neuBestaetigt, setNeuBestaetigt] = useState(false);
+  const itemSchluessel = String(item?.id || item?.thread_id || item?.email_message_id || '');
+  const { data: vorhandene = KEINE } = useQuery({
+    queryKey: ['support-offene-zur-konversation', itemSchluessel],
+    queryFn: () => offeneTicketsZurKonversation(item),
+    enabled: open && !!item,
+  });
+  useEffect(() => { setNeuBestaetigt(false); }, [itemSchluessel, open]);
+  const vorhandenOffen = vorhandene.length > 0 && !neuBestaetigt;
 
   const { data: projects = KEINE } = useQuery({
     queryKey: ['support-projects'],
@@ -157,6 +169,20 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const anhaengen = async (ticket) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { back, hinweis } = await anTicketAnhaengen({ item, ticket });
+      setBusy(false);
+      onOpenChange(false);
+      onDone?.(ticket, back, hinweis);
+    } catch (e) {
+      setBusy(false);
+      setError(e?.response?.data?.detail || e?.message || 'Die Nachricht konnte nicht angehängt werden.');
+    }
+  };
+
   const submit = async () => {
     setBusy(true);
     setError(null);
@@ -199,6 +225,30 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0">
         <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0"><DialogTitle>Support-Ticket anlegen</DialogTitle></DialogHeader>
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
+          {vorhandenOffen && (
+            <div className="rounded-md border border-status-attention/40 bg-status-attention/5 p-3 space-y-2">
+              <p className="text-sm font-semibold">
+                Zu dieser E-Mail gibt es schon {vorhandene.length === 1 ? 'ein offenes Ticket' : `${vorhandene.length} offene Tickets`}
+              </p>
+              {vorhandene.map((t) => (
+                <div key={t.id} className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{t.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {TICKET_STATUS_LABELS?.[t.status] || t.status}{t.customer_name ? ` · ${t.customer_name}` : ''}
+                    </p>
+                  </div>
+                  <Button size="sm" onClick={() => anhaengen(t)} disabled={busy}>An dieses Ticket anhängen</Button>
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground">
+                Die neue Nachricht kommt als Kommentar ins Ticket — so wird die Zeit nicht auf zwei Tickets verteilt.{' '}
+                <button type="button" className="underline" onClick={() => setNeuBestaetigt(true)}>
+                  Es ist eine neue, eigene Anfrage — trotzdem eigenes Ticket anlegen
+                </button>
+              </p>
+            </div>
+          )}
           {/* Wer, für wen — Kunde und Zuständig stehen ganz oben */}
           {/* Kunde zuerst und über die ganze Breite: EIN Suchfeld — findet es nichts im Verzeichnis,
               erscheinen darunter sofort die sevDesk-Treffer und „neu anlegen“ zum eingetippten Namen */}
@@ -373,7 +423,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
         <DialogFooter className="px-6 py-3 border-t shrink-0 sm:items-center">
           {error && <p className="text-xs text-destructive sm:mr-auto sm:max-w-[60%]">{error}</p>}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Abbrechen</Button>
-          <Button onClick={submit} disabled={busy || loadingThread || !form.customer || !form.title || !form.description.trim() || !form.assignee_email}>
+          <Button onClick={submit} disabled={busy || loadingThread || vorhandenOffen || !form.customer || !form.title || !form.description.trim() || !form.assignee_email}>
             {busy ? 'Wird angelegt…' : 'Ticket anlegen'}
           </Button>
         </DialogFooter>
