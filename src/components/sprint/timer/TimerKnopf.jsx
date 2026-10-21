@@ -106,6 +106,14 @@ export default function TimerKnopf() {
     }
     const res = await start(project, kuerzel, notiz, opts);
     if (res?.started) setOffen(false);
+    // Umschalten gescheitert, weil der laufende Support-Timer ohne Ticket keine Beschreibung hat:
+    // Fenster fragt danach, der laufende Timer bleibt stehen (21.10.2026)
+    if (res?.code === 'beschreibung_fehlt' && timer) {
+      setTippzeile(false);
+      setWechsel(false);
+      setLetzterStopp({ note: '', abzugMinuten: 0 });
+      setNichtGebucht({ ...res, projekt: timer.projekt_titel, projectId: timer.project_id, minuten: elapsedMinutes });
+    }
     return res;
   };
 
