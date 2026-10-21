@@ -176,7 +176,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
       const { back, hinweis } = await anTicketAnhaengen({ item, ticket });
       setBusy(false);
       onOpenChange(false);
-      onDone?.(ticket, back, hinweis);
+      onDone?.(ticket, back, hinweis, { angehaengt: true });
     } catch (e) {
       setBusy(false);
       setError(e?.response?.data?.detail || e?.message || 'Die Nachricht konnte nicht angehängt werden.');
