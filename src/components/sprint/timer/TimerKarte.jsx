@@ -11,6 +11,7 @@ import FussVerweise from '@/components/zeit/FussVerweise';
 import BereichChips from '@/components/zeit/BereichChips';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
+import { istSupportOhneTicket } from '@/lib/zeit/supportBeschreibung';
 
 const jetztMinute = () => {
   const d = new Date();
@@ -28,6 +29,9 @@ export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzoge
   const qc = useQueryClient();
 
   const pausenMinuten = pausen.reduce((s, p) => s + (p.bis - p.von), 0);
+  // Support ohne Ticket: Beschreibung ist Pflicht (21.10.2026) — eine Notiz vom Start zählt mit
+  const notizPflicht = istSupportOhneTicket(kontext?.project, timer.ticket_id) && !String(timer.notiz || '').trim();
+  const notizFehlt = notizPflicht && !notiz.trim();
 
   const pauseUmschalten = () => {
     if (pauseAb === null) setPauseAb(jetztMinute());
@@ -99,12 +103,17 @@ export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzoge
       <Input
         autoFocus
         className="mt-3"
-        placeholder="Notiz zur Buchung"
+        placeholder={notizPflicht ? 'Was wurde gemacht? (Pflicht bei Support ohne Ticket)' : 'Notiz zur Buchung'}
         value={notiz}
         onChange={(e) => setNotiz(e.target.value)}
       />
 
-      <HauptKnopf disabled={busy} onClick={stoppen} icon={<Square className="w-4 h-4" />}>
+      <HauptKnopf
+        disabled={busy || notizFehlt}
+        grund={notizFehlt ? 'Support ohne Ticket: Bitte kurz beschreiben, was gemacht wurde.' : undefined}
+        onClick={stoppen}
+        icon={<Square className="w-4 h-4" />}
+      >
         Stoppen und buchen
       </HauptKnopf>
 
