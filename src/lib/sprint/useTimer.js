@@ -5,6 +5,7 @@ import { todayIso } from '@/components/sprint/sprintConfig';
 import { ermittleBuchungsfelder, ueberKontingentPruefen, sperreDurchsetzen, kontingentGesperrt, sperrMeldung, ladeKontingentVorab } from './buchungsfelder';
 import { vorbelegeTaetigkeit } from '@/lib/zeit/taetigkeit';
 import { vorbelegeBereich } from '@/lib/zeit/leistungsbereich';
+import { brauchtBeschreibung, BESCHREIBUNG_FEHLT } from '@/lib/zeit/supportBeschreibung';
 
 const KEY = 'sprint_timer_cache';
 const MAX_MINUTEN = 600; // 10 Stunden
@@ -73,6 +74,13 @@ export async function bucheZeit({
     ermittleBuchungsfelder(projectId),
     minuten > 0 ? ladeKontingentVorab({ projectId, tag }) : Promise.resolve(null),
   ]);
+  // Support ohne Ticket: Beschreibung ist Pflicht (21.10.2026)
+  if (minuten > 0 && quelle !== 'korrektur' && !ticketId && !String(note || '').trim()) {
+    const projekt = vorab?.project || await base44.entities.Project.get(projectId);
+    if (brauchtBeschreibung({ project: projekt, ticketId, note, minuten, quelle })) {
+      throw Object.assign(new Error(BESCHREIBUNG_FEHLT), { sperre: true, beschreibung: true });
+    }
+  }
   // Tätigkeit: die Vorbelegung greift immer, eine ausdrückliche Wahl hat Vorrang.
   const art = taetigkeit || (await vorbelegeTaetigkeit({
     kategorie: felder.kategorie,
@@ -247,6 +255,7 @@ export function useTimer(email, { ticken = true, nurTicketId } = {}) {
       // Nichts wurde gelöscht — die gemessene Zeit ist erhalten.
       return {
         fehler: e?.response?.data?.fehler || e.message || 'Buchung nicht gespeichert',
+        code: e?.response?.data?.code || null,
         minuten: Math.max(0, minutenSeit(aktuell.gestartet_am) - (Number(abzugMinuten) || 0)),
         projekt: aktuell.projekt_titel,
         projectId: aktuell.project_id,
@@ -267,7 +276,7 @@ export function useTimer(email, { ticken = true, nurTicketId } = {}) {
     if (bestehend) {
       const res = await stop();
       // Nicht gebucht heißt nicht umschalten — sonst geht die gemessene Zeit verloren.
-      if (res?.fehler) return { fehler: res.fehler };
+      if (res?.fehler) return { fehler: res.fehler, code: res.code || null };
     }
     // Eindeutigkeit erzwingen: etwaige Reste derselben Person entfernen.
     const reste = await base44.entities.LaufendeZeitbuchung.filter({ person_email: email }, '-gestartet_am', 50);
