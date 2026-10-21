@@ -3,7 +3,8 @@ import { threadIdOf, eintragAendern } from '@/components/crm/inboxDecision';
 import { emailApi } from '@/components/crm/emails/emailApi';
 import { ensureContainer } from '@/lib/sprint/ensureContainer';
 import { findeKunde } from '@/lib/kunden/kundeAnlegen';
-import { threadTranscript } from '@/components/crm/support/threadDescription';
+import { threadTranscript, ohneZitat, istSystemMail } from '@/components/crm/support/threadDescription';
+import { formatMailDate } from '@/components/crm/emails/emailConfig';
 import { faelligAm } from '@/components/crm/support/faelligkeit';
 import { zustaendigFelder } from '@/lib/sprint/zustaendige';
 
@@ -69,6 +70,73 @@ export async function resolveSupportProject(customerName, options = {}) {
 
   const milestone = await ensureSupportContainer(project);
   return { project, project_id: project.id, milestone_id: milestone.id };
+}
+
+// Offene Tickets zu einer E-Mail-Konversation (Doppelticket-Schutz, 21.10.2026).
+// Erledigte zählen nicht: eine neue Nachricht nach Abschluss ist meist ein neuer Auftrag.
+export async function offeneTicketsZurKonversation(item) {
+  const threadId = threadIdOf(item);
+  if (!threadId) return [];
+  const tickets = await base44.entities.Ticket.filter({ source_thread_id: String(threadId) }, '-created_date', 20).catch(() => []);
+  return tickets.filter((t) => !t.archiviert && t.status !== 'erledigt');
+}
+
+// Neue Nachricht an ein bestehendes offenes Ticket hängen statt ein zweites anzulegen:
+// die seit dem Anlegen eingegangenen Mails als Kommentar ins Ticket, ein wartendes Ticket
+// wird wieder offen, Posteingang und E-Mail-Datenbank werden wie beim Anlegen geschlossen.
+export async function anTicketAnhaengen({ item, ticket }) {
+  const threadId = threadIdOf(item);
+  const seit = String(ticket.created_date || '');
+  let text = '';
+  if (threadId) {
+    const data = await emailApi('thread', { params: { id: threadId, msgs: 30, full: 1 } }).catch(() => null);
+    const neu = (data?.messages || [])
+      .filter((m) => !istSystemMail(m) && String(m.received_at || '') > seit)
+      .sort((a, b) => String(a.received_at || '').localeCompare(String(b.received_at || '')));
+    text = neu.map((m) => {
+      const kopf = `${m.from_name || m.from || 'Unbekannt'} · ${formatMailDate(m.received_at)} · ${m.direction === 'in' ? 'eingehend' : 'ausgehend'}`;
+      return `${kopf}\n${ohneZitat(String(m.text || m.preview || '').trim())}`;
+    }).join('\n\n---\n\n');
+  }
+  if (!text && item.body) text = String(item.body).trim();
+  const kommentar = [
+    'Neue Nachricht in derselben E-Mail-Konversation — an dieses Ticket angehängt, statt ein zweites anzulegen.',
+    text ? text.slice(0, 8000) : '',
+    threadId ? `Konversation: /crm/emails?thread=${threadId}` : '',
+  ].filter(Boolean).join('\n\n');
+  const me = await base44.auth.me().catch(() => null);
+  await base44.entities.Comment.create({
+    project_id: ticket.project_id,
+    milestone_id: ticket.milestone_id || undefined,
+    ticket_id: ticket.id,
+    author_email: me?.email || 'System',
+    text: kommentar,
+    created_at: new Date().toISOString(),
+  });
+  if (ticket.status === 'wartet') {
+    await base44.entities.Ticket.update(ticket.id, { status: 'offen', last_status_change: new Date().toISOString() });
+  }
+
+  let hinweis = '';
+  if (item.id) {
+    try {
+      await eintragAendern(item.id, { status: 'converted', decision: 'zugeordnet', linked_ticket_id: ticket.id });
+    } catch (e) {
+      hinweis = `Der Posteingangs-Eintrag konnte nicht geschlossen werden (${e?.message || 'unbekannter Fehler'}).`;
+    }
+  }
+  let back = { ok: true };
+  if (threadId) {
+    try {
+      await emailApi('enrich', {
+        thread_id: threadId,
+        fields: { crm_status: 'supportticket_angelegt', crm_ticket_id: ticket.id, status: 'beantwortet' },
+      });
+    } catch (e) {
+      back = { ok: false, error: e?.message || 'unbekannter Fehler' };
+    }
+  }
+  return { ticket, back, hinweis, angehaengt: true };
 }
 
 // Support-Anfrage in ein Ticket überführen — es entsteht KEINE Rechnung.
