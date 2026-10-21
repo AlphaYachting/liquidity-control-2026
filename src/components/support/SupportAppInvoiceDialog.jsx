@@ -48,7 +48,10 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
   // Nicht vorausgewählt: Buchungen vor der Umstellung, und Tickets ohne verrechenbare Zeit, bei denen
   // bewusst nicht verrechenbar gebucht oder „ohne Zeit erledigt“ mit Grund angegeben wurde (21.10.2026)
   const vorauswahl = (t) => !t.vorbehalt && !(t.ohne_zeit && (t.nicht_verrechenbar_minutes > 0 || t.ohne_zeit_grund));
-  const [selected, setSelected] = useState(() => row.tasks.filter(vorauswahl).map((t) => t.key));
+  // Einzelrechnung: die eine, bewusst gewählte Position ist immer ausgewählt (außer vor der Umstellung)
+  const [selected, setSelected] = useState(() => (row.tasks.length === 1
+    ? row.tasks.filter((t) => !t.vorbehalt)
+    : row.tasks.filter(vorauswahl)).map((t) => t.key));
   // Eingetippte Stunden ohne Buchung brauchen eine interne Begründung (steht nicht auf der Rechnung)
   const [begruendung, setBegruendung] = useState({});
   const [stunden, setStunden] = useState(() => Object.fromEntries(row.tasks.map((t) => [t.key, startStunden(t)])));
