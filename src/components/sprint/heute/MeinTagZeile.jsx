@@ -125,8 +125,15 @@ function TimerKnopfZeile({ ticket, project, client }) {
       if (res?.fehler) toast({ description: res.fehler });
       else if (res) toast({ description: `${res.hours} h auf ${res.projekt || project.title} gebucht.` });
     } else {
-      await start(project, (client?.name || project.title).slice(0, 3).toUpperCase(), '', { force: true, ticketId: ticket.id });
-      toast({ description: 'Timer läuft.' });
+      const res = await start(project, (client?.name || project.title).slice(0, 3).toUpperCase(), '', { force: true, ticketId: ticket.id });
+      // Gescheitert heißt: der bisherige Timer läuft weiter — das muss sichtbar sein
+      if (res?.code === 'beschreibung_fehlt') {
+        toast({ variant: 'destructive', description: 'Nicht umgeschaltet: Der laufende Support-Timer ohne Ticket braucht zuerst eine Beschreibung. Bitte über die Timer-Pille unten rechts stoppen und kurz beschreiben, was gemacht wurde.' });
+      } else if (res?.fehler) {
+        toast({ variant: 'destructive', description: `Nicht umgeschaltet: ${res.fehler} — der bisherige Timer läuft weiter.` });
+      } else {
+        toast({ description: 'Timer läuft.' });
+      }
     }
     qc.invalidateQueries({ queryKey: ['ticketHours'] });
     qc.invalidateQueries({ queryKey: ['sprintHeute'] });
