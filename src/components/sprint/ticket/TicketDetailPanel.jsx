@@ -535,15 +535,16 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
           )}
           {!(darf && !archiviert) && <div className="pb-4" />}
         </div>
+        {/* Im SheetContent, damit Klicks im Dialog das Panel nicht schließen */}
+        <SupportOhneZeitDialog
+          offen={ohneZeit}
+          onCancel={() => setOhneZeit(null)}
+          onConfirm={async () => {
+            setOhneZeit(null);
+            await speichern({ zeitGeprueft: true });
+          }}
+        />
       </SheetContent>
-      <SupportOhneZeitDialog
-        offen={ohneZeit}
-        onCancel={() => setOhneZeit(null)}
-        onConfirm={async () => {
-          setOhneZeit(null);
-          await speichern({ zeitGeprueft: true });
-        }}
-      />
     </Sheet>
   );
 }
