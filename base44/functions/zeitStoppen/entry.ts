@@ -94,6 +94,21 @@ export default async function (req: Request): Promise<Response> {
     const minuten = Math.max(0, gemessen - (Number(abzug_minuten) || 0));
     const tag = entry_date || String(laufende.gestartet_am).slice(0, 10);
 
+    // Notiz vom Start und vom Stoppen — ist sie gleich, nur einmal (sonst steht „X · X“ in der Buchung)
+    const notizText = [...new Set([laufende.notiz, notiz].map((t) => String(t || '').trim()).filter(Boolean))].join(' · ');
+
+    // Support ohne Ticket (Entscheidung 21.10.2026): keine Ticketpflicht, aber Beschreibung ist Pflicht.
+    // Nichts wird gebucht oder gelöscht — der Timer läuft weiter, bis eine Beschreibung kommt.
+    const istSupport = !project.is_legacy
+      && ['aufwand', 'support'].includes(project.abrechnungsmodell)
+      && project.aufwand_art !== 'regie';
+    if (istSupport && !laufende.ticket_id && minuten > 0 && !notizText) {
+      return Response.json({
+        fehler: 'Support ohne Ticket: Bitte kurz beschreiben, was gemacht wurde — sonst lässt sich die Zeit nicht verrechnen.',
+        code: 'beschreibung_fehlt',
+      }, { status: 422 });
+    }
+
     // Kontingent/Monatsrahmen bei Container, Support und Regie prüfen
     let ueber = false;
     const kontingent = Number(project.support_kontingent_stunden) || 0;
@@ -131,8 +146,7 @@ export default async function (req: Request): Promise<Response> {
       hours: Math.round((minuten / 60) * 100) / 100,
       taetigkeit: art,
       quelle: 'timer',
-      // Notiz vom Start und vom Stoppen — ist sie gleich, nur einmal (sonst steht „X · X“ in der Buchung)
-      note: [...new Set([laufende.notiz, notiz].map((t) => String(t || '').trim()).filter(Boolean))].join(' · '),
+      note: notizText,
       source: 'bestaetigt',
     });
 
