@@ -22,6 +22,8 @@ import { ARCHIV_GRUENDE, ARCHIV_GRUND_LABEL } from '@/lib/sprint/aktivFilter';
 import { ticketBereinigen, darfBereinigen } from '@/lib/sprint/ticketBereinigen';
 import { useZugriff } from '@/lib/useZugriff';
 import { zustaendigeVon, zustaendigeAendern, normMail, personVon, MAX_ZUSTAENDIGE } from '@/lib/sprint/zustaendige';
+import SupportOhneZeitDialog from '@/components/sprint/SupportOhneZeitDialog';
+import { supportOhneZeit } from '@/lib/sprint/supportErledigt';
 
 const STATES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
 const ORIGIN_LABEL = {
@@ -47,6 +49,8 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
   const [form, setForm] = useState(ticket || {});
   const [saving, setSaving] = useState(false);
   const [speicherFehler, setSpeicherFehler] = useState('');
+  // Support-Ticket ohne Zeit auf „erledigt“: erst Zeit oder Grund (21.10.2026)
+  const [ohneZeit, setOhneZeit] = useState(null);
 
   useEffect(() => {
     const z = zustaendigeVon(ticket);
@@ -173,10 +177,18 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
   const faelligGeaendert = faelligNeu !== (ticket.planned_for || '') && !(ticket.rhythmus && !faelligNeu);
 
   // Speichern mit sichtbarer Fehlermeldung — vorher blieb der Knopf bei einem Fehler stumm hängen
-  const speichern = async () => {
+  const speichern = async ({ zeitGeprueft = false } = {}) => {
     setSaving(true);
     setSpeicherFehler('');
     try {
+      if (!zeitGeprueft && form.status === 'erledigt' && ticket.status !== 'erledigt') {
+        const pruef = await supportOhneZeit(ticket);
+        if (pruef) {
+          setOhneZeit({ ticket, project: pruef.project });
+          setSaving(false);
+          return;
+        }
+      }
       await speichernAusfuehren();
       onSaved?.();
       onOpenChange(false);
@@ -524,6 +536,14 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
           {!(darf && !archiviert) && <div className="pb-4" />}
         </div>
       </SheetContent>
+      <SupportOhneZeitDialog
+        offen={ohneZeit}
+        onCancel={() => setOhneZeit(null)}
+        onConfirm={async () => {
+          setOhneZeit(null);
+          await speichern({ zeitGeprueft: true });
+        }}
+      />
     </Sheet>
   );
 }
