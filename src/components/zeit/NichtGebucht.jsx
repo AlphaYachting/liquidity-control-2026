@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { dauerText } from '@/lib/zeit/tagesAuswertung';
 import { useProjektKontext } from '@/lib/sprint/useProjektKontext';
@@ -10,11 +11,14 @@ import FussVerweise from './FussVerweise';
 // Fenster es ausdrücklich — und der Timer läuft weiter.
 export default function NichtGebucht({ info, onNochmal, onWeiterlaufen }) {
   const [busy, setBusy] = useState(false);
+  const [notiz, setNotiz] = useState('');
   const { data: pk } = useProjektKontext(info.projectId);
+  // Support ohne Ticket: gebucht wird erst mit Beschreibung (21.10.2026)
+  const mitNotiz = info.code === 'beschreibung_fehlt';
 
   const nochmal = async () => {
     setBusy(true);
-    await onNochmal();
+    await onNochmal(mitNotiz ? notiz.trim() : undefined);
     setBusy(false);
   };
 
@@ -42,7 +46,24 @@ export default function NichtGebucht({ info, onNochmal, onWeiterlaufen }) {
         <p className="text-[12px] mt-2" style={{ color: RITTLER.textSecondary }}>{info.fehler}</p>
       )}
 
-      <HauptKnopf disabled={busy} onClick={nochmal}>Nochmal versuchen</HauptKnopf>
+      {mitNotiz && (
+        <Input
+          autoFocus
+          className="mt-3"
+          placeholder="Was wurde gemacht?"
+          value={notiz}
+          onChange={(e) => setNotiz(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && notiz.trim() && !busy) nochmal(); }}
+        />
+      )}
+
+      <HauptKnopf
+        disabled={busy || (mitNotiz && !notiz.trim())}
+        grund={mitNotiz ? 'Es fehlt noch die Beschreibung.' : undefined}
+        onClick={nochmal}
+      >
+        {mitNotiz ? 'Mit Beschreibung buchen' : 'Nochmal versuchen'}
+      </HauptKnopf>
 
       <FussVerweise rechts={{ text: 'Weiterlaufen lassen', onClick: onWeiterlaufen }} />
     </div>
