@@ -15,6 +15,19 @@ const istSupportProjekt = (p) => SUPPORT_MODELS.includes(p.abrechnungsmodell) &&
 const istOffen = (e) => e.verrechenbar !== false && (e.abrechnungsstatus || 'offen') === 'offen';
 const istAbgerechnet = (e) => e.abrechnungsstatus === 'abgerechnet';
 
+// Bezeichnungen wie in src/components/zeit/VerrechenbarSchalter.jsx bzw. src/lib/sprint/supportErledigt.js
+const NV_GRUND = {
+  kulanz: 'Kulanz', interne_nacharbeit: 'Interne Nacharbeit', fehler: 'Fehler von uns',
+  einarbeitung: 'Einarbeitung', akquise: 'Akquise', intern: 'Intern',
+};
+const OHNE_ZEIT_GRUND = {
+  zeit_in_awork: 'Arbeit vor dem Umstieg — Zeit liegt in aWork',
+  kein_aufwand: 'Kein Aufwand',
+  doppelt: 'Doppeltes Ticket',
+  anderer_auftrag: 'Gehört zu einem anderen Auftrag',
+  sonstiges: 'Sonstiges',
+};
+
 export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
   const projekte = (await alleSeiten((l, o) => sr.entities.Project.list('-created_date', l, o))).filter(istSupportProjekt);
   const projektById = Object.fromEntries(projekte.map(p => [p.id, p]));
@@ -53,8 +66,16 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
   const proTicket = {};
   const ohneTicket = {};
   const hatAbgerechnet = new Set();
+  // Als nicht verrechenbar gebuchte Zeit je erledigtem Ticket — damit die Abrechnung nicht
+  // „keine Zeit gebucht“ zeigt, wo bewusst nicht verrechenbar gebucht wurde (21.10.2026)
+  const nichtVerrechenbar = {};
   for (const e of buchungen) {
     if (e.ticket_id && istAbgerechnet(e)) hatAbgerechnet.add(e.ticket_id);
+    if (e.ticket_id && ticketById[e.ticket_id] && e.verrechenbar === false && (Number(e.duration_minutes) || 0) > 0) {
+      const nv = nichtVerrechenbar[e.ticket_id] = nichtVerrechenbar[e.ticket_id] || { minuten: 0, gruende: new Set() };
+      nv.minuten += Number(e.duration_minutes) || 0;
+      nv.gruende.add(NV_GRUND[e.nicht_verrechenbar_grund] || e.nicht_verrechenbar_grund || 'ohne Grund');
+    }
     if (!istOffen(e)) continue;
     let ziel;
     if (e.ticket_id) {
@@ -71,6 +92,10 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
     if (person) ziel.personen.add(person);
     const notiz = String(e.note || '').trim();
     if (notiz) ziel.notizen.push({ datum: e.entry_date || null, person, minuten: Number(e.duration_minutes) || 0, text: notiz });
+    // Einzelbuchungen ohne Ticket — für „einem Ticket zuordnen“ in der Abrechnung
+    if (!e.ticket_id) {
+      (ziel.buchungen = ziel.buchungen || []).push({ id: e.id, datum: e.entry_date || null, person, minuten: Number(e.duration_minutes) || 0, text: notiz });
+    }
   }
   const notizListe = (z) => (z?.notizen || []).slice().sort((a, b) => String(a.datum || '').localeCompare(String(b.datum || '')));
 
@@ -142,6 +167,12 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
       zugeordnet_minuten: zugeordnet[t.id]?.minuten || 0,
       zugeordnet_ids: zugeordnet[t.id]?.ids || [],
       buchungs_notizen: notizListe(proTicket[t.id]),
+      // Warum keine verrechenbare Zeit: bewusst nicht verrechenbar gebucht bzw. ohne Zeit erledigt (Grund)
+      nicht_verrechenbar_minutes: nichtVerrechenbar[t.id]?.minuten || 0,
+      nicht_verrechenbar_gruende: [...(nichtVerrechenbar[t.id]?.gruende || [])],
+      ohne_zeit_grund: t.ohne_zeit_grund ? (OHNE_ZEIT_GRUND[t.ohne_zeit_grund] || t.ohne_zeit_grund) : null,
+      ohne_zeit_notiz: t.ohne_zeit_notiz || null,
+      ohne_zeit_von: t.ohne_zeit_von ? (nameByEmail[String(t.ohne_zeit_von).toLowerCase()] || t.ohne_zeit_von) : null,
     };
     g.tasks.push(posten);
     g.open_minutes += offen;
@@ -159,6 +190,7 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
       billable_minutes: supportVerrechnungsMinuten(z.minuten), time_entry_ids: z.ids, link: null,
       ohne_zeit: false, target_hours: null, erledigt_am: null, awork_task_id: null,
       buchungs_notizen: notizListe(z),
+      buchungen: (z.buchungen || []).slice().sort((a, b) => String(a.datum || '').localeCompare(String(b.datum || ''))),
     };
     g.tasks.push(posten);
     g.open_minutes += z.minuten;
