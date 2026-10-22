@@ -5,6 +5,7 @@ import { findDuplicateDeal, CLOSED_STAGES } from '../../shared/crmDuplicate.js';
 import { INQUIRY_TYPES, BUYING_SIGNALS, FORM_REGEX, REQUEST_NATURES, suggestAction } from '../../shared/leadScoring.js';
 import { ESCALATION_LEVELS, severityOf, upsertEscalation } from '../../shared/escalation.js';
 import { resolveRecipient } from '../../shared/mailRecipient.js';
+import { anSupport } from '../../shared/supportKanal.js';
 
 // EIN Lauf für den gesamten Eingang: pro Thread ein einziger KI-Aufruf, dessen
 // Ergebnis in beide Ziele geht — Kommunikationsfelder in die E-Mail-Datenbank,
@@ -220,7 +221,9 @@ request_nature: Art des Anliegens, genau eine, IMMER mit wörtlicher Textstelle 
 Hinweis: Änderung an etwas, das der Kunde schon von uns hat = aenderung_bestehend. Ein neues, eigenständiges Vorhaben = neue_leistung.
 
 TEIL 3 — ARBEITSBEREICH (anliegen) der LETZTEN Kundennachricht, genau einer, IMMER mit wörtlicher Textstelle als Beleg (anliegen_evidence):
-  web_support — technische Unterstützung an Website, Webshop, Hosting, Domain, E-Mail-Postfach, CMS/WordPress, Plugins, Formularen, Tracking, Produktfeeds oder Schnittstellen: einen Fehler beheben ODER Inhalte/Funktionen an einer bestehenden Web-Anwendung ändern oder einpflegen
+  web_support — technische Unterstützung an einer BEREITS LAUFENDEN Website, Webshop, Hosting, Domain, E-Mail-Postfach, CMS/WordPress, Plugins, Formularen, Tracking, Produktfeeds oder Schnittstellen: einen Fehler beheben ODER Inhalte/Funktionen an einer bestehenden, live geschalteten Web-Anwendung ändern oder einpflegen
+  Feedback, Texte, Übersetzungen oder Inhalte zu einer Website, die noch im Aufbau ist (laufendes Website-Projekt, neue Sprachversion, Relaunch), sind NICHT web_support, sondern kundenanliegen.
+  Fragt der Kunde nach Kosten oder einem Angebot für eine neue Funktion, ist es neue_anfrage.
   neue_anfrage — neues Projekt oder neue Leistung, Angebots- oder Preisanfrage, Interessent oder Neukunde
   kundenanliegen — alles andere von Kunden: Abstimmung laufender Projekte, Feedback und Freigaben, Druck/Grafik/Nachdruck, Termine, Rückfragen, Rechnungs- und Zahlungsfragen des Kunden
   verwaltung — Lieferanten, Dienstleister, Steuerberatung, Bank, Behörden, Anwälte, Rechnungen oder Mahnungen, die WIR bezahlen sollen
@@ -282,12 +285,16 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
         const customerName = indexHit || matchedCustomer;
         const requestNature = REQUEST_NATURES.includes(r.request_nature) ? r.request_nature : 'sonstiges';
         const severity = severityOf(r.escalation_level);
-        const suggested = suggestAction({
+        let suggested = suggestAction({
           is_known_customer: isKnownCustomer,
           request_nature: requestNature,
           inquiry_type: r.inquiry_type,
           signals: rawSignals,
         });
+        // Mail an support@ (An oder Kopie) ist immer Support — außer Spam (Entscheidung 22.10.2026)
+        const istSpam = r.inquiry_type === 'kein_geschaeft' || r.anliegen === 'kein_geschaeft';
+        const supportKanal = anSupport(msgs) && !istSpam;
+        if (supportKanal) suggested = 'supportticket';
 
         // Ziel 1: Kommunikationsfelder in die E-Mail-Datenbank
         try {
@@ -334,7 +341,8 @@ Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
 
         // Arbeitsbereich in den Verlaufs-Index — Quelle der Filter im Posteingang
         try {
-          const anliegen = ANLIEGEN.includes(r.anliegen) ? r.anliegen
+          const anliegen = supportKanal ? 'web_support'
+            : ANLIEGEN.includes(r.anliegen) ? r.anliegen
             : r.inquiry_type === 'kein_geschaeft' ? 'kein_geschaeft'
             : r.inquiry_type === 'verwaltung' ? 'verwaltung'
             : requestNature === 'neue_leistung' ? 'neue_anfrage' : 'kundenanliegen';
