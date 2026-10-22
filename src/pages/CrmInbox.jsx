@@ -3,8 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { PenLine, KanbanSquare, AlertTriangle, ArrowDownToLine } from 'lucide-react';
-import AworkUebernahmeDialog from '@/components/support/AworkUebernahmeDialog';
+import { PenLine, KanbanSquare, AlertTriangle } from 'lucide-react';
 import { SUPPORT_TICKETS_KEY } from '@/components/sprint/heute/MeinTagSupportTickets';
 import { useZugriff } from '@/lib/useZugriff';
 import { useAuth } from '@/lib/AuthContext';
@@ -32,7 +31,6 @@ export default function CrmInbox() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [captureOpen, setCaptureOpen] = useState(false);
-  const [uebernahmeOpen, setUebernahmeOpen] = useState(false);
   const zugriff = useZugriff();
   const { darf } = zugriff;
   const [convertItem, setConvertItem] = useState(null);
@@ -203,24 +201,13 @@ export default function CrmInbox() {
             <Button variant="outline" asChild>
               <Link to="/crm"><KanbanSquare /> Pipeline</Link>
             </Button>
-            {kanal === 'support' && darf('fuehrung') && (
-              <Button variant="outline" onClick={() => setUebernahmeOpen(true)}>
-                <ArrowDownToLine /> Offene aWork-Support-Aufgaben übernehmen
-              </Button>
-            )}
+            {/* aWork ist abgeschaltet (Okt 2026) — die einmalige Übernahme offener aWork-Support-Aufgaben ist entfernt */}
             <Button onClick={() => setCaptureOpen(true)}>
               <PenLine /> Manuell erfassen
             </Button>
           </>
         }
       />
-      {uebernahmeOpen && (
-        <AworkUebernahmeDialog
-          open={true}
-          onOpenChange={setUebernahmeOpen}
-          onDone={() => queryClient.invalidateQueries({ queryKey: SUPPORT_TICKETS_KEY })}
-        />
-      )}
 
       {backchannelWarning && (
         <div className="rounded-lg bg-status-attention-surface px-4 py-3 text-meta text-foreground flex gap-2">
