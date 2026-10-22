@@ -146,9 +146,17 @@ export async function anTicketAnhaengen({ item, ticket }) {
 // Zeitfenster, in dem ein zweites Ticket zur selben Konversation als Doppelklick gilt
 const DOPPELT_MINUTEN = 15;
 
+// Wartet höchstens `ms` Millisekunden — danach gilt der Wert als nicht geladen (statt endlos zu hängen)
+const mitZeitlimit = (promise, ms, ersatz) => Promise.race([
+  promise,
+  new Promise((resolve) => { setTimeout(() => resolve(ersatz), ms); }),
+]);
+const VERLAUF_ZEITLIMIT_MS = 20000;
+
 // Rückgabe: { ticket, back: { ok, error? }, hinweis? }
-export async function createSupportTicket({ item, projectId, milestoneId, values }) {
+export async function createSupportTicket({ item, projectId, milestoneId, values, onSchritt }) {
   const threadId = threadIdOf(item);
+  const schritt = (t) => { try { onSchritt?.(t); } catch (_e) { /* nur Anzeige */ } };
 
   // Schutz vor Doppelanlage: Eintrag schon übernommen, oder zur Konversation gerade ein Ticket angelegt?
   if (item.id) {
@@ -173,16 +181,25 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
   // (Hinweis + Link zur Konversation stehen im Ticket). Fehler 06.10.2026 bei 4control.
   const baueBeschreibung = async (maxVerlauf) => {
     let verlauf = '';
+    let gekuerzt = false;
     if (threadId) {
-      verlauf = await threadTranscript(threadId, { ohneZitate: true, maxZeichen: maxVerlauf }).catch(() => '');
+      schritt('E-Mail-Verlauf wird übernommen …');
+      verlauf = await mitZeitlimit(
+        threadTranscript(threadId, { ohneZitate: true, maxZeichen: maxVerlauf }).catch(() => ''),
+        VERLAUF_ZEITLIMIT_MS,
+        '',
+      );
       if (!verlauf && item.source === 'email' && item.body) verlauf = String(item.body).trim().slice(0, maxVerlauf);
-      if (!verlauf && (item.source === 'email' || !item.id)) {
+      // Lädt der Verlauf nicht rechtzeitig, reicht der Text aus dem Dialog — mit Hinweis und Link
+      if (!verlauf && String(values.description || '').trim()) gekuerzt = true;
+      if (!verlauf && !gekuerzt && (item.source === 'email' || !item.id)) {
         throw new Error('Der E-Mail-Verlauf konnte nicht geladen werden — das Ticket wurde nicht angelegt. Bitte noch einmal versuchen.');
       }
     }
     return [
       String(values.description || '').trim().slice(0, 8000),
       verlauf ? `— E-Mail-Verlauf —\n\n${verlauf}` : '',
+      gekuerzt ? '[Der vollständige E-Mail-Verlauf konnte beim Anlegen nicht geladen werden — siehe Konversation.]' : '',
       threadLink ? `Konversation: ${threadLink}` : '',
     ].filter(Boolean).join('\n\n');
   };
@@ -204,8 +221,10 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
   });
 
   let ticket;
+  const beschreibung = await baueBeschreibung(20000);
+  schritt('Ticket wird gespeichert …');
   try {
-    ticket = await base44.entities.Ticket.create(ticketDaten(await baueBeschreibung(20000)));
+    ticket = await base44.entities.Ticket.create(ticketDaten(beschreibung));
   } catch (e) {
     const text = `${e?.response?.data?.detail || e?.response?.data?.message || e?.message || ''}`;
     if (!/maximum allowed size|too large|exceeds/i.test(text)) throw e;
@@ -229,6 +248,7 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
   // Rückkanal in die E-Mail-Datenbank — der Thread verlässt „braucht Entscheidung"
   let back = { ok: true };
   if (threadId) {
+    schritt('Posteingang wird aktualisiert …');
     try {
       await emailApi('enrich', {
         thread_id: threadId,
