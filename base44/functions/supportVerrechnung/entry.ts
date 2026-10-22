@@ -8,6 +8,9 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 //   awork_zuordnen    { ticket_id, awork_task_id }        → aWork-Zeit als Vorleistung ans Ticket hängen (Führung)
 //   awork_loesen      { ticket_id }                       → Zuordnung wieder lösen (Führung, nur solange nicht verrechnet)
 //   leistungstext     { ticket_ids }                      → Vorschlag für den Rechnungstext je Ticket (lesen)
+//   positionsvorschlag { positionen: [{ key, art, ticket_id?, notizen[] }] }
+//                                                         → Kurztitel (2–4 Wörter) + Leistungstext je Rechnungsposition,
+//                                                           für Tickets, Zeit ohne Ticket und Regie-Tage (lesen, 22.10.2026)
 //   sevdesk_verknuepfen { client_id, kontakt }            → Kunde der App mit sevDesk-Kontakt verknüpfen (Führung)
 //   zeit_zuordnen     { time_entry_ids, ticket_id }       → ohne Ticket gebuchte, offene Support-Zeit einem Ticket
 //                                                          desselben Projekts zuordnen (Führung, 21.10.2026)
@@ -163,6 +166,74 @@ export default async function (req) {
       }
       await db.Ticket.update(t.id, { awork_task_id: null, awork_vorleistung_minuten: null, awork_vorleistung_abgerechnet: false });
       return Response.json({ success: true });
+    }
+
+    if (aktion === 'positionsvorschlag') {
+      const eingang = (body.positionen || []).filter((p) => p?.key).slice(0, 40);
+      if (!eingang.length) return Response.json({ success: true, vorschlaege: {} });
+      const ticketIds = [...new Set(eingang.map((p) => p.ticket_id).filter(Boolean))];
+      const tickets = ticketIds.length ? await db.Ticket.filter({ id: { $in: ticketIds } }, null, 100) : [];
+      const ticketById = Object.fromEntries(tickets.map((t) => [t.id, t]));
+      const buchungen = ticketIds.length ? await db.TimeEntry.filter({ ticket_id: { $in: ticketIds } }, 'entry_date', 500).catch(() => []) : [];
+      const notizenProTicket = {};
+      for (const b of buchungen) {
+        const n = String(b.note || '').trim();
+        if (!n || b.korrektur_zu) continue;
+        (notizenProTicket[b.ticket_id] = notizenProTicket[b.ticket_id] || new Set()).add(n);
+      }
+      const quelle = eingang.map((p) => {
+        const t = p.ticket_id ? ticketById[p.ticket_id] : null;
+        const notizen = [...new Set([...(p.notizen || []), ...(t ? [...(notizenProTicket[t.id] || [])] : [])]
+          .map((n) => String(n || '').trim()).filter(Boolean))].slice(0, 30);
+        const beschreibung = t ? String(t.description || '').split('— E-Mail-Verlauf —')[0].split('— Vollständiger E-Mail-Verlauf —')[0].trim().slice(0, 2500) : '';
+        return [
+          `POSITION ${p.key}`,
+          `ART: ${p.art === 'regie' ? 'Regie (Arbeiten eines Tages)' : t ? 'Support-Anfrage' : 'Support ohne Anfrage'}`,
+          t ? `TICKET-TITEL (oft nur der E-Mail-Betreff): ${t.title || ''}` : '',
+          beschreibung ? `ANFRAGE:\n${beschreibung}` : '',
+          notizen.length ? `NOTIZEN AUS DEN ZEITBUCHUNGEN:\n- ${notizen.join('\n- ')}` : '',
+        ].filter(Boolean).join('\n');
+      }).join('\n\n=====\n\n');
+
+      const vorschlaege = {};
+      try {
+        const res = await base44.asServiceRole.integrations.Core.InvokeLLM({
+          prompt: `Du formulierst Rechnungspositionen einer Werbe- und Webagentur. Je Position zwei Felder auf Deutsch:
+1. titel: zwei bis vier Wörter, die sagen, worum es ging — wie eine Betreffzeile für den Kunden (z. B. „Website PHP-Update", „Stellenanzeigen Karriereseite", „SSL-Umstellung https", „Newsletter Junker-Aktion"). Kein Datum, keine Stunden, nicht „Regieleistungen" oder „Support", keine Anrede- oder Betreffwörter aus E-Mails wie „Re:", „AW:", „Anfrage", „Schön von Ihnen zu lesen".
+2. text: ein bis höchstens zwei kurze, sachliche Sätze, was für den Kunden erledigt wurde. Interne Kürzel und Arbeitsnotizen in verständliche Sprache bringen. Bei Regie fasst der Text alle Tätigkeiten des Tages zusammen; gibt es mehrere Themen, den Titel nach dem größten Thema wählen und die übrigen im Text nennen.
+STRENG VERBOTEN in Titel und Text: Passwörter, Benutzernamen, Zugangsdaten, Server- oder FTP-Angaben, Bankdaten, E-Mail-Adressen, Telefonnummern, Namen von Personen (auch Kollegen), Bestell- oder Rechnungsnummern, Uhrzeiten, Stundenangaben.
+Erfinde nichts, was nicht in den Angaben steht. Interne Vermerke ohne Leistung für den Kunden (z. B. „Minuten", „TEST", ein einzelner Kundenname) weglassen. Antworte für jede Position mit ihrem Schlüssel.
+
+${quelle}`,
+          response_json_schema: {
+            type: 'object',
+            properties: {
+              positionen: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: { key: { type: 'string' }, titel: { type: 'string' }, text: { type: 'string' } },
+                  required: ['key', 'titel', 'text'],
+                },
+              },
+            },
+            required: ['positionen'],
+          },
+        });
+        const erlaubt = new Set(eingang.map((p) => p.key));
+        for (const p of res?.positionen || []) {
+          if (!erlaubt.has(p.key)) continue;
+          const titel = String(p.titel || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+          const text = String(p.text || '').trim().slice(0, 600);
+          vorschlaege[p.key] = {
+            titel: titel && !SENSIBEL.test(titel) ? titel : '',
+            text: text && !SENSIBEL.test(text) ? text : '',
+          };
+        }
+      } catch (_e) {
+        // Ohne Vorschlag bleibt im Dialog der bisherige Text stehen
+      }
+      return Response.json({ success: true, vorschlaege });
     }
 
     if (aktion === 'leistungstext') {
