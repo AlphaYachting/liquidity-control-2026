@@ -74,20 +74,21 @@ const wartezeit = (ms) => {
 };
 
 // Unbeantwortete Post: Führung und Projektleitung sehen den ganzen Posteingang, die Webentwicklung den Support-Eingang.
+// Nur, was NIEMANDEM zugewiesen ist — Zugewiesenes steht ausschließlich in „Meine Post“ (22.10.2026).
 export function MeinTagEingang({ nurSupport }) {
   const post = usePosteingang();
   if (post.isLoading || post.isError) return null;
   const liste = post.eintraege
-    .filter((e) => e.sichtbar && (nurSupport ? e.kanaele.includes('support') : e.klasse !== 'verwaltung'))
+    .filter((e) => e.sichtbar && !e.zustaendig && (nurSupport ? e.kanaele.includes('support') : e.klasse !== 'verwaltung'))
     .sort((a, b) => a.eingang - b.eingang);
   const ziel = nurSupport ? '/crm/inbox?kanal=support' : '/crm/inbox';
   const titel = nurSupport ? 'Support-Eingang' : 'Posteingang';
 
   return (
     <div className={KARTE}>
-      <Titel className="mb-1">{titel} ({liste.length})</Titel>
+      <Titel className="mb-1">{titel} · nicht zugewiesen ({liste.length})</Titel>
       {liste.length === 0 ? (
-        <p className="text-[12.5px]" style={{ color: RITTLER.textSecondary }}>Nichts Unbeantwortetes.</p>
+        <p className="text-[12.5px]" style={{ color: RITTLER.textSecondary }}>Nichts Unbeantwortetes ohne Zuständigkeit.</p>
       ) : (
         <>
           <p className="text-[12.5px] mb-1" style={{ color: RITTLER.textSecondary }}>
