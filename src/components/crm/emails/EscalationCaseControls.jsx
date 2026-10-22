@@ -22,7 +22,7 @@ const STATE_LABEL = { offen: 'offen', in_arbeit: 'in Arbeit', snooze: 'zurückge
 
 // Zuweisung und Bearbeitungsstand eines Eskalations-Vorgangs.
 // Der Kommunikationsstatus des Threads wird hier NICHT verändert.
-export default function EscalationCaseControls({ caseRecord, thread }) {
+export default function EscalationCaseControls({ caseRecord, thread, weitereFaelle = [] }) {
   const queryClient = useQueryClient();
   const [snoozeOpen, setSnoozeOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
@@ -36,6 +36,11 @@ export default function EscalationCaseControls({ caseRecord, thread }) {
 
   const save = useMutation({
     mutationFn: async (fields) => {
+      // Standänderungen (übernehmen, später, erledigt) gelten für die ganze Konversation —
+      // auch für Vorgänge in Parallel-Verläufen derselben Konversation
+      if (fields.state && weitereFaelle.length) {
+        await Promise.all(weitereFaelle.filter((c) => c.id).map((c) => base44.entities.CrmEscalation.update(c.id, fields)));
+      }
       if (caseRecord?.id) return base44.entities.CrmEscalation.update(caseRecord.id, fields);
       return base44.entities.CrmEscalation.create({
         thread_id: String(thread.id),
