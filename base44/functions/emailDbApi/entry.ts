@@ -3,6 +3,31 @@ import { emailDbGet, emailDbEnrich } from '../../shared/emailDb.ts';
 import { computeNeedsReply, conversationKeyOf } from '../../shared/emailWorkQueue.js';
 import { recomputeConversationOf } from '../../shared/emailConversations.js';
 import { vertraulichGrund, teilnehmerAusNachrichten } from '../../shared/vertraulich.js';
+import { domainOf, isInternalDomain, isFreemailDomain } from '../../shared/senderLists.js';
+
+// Externe Gegenstellen einer Konversation (Firmen-Domain, bei Freemail die ganze Adresse).
+// Parallel-Verläufe werden NUR mit derselben Gegenstelle zusammengeführt — sonst landen bei
+// Rundschreiben die Antworten verschiedener Kunden in einer Konversation (Fehler 22.10.2026).
+const alsListe = (v: any): string[] => {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map((x: any) => (typeof x === 'string' ? x : (x?.email || x?.address || '')));
+  if (typeof v === 'object') return [String(v.email || v.address || '')];
+  return String(v).split(/[;,]/);
+};
+function gegenstellen(messages: any[]): Set<string> {
+  const out = new Set<string>();
+  for (const m of messages || []) {
+    const adressen = m.direction === 'in' ? [m.from] : [...alsListe(m.to), ...alsListe(m.cc)];
+    for (const a of adressen) {
+      const mail = (String(a || '').toLowerCase().match(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/) || [])[0];
+      const d = domainOf(mail || '');
+      if (!d || isInternalDomain(d)) continue;
+      out.add(isFreemailDomain(d) ? mail : d);
+    }
+  }
+  return out;
+}
+const ZUSAMMENFUEHRUNG_MS = 8000;
 
 const VERTRAULICH_TEXT = 'Diese Konversation ist vertraulich und wird in der App nicht angezeigt.';
 
@@ -164,19 +189,32 @@ Deno.serve(async (req) => {
     if (action === 'thread') {
       const detail = await emailDbGet('thread', params);
       const subj = normalizeSubject(detail?.thread?.subject);
-      if (subj.length >= 6) {
+      const eigene = gegenstellen(detail?.messages || []);
+      // Ohne erkennbare Gegenstelle nichts zusammenführen — lieber ein Verlauf zu wenig als ein fremder
+      if (subj.length >= 6 && eigene.size > 0) {
         try {
+          const start = Date.now();
           const search = await emailDbGet('search', { q: subj, limit: 30 });
           const siblingIds = [...new Set((search.results || [])
             .filter((r: any) => r.thread_id && r.thread_id !== detail.thread.id && normalizeSubject(r.subject) === subj)
+            // Treffer mit erkennbar fremdem Absender gar nicht erst laden
+            .filter((r: any) => {
+              const fremd = gegenstellen([{ direction: 'in', from: r.from || r.sender || '' }]);
+              return fremd.size === 0 || [...fremd].some((g) => eigene.has(g));
+            })
             .map((r: any) => r.thread_id))].slice(0, 5);
           if (siblingIds.length) {
             detail.messages = detail.messages || [];
             const seen = new Set(detail.messages.map((m: any) => m.id));
             const related: any[] = [];
             for (const sid of siblingIds) {
+              // Zeitlimit: die Zusammenführung darf das Laden nicht aufhalten
+              if (Date.now() - start > ZUSAMMENFUEHRUNG_MS) break;
               try {
                 const sib = await emailDbGet('thread', { id: sid, msgs: params.msgs || 15, full: params.full });
+                // Nur dieselbe Gegenstelle — Antworten anderer Kunden auf denselben Betreff bleiben draußen
+                const ihre = gegenstellen(sib.messages || []);
+                if (![...ihre].some((g) => eigene.has(g))) continue;
                 related.push({
                   id: sid,
                   subject: sib.thread?.subject,
