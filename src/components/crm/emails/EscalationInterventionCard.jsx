@@ -1,21 +1,78 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import EscalationCaseControls, { SEVERITY_STYLE } from '@/components/crm/emails/EscalationCaseControls';
+import EscalationCaseControls from '@/components/crm/emails/EscalationCaseControls';
 import { emailApi } from '@/components/crm/emails/emailApi';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Sparkles, Loader2, FolderKanban, Mail, CheckCircle2, ChevronDown, ChevronUp, User } from 'lucide-react';
-import { formatMailDate } from '@/components/crm/emails/emailConfig';
+import { useToast } from '@/components/ui/use-toast';
+import { cn } from '@/lib/utils';
+import { TON_STREIFEN } from '@/lib/designTon';
+import { Sparkles, Loader2, FolderKanban, ExternalLink, ChevronDown, LifeBuoy, Siren } from 'lucide-react';
 import EscalationThreadPreview from '@/components/crm/emails/EscalationThreadPreview';
+import SupportTicketDialog from '@/components/crm/support/SupportTicketDialog';
+import { nameVon } from '@/components/crm/ZuweisungWahl';
 
-// Eskalations-Alert mit KI-generiertem Einschreitungsvorschlag (on demand).
-export default function EscalationInterventionCard({ thread, linkedProjects = [], caseRecord = null }) {
+const STUFE = {
+  1: { label: 'Stufe 1', klasse: 'bg-amber-100 text-amber-800' },
+  2: { label: 'Stufe 2', klasse: 'bg-orange-100 text-orange-800' },
+  3: { label: 'Stufe 3', klasse: 'bg-red-100 text-red-700' },
+};
+
+const wartezeit = (iso) => {
+  const t = new Date(String(iso || '').includes('T') ? iso : `${String(iso || '').replace(' ', 'T')}Z`).getTime();
+  if (!t) return '';
+  const std = Math.max(0, Math.round((Date.now() - t) / 3600000));
+  if (std < 24) return `${std} Std.`;
+  const tage = Math.round(std / 24);
+  return `${tage} ${tage === 1 ? 'Tag' : 'Tagen'}`;
+};
+
+/**
+ * Eine Eskalation als kompakte Zeile (Muster wie im Posteingang). Zugeklappt sieht man Stufe, Kunde,
+ * Betreff, Zuständigkeit und Stand; aufgeklappt Aktionen, Vorgang und Verlauf. Der Verlauf lädt erst
+ * beim Aufklappen. Support-Ticket direkt aus dem Fall — der Vorgang wird damit „in Arbeit“ und verknüpft.
+ */
+export default function EscalationInterventionCard({ zeile, offen, onOeffnen, linkedProjects = [], team = [] }) {
+  const { thread, caseRecord, faelle = [], wartet, anzahl = 1 } = zeile;
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState(null);
-  const [showPreview, setShowPreview] = useState(true);
+  const [supportOffen, setSupportOffen] = useState(false);
+
+  const stufe = STUFE[caseRecord?.severity] || null;
+  const ticketVerknuepft = faelle.some((c) => c.linked_ticket_id);
+
+  // Pseudo-Anfrage aus dem Verlauf — derselbe Ticket-Dialog wie im Posteingang (mit Doppelticket-Schutz)
+  const supportItem = {
+    source: 'email',
+    thread_id: String(thread.id),
+    subject: thread.subject || '',
+    body: thread.summary || '',
+    sender_name: thread.last_from_name || '',
+    sender_email: thread.external_from || '',
+    matched_customer_name: thread.matched_customer_name || thread.customer_label || '',
+    customer_match: thread.customer_match || '',
+    request_nature: thread.request_nature || '',
+    eskalation: true,
+  };
+
+  const ticketAngelegt = async (ticket, back, hinweis, info) => {
+    // Alle Vorgänge dieser Konversation mit dem Ticket verknüpfen und in Arbeit setzen
+    await Promise.all(faelle.filter((c) => c.id).map((c) => base44.entities.CrmEscalation.update(c.id, {
+      linked_ticket_id: ticket.id,
+      state: c.state === 'erledigt' ? c.state : 'in_arbeit',
+    }))).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ['crm-escalations'] });
+    queryClient.invalidateQueries({ queryKey: ['posteingang'] });
+    toast({
+      title: info?.angehaengt ? `An Ticket „${ticket.title}“ angehängt` : `Support-Ticket „${ticket.title}“ angelegt`,
+      description: [hinweis, back?.ok === false ? 'Der Verlauf konnte in der E-Mail-Zentrale nicht markiert werden.' : ''].filter(Boolean).join(' ') || undefined,
+    });
+  };
 
   const generatePlan = async () => {
     setLoading(true);
@@ -29,11 +86,10 @@ export default function EscalationInterventionCard({ thread, linkedProjects = []
       const projectInfo = linkedProjects
         .map((p) => `${p.project_name} (Status: ${p.status}, offen: €${Math.round(p.open_amount || 0)}, Risiko: ${p.risk_status})`)
         .join('; ');
-
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Du bist Krisenberater der Digitalagentur Rittler & Co. Ein Kunde zeigt in dieser E-Mail-Konversation Eskalationsgefahr. Erstelle einen konkreten Einschreitungsplan auf Deutsch. Nichts erfinden.
 
-KUNDE: ${thread.customer_normalized || 'unbekannt'}
+KUNDE: ${thread.customer_normalized || thread.customer_label || 'unbekannt'}
 BETREFF: ${thread.subject || '—'}
 KI-ZUSAMMENFASSUNG: ${thread.summary || '—'}
 VERKNÜPFTE PROJEKTE: ${projectInfo || 'keine gefunden'}
@@ -63,94 +119,117 @@ Liefere: (1) Kern des Problems in 1-2 Sätzen. (2) Dringlichkeit (hoch/mittel/ni
   };
 
   const urgencyColor = { hoch: 'bg-red-100 text-red-700', mittel: 'bg-amber-100 text-amber-700', niedrig: 'bg-blue-100 text-blue-700' };
+  const zustaendig = caseRecord?.assigned_to;
 
   return (
-    <Card className="border-red-200">
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-sm">{thread.customer_label || 'Unbekannter Absender'}</span>
-              {caseRecord?.severity > 0 && (
-                <Badge variant="outline" className={`border-0 text-[10px] ${SEVERITY_STYLE[caseRecord.severity] || ''}`}>
-                  Stufe {caseRecord.severity}
-                </Badge>
-              )}
-              <span className="text-xs text-muted-foreground">{formatMailDate(thread.last_message_at).slice(0, 10)}</span>
-            </div>
-            <p className="text-sm font-medium mt-0.5">{thread.subject || '(kein Betreff)'}</p>
-            <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground mt-1">
-              <User className="w-3 h-3 shrink-0" />
-              <span>{thread.external_from || thread.last_from || 'Absender unbekannt'}</span>
-              {thread.last_from_name && <span>({thread.last_from_name})</span>}
-              {thread.last_to && <span>· an {thread.last_to}</span>}
-              {thread.message_count > 0 && <span>· {thread.message_count} Nachrichten</span>}
-            </div>
-            {thread.summary && <p className="text-xs text-muted-foreground mt-1">{thread.summary}</p>}
-            {linkedProjects.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                <FolderKanban className="w-3 h-3 text-muted-foreground" />
-                {linkedProjects.slice(0, 3).map((p) => (
-                  <Link key={p.id} to={`/projects/${p.id}`} className="text-xs text-primary hover:underline truncate max-w-[220px]">
-                    {p.project_name}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col gap-1.5 shrink-0">
-            <Button size="sm" onClick={generatePlan} disabled={loading} className="gap-1.5">
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              Einschreitungsvorschlag
-            </Button>
-            <Link to="/crm/emails" className="text-xs text-primary hover:underline text-center flex items-center gap-1 justify-center">
-              <Mail className="w-3 h-3" /> Zur E-Mail-Zentrale
-            </Link>
-          </div>
+    <div className={cn(wartet && caseRecord?.severity >= 3 ? TON_STREIFEN.critical : wartet && TON_STREIFEN.attention)}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={offen}
+        onClick={onOeffnen}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOeffnen?.(); } }}
+        className={cn('grid grid-cols-[72px_minmax(0,1fr)_130px_150px_16px] gap-3 items-center px-4 py-2.5 cursor-pointer hover:bg-muted/40', offen && 'bg-muted/30')}
+      >
+        <span>
+          {stufe
+            ? <Badge variant="outline" className={`border-0 text-[10px] ${stufe.klasse}`}>{stufe.label}</Badge>
+            : <Siren className="w-4 h-4 text-muted-foreground" />}
+        </span>
+
+        <div className="min-w-0">
+          <p className="text-object text-foreground truncate">{thread.subject || '(kein Betreff)'}</p>
+          <p className="text-label uppercase text-muted-foreground truncate">
+            {[thread.customer_label || thread.external_from || 'Unbekannter Absender', anzahl > 1 ? `${anzahl} Verläufe` : '']
+              .filter(Boolean).join(' · ')}
+          </p>
         </div>
 
-        <EscalationCaseControls caseRecord={caseRecord} thread={thread} />
-
-        <div>
-          <button
-            onClick={() => setShowPreview(!showPreview)}
-            className="text-xs text-primary hover:underline flex items-center gap-1"
-          >
-            {showPreview ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            {showPreview ? 'Vorschau ausblenden' : 'E-Mail-Vorschau anzeigen'}
-          </button>
-          {showPreview && (
-            <div className="mt-2">
-              <EscalationThreadPreview threadId={thread.id} />
-            </div>
+        <div className="min-w-0 text-meta truncate">
+          {zustaendig
+            ? <span className="font-semibold text-foreground">→ {nameVon(zustaendig, team)}</span>
+            : <span className="text-muted-foreground">nicht zugewiesen</span>}
+          {ticketVerknuepft && (
+            <span className="flex items-center gap-1 text-muted-foreground"><LifeBuoy className="w-3 h-3" /> Ticket</span>
           )}
         </div>
 
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        <div className="text-right text-meta">
+          {wartet
+            ? <span className="font-semibold text-status-critical">wartet seit {wartezeit(thread.last_message_at)}</span>
+            : <span className="text-muted-foreground">beantwortet · Vorgang offen</span>}
+        </div>
 
-        {plan && (
-          <div className="border rounded-lg bg-muted/40 p-3 space-y-2.5">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className={`border-0 text-[10px] ${urgencyColor[plan.dringlichkeit] || ''}`}>
-                Dringlichkeit: {plan.dringlichkeit}
-              </Badge>
-              <span className="text-xs text-muted-foreground">{plan.begruendung}</span>
-            </div>
-            <p className="text-sm"><strong>Problem:</strong> {plan.problem}</p>
-            <div>
-              <p className="text-xs font-semibold mb-1">Einschreitungsschritte:</p>
-              <ol className="list-decimal list-inside space-y-0.5">
-                {(plan.schritte || []).map((s, i) => <li key={i} className="text-xs">{s}</li>)}
-              </ol>
-            </div>
-            <div>
-              <p className="text-xs font-semibold mb-1">Formulierungsvorschlag erste Antwort:</p>
-              <p className="text-xs bg-card border rounded p-2 whitespace-pre-wrap">{plan.antwort_entwurf}</p>
-            </div>
+        <ChevronDown className={cn('w-4 h-4 text-muted-foreground', offen && 'rotate-180')} />
+      </div>
+
+      {offen && (
+        <div className="border-t px-4 pt-3 pb-4 pl-[100px] space-y-3">
+          {thread.summary && <p className="text-sm text-foreground">{thread.summary}</p>}
+          <p className="text-meta text-muted-foreground">
+            {[thread.external_from || thread.last_from, thread.last_to && `an ${thread.last_to}`, thread.message_count > 0 && `${thread.message_count} Nachrichten`]
+              .filter(Boolean).join(' · ')}
+          </p>
+
+          {/* Entscheidung zuerst — der Verlauf darunter ist oft lang */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild>
+              <Link to={`/crm/emails?thread=${thread.id}`}><ExternalLink /> Antworten</Link>
+            </Button>
+            <Button variant="outline" onClick={() => setSupportOffen(true)}>
+              <LifeBuoy /> {ticketVerknuepft ? 'Weiteres Support-Ticket / anhängen' : 'Support-Ticket anlegen'}
+            </Button>
+            <Button variant="outline" onClick={generatePlan} disabled={loading}>
+              {loading ? <Loader2 className="animate-spin" /> : <Sparkles />} Einschreitungsvorschlag
+            </Button>
+            {linkedProjects.length > 0 && (
+              <span className="flex items-center gap-1.5 flex-wrap text-xs">
+                <FolderKanban className="w-3.5 h-3.5 text-muted-foreground" />
+                {linkedProjects.slice(0, 3).map((p) => (
+                  <Link key={p.id} to={`/projects/${p.id}`} className="text-primary hover:underline truncate max-w-[200px]">
+                    {p.project_name}
+                  </Link>
+                ))}
+              </span>
+            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          <EscalationCaseControls caseRecord={caseRecord} thread={thread} />
+
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          {plan && (
+            <div className="border rounded-lg bg-muted/40 p-3 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={`border-0 text-[10px] ${urgencyColor[plan.dringlichkeit] || ''}`}>
+                  Dringlichkeit: {plan.dringlichkeit}
+                </Badge>
+                <span className="text-xs text-muted-foreground">{plan.begruendung}</span>
+              </div>
+              <p className="text-sm"><strong>Problem:</strong> {plan.problem}</p>
+              <div>
+                <p className="text-xs font-semibold mb-1">Einschreitungsschritte:</p>
+                <ol className="list-decimal list-inside space-y-0.5">
+                  {(plan.schritte || []).map((s, i) => <li key={i} className="text-xs">{s}</li>)}
+                </ol>
+              </div>
+              <div>
+                <p className="text-xs font-semibold mb-1">Formulierungsvorschlag erste Antwort:</p>
+                <p className="text-xs bg-card border rounded p-2 whitespace-pre-wrap">{plan.antwort_entwurf}</p>
+              </div>
+            </div>
+          )}
+
+          <p className="text-label uppercase text-muted-foreground pt-1">Verlauf · neueste Nachricht zuerst</p>
+          <EscalationThreadPreview threadId={thread.id} start={3} />
+        </div>
+      )}
+
+      <SupportTicketDialog
+        open={supportOffen}
+        onOpenChange={setSupportOffen}
+        item={supportOffen ? supportItem : null}
+        onDone={ticketAngelegt}
+      />
+    </div>
   );
 }
