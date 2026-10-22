@@ -67,6 +67,8 @@ export function useEskalationsListe({ enabled = true } = {}) {
     const gruppen = new Map();
     for (const c of d.faelle) {
       const idx = idxNachThread.get(String(c.thread_id)) || null;
+      // Ohne Verzeichniszeile lässt sich die Vertraulichkeit nicht prüfen — dann nur für Admins
+      if (!idx && !istAdmin) continue;
       // Vertraulich (Masseverwalter, Verwaltung, nur an den GF) — gleiche Regel wie Posteingang und E-Mail-Zentrale
       if (idx && vertraulichGrund({ absender: [idx.last_from, idx.last_inbound_from], empfaenger: idx.last_to, regeln: aktiv, istAdmin })) continue;
       const key = idx?.conversation_key || `#${c.thread_id}`;
