@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useUnlinkedOrdersCount } from '@/hooks/useUnlinkedOrdersCount';
 import { usePendingDunningCount } from '@/hooks/usePendingDunningCount';
 import { usePosteingang } from '@/hooks/usePosteingang';
-import { useEscalationAlertCount } from '@/hooks/useEscalationAlertCount';
+import { useEskalationsListe } from '@/hooks/useEskalationsListe';
 import { useZugriff } from '@/lib/useZugriff';
 import { useAuth } from '@/lib/AuthContext';
 import { NAV_GRUPPEN } from '@/lib/navigation';
@@ -37,7 +37,8 @@ export default function Sidebar() {
   const pendingDunningCount = usePendingDunningCount({ enabled: bereit && zugriff.darf('geld') });
   // Ein Zähler für den einen Posteingang — dieselbe Quelle wie die Liste
   const posteingang = usePosteingang({ enabled: bereit && zugriff.darf(['leitung', 'support']) });
-  const escalationCount = useEscalationAlertCount({ enabled: bereit && zugriff.darf('leitung') });
+  // Zähler = Fälle, in denen der Kunde auf Antwort wartet — dieselbe Quelle wie die Seite
+  const escalationCount = useEskalationsListe({ enabled: bereit && zugriff.darf('leitung') }).wartend;
   // Neue Rückmeldungen der Kollegen — nur für den Inhaber, dieselbe Abfrage wie am Knopf in der Kopfleiste
   const { data: rueck } = useQuery({
     queryKey: NEU_KEY, queryFn: ladeNeue, enabled: bereit && istInhaber(user),
