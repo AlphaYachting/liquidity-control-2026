@@ -3,6 +3,11 @@ import { formatMailDate, DIRECTION_META } from '@/components/crm/emails/emailCon
 
 const LANG = 2000;
 
+// Empfänger kommen als Liste, Objekt oder Text — immer mit Komma getrennt anzeigen
+const empfaengerText = (to) => (Array.isArray(to)
+  ? to.map((x) => (typeof x === 'string' ? x : (x?.email || x?.address || ''))).filter(Boolean).join(', ')
+  : typeof to === 'object' && to ? (to.email || to.address || '') : String(to || ''));
+
 // Eine Nachricht im Eskalationsverlauf — vollständig lesbar, sehr lange Mails
 // lassen sich mit einem Klick ganz aufklappen.
 export default function EscalationMessage({ nachricht: m }) {
@@ -17,7 +22,7 @@ export default function EscalationMessage({ nachricht: m }) {
         <span className={`px-1.5 py-0.5 rounded-full font-medium ${dir.color}`}>{dir.label}</span>
         <span className="font-medium">{m.from_name || m.from}</span>
         {m.from_name && m.from && <span className="text-muted-foreground">&lt;{m.from}&gt;</span>}
-        {m.to && <span className="text-muted-foreground">→ {m.to}</span>}
+        {m.to && <span className="text-muted-foreground">→ {empfaengerText(m.to)}</span>}
         <span className="text-muted-foreground ml-auto">{formatMailDate(m.received_at)}</span>
       </div>
       <p className="text-xs mt-1.5 whitespace-pre-wrap break-words text-foreground/90">
