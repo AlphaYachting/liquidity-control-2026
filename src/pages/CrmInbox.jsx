@@ -89,7 +89,7 @@ export default function CrmInbox() {
   // Anfragen der Telefon-KI und manuell erfasste — siehe lib/crm/posteingang.js
   const { eintraege, zahlen, gesamt, ueberfaellig: overdue, isLoading } = usePosteingang();
   // Dieselbe Zahl wie auf der Eskalationsseite und in der Navigation (geteilter Abruf)
-  const { wartend: eskalationenWartend } = useEskalationsListe({ enabled: zugriffEsk.darf('leitung') });
+  const { wartend: eskalationenWartend } = useEskalationsListe({ enabled: zugriff.darf('leitung') });
   const { user: angemeldet } = useAuth();
   const ichMail = (angemeldet?.email || '').toLowerCase();
   const passtWer = (e) => wer === 'alle'
