@@ -4,7 +4,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { PenLine, KanbanSquare, AlertTriangle } from 'lucide-react';
-import { SUPPORT_TICKETS_KEY } from '@/components/sprint/heute/MeinTagSupportTickets';
 import { useZugriff } from '@/lib/useZugriff';
 import { useAuth } from '@/lib/AuthContext';
 import { useEskalationsListe } from '@/hooks/useEskalationsListe';
