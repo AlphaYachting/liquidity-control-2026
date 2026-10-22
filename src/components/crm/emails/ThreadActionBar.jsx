@@ -1,19 +1,24 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Button } from '@/components/ui/button';
-import { LifeBuoy, UserPlus, Link2, MailCheck } from 'lucide-react';
+import { LifeBuoy, UserPlus, Link2, Check, ExternalLink } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/components/crm/emails/emailApi';
 import { markThreadAsLead } from '@/components/crm/inboxDecision';
 import SupportTicketDialog from '@/components/crm/support/SupportTicketDialog';
 import InboxAssignDealDialog from '@/components/crm/InboxAssignDealDialog';
 import DealFormDialog from '@/components/crm/DealFormDialog';
-import { SUGGESTION_META } from '@/components/crm/emails/suggestionMeta';
+import { PostAktionen } from '@/components/post/PostBaukasten';
 
-// Volle Optionsleiste unter jeder Konversation — der KI-Vorschlag ist nur
-// hervorgehoben, alle Wege bleiben klickbar.
-export default function ThreadActionBar({ thread, messages = [], onChanged }) {
+/**
+ * Die Standard-Aktionen zu einer E-Mail-Konversation — EINE Quelle für alle Postbereiche
+ * (Posteingang, Eskalationen, „Meine Post“, E-Mail-Zentrale). Liefert Aktionen für die
+ * PostAktionen-Leiste und die zugehörigen Dialoge.
+ *  thread:   { id, subject, summary, customer, matched_customer_name, customer_match, request_nature,
+ *              suggested_action, is_known_customer, eskalation }
+ *  messages: bekannte Nachrichten (für Absender und Text), darf leer sein
+ */
+export function useThreadAktionen({ thread, messages = [], onChanged, mitAntworten = true }) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [supportOpen, setSupportOpen] = useState(false);
@@ -38,19 +43,14 @@ export default function ThreadActionBar({ thread, messages = [], onChanged }) {
     customer_match: t.customer_match || '',
     // für die Fälligkeit des Support-Tickets (Störung/Eskalation = sofort fällig)
     request_nature: t.request_nature || '',
-    eskalation: Number(t.eskalation) === 1,
+    eskalation: Number(t.eskalation) === 1 || t.eskalation === true,
   };
 
-  const variantFor = (key) => (suggested === key ? 'default' : 'outline');
-
-  const markNoLead = async () => {
+  const erledigt = async () => {
     setBusy(true);
     try {
-      await emailApi('enrich', {
-        thread_id: t.id,
-        fields: { crm_status: 'kein_lead', status: 'erledigt' },
-      });
-      toast({ title: 'Als kein Lead erledigt' });
+      await emailApi('enrich', { thread_id: t.id, fields: { crm_status: 'kein_lead', status: 'erledigt' } });
+      toast({ title: 'Erledigt — kommt bei der nächsten Kundennachricht zurück' });
       onChanged?.();
     } catch (e) {
       toast({ variant: 'destructive', title: 'Nicht gespeichert', description: e?.message || 'Unbekannter Fehler' });
@@ -63,7 +63,7 @@ export default function ThreadActionBar({ thread, messages = [], onChanged }) {
     await base44.entities.CrmActivity.create({
       deal_id: deal.id,
       activity_type: 'email',
-      title: 'Aus E-Mail-Zentrale übernommen',
+      title: 'Aus E-Mail übernommen',
       content: `${t.subject || ''}\n\n${item.body || ''}`.trim(),
       activity_date: new Date().toISOString(),
     });
@@ -78,40 +78,32 @@ export default function ThreadActionBar({ thread, messages = [], onChanged }) {
     navigate(`/crm/deals/${deal.id}`);
   };
 
-  return (
-    <div className="border rounded-xl p-3 bg-card space-y-2">
-      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
-        Entscheidung
-        {SUGGESTION_META[suggested] && <> · KI schlägt vor: {SUGGESTION_META[suggested].label}</>}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant={variantFor('supportticket')} className="h-8 gap-1.5 text-xs"
-          disabled={busy} onClick={() => setSupportOpen(true)}>
-          <LifeBuoy className="w-3.5 h-3.5" /> Supportticket anlegen
-        </Button>
-        <Button size="sm" variant={variantFor('anfrage')} className="h-8 gap-1.5 text-xs"
-          disabled={busy} onClick={() => setLeadOpen(true)}>
-          <UserPlus className="w-3.5 h-3.5" /> Als Anfrage/Lead übernehmen
-        </Button>
-        <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs"
-          disabled={busy} onClick={() => setAssignOpen(true)}>
-          <Link2 className="w-3.5 h-3.5" /> Bestehendem Deal zuordnen
-        </Button>
-        <Button size="sm" variant={variantFor('kein_lead')} className="h-8 gap-1.5 text-xs"
-          disabled={busy} onClick={markNoLead}>
-          <MailCheck className="w-3.5 h-3.5" /> Kein Lead / erledigt
-        </Button>
-      </div>
+  // Gefüllt ist die Aktion, die die KI vorschlägt — ohne Vorschlag „Antworten“
+  const empfohlen = suggested === 'supportticket' ? 'support' : suggested === 'anfrage' ? 'lead' : 'antworten';
 
+  const aktionen = {
+    antworten: mitAntworten && t.id
+      ? { key: 'antworten', label: 'Antworten', icon: ExternalLink, href: `/crm/emails?thread=${t.id}`, primaer: empfohlen === 'antworten' }
+      : null,
+    support: { key: 'support', label: 'Support-Ticket', icon: LifeBuoy, onClick: () => setSupportOpen(true), primaer: empfohlen === 'support' },
+    lead: { key: 'lead', label: 'Anfrage / Lead', icon: UserPlus, onClick: () => setLeadOpen(true), primaer: empfohlen === 'lead' },
+  };
+  const mehr = {
+    deal: { key: 'deal', label: 'Bestehendem Deal zuordnen', icon: Link2, onClick: () => setAssignOpen(true) },
+    erledigt: { key: 'erledigt', label: 'Erledigt (ohne Antwort)', icon: Check, onClick: erledigt, trenner: true },
+  };
+
+  const dialoge = (
+    <>
       <SupportTicketDialog
         open={supportOpen}
         onOpenChange={setSupportOpen}
         item={supportOpen ? item : null}
         onDone={(ticket, back, hinweis, info) => {
-          onChanged?.();
+          onChanged?.(ticket, info);
           toast({
             title: info?.angehaengt ? `An Ticket „${ticket.title}" angehängt` : `Support-Ticket „${ticket.title}" angelegt`,
-            description: [hinweis, back.ok ? '' : 'Der Thread konnte in der E-Mail-Zentrale nicht markiert werden.'].filter(Boolean).join(' ') || undefined,
+            description: [hinweis, back?.ok === false ? 'Der Thread konnte in der E-Mail-Zentrale nicht markiert werden.' : ''].filter(Boolean).join(' ') || undefined,
           });
         }}
       />
@@ -146,6 +138,25 @@ export default function ThreadActionBar({ thread, messages = [], onChanged }) {
         } : null}
         onSaved={handleLeadSaved}
       />
-    </div>
+    </>
+  );
+
+  return { aktionen, mehr, dialoge, busy };
+}
+
+// Aktionsleiste in der E-Mail-Zentrale — dieselbe Leiste wie überall, ohne „Antworten“
+// (dort steht die Antwort direkt darunter).
+export default function ThreadActionBar({ thread, messages = [], onChanged, rechts }) {
+  const { aktionen, mehr, dialoge, busy } = useThreadAktionen({ thread, messages, onChanged, mitAntworten: false });
+  return (
+    <>
+      <PostAktionen
+        busy={busy}
+        aktionen={[aktionen.support, aktionen.lead]}
+        mehr={[mehr.deal, mehr.erledigt]}
+        rechts={rechts}
+      />
+      {dialoge}
+    </>
   );
 }
