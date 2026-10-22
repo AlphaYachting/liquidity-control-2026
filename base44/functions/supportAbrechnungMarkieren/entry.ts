@@ -28,8 +28,10 @@ export default async function (req) {
     const textByTicket = Object.fromEntries((snap.invoice_positions || []).filter(p => p.ticket_id).map(p => [p.ticket_id, p.leistung || p.text || '']));
 
     if (aktion === 'markieren') {
-      // 'app' = Support-Tickets, 'regie' = Regie nach Aufwand (markiert nur Zeitbuchungen, keine Tickets)
-      if (snap.quelle !== 'app' && snap.quelle !== 'regie') return Response.json({ error: 'Keine App-Support- oder Regie-Abrechnung' }, { status: 400 });
+      // 'app' = Support-Tickets, 'regie' = Regie nach Aufwand (markiert nur Zeitbuchungen, keine Tickets),
+      // 'kunde' = Kundenblock aus beidem (22.10.2026): support_ticket_ids enthält nur die Support-Tickets,
+      // Regie-Aufgaben bleiben offen — dieselbe Logik wie 'app'.
+      if (!['app', 'regie', 'kunde'].includes(snap.quelle)) return Response.json({ error: 'Keine App-Support- oder Regie-Abrechnung' }, { status: 400 });
       if (!instr.sevdesk_invoice_id) return Response.json({ error: 'Kein sevDesk-Entwurf — es wird nichts markiert' }, { status: 400 });
       const jetzt = new Date().toISOString();
       let markiert = 0;
