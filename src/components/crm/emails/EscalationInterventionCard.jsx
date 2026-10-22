@@ -67,6 +67,7 @@ export default function EscalationInterventionCard({ zeile, offen, onOeffnen, li
       state: c.state === 'erledigt' ? c.state : 'in_arbeit',
     }))).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ['crm-escalations'] });
+    queryClient.invalidateQueries({ queryKey: ['eskalations-liste'] });
     queryClient.invalidateQueries({ queryKey: ['posteingang'] });
     toast({
       title: info?.angehaengt ? `An Ticket „${ticket.title}“ angehängt` : `Support-Ticket „${ticket.title}“ angelegt`,
@@ -157,7 +158,9 @@ Liefere: (1) Kern des Problems in 1-2 Sätzen. (2) Dringlichkeit (hoch/mittel/ni
         <div className="text-right text-meta">
           {wartet
             ? <span className="font-semibold text-status-critical">wartet seit {wartezeit(thread.last_message_at)}</span>
-            : <span className="text-muted-foreground">beantwortet · Vorgang offen</span>}
+            : ticketVerknuepft
+              ? <span className="text-foreground">In Bearbeitung (Ticket)</span>
+              : <span className="text-muted-foreground">beantwortet · Vorgang offen</span>}
         </div>
 
         <ChevronDown className={cn('w-4 h-4 text-muted-foreground', offen && 'rotate-180')} />
