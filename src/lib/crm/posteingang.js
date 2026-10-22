@@ -79,9 +79,13 @@ export const KANAELE = {
   office: { key: 'office', titel: 'Office-Eingang', adresse: 'office@rittler.co', recht: ['leitung', 'support'] },
 };
 
-export function kanaeleVon(empfaenger) {
+export function kanaeleVon(empfaenger, anSupport = false) {
   const text = (Array.isArray(empfaenger) ? empfaenger.join(', ') : String(empfaenger || '')).toLowerCase();
-  return Object.values(KANAELE).filter((k) => text.includes(k.adresse)).map((k) => k.key);
+  const liste = Object.values(KANAELE).filter((k) => text.includes(k.adresse)).map((k) => k.key);
+  // Ging früher in der Konversation eine Kundennachricht an support@, bleibt sie Support,
+  // auch wenn die letzte Nachricht direkt an einen Kollegen ging
+  if (anSupport && !liste.includes('support')) liste.push('support');
+  return liste;
 }
 
 const aktionVon = (item) => item?.suggested_action || (item?.track === 'support' ? 'supportticket' : 'anfrage');
@@ -98,6 +102,9 @@ const aktionVon = (item) => item?.suggested_action || (item?.track === 'support'
 export function klasseVon(e) {
   if (e.verwaltung) return 'verwaltung';
   const anliegen = e.thread?.anliegen;
+  // Regel 22.10.2026: An support@ (An oder Kopie, irgendwo in der Konversation) ist immer Support —
+  // die Adresse entscheidet vor der KI. Ausnahme: von der KI erkannter Spam.
+  if (e.kanaele?.includes('support') && anliegen !== 'kein_geschaeft') return 'support';
   if (anliegen === 'web_support') return 'support';
   if (anliegen === 'neue_anfrage') return 'neu';
   if (anliegen === 'kundenanliegen') return 'kunde';
@@ -140,7 +147,7 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
       betreff: t.subject || '',
       verwaltung: isBlockedSender(absender, verwaltung),
       eskalation: eskalationen.has(String(t.thread_id)),
-      kanaele: kanaeleVon(t.last_to),
+      kanaele: kanaeleVon(t.last_to, t.kanal_support || t.an_support),
       sofort: false,
     };
     eintraege.push(e);
