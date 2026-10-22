@@ -123,7 +123,7 @@ export function klasseVon(e) {
  *  eskalationen — Set offener Eskalations-Verläufe (thread_id)
  * Ein E-Mail-Item, dessen Konversation beantwortet oder erledigt ist, verlässt den Posteingang.
  */
-export function baueEintraege({ threads = [], items = [], itemZeilen = [], regeln = [], eskalationen = new Set(), jetzt = Date.now(), istAdmin = false, zuweisungen = [], ich = '' }) {
+export function baueEintraege({ threads = [], items = [], itemZeilen = [], regeln = [], eskalationen = new Set(), eskalationKeys = new Set(), jetzt = Date.now(), istAdmin = false, zuweisungen = [], ich = '' }) {
   const aktiv = regeln.filter((r) => r.is_active !== false);
   const verwaltung = aktiv.filter((r) => r.mode === 'verwaltung');
 
@@ -146,7 +146,7 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
       absenderName: t.last_from_name || '',
       betreff: t.subject || '',
       verwaltung: isBlockedSender(absender, verwaltung),
-      eskalation: eskalationen.has(String(t.thread_id)),
+      eskalation: eskalationen.has(String(t.thread_id)) || (!!t.conversation_key && eskalationKeys.has(t.conversation_key)),
       kanaele: kanaeleVon(t.last_to, t.kanal_support || t.an_support),
       sofort: false,
     };
