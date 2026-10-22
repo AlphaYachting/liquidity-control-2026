@@ -229,6 +229,7 @@ TEIL 3 — ARBEITSBEREICH (anliegen) der LETZTEN Kundennachricht, genau einer, I
   verwaltung — Lieferanten, Dienstleister, Steuerberatung, Bank, Behörden, Anwälte, Rechnungen oder Mahnungen, die WIR bezahlen sollen
   kein_geschaeft — Spam, Werbung, Kaltakquise, Newsletter, System-Mails
 Druck, Grafik und Broschüren sind NIE web_support, auch wenn es um eine Änderung geht.
+Zitiere als Beleg NIEMALS Passwörter, Zugangsdaten, Codes oder Kontonummern — dann den Beleg mit „enthält Zugangsdaten“ umschreiben.
 Antwortet ein Kunde auf UNSERE Rechnung, Zahlungserinnerung oder Mahnung, ist das kundenanliegen, nie verwaltung.
 
 Extrahiere zusätzlich die Kontaktdaten AUS DEM TEXT (nichts erfinden).`,
