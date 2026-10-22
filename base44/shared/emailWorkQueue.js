@@ -2,6 +2,7 @@
 // Das Backend schreibt das Ergebnis als needs_reply in den Verlaufs-Index (EmailThreadIndex);
 // die Oberfläche liest nur dieses Feld — es gibt keine zweite Regel im Frontend.
 import { domainOf, isInternalDomain, isSystemDomain, isFreemailDomain } from './senderLists.js';
+import { nenntSupport } from './supportKanal.js';
 
 // Abwesenheitsnotizen, Unzustellbar-Meldungen u. ä. — nie eine Kundenanfrage
 const AUTO_SUBJECT = /^\s*(automatische antwort|automatic reply|autoreply|auto-reply|abwesend|abwesenheit|out of (the )?office|unzustellbar|undeliverable|nicht zugestellt|delivery status notification|mail delivery (failed|system)|returned mail)\b/i;
@@ -96,8 +97,10 @@ export function computeNeedsReply(t) {
  * Konversationsebene: dieselbe Konversation liegt in der E-Mail-DB oft in mehreren Verläufen
  * (Antwort im Parallel-Verlauf, Kalenderzusage, Doppelversand). Pro Konversation zählt nur die
  * jüngste Nachricht von Kunde oder uns; interne Weiterleitungen zählen nicht als Antwort.
- * Rückgabe: Map thread_id -> { needs_reply, conversation_key, conversation_size }
+ * Rückgabe: Map thread_id -> { needs_reply, conversation_key, conversation_size, kanal_support }
  * Genau ein Verlauf je offener Konversation bekommt needs_reply = true (der jüngste).
+ * kanal_support: irgendeine Kundennachricht der Konversation ging an support@ (An oder Kopie) —
+ * die Konversation ist dann Support, auch wenn der Kunde später direkt einem Kollegen antwortet.
  */
 export function resolveConversations(rows) {
   const groups = new Map();
@@ -118,10 +121,13 @@ export function resolveConversations(rows) {
       const newest = relevant.reduce((a, b) => (toTime(b.last_message_at) > toTime(a.last_message_at) ? b : a));
       if (computeNeedsReply(newest) && toTime(newest.last_message_at) > doneAt) openId = String(newest.thread_id);
     }
+    const kanalSupport = list.some((r) => r.an_support === true
+      || ((r.last_direction || r.direction) === 'in' && nenntSupport(r.last_to)));
     list.forEach((r) => result.set(String(r.thread_id), {
       needs_reply: String(r.thread_id) === openId,
       conversation_key: key,
       conversation_size: list.length,
+      kanal_support: kanalSupport,
     }));
   });
   return result;
