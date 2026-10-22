@@ -155,6 +155,9 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
     if (offen <= 0 && (hatAbgerechnet.has(t.id) || t.awork_vorleistung_abgerechnet)) continue;
     const posten = {
       key: t.id, ticket_id: t.id, project_id: t.project_id, task_title: t.title,
+      // Kundenblock (22.10.2026): Art, Projekt und Satz je Position — Support und Regie in einer Rechnung
+      art: 'support', projekt_name: projektById[t.project_id]?.title || '',
+      stundensatz: Number(projektById[t.project_id]?.stundensatz) || SATZ,
       assignee_name: zustaendigeVon(t).map((e) => nameByEmail[e] || e).join(', '),
       last_entry_date: z.letzte, open_minutes: offen, vorleistung_minutes: vorleistung,
       billable_minutes: supportVerrechnungsMinuten(offen), time_entry_ids: z.ids,
@@ -185,6 +188,7 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
     const g = gruppe(p);
     const posten = {
       key: `ohne:${projectId}`, ticket_id: null, project_id: projectId, task_title: 'Zeit ohne Ticket',
+      art: 'support', projekt_name: p?.title || '', stundensatz: Number(p?.stundensatz) || SATZ,
       assignee_name: [...(z.personen || [])].join(', '),
       last_entry_date: z.letzte, open_minutes: z.minuten, vorleistung_minutes: 0,
       billable_minutes: supportVerrechnungsMinuten(z.minuten), time_entry_ids: z.ids, link: null,
@@ -220,6 +224,9 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
   return { rows, support_projects: projekte.length };
 }
 // ─────────────────────────────────────────────────────────────────────────────
+// Positionen je Tag und Projekt (Entscheidung Alfons 22.10.2026): statt einer Sammelposition
+// „Regieleistungen ohne Aufgabe“ steht jeder Tag als eigene Rechnungszeile mit den Tätigkeiten
+// dieses Tages — die Rundung je Tag und Projekt ist damit in jeder Zeile sichtbar.
 // Regie — Aufträge nach Aufwand auf Zuruf (Project.aufwand_art = 'regie').
 // Bis zur aWork-Abschaltung lief Regie über die aWork-Supportabrechnung; die
 // App-Supportabrechnung oben schließt Regie bewusst aus (anderes Modell: keine
@@ -334,26 +341,37 @@ export async function regieZeilen(sr, alleSeiten, liveStatus, anweisungen) {
     const positionen = {};
     for (const e of buchungen) {
       const vor = String(e.entry_date || '') <= umstellung;
-      const key = vor ? `vor:${p.id}` : (e.ticket_id && ticketById[e.ticket_id] ? e.ticket_id : `ohne:${p.id}`);
-      const pos = positionen[key] = positionen[key] || { key, ticket_id: vor ? null : (ticketById[e.ticket_id] ? e.ticket_id : null), vorbehalt: vor, entries: [], personen: new Set() };
+      const tag = String(e.entry_date || '').slice(0, 10) || 'ohne';
+      const key = vor ? `vor:${p.id}` : `tag:${p.id}:${tag}`;
+      const pos = positionen[key] = positionen[key] || { key, ticket_id: null, vorbehalt: vor, tag: vor ? null : tag, entries: [], personen: new Set() };
       pos.entries.push(e);
       if (e.person_email) pos.personen.add(nameByEmail[String(e.person_email).toLowerCase()] || e.person_email);
     }
+    const tagText = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : 'ohne Datum');
 
     const verrechnetMin = verrechnetJePosition(Object.values(positionen), regeln);
     const tasks = Object.values(positionen).map(pos => {
-      const t = pos.ticket_id ? ticketById[pos.ticket_id] : null;
       const minuten = pos.entries.reduce((s, e) => s + (Number(e.duration_minutes) || 0), 0);
       const letzte = pos.entries.reduce((m, e) => ((e.entry_date || '') > m ? e.entry_date : m), '');
       const erste = pos.entries.reduce((m, e) => (!m || (e.entry_date || '') < m ? e.entry_date : m), '');
-      const notizen = [...new Set(pos.entries.map(e => String(e.note || '').trim()).filter(Boolean))];
+      // Tätigkeiten des Tages in Buchungsreihenfolge: die Notiz, sonst der Titel der Aufgabe
+      const notizen = [...new Set(pos.entries
+        .slice()
+        .sort((a, b) => String(a.started_at || a.created_date || '').localeCompare(String(b.started_at || b.created_date || '')))
+        .map(e => String(e.note || '').trim() || (e.ticket_id && ticketById[e.ticket_id] ? ticketById[e.ticket_id].title : ''))
+        .filter(Boolean))];
       return {
         key: pos.key,
-        ticket_id: pos.ticket_id,
+        ticket_id: null,
         project_id: p.id,
+        art: 'regie',
+        projekt_name: p.title,
+        stundensatz: satz,
+        rundung: regeln,
+        tag: pos.tag,
         task_title: pos.vorbehalt
           ? `Buchungen bis ${umstellung.slice(8, 10)}.${umstellung.slice(5, 7)}. — vor der Umstellung, mit aWork abgleichen`
-          : (t ? t.title : 'Regieleistungen ohne Aufgabe'),
+          : `Regieleistungen ${tagText(pos.tag)}`,
         assignee_name: [...pos.personen].join(', '),
         last_entry_date: letzte || null,
         first_entry_date: erste || null,
@@ -361,15 +379,15 @@ export async function regieZeilen(sr, alleSeiten, liveStatus, anweisungen) {
         vorleistung_minutes: 0,
         billable_minutes: verrechnetMin[pos.key],
         time_entry_ids: pos.entries.map(e => e.id),
-        link: t ? `/sprint/milestones/${t.milestone_id}?aufgabe=${t.id}` : null,
+        link: null,
         ohne_zeit: false,
         vorbehalt: pos.vorbehalt,
         notizen,
-        target_hours: t ? (Number(t.target_hours) || null) : null,
+        target_hours: null,
         erledigt_am: null,
         awork_task_id: null,
       };
-    }).sort((a, b) => Number(a.vorbehalt) - Number(b.vorbehalt) || b.open_minutes - a.open_minutes);
+    }).sort((a, b) => Number(a.vorbehalt) - Number(b.vorbehalt) || String(a.tag || '').localeCompare(String(b.tag || '')));
 
     rows.push({
       group_key: `regie:${p.id}`,
