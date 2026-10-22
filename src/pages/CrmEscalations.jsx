@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Siren, CheckCircle2, Loader2 } from 'lucide-react';
+import Seitenkopf from '@/components/shared/Seitenkopf';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEskalationsListe } from '@/hooks/useEskalationsListe';
 import EscalationInterventionCard from '@/components/crm/emails/EscalationInterventionCard';
@@ -57,16 +58,12 @@ export default function CrmEscalations() {
   });
 
   return (
-    <div className="space-y-4 max-w-6xl">
-      <div>
-        <h1 className="text-lg font-bold flex items-center gap-2">
-          <Siren className="w-5 h-5 text-red-600" /> Kunden-Eskalationen
-        </h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Reklamationen und kritische Stimmung aus den E-Mails — nur hier, nicht zusätzlich im Posteingang.
-          Zuerst, wo der Kunde noch auf Antwort wartet.
-        </p>
-      </div>
+    <div className="max-w-[1200px] space-y-4">
+      <Seitenkopf
+        bereich="CRM"
+        titel="Kunden-Eskalationen"
+        kontext={`${zahlen.wartet || 0} warten auf Antwort · Eskalationen stehen nur hier, nicht zusätzlich im Posteingang`}
+      />
 
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex gap-1 border-b flex-1 min-w-[320px] overflow-x-auto">
@@ -112,7 +109,7 @@ export default function CrmEscalations() {
           </p>
         </div>
       ) : (
-        <div className="border rounded-lg bg-card divide-y overflow-hidden">
+        <div className="bg-card border rounded-lg overflow-hidden divide-y">
           {liste.map((z) => (
             <EscalationInterventionCard
               key={z.key}
