@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { emailDbGet } from '../../shared/emailDb.ts';
 import { recomputeWindow } from '../../shared/emailConversations.js';
 import { autoZuweisen } from '../../shared/postZuweisungAuto.js';
+import { anSupport } from '../../shared/supportKanal.js';
 
 // Die E-Mail-Datenbank kann seit API v2 seitenweise blättern (limit/offset,
 // has_more, next_offset). Der Verlaufs-Index wird daher direkt über die
@@ -59,6 +60,8 @@ function rowFromDetail(meta, messages) {
     last_from_name: last?.from_name || '',
     last_to: alsText(last?.to) || (last?.direction === 'in' ? (lastOut?.from || '') : (lastIn?.from || '')),
     last_inbound_from: lastIn?.from || '',
+    // eine Kundennachricht ging an support@ (An oder Kopie) — Konversation ist Support
+    an_support: anSupport(msgs),
     has_outbound: msgs.some((m) => m.direction === 'out'),
     detail_loaded: msgs.length > 0,
   };
