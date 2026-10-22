@@ -24,6 +24,8 @@ const KEINE = [];
 export default function SupportTicketDialog({ open, onOpenChange, item, onDone }) {
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Was gerade passiert — damit „Wird angelegt“ nie wie ein Hänger aussieht
+  const [schritt, setSchritt] = useState('');
   const [error, setError] = useState(null);
   const [loadingThread, setLoadingThread] = useState(false);
   const queryClient = useQueryClient();
@@ -186,6 +188,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
   const submit = async () => {
     setBusy(true);
     setError(null);
+    setSchritt('Support-Projekt wird gesucht …');
     try {
       const user = await base44.auth.me().catch(() => null);
       const chosen = [...kundenProjekte, ...projects].find(p => p.id === form.project_id);
@@ -197,12 +200,14 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
           stundensatz: Number(form.stundensatz) || 0,
         },
       );
-      const { ticket, back, hinweis } = await createSupportTicket({ item, projectId, milestoneId, values: form });
+      const { ticket, back, hinweis } = await createSupportTicket({ item, projectId, milestoneId, values: form, onSchritt: setSchritt });
       setBusy(false);
+      setSchritt('');
       onOpenChange(false);
       onDone?.(ticket, back, hinweis);
     } catch (e) {
       setBusy(false);
+      setSchritt('');
       setError(e?.response?.data?.detail || e?.message || 'Das Ticket konnte nicht angelegt werden.');
     }
   };
@@ -224,7 +229,8 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
       {/* Kopf und Fuß stehen fest, nur der Formularteil scrollt — die Knöpfe bleiben immer erreichbar */}
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0">
         <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0"><DialogTitle>Support-Ticket anlegen</DialogTitle></DialogHeader>
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
+        {/* Während des Anlegens gesperrt — eine Änderung würde nicht mehr ins Ticket übernommen */}
+        <div className={`flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3 ${busy ? 'pointer-events-none opacity-60 select-none' : ''}`} aria-busy={busy}>
           {vorhandenOffen && (
             <div className="rounded-md border border-status-attention/40 bg-status-attention/5 p-3 space-y-2">
               <p className="text-sm font-semibold">
@@ -424,7 +430,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
           {error && <p className="text-xs text-destructive sm:mr-auto sm:max-w-[60%]">{error}</p>}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Abbrechen</Button>
           <Button onClick={submit} disabled={busy || loadingThread || vorhandenOffen || !form.customer || !form.title || !form.description.trim() || !form.assignee_email}>
-            {busy ? 'Wird angelegt…' : 'Ticket anlegen'}
+            {busy ? (schritt || 'Wird angelegt …') : 'Ticket anlegen'}
           </Button>
         </DialogFooter>
       </DialogContent>
