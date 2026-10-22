@@ -67,26 +67,26 @@ export default function ZuweisungWahl({ eintrag, onChanged }) {
     setBusy(false);
   };
 
+  const hinweis = [
+    eintrag?.vertraulich ? 'vertraulich — nur an dich zuweisbar' : '',
+    eintrag?.zuweisung?.quelle === 'automatisch' ? 'automatisch zugewiesen — ein Arbeitstag ohne Reaktion' : '',
+  ].filter(Boolean).join(' · ');
+
+  // Einheitlich am rechten Rand der Aktionsleiste: Auswahl + „Mir“, Hinweise als Tooltip
   return (
-    <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()} title={hinweis || undefined}>
       <span className="text-label uppercase text-muted-foreground">Zuständig</span>
       <Select value={aktuell || '__none__'} onValueChange={(v) => setzen(v === '__none__' ? '' : v)} disabled={busy}>
-        <SelectTrigger className="h-8 w-[200px] text-xs"><SelectValue placeholder="Zuweisen" /></SelectTrigger>
+        <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue placeholder="Zuweisen" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">Nicht zugewiesen</SelectItem>
           {auswahl.map((m) => <SelectItem key={m.id} value={m.email}>{m.name}</SelectItem>)}
         </SelectContent>
       </Select>
       {darfMir && aktuell.toLowerCase() !== ich.toLowerCase() && (
-        <Button size="sm" variant="outline" className="h-8 text-xs" disabled={busy} onClick={() => setzen(ich)}>
-          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />} Mir zuweisen
+        <Button size="sm" variant="ghost" className="h-8 text-xs px-2" disabled={busy} onClick={() => setzen(ich)} title="Mir zuweisen">
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />} Mir
         </Button>
-      )}
-      {eintrag?.vertraulich && (
-        <span className="text-meta text-muted-foreground">vertraulich — nur an dich zuweisbar</span>
-      )}
-      {eintrag?.zuweisung?.quelle === 'automatisch' && (
-        <span className="text-meta text-muted-foreground">automatisch zugewiesen — ein Arbeitstag ohne Reaktion</span>
       )}
     </div>
   );
