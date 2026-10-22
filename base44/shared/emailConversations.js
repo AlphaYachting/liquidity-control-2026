@@ -49,7 +49,8 @@ async function writeChanges(svc, rows, map, maxWrites = MAX_WRITES) {
     const offenGeaendert = Boolean(r.needs_reply) !== res.needs_reply;
     if (offenGeaendert
       || (r.conversation_key || '') !== res.conversation_key
-      || (r.conversation_size || 0) !== res.conversation_size) {
+      || (r.conversation_size || 0) !== res.conversation_size
+      || Boolean(r.kanal_support) !== Boolean(res.kanal_support)) {
       changes.push({ id: r.id, patch: res, prio: offenGeaendert ? 0 : 1 });
     }
   }
