@@ -225,7 +225,7 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
   const typLabel = (p) => typeStyleOf(p)?.short || '';
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
       {/* Kopf und Fuß stehen fest, nur der Formularteil scrollt — die Knöpfe bleiben immer erreichbar */}
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0">
         <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0"><DialogTitle>Support-Ticket anlegen</DialogTitle></DialogHeader>
