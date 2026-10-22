@@ -8,6 +8,7 @@ import AworkUebernahmeDialog from '@/components/support/AworkUebernahmeDialog';
 import { SUPPORT_TICKETS_KEY } from '@/components/sprint/heute/MeinTagSupportTickets';
 import { useZugriff } from '@/lib/useZugriff';
 import { useAuth } from '@/lib/AuthContext';
+import { useEskalationsListe } from '@/hooks/useEskalationsListe';
 import { Link } from 'react-router-dom';
 import Seitenkopf from '@/components/shared/Seitenkopf';
 import { Box } from '@/components/shared/Box';
@@ -86,7 +87,9 @@ export default function CrmInbox() {
 
   // EIN Posteingang: nur unbeantwortete Konversationen (Regel im Backend) plus
   // Anfragen der Telefon-KI und manuell erfasste — siehe lib/crm/posteingang.js
-  const { eintraege, zahlen, gesamt, ueberfaellig: overdue, isLoading, eskalationenAusgelagert = 0 } = usePosteingang();
+  const { eintraege, zahlen, gesamt, ueberfaellig: overdue, isLoading } = usePosteingang();
+  // Dieselbe Zahl wie auf der Eskalationsseite und in der Navigation (geteilter Abruf)
+  const { wartend: eskalationenWartend } = useEskalationsListe({ enabled: zugriffEsk.darf('leitung') });
   const { user: angemeldet } = useAuth();
   const ichMail = (angemeldet?.email || '').toLowerCase();
   const passtWer = (e) => wer === 'alle'
@@ -243,14 +246,14 @@ export default function CrmInbox() {
         <>
           {kanal === 'support' && <SupportOhneZustaendig />}
           {/* Eine Heimat je Mail: Eskalationen stehen nur auf der Eskalationsseite */}
-          {eskalationenAusgelagert > 0 && (
+          {eskalationenWartend > 0 && (
             <Link
               to="/crm/escalations"
               className="flex items-center gap-2 rounded-lg border border-status-critical/40 bg-status-critical/5 px-4 py-2.5 text-sm hover:bg-status-critical/10"
             >
               <AlertTriangle className="w-4 h-4 shrink-0 text-status-critical" />
               <span>
-                <strong>{eskalationenAusgelagert} {eskalationenAusgelagert === 1 ? 'Eskalation wartet' : 'Eskalationen warten'}</strong> auf Antwort — sie stehen nur unter Kunden-Eskalationen.
+                <strong>{eskalationenWartend} {eskalationenWartend === 1 ? 'Eskalation wartet' : 'Eskalationen warten'}</strong> auf Antwort — sie stehen nur unter Kunden-Eskalationen.
               </span>
               <span className="ml-auto font-semibold underline">Zu den Eskalationen</span>
             </Link>
