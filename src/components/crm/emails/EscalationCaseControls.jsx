@@ -52,7 +52,10 @@ export default function EscalationCaseControls({ caseRecord, thread, weitereFael
         ...fields,
       });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crm-escalations'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crm-escalations'] });
+      queryClient.invalidateQueries({ queryKey: ['eskalations-liste'] });
+    },
   });
 
   const severity = caseRecord?.severity || 0;
@@ -66,6 +69,7 @@ export default function EscalationCaseControls({ caseRecord, thread, weitereFael
     } catch (_e) { /* Zuweisung der Mail ist Best-Effort, der Vorgang wird trotzdem gesetzt */ }
     if (!caseRecord?.id) save.mutate({ assigned_to: an });
     queryClient.invalidateQueries({ queryKey: ['crm-escalations'] });
+    queryClient.invalidateQueries({ queryKey: ['eskalations-liste'] });
     queryClient.invalidateQueries({ queryKey: ['posteingang'] });
   };
 
