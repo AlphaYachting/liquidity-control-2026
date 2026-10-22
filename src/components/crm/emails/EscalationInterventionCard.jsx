@@ -194,7 +194,11 @@ Liefere: (1) Kern des Problems in 1-2 Sätzen. (2) Dringlichkeit (hoch/mittel/ni
             )}
           </div>
 
-          <EscalationCaseControls caseRecord={caseRecord} thread={thread} />
+          <EscalationCaseControls
+            caseRecord={caseRecord}
+            thread={thread}
+            weitereFaelle={faelle.filter((c) => c.id && c.id !== caseRecord?.id)}
+          />
 
           {error && <p className="text-xs text-red-600">{error}</p>}
           {plan && (
