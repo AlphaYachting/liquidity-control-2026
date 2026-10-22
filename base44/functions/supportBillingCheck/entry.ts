@@ -249,8 +249,71 @@ export default async function (req) {
       regie = { rows: [], regie_projects: 0, fehler: e.message };
     }
 
+    // Kundenblock (Entscheidung Alfons 22.10.2026): Support und Regie eines Kunden in EINEM Block,
+    // damit der Kunde eine Rechnung bekommt. Je Position bleiben Art, Projekt, Satz und Rundung erhalten.
+    const kunden = {};
+    const kundeVon = (r) => {
+      const key = `kunde:${r.client_id || r.group_key}`;
+      if (!kunden[key]) {
+        kunden[key] = {
+          group_key: key, art: 'kunde', quelle: 'kunde', client_id: r.client_id || '',
+          customer_name: r.customer_name, sevdesk_contact_id: r.sevdesk_contact_id || '',
+          liquidity_project_id: r.liquidity_project_id || '', project_name: '', projekte: [],
+          stundensatz: r.stundensatz, open_minutes: 0, billable_minutes: 0, vorbehalt_minutes: 0,
+          vorleistung_minutes: 0, tasks: [], instructions: [], nicht_verrechnet: [],
+        };
+      }
+      return kunden[key];
+    };
+    const zeilenRegie = regie.rows || [];
+    for (const r of [...app.rows, ...zeilenRegie]) {
+      const k = kundeVon(r);
+      if (!k.sevdesk_contact_id && r.sevdesk_contact_id) k.sevdesk_contact_id = r.sevdesk_contact_id;
+      const art = r.art === 'regie' ? 'regie' : 'support';
+      for (const t of r.tasks) {
+        k.tasks.push({ ...t, art: t.art || art, projekt_name: t.projekt_name || r.project_name, stundensatz: t.stundensatz || r.stundensatz, ...(art === 'regie' ? { rundung: t.rundung || r.rundung } : {}) });
+      }
+      const namen = [...new Set(r.tasks.map((t) => t.projekt_name || r.project_name))];
+      for (const n of (namen.length ? namen : [r.project_name])) {
+        if (!k.projekte.some((x) => x.name === n)) k.projekte.push({ name: n, art, stundensatz: r.stundensatz });
+      }
+      k.open_minutes += r.open_minutes || 0;
+      k.billable_minutes += r.billable_minutes || 0;
+      k.vorbehalt_minutes += r.vorbehalt_minutes || 0;
+      k.vorleistung_minutes += r.vorleistung_minutes || 0;
+      for (const i of r.instructions || []) if (!k.instructions.some((x) => x.id === i.id)) k.instructions.push(i);
+      k.nicht_verrechnet.push(...(r.nicht_verrechnet || []));
+    }
+    // Gemeinsame Anweisungen (quelle 'kunde') bleiben sichtbar, bis sie bezahlt sind
+    for (const a of anweisungen) {
+      let snap = null;
+      try { snap = a.source_snapshot_json ? JSON.parse(a.source_snapshot_json) : null; } catch (_e) { snap = null; }
+      if (snap?.quelle !== 'kunde' || a.status === 'cancelled' || a.status === 'paid') continue;
+      const live = await liveStatus(a.sevdesk_invoice_id);
+      if (live?.status_code === '1000') continue;
+      const k = kundeVon({ client_id: snap.client_id, group_key: a.id, customer_name: a.customer_name, sevdesk_contact_id: snap.sevdesk_contact_id, stundensatz: snap.hourly_rate });
+      if (!k.instructions.some((x) => x.id === a.id)) {
+        k.instructions.push({
+          id: a.id, amount_net: a.instruction_amount_net || 0, status: a.status,
+          sevdesk_invoice_id: a.sevdesk_invoice_id || null, sevdesk_invoice_url: a.sevdesk_invoice_url || null,
+          live_status: live,
+        });
+      }
+    }
+    // Positionen je Projekt beisammen: Support zuerst, Regie danach, je Projekt nach Tag
+    const kundenRows = Object.values(kunden).map((k) => {
+      k.tasks.sort((a, b) => (a.art === b.art ? 0 : a.art === 'support' ? -1 : 1)
+        || String(a.projekt_name || '').localeCompare(String(b.projekt_name || ''))
+        || Number(!!a.vorbehalt) - Number(!!b.vorbehalt)
+        || String(a.tag || '').localeCompare(String(b.tag || '')));
+      k.project_name = k.projekte.map((x) => x.name).join(' · ');
+      return k;
+    }).filter((k) => k.tasks.length || k.nicht_verrechnet.length || k.instructions.length)
+      .sort((a, b) => b.open_minutes - a.open_minutes);
+
     return Response.json({
       success: true,
+      kunden_rows: kundenRows,
       app_rows: app.rows,
       app_support_projects: app.support_projects,
       app_billable_minutes: app.rows.reduce((s, r) => s + r.billable_minutes, 0),
