@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ const regelRegie = (h) => {
   if (!Number.isFinite(n) || n <= 0) return 0;
   return zweiStellen(n);
 };
+const tagKurz = (iso) => (/^\d{4}-\d{2}-\d{2}/.test(String(iso || '')) ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '');
 const REGIE_KOPF = 'Sehr geehrte Damen und Herren,\n\nbeiliegend erhalten Sie die Verrechnung der nach Aufwand erbrachten Leistungen.';
 const eur = (n) => n.toLocaleString('de-AT', { style: 'currency', currency: 'EUR' });
 
@@ -59,41 +60,71 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
   const [begruendung, setBegruendung] = useState({});
   const [stunden, setStunden] = useState(() => Object.fromEntries(row.tasks.map((t) => [t.key, startStunden(t)])));
   const [texte, setTexte] = useState(() => Object.fromEntries(row.tasks.map((t) => [t.key, startText(t)])));
+  // Kurztitel je Position (22.10.2026): KI-Vorschlag, frei änderbar. Auf der Rechnung steht
+  // „Titel – Regie TT.MM.JJJJ“ bzw. bei Support der Titel (ohne Ticket mit Datum).
+  const startTitel = (t) => {
+    if (t.vorbehalt) return t.task_title;
+    if (istRegie(t)) return 'Regieleistungen';
+    return t.ticket_id ? t.task_title : 'Supportleistungen';
+  };
+  const [titel, setTitel] = useState(() => Object.fromEntries(row.tasks.map((t) => [t.key, startTitel(t)])));
+  // Was du selbst geändert hast, überschreibt der KI-Vorschlag nicht mehr
+  const bearbeitet = useRef(new Set());
   // Stundensatz je Position — Support und Regie haben verschiedene Sätze
   const [saetze, setSaetze] = useState(() => Object.fromEntries(row.tasks.map((t) => [t.key, String(t.stundensatz || row.stundensatz || 130)])));
   const [laedtTexte, setLaedtTexte] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fehler, setFehler] = useState('');
 
-  // Leistungsbeschreibung aus den Tickets vorschlagen
+  // KI-Vorschlag für Kurztitel und Leistungsbeschreibung — ein Aufruf für alle Positionen.
+  // Es bleibt ein Vorschlag: alles steht in Eingabefeldern, nichts geht ohne Klick an sevDesk.
   useEffect(() => {
-    const ids = row.tasks.map((t) => t.ticket_id).filter(Boolean);
-    if (!open || !ids.length) return;
+    const anfrage = row.tasks.filter((t) => !t.vorbehalt).map((t) => ({
+      key: t.key,
+      art: istRegie(t) ? 'regie' : 'support',
+      ticket_id: istRegie(t) ? null : (t.ticket_id || null),
+      notizen: istRegie(t) ? (t.notizen || []) : (t.buchungs_notizen || []).map((n) => n.text).filter(Boolean),
+    }));
+    if (!open || !anfrage.length) return;
     let abgebrochen = false;
     setLaedtTexte(true);
-    base44.functions.invoke('supportVerrechnung', { aktion: 'leistungstext', ticket_ids: ids })
+    base44.functions.invoke('supportVerrechnung', { aktion: 'positionsvorschlag', positionen: anfrage })
       .then((res) => {
         if (abgebrochen) return;
-        const vorschlag = res.data?.texte || {};
+        const v = res.data?.vorschlaege || {};
+        setTitel((alt) => {
+          const neu = { ...alt };
+          for (const k of Object.keys(v)) if (v[k].titel && !bearbeitet.current.has(`titel:${k}`)) neu[k] = v[k].titel;
+          return neu;
+        });
         setTexte((alt) => {
           const neu = { ...alt };
-          for (const t of row.tasks) {
-            if (t.ticket_id && !alt[t.key]) neu[t.key] = vorschlag[t.ticket_id] || t.task_title;
-          }
+          for (const k of Object.keys(v)) if (v[k].text && !bearbeitet.current.has(`text:${k}`)) neu[k] = v[k].text;
           return neu;
         });
       })
-      .catch(() => {
+      .catch(() => { /* ohne Vorschlag bleibt der bisherige Text */ })
+      .finally(() => {
         if (abgebrochen) return;
+        // Tickets ohne Vorschlag: wenigstens der Ticket-Titel als Beschreibung
         setTexte((alt) => {
           const neu = { ...alt };
-          for (const t of row.tasks) if (t.ticket_id && !alt[t.key]) neu[t.key] = t.task_title;
+          for (const t of row.tasks) if (t.ticket_id && !istRegie(t) && !String(alt[t.key] || '').trim()) neu[t.key] = t.task_title;
           return neu;
         });
-      })
-      .finally(() => { if (!abgebrochen) setLaedtTexte(false); });
+        setLaedtTexte(false);
+      });
     return () => { abgebrochen = true; };
   }, [open]);
+
+  // Name der Rechnungsposition: Kurztitel, bei Regie und Support ohne Ticket mit Datum
+  const positionsName = (t) => {
+    const kurz = String(titel[t.key] || '').trim();
+    if (t.vorbehalt) return t.task_title;
+    if (istRegie(t)) return t.tag ? `${kurz} – Regie ${tagKurz(t.tag)}` : kurz;
+    if (!t.ticket_id) return t.last_entry_date ? `${kurz} – Support ${tagKurz(t.last_entry_date)}` : kurz;
+    return kurz;
+  };
 
   const gewaehlt = row.tasks.filter((t) => selected.includes(t.key));
   const projekteGewaehlt = [...new Set(gewaehlt.map((t) => t.projekt_name || row.project_name).filter(Boolean))];
@@ -105,12 +136,13 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
     const zeitraum = istRegie(t) && t.first_entry_date && t.last_entry_date && t.first_entry_date !== t.last_entry_date
       ? `geleistet ${datum(t.first_entry_date)} bis ${datum(t.last_entry_date)}`
       : (t.last_entry_date ? `geleistet am ${datum(t.last_entry_date)}` : '');
-    // Regie je Tag: das Datum steht schon im Namen — in der Fußzeile nur noch die Personen
-    const fussZeit = istRegie(t) && t.tag ? '' : (t.erledigt_am ? `erledigt am ${datum(t.erledigt_am)}` : zeitraum);
-    const fusszeile = [fussZeit, t.assignee_name].filter(Boolean).join(' · ');
-    // Mehrere Projekte auf einer Rechnung: Projektname vor die Position, damit die Liste geordnet bleibt
+    // Regie je Tag und Support ohne Ticket: das Datum steht schon im Namen — in der Fußzeile nur noch die Personen
+    const datumImNamen = (istRegie(t) && t.tag) || (!istRegie(t) && !t.ticket_id);
+    const fussZeit = datumImNamen ? '' : (t.erledigt_am ? `erledigt am ${datum(t.erledigt_am)}` : zeitraum);
+    // Mehrere Projekte auf einer Rechnung: das Projekt steht in der Fußzeile der Position
     const projekt = t.projekt_name || row.project_name || '';
-    const name = mehrereProjekte && projekt ? `${projekt}: ${t.task_title}` : t.task_title;
+    const fusszeile = [mehrereProjekte ? projekt : '', fussZeit, t.assignee_name].filter(Boolean).join(' · ');
+    const name = positionsName(t);
     return {
       key: t.key,
       ticket_id: istRegie(t) ? null : (t.ticket_id || null),
@@ -125,7 +157,8 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
     };
   });
   const fehlendeStunden = positionen.filter((p) => p.quantity <= 0).length;
-  const fehlendeTexte = positionen.filter((p) => !p.leistung).length;
+  const fehlendeTexte = positionen.filter((p) => !p.leistung).length
+    + positionen.filter((p) => !String(titel[p.key] || '').trim()).length;
   const fehlendeBegruendung = positionen.filter((p) => p.ohne_buchung && !p.stunden_begruendung).length;
   const fehlenderSatz = positionen.filter((p) => !(p.price > 0)).length;
   const summeStunden = positionen.reduce((s, p) => s + p.quantity, 0);
@@ -316,13 +349,25 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
                         />
                       </div>
                     )}
+                    {!t.vorbehalt && (
+                      <div className="ml-7">
+                        <Label className="text-xs">Titel (2–4 Wörter){laedtTexte ? ' — Vorschlag wird erstellt …' : ''}</Label>
+                        <Input
+                          value={titel[t.key] || ''}
+                          onChange={(e) => { bearbeitet.current.add(`titel:${t.key}`); setTitel((s) => ({ ...s, [t.key]: e.target.value })); }}
+                          disabled={!aktiv}
+                          className={aktiv && !String(titel[t.key] || '').trim() ? 'border-red-500' : ''}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Auf der Rechnung: <span className="font-medium text-foreground">{positionsName(t)}</span></p>
+                      </div>
+                    )}
                     <div className="ml-7">
                       <Label className="text-xs">Leistungsbeschreibung (erscheint auf der Rechnung)</Label>
                       <Textarea
                         rows={2}
                         value={texte[t.key] || ''}
-                        placeholder={laedtTexte ? 'Vorschlag wird aus dem Ticket erstellt …' : 'Was wurde erledigt?'}
-                        onChange={(e) => setTexte((s) => ({ ...s, [t.key]: e.target.value }))}
+                        placeholder={laedtTexte ? 'Vorschlag wird erstellt …' : 'Was wurde erledigt?'}
+                        onChange={(e) => { bearbeitet.current.add(`text:${t.key}`); setTexte((s) => ({ ...s, [t.key]: e.target.value })); }}
                         disabled={!aktiv}
                       />
                     </div>
@@ -356,7 +401,7 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
             <p className="text-xs text-muted-foreground sm:mr-auto">
               {fehlendeStunden ? `${fehlendeStunden} Position(en) ohne Stunden. ` : ''}
               {fehlenderSatz ? `${fehlenderSatz} Position(en) ohne Stundensatz. ` : ''}
-              {fehlendeTexte ? `${fehlendeTexte} Position(en) ohne Leistungsbeschreibung. ` : ''}
+              {fehlendeTexte ? `${fehlendeTexte}× fehlt ein Titel oder eine Leistungsbeschreibung. ` : ''}
               {fehlendeBegruendung ? `${fehlendeBegruendung} Position(en) ohne gebuchte Zeit brauchen eine Begründung.` : ''}
             </p>
           )}
