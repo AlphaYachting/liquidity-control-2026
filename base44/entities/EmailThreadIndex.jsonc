@@ -1,6 +1,11 @@
 {
   "name": "EmailThreadIndex",
   "properties": {
+    "an_support": {
+      "default": false,
+      "description": "Eine Kundennachricht dieses Verlaufs ging an support@rittler.co (An oder Kopie)",
+      "type": "boolean"
+    },
     "anliegen": {
       "description": "KI-Einordnung der letzten Kundennachricht \u2014 steuert die Filter im Posteingang",
       "enum": [
@@ -53,6 +58,11 @@
     "indexed_at": {
       "format": "date-time",
       "type": "string"
+    },
+    "kanal_support": {
+      "default": false,
+      "description": "Irgendeine Kundennachricht der Konversation ging an support@ \u2014 die Konversation ist Support (Regel 22.10.2026)",
+      "type": "boolean"
     },
     "last_direction": {
       "type": "string"
