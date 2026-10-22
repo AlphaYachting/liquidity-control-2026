@@ -168,6 +168,8 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
         if (offen) {
           if (!offen.item) offen.item = item;
           if (eskalationen.has(tid)) offen.eskalation = true;
+          // Ging die erste Anfrage an support@, ist die ganze Konversation Support
+          for (const k of kanaeleVon(item.recipient)) if (!offen.kanaele.includes(k)) offen.kanaele.push(k);
         }
         // Konversation beantwortet oder erledigt -> nicht mehr im Posteingang
         continue;
