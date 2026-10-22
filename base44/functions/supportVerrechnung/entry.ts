@@ -181,13 +181,15 @@ export default async function (req) {
         if (!n || b.korrektur_zu) continue;
         (notizenProTicket[b.ticket_id] = notizenProTicket[b.ticket_id] || new Set()).add(n);
       }
-      const quelle = eingang.map((p) => {
+      // Positionen werden nummeriert — die KI gibt die Nummer zurück, nicht den internen Schlüssel
+      // (Schlüssel wie „tag:<id>:2026-10-06“ hat sie verändert zurückgegeben, 22.10.2026)
+      const quelle = eingang.map((p, i) => {
         const t = p.ticket_id ? ticketById[p.ticket_id] : null;
         const notizen = [...new Set([...(p.notizen || []), ...(t ? [...(notizenProTicket[t.id] || [])] : [])]
           .map((n) => String(n || '').trim()).filter(Boolean))].slice(0, 30);
         const beschreibung = t ? String(t.description || '').split('— E-Mail-Verlauf —')[0].split('— Vollständiger E-Mail-Verlauf —')[0].trim().slice(0, 2500) : '';
         return [
-          `POSITION ${p.key}`,
+          `POSITION ${i + 1}`,
           `ART: ${p.art === 'regie' ? 'Regie (Arbeiten eines Tages)' : t ? 'Support-Anfrage' : 'Support ohne Anfrage'}`,
           t ? `TICKET-TITEL (oft nur der E-Mail-Betreff): ${t.title || ''}` : '',
           beschreibung ? `ANFRAGE:\n${beschreibung}` : '',
@@ -202,7 +204,7 @@ export default async function (req) {
 1. titel: zwei bis vier Wörter, die sagen, worum es ging — wie eine Betreffzeile für den Kunden (z. B. „Website PHP-Update", „Stellenanzeigen Karriereseite", „SSL-Umstellung https", „Newsletter Junker-Aktion"). Kein Datum, keine Stunden, nicht „Regieleistungen" oder „Support", keine Anrede- oder Betreffwörter aus E-Mails wie „Re:", „AW:", „Anfrage", „Schön von Ihnen zu lesen".
 2. text: ein bis höchstens zwei kurze, sachliche Sätze, was für den Kunden erledigt wurde. Interne Kürzel und Arbeitsnotizen in verständliche Sprache bringen. Bei Regie fasst der Text alle Tätigkeiten des Tages zusammen; gibt es mehrere Themen, den Titel nach dem größten Thema wählen und die übrigen im Text nennen.
 STRENG VERBOTEN in Titel und Text: Passwörter, Benutzernamen, Zugangsdaten, Server- oder FTP-Angaben, Bankdaten, E-Mail-Adressen, Telefonnummern, Namen von Personen (auch Kollegen), Bestell- oder Rechnungsnummern, Uhrzeiten, Stundenangaben.
-Erfinde nichts, was nicht in den Angaben steht. Interne Vermerke ohne Leistung für den Kunden (z. B. „Minuten", „TEST", ein einzelner Kundenname) weglassen. Antworte für jede Position mit ihrem Schlüssel.
+Erfinde nichts, was nicht in den Angaben steht. Interne Vermerke ohne Leistung für den Kunden (z. B. „Minuten", „TEST", ein einzelner Kundenname) weglassen. Antworte für jede Position mit ihrer Nummer im Feld nr.
 
 ${quelle}`,
           response_json_schema: {
@@ -212,26 +214,29 @@ ${quelle}`,
                 type: 'array',
                 items: {
                   type: 'object',
-                  properties: { key: { type: 'string' }, titel: { type: 'string' }, text: { type: 'string' } },
-                  required: ['key', 'titel', 'text'],
+                  properties: { nr: { type: 'integer' }, titel: { type: 'string' }, text: { type: 'string' } },
+                  required: ['nr', 'titel', 'text'],
                 },
               },
             },
             required: ['positionen'],
           },
         });
-        const erlaubt = new Set(eingang.map((p) => p.key));
-        for (const p of res?.positionen || []) {
-          if (!erlaubt.has(p.key)) continue;
+        const liste = res?.positionen || res?.data?.positionen || [];
+        for (const p of liste) {
+          const ziel = eingang[Number(p.nr) - 1];
+          if (!ziel) continue;
           const titel = String(p.titel || '').replace(/\s+/g, ' ').trim().slice(0, 80);
           const text = String(p.text || '').trim().slice(0, 600);
-          vorschlaege[p.key] = {
+          vorschlaege[ziel.key] = {
             titel: titel && !SENSIBEL.test(titel) ? titel : '',
             text: text && !SENSIBEL.test(text) ? text : '',
           };
         }
-      } catch (_e) {
+        console.log(`positionsvorschlag: ${eingang.length} angefragt, ${liste.length} geliefert, ${Object.keys(vorschlaege).length} übernommen`);
+      } catch (e) {
         // Ohne Vorschlag bleibt im Dialog der bisherige Text stehen
+        console.log(`positionsvorschlag fehlgeschlagen: ${e?.message || e}`);
       }
       return Response.json({ success: true, vorschlaege });
     }
