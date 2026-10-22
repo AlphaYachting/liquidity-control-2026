@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { LifeBuoy, UserPlus, Link2, Check, ExternalLink } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -21,6 +22,13 @@ import { PostAktionen } from '@/components/post/PostBaukasten';
 export function useThreadAktionen({ thread, messages = [], onChanged, mitAntworten = true }) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  // Jede Aktion verändert den Posteingang — alle Ansichten sofort nachziehen
+  const fertig = (...args) => {
+    queryClient.invalidateQueries({ queryKey: ['posteingang'] });
+    queryClient.invalidateQueries({ queryKey: ['eskalations-liste'] });
+    onChanged?.(...args);
+  };
   const [supportOpen, setSupportOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [leadOpen, setLeadOpen] = useState(false);
@@ -51,7 +59,7 @@ export function useThreadAktionen({ thread, messages = [], onChanged, mitAntwort
     try {
       await emailApi('enrich', { thread_id: t.id, fields: { crm_status: 'kein_lead', status: 'erledigt' } });
       toast({ title: 'Erledigt — kommt bei der nächsten Kundennachricht zurück' });
-      onChanged?.();
+      fertig();
     } catch (e) {
       toast({ variant: 'destructive', title: 'Nicht gespeichert', description: e?.message || 'Unbekannter Fehler' });
     }
@@ -70,7 +78,7 @@ export function useThreadAktionen({ thread, messages = [], onChanged, mitAntwort
     const back = await markThreadAsLead(String(t.id), deal.id);
     base44.functions.invoke('enrichCrmLead', { deal_id: deal.id }).catch(() => {});
     setLeadOpen(false);
-    onChanged?.();
+    fertig();
     toast({
       title: `Deal „${deal.title}" angelegt`,
       description: back.ok ? undefined : 'Der Thread konnte in der E-Mail-Zentrale nicht markiert werden.',
@@ -100,7 +108,7 @@ export function useThreadAktionen({ thread, messages = [], onChanged, mitAntwort
         onOpenChange={setSupportOpen}
         item={supportOpen ? item : null}
         onDone={(ticket, back, hinweis, info) => {
-          onChanged?.(ticket, info);
+          fertig(ticket, info);
           toast({
             title: info?.angehaengt ? `An Ticket „${ticket.title}" angehängt` : `Support-Ticket „${ticket.title}" angelegt`,
             description: [hinweis, back?.ok === false ? 'Der Thread konnte in der E-Mail-Zentrale nicht markiert werden.' : ''].filter(Boolean).join(' ') || undefined,
@@ -113,7 +121,7 @@ export function useThreadAktionen({ thread, messages = [], onChanged, mitAntwort
         item={item}
         onDone={(deal, back) => {
           setAssignOpen(false);
-          onChanged?.();
+          fertig();
           toast({
             title: `Dem Deal „${deal.title}" zugeordnet`,
             description: back.ok ? undefined : 'Der Thread konnte in der E-Mail-Zentrale nicht markiert werden.',
