@@ -59,6 +59,7 @@ export default function ZuweisungWahl({ eintrag, onChanged }) {
       toast({ title: an ? `Zugewiesen an ${nameVon(an, team)} — erscheint in „Mein Tag“` : 'Zuweisung aufgehoben' });
       queryClient.invalidateQueries({ queryKey: ['posteingang'] });
       queryClient.invalidateQueries({ queryKey: ['crm-escalations'] });
+      queryClient.invalidateQueries({ queryKey: ['eskalations-liste'] });
       onChanged?.();
     } catch (e) {
       toast({ variant: 'destructive', title: 'Nicht gespeichert', description: e?.message });
