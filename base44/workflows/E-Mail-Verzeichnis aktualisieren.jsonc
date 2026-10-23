@@ -10,9 +10,9 @@
       "cron_expression": null,
       "one_time_date": null,
       "timezone": "UTC",
-      "interval_value": 15,
+      "interval_value": 10,
       "interval_unit": "minutes",
-      "interval_anchor": "2026-08-05T07:59:16.638000",
+      "interval_anchor": null,
       "ends_type": "never",
       "ends_on_date": null,
       "ends_after_count": null
