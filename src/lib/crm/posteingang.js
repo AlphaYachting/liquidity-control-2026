@@ -234,8 +234,14 @@ export const KLASSE_LABEL = {
   verwaltung: 'Verwaltung',
 };
 
-// Einträge einer Sicht: ohne Kanal die Gesamtsicht, sonst nur, was an die Kanal-Adresse ging
-export const imKanal = (eintraege, kanal) => (kanal ? eintraege.filter((e) => e.kanaele.includes(kanal)) : eintraege);
+// Gehört ein Eintrag in einen Kanal? Der Support-Eingang zeigt alles an support@ UND vorsorglich alles,
+// was die KI als Support einordnet (Entscheidung 23.10.2026) — dort wird dann entschieden.
+export const inKanal = (e, kanal) => (kanal === 'support'
+  ? e.kanaele.includes('support') || e.klasse === 'support'
+  : e.kanaele.includes(kanal));
+
+// Einträge einer Sicht: ohne Kanal die Gesamtsicht, sonst nur, was in den Kanal gehört
+export const imKanal = (eintraege, kanal) => (kanal ? eintraege.filter((e) => inKanal(e, kanal)) : eintraege);
 
 // Passt ein Eintrag in den Reiter? Im Kanal gilt passtImKanal, falls vorhanden
 export const passtReiter = (reiter, kanal) => {
@@ -253,7 +259,7 @@ export function zaehle(eintraege) {
   const zahlen = zaehleSicht(eintraege, null);
   const alle = sichtbar.filter(FILTER[0].passt);
   const kanaele = Object.fromEntries(Object.keys(KANAELE).map((k) => {
-    const liste = sichtbar.filter((e) => e.kanaele.includes(k));
+    const liste = sichtbar.filter((e) => inKanal(e, k));
     return [k, { anzahl: liste.length, ueberfaellig: liste.filter((e) => e.ueberfaellig).length }];
   }));
   return {
