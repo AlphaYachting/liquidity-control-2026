@@ -239,6 +239,8 @@ TEIL 3 — ARBEITSBEREICH (anliegen) der LETZTEN Kundennachricht, genau einer, I
   web_support — technische Unterstützung an einer BEREITS LAUFENDEN Website, Webshop, Hosting, Domain, E-Mail-Postfach, CMS/WordPress, Plugins, Formularen, Tracking, Produktfeeds oder Schnittstellen: einen Fehler beheben ODER Inhalte/Funktionen an einer bestehenden, live geschalteten Web-Anwendung ändern oder einpflegen
   Feedback, Texte, Übersetzungen oder Inhalte zu einer Website, die noch im Aufbau ist (laufendes Website-Projekt, neue Sprachversion, Relaunch), sind NICHT web_support, sondern kundenanliegen.
   Fragt der Kunde nach Kosten oder einem Angebot für eine neue Funktion, ist es neue_anfrage.
+  Maßgeblich ist das THEMA der Konversation, nicht nur die Wortwahl der letzten Nachricht: Ist sie eine kurze Freigabe, Beauftragung, Bestätigung oder Rückfrage zu einem laufenden technischen Vorgang an der Website (z. B. „ihr habt das GO für das Update“, „ist hiermit beauftragt“, „wie ist der Stand?“, Zugangsdaten zur Website), dann ist es web_support.
+  Im Zweifel zwischen web_support und kundenanliegen bei einem technischen Thema an einer Website: web_support — der Support entscheidet dann selbst.
   neue_anfrage — neues Projekt oder neue Leistung, Angebots- oder Preisanfrage, Interessent oder Neukunde
   kundenanliegen — alles andere von Kunden: Abstimmung laufender Projekte, Feedback und Freigaben, Druck/Grafik/Nachdruck, Termine, Rückfragen, Rechnungs- und Zahlungsfragen des Kunden
   verwaltung — Lieferanten, Dienstleister, Steuerberatung, Bank, Behörden, Anwälte, Rechnungen oder Mahnungen, die WIR bezahlen sollen
