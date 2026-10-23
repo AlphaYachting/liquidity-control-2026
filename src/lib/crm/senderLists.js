@@ -5,6 +5,8 @@ export const SYSTEM_DOMAINS = [
   'awork.com', 'brevo.com', 'm.brevo.com', 'sevdesk.de', 'sevdesk.com', 'wordpress.com',
   'google.com', 'microsoft.com', 'linkedin.com', 'mailchimp.com', 'atlassian.com', 'base44.com',
   'paypal.com', 'stripe.com', 'amazonses.com', 'facebookmail.com', 'instagram.com',
+  // Benachrichtigungen der eigenen App und von Werkzeugen — nie eine Kundenanfrage
+  'base44-apps.com', 'mail.anthropic.com',
 ];
 
 export const FREEMAIL_DOMAINS = [
