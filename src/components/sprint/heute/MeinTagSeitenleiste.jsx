@@ -79,7 +79,7 @@ export function MeinTagEingang({ nurSupport }) {
   const post = usePosteingang();
   if (post.isLoading || post.isError) return null;
   const liste = post.eintraege
-    .filter((e) => e.sichtbar && !e.zustaendig && (nurSupport ? e.kanaele.includes('support') : e.klasse !== 'verwaltung'))
+    .filter((e) => e.sichtbar && !e.zustaendig && (nurSupport ? inKanal(e, 'support') : e.klasse !== 'verwaltung'))
     .sort((a, b) => a.eingang - b.eingang);
   const ziel = nurSupport ? '/crm/inbox?kanal=support' : '/crm/inbox';
   const titel = nurSupport ? 'Support-Eingang' : 'Posteingang';
