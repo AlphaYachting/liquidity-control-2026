@@ -194,9 +194,12 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
   }
 
   return eintraege.map((e) => {
-    // Support-Mails sind oft dringend — sie erscheinen sofort, ohne die 4-Arbeitsstunden-Wartezeit
-    const ab = e.sofort || e.eskalation || e.kanaele.includes('support') ? e.eingang : sichtbarAb(e.eingang);
     const klasse = klasseVon(e);
+    // Support erscheint sofort, ohne die 4-Arbeitsstunden-Wartezeit (Entscheidung 23.10.2026):
+    // Mails an support@ UND alles, was die KI als „Support (Web)“ einordnet.
+    const ab = e.sofort || e.eskalation || e.kanaele.includes('support') || klasse === 'support'
+      ? e.eingang
+      : sichtbarAb(e.eingang);
     const zuweisung = zuweisungFuer(e, zuweisungen);
     return {
       ...e,
