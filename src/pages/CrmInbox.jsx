@@ -194,7 +194,7 @@ export default function CrmInbox() {
         titel={seitenTitel}
         kontext={kanal === 'support'
           ? `${kopfAnzahl} unbeantwortet an ${KANAELE.support.adresse} · erscheint sofort${kopfUeberfaellig > 0 ? ` · ${kopfUeberfaellig} davon länger als 2 Tage` : ''}`
-          : `${kopfAnzahl} unbeantwortet${kanal ? ` an ${KANAELE[kanal].adresse}` : ''} seit mindestens ${SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden${kopfUeberfaellig > 0 ? ` · ${kopfUeberfaellig} davon länger als 2 Tage` : ''}`}
+          : `${kopfAnzahl} unbeantwortet${kanal ? ` an ${KANAELE[kanal].adresse}` : ''} seit mindestens ${SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden · Support sofort${kopfUeberfaellig > 0 ? ` · ${kopfUeberfaellig} davon länger als 2 Tage` : ''}`}
         aktionen={
           <>
             <Button variant="outline" asChild>
