@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { RITTLER, STATUS_COLORS, fmtDate } from '@/components/sprint/sprintConfig';
 import { usePosteingang } from '@/hooks/usePosteingang';
+import { inKanal } from '@/lib/crm/posteingang';
 import { useOffeneTage } from '@/lib/zeit/useOffeneTage';
 import { Titel, KARTE } from '@/components/sprint/heute/MeinTagBausteine';
 
