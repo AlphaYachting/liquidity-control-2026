@@ -80,6 +80,17 @@ Deno.serve(async (req) => {
     stats.threads_new = threads.filter((t) => !lastCheck.has(String(t.id))).length;
     stats.nachbewertet = threads.length - stats.threads_new;
 
+    // Mails an support@ zuerst — Support soll sofort im Posteingang stehen (23.10.2026)
+    try {
+      const ids = threads.map((t) => String(t.id));
+      const supportZeilen = ids.length
+        ? await db.EmailThreadIndex.filter({ thread_id: { $in: ids }, $or: [{ kanal_support: true }, { an_support: true }, { last_to: { $regex: 'support@rittler\\.co' } }] }, '-last_message_at', 200)
+        : [];
+      const vorrang = new Set(supportZeilen.map((z) => String(z.thread_id)));
+      if (vorrang.size) threads.sort((a, b) => Number(vorrang.has(String(b.id))) - Number(vorrang.has(String(a.id))));
+      (stats as any).support_vorrang = vorrang.size;
+    } catch (_e) { /* Reihenfolge ist Komfort, kein Muss */ }
+
     // Nachtrag: offene Konversationen im Posteingang ohne Anliegen-Einordnung werden
     // mit eigenem, kleinem Budget je Lauf nachbewertet (einmaliger Nachlauf).
     const maxNachtrag = payload.max_nachtrag ?? 30;
@@ -163,6 +174,10 @@ Deno.serve(async (req) => {
         const domain = domainOf(firstIn.from);
         if (isSystemDomain(domain)) { await note(t.id, 'kein_geschaeft', 'System-/Tool-Absender'); stats.checked++; continue; }
         if (!isFormMail && isInternalDomain(domain)) { await note(t.id, 'kein_geschaeft', 'interner Absender'); stats.checked++; continue; }
+        // No-Reply-Absender (Benachrichtigungen) nicht durch die KI — sie verbrauchen sonst das Kontingent
+        if (!isFormMail && /(^|[^a-z0-9])(no-?reply|do-?not-?reply|mailer-daemon|postmaster)[^@\s]*@/i.test(String(firstIn.from || ''))) {
+          await note(t.id, 'kein_geschaeft', 'No-Reply-Absender'); stats.checked++; continue;
+        }
 
         const convo = msgs
           .map((m) => `[${m.direction === 'in' ? 'KUNDE' : m.direction === 'out' ? 'WIR' : 'INTERN'}] ${m.from_name || m.from} (${m.received_at}):\n${(m.text || m.preview || '').slice(0, 2500)}`)
