@@ -17,6 +17,7 @@ import ProjektWechsel from '@/components/zeit/ProjektWechsel';
 import BuchungBestaetigung from '@/components/zeit/BuchungBestaetigung';
 import NichtGebucht from '@/components/zeit/NichtGebucht';
 import SperrHinweis from '@/components/zeit/SperrHinweis';
+import { base44 } from '@/api/base44Client';
 
 // Knopf im Sprint-Modul und bei laufendem Timer — die Zeile selbst ist überall mit T erreichbar.
 export default function TimerKnopf() {
@@ -35,7 +36,7 @@ export default function TimerKnopf() {
   const [tippzeile, setTippzeile] = useState(false);
   const [bestaetigung, setBestaetigung] = useState(null);
   const [nichtGebucht, setNichtGebucht] = useState(null);
-  const [letzterStopp, setLetzterStopp] = useState({ note: '', abzugMinuten: 0 });
+  const [letzterStopp, setLetzterStopp] = useState({ note: '', abzugMinuten: 0, extras: {} });
   const [sperre, setSperre] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -111,23 +112,42 @@ export default function TimerKnopf() {
     if (res?.code === 'beschreibung_fehlt' && timer) {
       setTippzeile(false);
       setWechsel(false);
-      setLetzterStopp({ note: '', abzugMinuten: 0 });
+      setLetzterStopp({ note: '', abzugMinuten: 0, extras: {} });
       setNichtGebucht({ ...res, projekt: timer.projekt_titel, projectId: timer.project_id, minuten: elapsedMinutes });
     }
     return res;
   };
 
-  const stoppen = async (note, abzugMinuten) => {
+  // extras aus dem Stopp-Dialog: { mehrleistung, taetigkeit, vereinbart }
+  const stoppen = async (note, abzugMinuten, extras = {}) => {
     // Keine Prüfung auf einen offenen Tag: die entstehende Buchung gehört zum
     // HEUTIGEN Tag, nicht zum offenen Vortag. Die alte Sperre hat nie das
     // geschützt, was sie zu schützen vorgab — sie hat nur verhindert, dass eine
     // bereits gemessene Zeit festgehalten wird.
-    const res = await stop(note, abzugMinuten);
+    const { vereinbart, ...stoppExtras } = extras;
+    const res = await stop(note, abzugMinuten, stoppExtras);
     // Gescheitert: der Timer läuft weiter, das Fenster sagt es ausdrücklich.
     if (res?.fehler) {
-      setLetzterStopp({ note, abzugMinuten });
+      setLetzterStopp({ note, abzugMinuten, extras });
       setNichtGebucht(res);
       return;
+    }
+    // Meeting-Ergebnis in den Projektakt (Audit 24.10.2026) — scheitert das, bleibt die Buchung bestehen
+    if (res && vereinbart && res.projectId) {
+      const jetzt = new Date();
+      try {
+        await base44.entities.ProjectFileEntry.create({
+          project_id: res.projectId,
+          entry_type: 'vereinbarung',
+          title: `Meeting ${jetzt.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' })}${note ? ` — ${note}`.slice(0, 80) : ''}`,
+          content: vereinbart,
+          entry_date: jetzt.toISOString(),
+          recorded_by: email,
+        });
+        qc.invalidateQueries({ queryKey: ['projektakt'] });
+      } catch (e) {
+        toast({ variant: 'destructive', description: `Gebucht, aber nicht in den Projektakt übernommen: ${e?.message || e}` });
+      }
     }
     auffrischen();
     // Die Bestätigung bleibt im Fenster stehen — sie verdeckt die Pille nicht.
@@ -210,7 +230,7 @@ export default function TimerKnopf() {
               onNochmal={async (neueNotiz) => {
                 setNichtGebucht(null);
                 // Fehlte die Beschreibung (Support ohne Ticket), kommt sie aus dem Fenster
-                await stoppen(neueNotiz || letzterStopp.note, letzterStopp.abzugMinuten);
+                await stoppen(neueNotiz || letzterStopp.note, letzterStopp.abzugMinuten, letzterStopp.extras);
               }}
               onWeiterlaufen={schliessen}
             />
