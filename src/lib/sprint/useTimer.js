@@ -223,7 +223,8 @@ export function useTimer(email, { ticken = true, nurTicketId } = {}) {
 
   // Das Stoppen läuft serverseitig in einem wiederholbaren Aufruf. Pausenminuten
   // werden von der gemessenen Dauer abgezogen. Scheitert es, läuft der Timer weiter.
-  const stop = useCallback(async (note = '', abzugMinuten = 0) => {
+  // extras (optional, Stopp-Dialog): { mehrleistung: true|false, taetigkeit: 'meeting' | … }
+  const stop = useCallback(async (note = '', abzugMinuten = 0, extras = {}) => {
     const aktuell = await laufendeVon(email);
     if (!aktuell) {
       await refresh();
@@ -235,6 +236,8 @@ export function useTimer(email, { ticken = true, nurTicketId } = {}) {
         notiz: note,
         abzug_minuten: Number(abzugMinuten) || 0,
         entry_date: tagVon(aktuell.gestartet_am),
+        ...(typeof extras.mehrleistung === 'boolean' ? { mehrleistung: extras.mehrleistung } : {}),
+        ...(extras.taetigkeit ? { taetigkeit: extras.taetigkeit } : {}),
       });
       const daten = res?.data || {};
       if (daten.fehler || !daten.erfolg) throw new Error(daten.fehler || 'Buchung nicht gespeichert');
@@ -250,6 +253,7 @@ export function useTimer(email, { ticken = true, nurTicketId } = {}) {
         projectId: aktuell.project_id,
         ticketId: aktuell.ticket_id,
         datum: daten.entry_date || tagVon(aktuell.gestartet_am),
+        mehrleistung: !!daten.mehrleistung,
       };
     } catch (e) {
       // Nichts wurde gelöscht — die gemessene Zeit ist erhalten.
