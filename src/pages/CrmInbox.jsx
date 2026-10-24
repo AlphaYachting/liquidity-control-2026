@@ -50,7 +50,8 @@ export default function CrmInbox() {
   // Wer die Gesamtsicht nicht sehen darf (Webentwicklung), landet im Support-Eingang
   const kanal = KANAELE[kanalWunsch]
     ? kanalWunsch
-    : (!zugriff.isLoading && !darf('leitung') && darf('support') ? 'support' : null);
+    // Ohne Leitungsrecht führt /crm/inbox in den Support-Eingang — der ist für alle offen
+    : (!zugriff.isLoading && !darf('leitung') ? 'support' : null);
   const keinZugriff = !zugriff.isLoading && !darf(kanal ? KANAELE[kanal].recht : 'leitung');
   // Im Support-Eingang gibt es keine Reiter — dort zählt alles, was an support@ ging
   const filter = kanal !== 'support' && FILTER.some((f) => f.key === params.get('filter')) ? params.get('filter') : 'alle';
