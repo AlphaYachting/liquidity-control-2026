@@ -144,7 +144,7 @@ export default function TimerKnopf() {
           entry_date: jetzt.toISOString(),
           recorded_by: email,
         });
-        qc.invalidateQueries({ queryKey: ['projektakt'] });
+        qc.invalidateQueries({ queryKey: ['projectFileEntries', res.projectId] });
       } catch (e) {
         toast({ variant: 'destructive', description: `Gebucht, aber nicht in den Projektakt übernommen: ${e?.message || e}` });
       }
