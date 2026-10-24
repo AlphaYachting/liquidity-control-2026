@@ -41,7 +41,7 @@ export default function NeuigkeitenFenster() {
     try {
       await alsGelesenMarkieren(offen, email);
       await qc.invalidateQueries({ queryKey: GELESEN_KEY(email) });
-    } catch (e) {
+    } catch {
       // Speichern fehlgeschlagen: für diese Sitzung schließen, beim nächsten Öffnen erscheint es wieder
     }
     setSpeichert(false);
