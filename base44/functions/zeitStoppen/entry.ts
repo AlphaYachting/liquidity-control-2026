@@ -45,11 +45,10 @@ async function buchungsfelder(db, projectId) {
   };
 }
 
-async function taetigkeitVon(db, kategorie, ticketId) {
-  if (ticketId) {
-    const ticket = await db.Ticket.get(ticketId).catch(() => null);
-    if (ticket) return ticket.role === 'Beratung' ? 'beratung' : 'umsetzung';
-  }
+const TAETIGKEITEN = ['beratung', 'vertrieb', 'umsetzung', 'meeting'];
+
+async function taetigkeitVon(db, kategorie, ticket) {
+  if (ticket) return ticket.role === 'Beratung' ? 'beratung' : 'umsetzung';
   if (kategorie === 'intern') return 'vertrieb';
   if (kategorie === 'aufwand') return 'beratung';
   return 'umsetzung';
@@ -61,7 +60,8 @@ export default async function (req: Request): Promise<Response> {
     const user = await base44.auth.me();
     if (!user) return Response.json({ fehler: 'Nicht angemeldet' }, { status: 401 });
 
-    const { laufende_id, notiz = '', abzug_minuten = 0, entry_date } = await req.json().catch(() => ({}));
+    // mehrleistung / taetigkeit: optional aus dem Stopp-Dialog (Audit 24.10.2026) — ältere Aufrufe ohne diese Felder bleiben gültig
+    const { laufende_id, notiz = '', abzug_minuten = 0, entry_date, mehrleistung, taetigkeit } = await req.json().catch(() => ({}));
     if (!laufende_id) return Response.json({ fehler: 'laufende_id fehlt' }, { status: 400 });
 
     const db = base44.asServiceRole.entities;
@@ -88,7 +88,11 @@ export default async function (req: Request): Promise<Response> {
 
     // b) Buchungsfelder aus dem Projekt
     const { felder, kategorie, project } = await buchungsfelder(db, laufende.project_id);
-    const art = await taetigkeitVon(db, kategorie, laufende.ticket_id);
+    const ticket = laufende.ticket_id ? await db.Ticket.get(laufende.ticket_id).catch(() => null) : null;
+    const art = TAETIGKEITEN.includes(taetigkeit) ? taetigkeit : await taetigkeitVon(db, kategorie, ticket);
+    // Mehraufwand: auf einem Change-Request-Ticket immer (Zusatzleistung außerhalb des Festpreises),
+    // sonst wie im Stopp-Dialog gewählt. Bei interner Zeit nie.
+    const istMehraufwand = kategorie !== 'intern' && (ticket?.origin === 'change_request' || mehrleistung === true);
 
     const gemessen = Math.max(0, Math.floor((Date.now() - new Date(laufende.gestartet_am).getTime()) / 60000));
     const minuten = Math.max(0, gemessen - (Number(abzug_minuten) || 0));
@@ -145,6 +149,7 @@ export default async function (req: Request): Promise<Response> {
       duration_minutes: minuten,
       hours: Math.round((minuten / 60) * 100) / 100,
       taetigkeit: art,
+      ...(istMehraufwand ? { mehrleistung: true } : {}),
       quelle: 'timer',
       note: notizText,
       source: 'bestaetigt',
