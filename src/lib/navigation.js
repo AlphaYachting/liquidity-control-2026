@@ -3,9 +3,9 @@ import {
   CreditCard, AlertTriangle, FileText, TrendingUp, Settings,
   Upload, BarChart3, CheckSquare, ClipboardList, ClipboardCheck, GitMerge, CalendarCheck,
   Zap, Map, BrainCircuit, PieChart, CalendarDays, Users, BarChart2, Clock, DatabaseZap,
-  RefreshCw, Trash2, RotateCcw, Scale, KanbanSquare, Inbox, History, Presentation, Mail,
-  Sun, Siren, CalendarRange, Gauge, Layers, LifeBuoy, Sparkles, SlidersHorizontal, Timer,
-  Receipt, ServerCog, MessageSquarePlus, Hourglass, Building2,
+  RefreshCw, Trash2, RotateCcw, Scale, KanbanSquare, Inbox, History, Presentation,
+  Sun, Gauge, Layers, LifeBuoy, Sparkles, SlidersHorizontal, Timer,
+  Receipt, ServerCog, MessageSquarePlus, Hourglass,
 } from 'lucide-react';
 
 // Die EINE Liste aller Navigationspunkte. Die Sidebar rendert ausschließlich hieraus.
