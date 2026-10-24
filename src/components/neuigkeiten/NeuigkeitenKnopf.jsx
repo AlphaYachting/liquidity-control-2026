@@ -34,7 +34,7 @@ export default function NeuigkeitenKnopf() {
       </button>
       <Dialog open={offen} onOpenChange={setOffen}>
         {/* Archiv im selben Auftritt wie das Begrüßungsfenster — neueste Ausgabe oben, ältere darunter */}
-        <DialogContent className={BUEHNE_RAHMEN} style={BUEHNE_RAHMEN_STIL}>
+        <DialogContent className={`${BUEHNE_RAHMEN} [&>button]:text-white [&>button]:opacity-80 [&>button]:z-10`} style={BUEHNE_RAHMEN_STIL}>
           <NeuigkeitenBuehne
             ausgaben={isLoading ? [] : liste}
             Titel={DialogTitle}
