@@ -10,6 +10,7 @@ import { useEskalationsListe } from '@/hooks/useEskalationsListe';
 import { Link } from 'react-router-dom';
 import Seitenkopf from '@/components/shared/Seitenkopf';
 import PostReiter from '@/components/crm/PostReiter';
+import PostSammelentscheidung from '@/components/crm/PostSammelentscheidung';
 import { Box } from '@/components/shared/Box';
 import InboxItemCard from '@/components/crm/InboxItemCard';
 import InboxThreadCard from '@/components/crm/InboxThreadCard';
@@ -233,6 +234,8 @@ export default function CrmInbox() {
       ) : (
         <>
           {kanal === 'support' && <SupportOhneZustaendig />}
+          {/* Rückstau älter als 14 Tage gesammelt entscheiden (Audit 24.10.2026) */}
+          <PostSammelentscheidung eintraege={sicht} onFertig={refresh} />
           {/* Eine Heimat je Mail: Eskalationen stehen nur auf der Eskalationsseite */}
           {eskalationenWartend > 0 && (
             <Link
