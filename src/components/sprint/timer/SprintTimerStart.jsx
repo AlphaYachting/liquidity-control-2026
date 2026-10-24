@@ -6,6 +6,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useTimer } from '@/lib/sprint/useTimer';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import { useOffenesTicket } from '@/lib/sprint/offenesTicket';
+import { gebuchtMeldung } from '@/components/zeit/gebuchtMeldung';
 
 // Timer direkt aus dem Sprintkontext — läuft auf das Projekt, bei offener Aufgabe auf deren Ticket.
 // variante="kompakt": schmaler Knopf im Kopf der Etappenseite bzw. im Aufgabenpanel;
@@ -34,7 +35,7 @@ export default function SprintTimerStart({ project, client, ticketId: festeTicke
       } else if (res?.fehler) {
         toast({ variant: 'destructive', description: `Nicht gebucht: ${res.fehler} — der Timer läuft weiter.` });
       } else if (res) {
-        toast({ description: `${res.hours} h auf ${res.projekt || project.title} gebucht.` });
+        gebuchtMeldung(toast, res, project);
       }
     } else {
       const res = await start(project, (client?.name || project.title).slice(0, 3).toUpperCase(), '', { force: true, ticketId });
