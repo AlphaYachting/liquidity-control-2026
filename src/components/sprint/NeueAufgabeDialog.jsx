@@ -25,7 +25,7 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
   const { user } = useAuth();
   const ich = (user?.email || '').toLowerCase();
   // Jede neue Aufgabe hat eine Person und einen Termin (Audit 24.10.2026) — beides vorbelegt, änderbar
-  const [assignee, setAssignee] = useState(() => (members.some((m) => (m.email || '').toLowerCase() === ich) ? ich : ''));
+  const [assignee, setAssignee] = useState(() => members.find((m) => (m.email || '').toLowerCase() === ich)?.email || '');
   const [hours, setHours] = useState('');
   const [faellig, setFaellig] = useState(() => standardTermin());
   const [saving, setSaving] = useState(false);
