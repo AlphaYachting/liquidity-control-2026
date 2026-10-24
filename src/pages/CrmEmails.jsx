@@ -84,6 +84,7 @@ export default function CrmEmails() {
 
   return (
     <div className="space-y-4">
+      <PostReiter />
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-lg font-bold flex items-center gap-2">
