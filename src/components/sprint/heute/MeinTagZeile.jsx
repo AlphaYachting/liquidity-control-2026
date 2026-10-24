@@ -6,6 +6,7 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { useTimer } from '@/lib/sprint/useTimer';
+import { gebuchtMeldung } from '@/components/zeit/gebuchtMeldung';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -123,7 +124,7 @@ function TimerKnopfZeile({ ticket, project, client }) {
     if (laeuftHier) {
       const res = await stop();
       if (res?.fehler) toast({ description: res.fehler });
-      else if (res) toast({ description: `${res.hours} h auf ${res.projekt || project.title} gebucht.` });
+      else if (res) gebuchtMeldung(toast, res, project);
     } else {
       const res = await start(project, (client?.name || project.title).slice(0, 3).toUpperCase(), '', { force: true, ticketId: ticket.id });
       // Gescheitert heißt: der bisherige Timer läuft weiter — das muss sichtbar sein
