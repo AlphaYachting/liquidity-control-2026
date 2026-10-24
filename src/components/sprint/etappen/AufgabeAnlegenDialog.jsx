@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Coins } from 'lucide-react';
 import { zustaendigFelder } from '@/lib/sprint/zustaendige';
+import { standardTermin } from '@/lib/sprint/deadlines';
+import { useAuth } from '@/lib/AuthContext';
 
 const OFFEN = '__offen';
 const PHASEN = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
@@ -21,18 +23,25 @@ export default function AufgabeAnlegenDialog({ open, onOpenChange, milestones = 
   const [faellig, setFaellig] = useState('');
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState('');
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!open) return;
     setEtappeId(startEtappeId || milestones.find((m) => m.state !== 'freigegeben')?.id || milestones[0]?.id || '');
     setFehler('');
-  }, [open, startEtappeId, milestones]);
+    // Jede neue Aufgabe hat eine Person und einen Termin (Audit 24.10.2026) — beides vorbelegt, änderbar
+    setFaellig((f) => f || standardTermin());
+    const ich = (user?.email || '').toLowerCase();
+    setPerson((p) => (p !== OFFEN ? p : members.some((m) => (m.email || '').toLowerCase() === ich) ? ich : OFFEN));
+  }, [open, startEtappeId, milestones, members, user?.email]);
+
+  const fehlt = !titel.trim() ? 'Titel' : person === OFFEN ? 'zuständige Person' : !faellig ? 'Termin' : '';
 
   const etappe = milestones.find((m) => m.id === etappeId);
   const istChangeRequest = etappe?.released === true || etappe?.state === 'freigegeben';
 
   const anlegen = async () => {
-    if (!titel.trim() || !etappe) return;
+    if (!titel.trim() || !etappe || fehlt) return;
     setLaeuft(true);
     setFehler('');
     try {
@@ -91,7 +100,7 @@ export default function AufgabeAnlegenDialog({ open, onOpenChange, milestones = 
               <Select value={person} onValueChange={setPerson}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={OFFEN}>nicht zugewiesen</SelectItem>
+                  <SelectItem value={OFFEN}>bitte wählen</SelectItem>
                   {members.map((m) => <SelectItem key={m.email} value={m.email}>{m.name}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -106,11 +115,12 @@ export default function AufgabeAnlegenDialog({ open, onOpenChange, milestones = 
             </div>
           </div>
           {fehler && <p className="text-sm text-status-critical">{fehler}</p>}
+          {titel.trim() && fehlt && <p className="text-xs text-muted-foreground">Es fehlt noch: {fehlt}. Jede Aufgabe braucht eine zuständige Person und einen Termin.</p>}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-          <Button onClick={anlegen} disabled={!titel.trim() || !etappe || laeuft}>
+          <Button onClick={anlegen} disabled={!!fehlt || !etappe || laeuft}>
             {laeuft ? 'Legt an…' : istChangeRequest ? 'Change Request anlegen' : 'Aufgabe anlegen'}
           </Button>
         </DialogFooter>
