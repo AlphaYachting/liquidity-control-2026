@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import ExtractMaintenanceContractsDialog from '@/components/maintenance/ExtractMaintenanceContractsDialog';
 import EditContractDialog from '@/components/maintenance/EditContractDialog';
 import CsvExportButton from '@/components/shared/CsvExportButton';
+import { useZugriff } from '@/lib/useZugriff';
 
 const CSV_COLUMNS = [
   { key: 'status', label: 'Status' },
@@ -27,6 +28,8 @@ const CSV_COLUMNS = [
 
 export default function Maintenance() {
   const queryClient = useQueryClient();
+  // Das Team sieht die Verträge (Wunsch Alfons 24.10.2026), ändern und exportieren nur die Führung
+  const darfAendern = useZugriff().darf('fuehrung');
   const [showExtract, setShowExtract] = useState(false);
   const [editingContract, setEditingContract] = useState(null);
   const { data: contracts = [], isLoading } = useQuery({
@@ -64,7 +67,7 @@ export default function Maintenance() {
       return v;
     }},
     { key: 'notes', label: 'Notizen', render: (v) => v ? <span className="text-xs text-muted-foreground truncate max-w-[120px] block">{v}</span> : '—' },
-    { key: 'id', label: 'Aktionen', sortable: false, render: (v, row) => (
+    ...(!darfAendern ? [] : [{ key: 'id', label: 'Aktionen', sortable: false, render: (v, row) => (
       <div className="flex gap-1">
         <Button size="sm" variant="outline" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); setEditingContract(row); }}>
           Bearbeiten
@@ -73,7 +76,7 @@ export default function Maintenance() {
           ✓ Verrechnet
         </Button>
       </div>
-    )},
+    )}]),
   ];
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-64" /><Skeleton className="h-[400px]" /></div>;
@@ -81,7 +84,7 @@ export default function Maintenance() {
   return (
     <div className="space-y-6">
       <PageHeader title="Wartungsverträge 2026" subtitle={`${contracts.length} Verträge`} icon={Shield}
-        actions={
+        actions={darfAendern &&
           <div className="flex gap-2">
             <CsvExportButton data={contracts} columns={CSV_COLUMNS} filename="wartungsvertraege.csv" />
             <Button variant="outline" className="gap-2" onClick={() => setEditingContract({ customer: '', project_name: '', status: 'active', billing_interval: 'yearly', contract_type: 'maintenance', annual_amount: 0, monthly_fixed_price: 0 })}>
