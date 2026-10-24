@@ -30,7 +30,7 @@ export const NAV_GRUPPEN = [
     items: [
       { path: '/sprint/projekte', label: 'Projekte', icon: Layers, regel: 'alle' },
       { path: '/sprint/uebersicht', label: 'Wochenübersicht', icon: Gauge, regel: 'leitung' },
-      { path: '/sprint/planung', label: 'Wochenplanung', icon: CalendarRange, regel: 'leitung' },
+      // Wochenplanung ausgeblendet (Audit 24.10.2026: keine Fokustage erfasst) — Seite bleibt über /sprint/planung erreichbar
       { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban, regel: 'geld' },
       { path: '/sprint/steuerung', label: 'Steuerung', icon: SlidersHorizontal, regel: 'fuehrung' },
       { path: '/sprint/auslastung', label: 'Auslastungsforecast', icon: BarChart3, regel: 'admin', nurEmail: 'a.rittler@rittler.co' },
@@ -41,11 +41,11 @@ export const NAV_GRUPPEN = [
     key: 'kunden',
     titel: 'Kunden & Vertrieb',
     items: [
-      { path: '/crm/inbox', label: 'Posteingang', icon: Inbox, regel: 'leitung', zaehler: 'posteingang' },
-      { path: '/crm/inbox?kanal=support', label: 'Support-Eingang', icon: LifeBuoy, regel: 'support', zaehler: 'support' },
-      { path: '/crm/inbox?kanal=office', label: 'Office-Eingang', icon: Building2, regel: ['leitung', 'support'], zaehler: 'office' },
-      { path: '/crm/emails', label: 'E-Mail-Zentrale', icon: Mail, regel: 'leitung' },
-      { path: '/crm/escalations', label: 'Kunden-Eskalationen', icon: Siren, regel: 'leitung', zaehler: 'eskalationen' },
+      // EIN Einstieg für alle Postmodule (Vorgabe 22.10.2026) — Posteingang, Support, Office,
+      // Eskalationen und Alle E-Mails sind Reiter auf der Seite (components/crm/PostReiter).
+      { path: '/crm/inbox', label: 'Post', icon: Inbox, regel: 'leitung', zaehler: 'post' },
+      // Entwickler ohne Leitungsrecht steigen direkt im Support ein
+      { path: '/crm/inbox?kanal=support', label: 'Support-Eingang', icon: LifeBuoy, regel: 'support', ausserFuer: 'leitung', zaehler: 'support' },
       { path: '/crm', label: 'Pipeline', icon: KanbanSquare, regel: 'sales' },
       { path: '/crm/proposals', label: 'Angebots-Studio', icon: Presentation, regel: 'sales' },
     ],
@@ -99,12 +99,21 @@ export const NAV_GRUPPEN = [
       { path: '/master-import', label: 'Master-Datenimport', icon: DatabaseZap, regel: 'admin' },
       { path: '/sevdesk-settings', label: 'sevDesk Integration', icon: BarChart3, regel: 'admin' },
       { path: '/sevdesk-reimport', label: 'sevDesk Re-Import', icon: RotateCcw, regel: 'admin' },
-      { path: '/awork-settings', label: 'awork Integration', icon: Zap, regel: 'admin' },
-      { path: '/awork-mapping', label: 'awork Mapping', icon: Map, regel: 'admin' },
-      { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock, regel: 'admin' },
       { path: '/system/maintenance', label: 'Systempflege', icon: ServerCog, regel: 'admin' },
       { path: '/billing-reset', label: 'Verrechnungsdaten Reset', icon: RefreshCw, regel: 'admin' },
       { path: '/operational-reset', label: 'Operational Reset', icon: Trash2, regel: 'admin' },
+    ],
+  },
+  {
+    // aWork ist abgeschaltet (Okt. 2026) — die Seiten bleiben zum Nachsehen, aus dem Alltag heraus
+    key: 'archiv',
+    nurEmail: 'a.rittler@rittler.co',
+    titel: 'Archiv aWork',
+    einklappbar: true,
+    items: [
+      { path: '/awork-settings', label: 'awork Integration', icon: Zap, regel: 'admin' },
+      { path: '/awork-mapping', label: 'awork Mapping', icon: Map, regel: 'admin' },
+      { path: '/awork-cost-index', label: 'awork Kostenindex', icon: Clock, regel: 'admin' },
     ],
   },
 ];
