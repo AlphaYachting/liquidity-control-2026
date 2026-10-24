@@ -41,13 +41,23 @@ export const NAV_GRUPPEN = [
     key: 'kunden',
     titel: 'Kunden & Vertrieb',
     items: [
-      // EIN Einstieg für alle Postmodule (Vorgabe 22.10.2026) — Posteingang, Support, Office,
-      // Eskalationen und Alle E-Mails sind Reiter auf der Seite (components/crm/PostReiter).
+      // EIN Einstieg für die Postmodule (Vorgabe 22.10.2026) — Posteingang, Office, Eskalationen und
+      // Alle E-Mails sind Reiter auf der Seite (components/crm/PostReiter).
       { path: '/crm/inbox', label: 'Post', icon: Inbox, regel: 'leitung', zaehler: 'post' },
-      // Entwickler ohne Leitungsrecht steigen direkt im Support ein
-      { path: '/crm/inbox?kanal=support', label: 'Support-Eingang', icon: LifeBuoy, regel: 'support', ausserFuer: 'leitung', zaehler: 'support' },
+      // Support bleibt ein eigener Punkt und ist für alle sichtbar (Wunsch Alfons 24.10.2026)
+      { path: '/crm/inbox?kanal=support', label: 'Support', icon: LifeBuoy, regel: 'alle', zaehler: 'support' },
       { path: '/crm', label: 'Pipeline', icon: KanbanSquare, regel: 'sales' },
       { path: '/crm/proposals', label: 'Angebots-Studio', icon: Presentation, regel: 'sales' },
+    ],
+  },
+  {
+    // Für das ganze Team zum Nachsehen (Wunsch Alfons 24.10.2026) — ändern nur die Führung
+    key: 'vertraege',
+    titel: 'Verträge & Kosten',
+    items: [
+      { path: '/maintenance', label: 'Wartungsverträge', icon: Shield, regel: 'alle' },
+      { path: '/hosting', label: 'Hosting & Domains', icon: Server, regel: 'alle' },
+      { path: '/tools', label: 'Toolkosten', icon: CreditCard, regel: 'alle' },
     ],
   },
   {
@@ -79,10 +89,7 @@ export const NAV_GRUPPEN = [
       { path: '/cashflow-advisor', label: 'KI-Finanzanalyse', icon: Sparkles, regel: 'fuehrung' },
       { path: '/sprint/intelligence', label: 'Projekt-Intelligence', icon: BrainCircuit, regel: 'fuehrung' },
       { path: '/online-marketing', label: 'Online-Marketing', icon: Megaphone, regel: 'fuehrung' },
-      { path: '/maintenance', label: 'Wartungsverträge', icon: Shield, regel: 'fuehrung' },
-      { path: '/hosting', label: 'Hosting & Domains', icon: Server, regel: 'fuehrung' },
       { path: '/production', label: 'Planumsatz Produktion', icon: Wrench, regel: 'fuehrung' },
-      { path: '/tools', label: 'Toolkosten', icon: CreditCard, regel: 'fuehrung' },
     ],
   },
   {
