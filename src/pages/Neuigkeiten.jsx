@@ -29,7 +29,7 @@ function Knopf({ children, onClick, disabled, dunkel, gefahr, title }) {
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="h-8 px-3 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
+      className="h-8 px-3 text-[12.5px] font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0 disabled:opacity-50"
       style={{
         borderRadius: 3,
         border: `1px solid ${dunkel ? RITTLER.black : RITTLER.line}`,
