@@ -83,7 +83,10 @@ export default function MeinTagPost() {
     delete wartend.current[e.key];
     try {
       await alsErledigtSpeichern(e);
-      queryClient.invalidateQueries({ queryKey: ['posteingang'] });
+      await queryClient.invalidateQueries({ queryKey: ['posteingang'] });
+      // Nach dem Neuladen ist die Mail aus der Liste — Merker lösen, damit sie bei einer neuen
+      // Kundennachricht wieder erscheint
+      setAbgehakt((a) => { const n = { ...a }; delete n[e.key]; return n; });
     } catch (err) {
       setAbgehakt((a) => { const n = { ...a }; delete n[e.key]; return n; });
       toast({ variant: 'destructive', title: 'Nicht gespeichert', description: err?.message || 'Unbekannter Fehler' });
