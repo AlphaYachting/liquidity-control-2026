@@ -32,7 +32,8 @@ export default function AufgabeAnlegenDialog({ open, onOpenChange, milestones = 
     // Jede neue Aufgabe hat eine Person und einen Termin (Audit 24.10.2026) — beides vorbelegt, änderbar
     setFaellig((f) => f || standardTermin());
     const ich = (user?.email || '').toLowerCase();
-    setPerson((p) => (p !== OFFEN ? p : members.some((m) => (m.email || '').toLowerCase() === ich) ? ich : OFFEN));
+    const meinEintrag = members.find((m) => (m.email || '').toLowerCase() === ich);
+    setPerson((p) => (p !== OFFEN ? p : meinEintrag?.email || OFFEN));
   }, [open, startEtappeId, milestones, members, user?.email]);
 
   const fehlt = !titel.trim() ? 'Titel' : person === OFFEN ? 'zuständige Person' : !faellig ? 'Termin' : '';
