@@ -102,7 +102,7 @@ export default function MeinTagPost() {
         .catch(() => {});
     });
     wartend.current = {};
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const abhaken = (e) => {
     setAbgehakt((a) => ({ ...a, [e.key]: true }));
