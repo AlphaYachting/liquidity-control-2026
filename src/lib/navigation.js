@@ -21,6 +21,7 @@ export const NAV_GRUPPEN = [
       { path: '/zeiten', label: 'Meine Zeiten', icon: Timer, regel: 'alle' },
       { path: '/freigaben', label: 'Freigaben', icon: ClipboardCheck, regel: ['leitung', 'geld'] },
       { path: '/rueckmeldungen', label: 'Rückmeldungen', icon: MessageSquarePlus, regel: 'admin', nurEmail: 'a.rittler@rittler.co', zaehler: 'rueckmeldungen' },
+      { path: '/neuigkeiten', label: 'Was ist neu', icon: Sparkles, regel: 'admin', nurEmail: 'a.rittler@rittler.co' },
     ],
   },
   {
