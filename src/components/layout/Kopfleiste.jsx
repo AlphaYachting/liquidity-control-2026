@@ -2,6 +2,7 @@ import React from 'react';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import GlobalSearch from '@/components/search/GlobalSearch';
 import RueckmeldungKnopf from '@/components/rueckmeldung/RueckmeldungKnopf';
+import NeuigkeitenKnopf from '@/components/neuigkeiten/NeuigkeitenKnopf';
 
 // Auf dem Handy rutscht das Feld in eine eigene Zeile unter die Kopfleiste.
 export default function Kopfleiste() {
@@ -17,6 +18,7 @@ export default function Kopfleiste() {
             <GlobalSearch />
           </div>
           <RueckmeldungKnopf />
+          <NeuigkeitenKnopf />
         </div>
       </div>
     </header>
