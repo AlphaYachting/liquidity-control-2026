@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { zustaendigFelder } from '@/lib/sprint/zustaendige';
+import { standardTermin } from '@/lib/sprint/deadlines';
 
 // Neue Aufgabe aus „Mein Tag": Projekt wählen, Titel, optional Termin und Sollstunden.
 // Die Aufgabe gehört der angemeldeten Person und landet in der gewählten Etappe des Projekts.
@@ -13,7 +14,8 @@ export default function MeinTagNeueAufgabe({ open, onOpenChange, email, projects
   const [projectId, setProjectId] = useState('');
   const [milestoneId, setMilestoneId] = useState('');
   const [title, setTitle] = useState('');
-  const [termin, setTermin] = useState('');
+  // Jede neue Aufgabe hat einen Termin (Audit 24.10.2026) — vorbelegt mit heute + 5 Arbeitstage
+  const [termin, setTermin] = useState(() => standardTermin());
   const [hours, setHours] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -34,10 +36,10 @@ export default function MeinTagNeueAufgabe({ open, onOpenChange, email, projects
     setMilestoneId((liste.find((m) => m.released !== true && m.state !== 'freigegeben') || liste[0])?.id || '');
   };
 
-  const zuruecksetzen = () => { setProjectId(''); setMilestoneId(''); setTitle(''); setTermin(''); setHours(''); };
+  const zuruecksetzen = () => { setProjectId(''); setMilestoneId(''); setTitle(''); setTermin(standardTermin()); setHours(''); };
 
   const save = async () => {
-    if (!title.trim() || !etappe) return;
+    if (!title.trim() || !etappe || !termin) return;
     setSaving(true);
     await base44.entities.Ticket.create({
       milestone_id: etappe.id,
@@ -94,7 +96,7 @@ export default function MeinTagNeueAufgabe({ open, onOpenChange, email, projects
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Termin (optional)</Label>
+              <Label>Termin</Label>
               <Input className="mt-1" type="date" value={termin} onChange={(e) => setTermin(e.target.value)} />
             </div>
             <div>
@@ -105,7 +107,7 @@ export default function MeinTagNeueAufgabe({ open, onOpenChange, email, projects
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-          <Button onClick={save} disabled={!title.trim() || !etappe || saving}>
+          <Button onClick={save} disabled={!title.trim() || !etappe || !termin || saving}>
             {saving ? 'Legt an…' : 'Aufgabe anlegen'}
           </Button>
         </DialogFooter>
