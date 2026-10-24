@@ -51,6 +51,8 @@ export default function Sidebar() {
   // anzahl = dunkler Zähler (rot, wenn etwas überfällig ist), alarm = roter Zähler
   const zaehler = {
     posteingang: { anzahl: posteingang.gesamt || 0, ueberfaellig: posteingang.ueberfaellig || 0 },
+    // „Post“ bündelt Posteingang und Eskalationen: dunkle Zahl = unbeantwortet, rote Zahl = wartende Eskalationen
+    post: { anzahl: posteingang.gesamt || 0, ueberfaellig: posteingang.ueberfaellig || 0, alarm: escalationCount || 0 },
     // Kanäle nach Empfängeradresse (support@, office@)
     support: { anzahl: posteingang.kanaele?.support?.anzahl || 0, ueberfaellig: posteingang.kanaele?.support?.ueberfaellig || 0 },
     office: { anzahl: posteingang.kanaele?.office?.anzahl || 0, ueberfaellig: posteingang.kanaele?.office?.ueberfaellig || 0 },
@@ -71,7 +73,8 @@ export default function Sidebar() {
     const p = location.pathname;
     // Posteingang, Support- und Office-Eingang sind dieselbe Seite mit anderem Kanal
     if (path.startsWith('/crm/inbox?kanal=')) return p === '/crm/inbox' && kanal === path.split('=')[1];
-    if (path === '/crm/inbox') return p === '/crm/inbox' && !kanal;
+    // „Post“ ist aktiv auf allen Postmodulen (Reiter auf der Seite)
+    if (path === '/crm/inbox') return p === '/crm/inbox' || p.startsWith('/crm/escalations') || p.startsWith('/crm/emails');
     if (path === '/sprint') return p === '/sprint';
     if (path === '/sprint/projekte') return /^\/sprint\/(projekte|katalog|neu|sprints|milestones)/.test(p);
     // Angebote und Deal-Details haben keinen eigenen Punkt — sie gehören zur Pipeline
@@ -213,7 +216,9 @@ export default function Sidebar() {
           if (gruppe.nurEmail && (user?.email || '').toLowerCase() !== gruppe.nurEmail) return null;
           // Nur was die Person sehen darf; eine leere Gruppe erscheint gar nicht.
           const items = gruppe.items.filter((i) => zugriff.darf(i.regel)
-            && (!i.nurEmail || (user?.email || '').toLowerCase() === i.nurEmail));
+            && (!i.nurEmail || (user?.email || '').toLowerCase() === i.nurEmail)
+            // ausserFuer: Punkt entfällt, wenn die Person schon das weitergehende Recht hat
+            && (!i.ausserFuer || !zugriff.darf(i.ausserFuer)));
           if (items.length === 0) return null;
           // Liegt die geöffnete Seite in der Gruppe, ist sie immer aufgeklappt.
           const istOffen = !gruppe.einklappbar || !!offen[gruppe.key] || items.some((i) => isActive(i.path));
