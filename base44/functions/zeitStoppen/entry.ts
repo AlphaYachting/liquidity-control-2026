@@ -170,6 +170,7 @@ export default async function (req: Request): Promise<Response> {
       project_id: laufende.project_id,
       ticket_id: laufende.ticket_id || null,
       entry_date: tag,
+      mehrleistung: istMehraufwand,
     });
   } catch (error) {
     return Response.json({ fehler: error.message }, { status: 500 });
