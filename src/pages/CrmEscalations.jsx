@@ -59,6 +59,7 @@ export default function CrmEscalations() {
 
   return (
     <div className="max-w-[1200px] space-y-4">
+      <PostReiter />
       <Seitenkopf
         bereich="CRM"
         titel="Kunden-Eskalationen"
