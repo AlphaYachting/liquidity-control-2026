@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
-import { Siren, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Siren, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { ToastAction } from '@/components/ui/toast';
+import { emailApi } from '@/components/crm/emails/emailApi';
+import { eintragAendern } from '@/components/crm/inboxDecision';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
@@ -44,6 +49,24 @@ function PanelAktionen({ eintrag, onWeiter }) {
   );
 }
 
+// Abhaken direkt in der Liste (Wunsch Alfons 24.10.2026): derselbe Effekt wie „Erledigt (ohne Antwort)“
+// in der Aktionsleiste — die Konversation kommt bei der nächsten Kundennachricht zurück.
+// Die Zeile verschwindet sofort; gespeichert wird erst nach RUECKGAENGIG_MS, damit ein Fehlklick
+// mit „Rückgängig“ folgenlos bleibt. Verlässt man die Seite vorher, wird sofort gespeichert.
+// Eskalationen sind ausgenommen — die werden auf der Eskalationsseite abgeschlossen.
+const RUECKGAENGIG_MS = 6000;
+
+async function alsErledigtSpeichern(e) {
+  if (e.threadId) {
+    await emailApi('enrich', { thread_id: Number(e.threadId), fields: { crm_status: 'kein_lead', status: 'erledigt' } });
+  }
+  if (e.item?.id && e.item.decision === 'offen') {
+    await eintragAendern(e.item.id, { decision: 'verworfen', status: 'dismissed', dismiss_reason: 'In „Meine Post“ abgehakt' });
+  }
+}
+
+const abhakbar = (e) => !e.eskalation && !!(e.threadId || e.item?.id);
+
 // „Meine Post“: Mails, die mir zugewiesen sind und noch auf Antwort warten (Entscheidung Alfons 12.10.2026).
 // Erscheint für jede Person, unabhängig vom Zugang zum Posteingang. Endet mit der Antwort —
 // dann ist die Konversation nicht mehr unbeantwortet und verschwindet von selbst.
@@ -51,9 +74,62 @@ export default function MeinTagPost() {
   const post = usePosteingang();
   const { data: team = [] } = useTeam();
   const [offenKey, setOffenKey] = useState(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [abgehakt, setAbgehakt] = useState({}); // key -> true, solange Speichern aussteht oder läuft
+  const wartend = useRef({}); // key -> { timer, eintrag }
+
+  const speichern = async (e) => {
+    delete wartend.current[e.key];
+    try {
+      await alsErledigtSpeichern(e);
+      queryClient.invalidateQueries({ queryKey: ['posteingang'] });
+    } catch (err) {
+      setAbgehakt((a) => { const n = { ...a }; delete n[e.key]; return n; });
+      toast({ variant: 'destructive', title: 'Nicht gespeichert', description: err?.message || 'Unbekannter Fehler' });
+    }
+  };
+
+  // Seite verlassen: Ausstehendes sofort speichern, nichts geht verloren
+  useEffect(() => () => {
+    Object.values(wartend.current).forEach(({ timer, eintrag }) => {
+      clearTimeout(timer);
+      alsErledigtSpeichern(eintrag)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['posteingang'] }))
+        .catch(() => {});
+    });
+    wartend.current = {};
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const abhaken = (e) => {
+    setAbgehakt((a) => ({ ...a, [e.key]: true }));
+    if (offenKey === e.key) setOffenKey(null);
+    const timer = setTimeout(() => speichern(e), RUECKGAENGIG_MS);
+    wartend.current[e.key] = { timer, eintrag: e };
+    toast({
+      description: `Erledigt: ${e.betreff || '(ohne Betreff)'} — kommt bei der nächsten Kundennachricht zurück.`,
+      duration: RUECKGAENGIG_MS,
+      action: (
+        <ToastAction
+          altText="Rückgängig"
+          onClick={() => {
+            const w = wartend.current[e.key];
+            if (!w) return;
+            clearTimeout(w.timer);
+            delete wartend.current[e.key];
+            setAbgehakt((a) => { const n = { ...a }; delete n[e.key]; return n; });
+          }}
+        >
+          Rückgängig
+        </ToastAction>
+      ),
+    });
+  };
 
   if (post.isLoading || post.isError) return null;
-  const liste = [...post.meine].sort((a, b) => (b.eskalation - a.eskalation) || (a.eingang - b.eingang));
+  const liste = [...post.meine]
+    .filter((e) => !abgehakt[e.key])
+    .sort((a, b) => (b.eskalation - a.eskalation) || (a.eingang - b.eingang));
   if (!liste.length) return null;
 
   // Das geöffnete Element über seinen Schlüssel führen — so bleibt es nach dem Neuladen der Liste stabil
@@ -73,11 +149,11 @@ export default function MeinTagPost() {
         Dir zugewiesene Mails, die noch auf Antwort warten. Mit der Antwort verschwinden sie von hier.
       </p>
       {liste.map((e) => (
+        <div key={e.key} className="flex items-center gap-2 border-b border-border last:border-0">
         <button
-          key={e.key}
           type="button"
           onClick={() => setOffenKey(e.key)}
-          className="w-full text-left block py-2 px-2 -mx-2 rounded border-b border-border last:border-0 hover:bg-muted"
+          className="flex-1 min-w-0 text-left block py-2 px-2 -ml-2 rounded hover:bg-muted"
         >
           <span className="flex items-center gap-1.5 text-sm font-semibold truncate" style={{ color: RITTLER.black }}>
             {e.eskalation && <Siren className="w-3.5 h-3.5 shrink-0" style={{ color: STATUS_COLORS.critical }} />}
@@ -92,6 +168,18 @@ export default function MeinTagPost() {
             {e.zuweisung?.zugewiesen_von && e.zuweisung.quelle !== 'automatisch' && ` · von ${nameVon(e.zuweisung.zugewiesen_von, team)}`}
           </span>
         </button>
+        {abhakbar(e) && (
+          <button
+            type="button"
+            onClick={() => abhaken(e)}
+            title="Erledigt (ohne Antwort) — kommt bei der nächsten Kundennachricht zurück"
+            aria-label={`Erledigt: ${e.betreff || 'ohne Betreff'}`}
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full border border-border text-muted-foreground hover:text-white hover:bg-[#1f8a4c] hover:border-[#1f8a4c] transition-colors"
+          >
+            <Check className="w-4 h-4" />
+          </button>
+        )}
+        </div>
       ))}
 
       {/* Der Verlauf fährt herein — kein Seitenwechsel. Breit genug zum Lesen; Kopf mit Aktionen bleibt
