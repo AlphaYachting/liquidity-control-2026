@@ -4,7 +4,7 @@ import BuchungZeile from './BuchungZeile';
 import { regelnFuer } from '@/lib/zeit/rundung';
 
 // Jede Buchung des Tages als Zeile — Korrekturen stehen unter ihrem Original.
-export default function Buchungsliste({ auswertung, eintraege, projektLabel, gesperrt, projekteById = {}, settings = {}, onAendern, onLoeschen, onGeaendert }) {
+export default function Buchungsliste({ auswertung, eintraege, projektLabel, gesperrt, projekteById = {}, settings = {}, onAendern, onLoeschen, onGeaendert, onWeiter }) {
   const regelnVon = (e) => regelnFuer(projekteById[e.project_id], settings);
   const ueberschneidend = new Set(auswertung.blocks.filter((b) => b.ueberschneidet).map((b) => b.entry.id));
 
@@ -37,6 +37,7 @@ export default function Buchungsliste({ auswertung, eintraege, projektLabel, ges
             onAendern={onAendern}
             onLoeschen={onLoeschen}
             onGeaendert={onGeaendert}
+            onWeiter={onWeiter}
           />
           {(korrekturenZu[e.id] || []).map((k) => (
             <BuchungZeile key={k.id} eintrag={k} label={projektLabel(k)} istKorrektur gesperrt />
