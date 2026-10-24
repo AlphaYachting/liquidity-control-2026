@@ -6,6 +6,7 @@ import TimerKnopf from '@/components/sprint/timer/TimerKnopf';
 import { ZeitKontextProvider } from '@/lib/sprint/ZeitKontext';
 import { ladeAlltagsseitenVor } from '@/lib/seitenVorladen';
 import { useErsterAufruf } from '@/lib/zeit/useErsterAufruf';
+import NeuigkeitenFenster from '@/components/neuigkeiten/NeuigkeitenFenster';
 
 // Schmaler Ladebalken statt Text — erscheint nur noch beim allerersten Laden,
 // danach bleibt beim Seitenwechsel die bisherige Seite stehen (Router-Übergang).
@@ -35,6 +36,7 @@ export default function AppLayout() {
           </div>
         </main>
         <TimerKnopf />
+        <NeuigkeitenFenster />
       </div>
     </ZeitKontextProvider>
   );
