@@ -7,7 +7,10 @@ import { zustaendigeVon } from '@/lib/sprint/zustaendige';
 // Per Drag-and-Drop sortierbare Aufgabenliste — speichert die Reihenfolge im Feld order
 export default function SortierbareAufgaben({ id, tickets, renderZeile }) {
   const [liste, setListe] = useState(tickets);
-  const schluessel = tickets.map((t) => `${t.id}:${t.order}:${t.status}:${t.planned_for}:${zustaendigeVon(t).join(',')}`).join('|');
+  // Liste neu übernehmen, sobald sich an einer Aufgabe irgendetwas geändert hat. Früher fehlten Titel &
+  // Co. im Schlüssel (Fehler 24.10.2026): Ein geänderter Titel war gespeichert, die Liste und das erneut
+  // geöffnete Fenster zeigten aber den alten — und ein weiteres Speichern hätte ihn zurückgeschrieben.
+  const schluessel = tickets.map((t) => `${t.id}:${t.updated_date || ''}:${t.title}:${t.order}:${t.status}:${t.planned_for}:${zustaendigeVon(t).join(',')}`).join('|');
   useEffect(() => { setListe(tickets); }, [schluessel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onDragEnd = async ({ source, destination }) => {
