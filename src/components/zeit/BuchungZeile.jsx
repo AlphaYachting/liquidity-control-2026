@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Play, Trash2 } from 'lucide-react';
 import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { minuteVonIso, uhr, dauerText, MODELL_TEXT, MODELL_FARBE } from '@/lib/zeit/tagesAuswertung';
 import { verrechnetJeBuchung } from '@/lib/zeit/rundung';
@@ -30,8 +30,13 @@ const zaehler = (e) => {
 // Eine Buchung als Zeile. Korrekturen stehen eingerückt unter dem Original.
 export default function BuchungZeile({
   eintrag: e, label, ueberschneidet, gesperrt, korrigiert, istKorrektur, regeln,
-  onAendern, onLoeschen, onGeaendert,
+  onAendern, onLoeschen, onGeaendert, onWeiter,
 }) {
+  const [startet, setStartet] = React.useState(false);
+  const weiter = async () => {
+    setStartet(true);
+    try { await onWeiter(e); } finally { setStartet(false); }
+  };
   // Ein eigener Verrechnungswert je Zeile besteht nur bei Basis 'buchung'.
   const verrechnetMinuten = regeln && regeln.rundung_basis === 'buchung' && !e.dauer_geschaetzt
     ? verrechnetJeBuchung(e, regeln)
@@ -61,9 +66,22 @@ export default function BuchungZeile({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium truncate ${korrigiert ? 'line-through' : ''}`} style={{ color: RITTLER.black }}>
-            {label.voll}
-          </p>
+          {/* Name anklickbar — springt direkt in die Bearbeitung (Wunsch John, 13.10.2026) */}
+          {!istKorrektur && onAendern ? (
+            <button
+              type="button"
+              onClick={() => onAendern(e)}
+              title={gesperrt ? 'Korrigieren' : 'Bearbeiten'}
+              className={`block max-w-full text-left text-sm font-medium truncate hover:underline ${korrigiert ? 'line-through' : ''}`}
+              style={{ color: RITTLER.black }}
+            >
+              {label.voll}
+            </button>
+          ) : (
+            <p className={`text-sm font-medium truncate ${korrigiert ? 'line-through' : ''}`} style={{ color: RITTLER.black }}>
+              {label.voll}
+            </p>
+          )}
           <p className="text-xs truncate" style={{ color: RITTLER.textSecondary }}>
             {MODELL_TEXT[e.kategorie] || 'Zeitbuchung'} · {zaehler(e)}
             {bereich ? <> · <span className="font-medium" style={{ color: RITTLER.black }}>{bereich}</span></> : ''}
@@ -82,6 +100,18 @@ export default function BuchungZeile({
           )}
           {e.abrechnungsstatus === 'abgerechnet' && (
             <Etikett farbe={STATUS_COLORS.doneText} flaeche={STATUS_COLORS.doneSurface}>abgerechnet</Etikett>
+          )}
+          {!istKorrektur && onWeiter && (
+            <button
+              type="button"
+              onClick={weiter}
+              disabled={startet}
+              title="Weiterbuchen — Timer mit Projekt, Aufgabe und Notiz dieser Buchung neu starten"
+              className="h-7 px-2 rounded border flex items-center gap-1 text-[11.5px] font-semibold hover:bg-muted disabled:opacity-50"
+              style={{ borderColor: RITTLER.line, color: RITTLER.black }}
+            >
+              <Play className="w-3 h-3" /> Weiter
+            </button>
           )}
           {!istKorrektur && (
             <>
