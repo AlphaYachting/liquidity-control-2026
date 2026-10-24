@@ -135,3 +135,9 @@ export function computeFeedbackDeadline({ handoverDate, size, settings = [], isF
     suppress_prewarning_mail: suppressPrewarning,
   };
 }
+// Standardtermin für neue Aufgaben (Audit 24.10.2026): jede neue Aufgabe bekommt einen Termin,
+// damit „Mein Tag" eine Reihenfolge hat. Vorschlag: heute + 5 Arbeitstage, jederzeit änderbar.
+export const STANDARD_TERMIN_ARBEITSTAGE = 5;
+export function standardTermin(von = new Date()) {
+  return addWorkdays(iso(von), STANDARD_TERMIN_ARBEITSTAGE);
+}
