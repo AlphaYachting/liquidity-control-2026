@@ -13,9 +13,12 @@ import { Badge } from '@/components/ui/badge';
 import EditContractDialog from '@/components/maintenance/EditContractDialog';
 import ExtractHostingContractsDialog from '@/components/hosting/ExtractHostingContractsDialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useZugriff } from '@/lib/useZugriff';
 
 export default function Hosting() {
   const queryClient = useQueryClient();
+  // Das Team sieht Hosting und Domains (Wunsch Alfons 24.10.2026), ändern nur die Führung
+  const darfAendern = useZugriff().darf('fuehrung');
   const [editingContract, setEditingContract] = useState(null);
   const [activeTab, setActiveTab] = useState('hosting');
   const [showExtract, setShowExtract] = useState(false);
@@ -63,11 +66,11 @@ export default function Hosting() {
       return v;
     }},
     { key: 'notes', label: 'Notizen', render: (v) => v ? <span className="text-xs text-muted-foreground truncate max-w-[140px] block">{v}</span> : '—' },
-    { key: 'id', label: 'Aktionen', sortable: false, render: (v, row) => (
+    ...(!darfAendern ? [] : [{ key: 'id', label: 'Aktionen', sortable: false, render: (v, row) => (
       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); setEditingContract(row); }}>
         Bearbeiten
       </Button>
-    )},
+    )}]),
   ];
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-64" /><Skeleton className="h-[400px]" /></div>;
@@ -78,7 +81,7 @@ export default function Hosting() {
         title="Hosting & Domains"
         subtitle={`${allContracts.length} Einträge gesamt`}
         icon={Server}
-        actions={
+        actions={darfAendern &&
           <div className="flex gap-2">
             <Button variant="outline" className="gap-2" onClick={() => setEditingContract(newContractDefaults(activeTab))}>
               <Plus className="w-4 h-4" />
