@@ -36,7 +36,8 @@ export default function Sidebar() {
   const unlinkedCount = useUnlinkedOrdersCount({ enabled: bereit && zugriff.darf('geld') });
   const pendingDunningCount = usePendingDunningCount({ enabled: bereit && zugriff.darf('geld') });
   // Ein Zähler für den einen Posteingang — dieselbe Quelle wie die Liste
-  const posteingang = usePosteingang({ enabled: bereit && zugriff.darf(['leitung', 'support']) });
+  // Der Support-Eingang ist für alle sichtbar (24.10.2026) — sein Zähler daher auch
+  const posteingang = usePosteingang({ enabled: bereit });
   // Zähler = Fälle, in denen der Kunde auf Antwort wartet — dieselbe Quelle wie die Seite
   const escalationCount = useEskalationsListe({ enabled: bereit && zugriff.darf('leitung') }).wartend;
   // Neue Rückmeldungen der Kollegen — nur für den Inhaber, dieselbe Abfrage wie am Knopf in der Kopfleiste
@@ -73,8 +74,8 @@ export default function Sidebar() {
     const p = location.pathname;
     // Posteingang, Support- und Office-Eingang sind dieselbe Seite mit anderem Kanal
     if (path.startsWith('/crm/inbox?kanal=')) return p === '/crm/inbox' && kanal === path.split('=')[1];
-    // „Post“ ist aktiv auf allen Postmodulen (Reiter auf der Seite)
-    if (path === '/crm/inbox') return p === '/crm/inbox' || p.startsWith('/crm/escalations') || p.startsWith('/crm/emails');
+    // „Post“ ist aktiv auf allen Postmodulen (Reiter auf der Seite) — außer im Support, der hat seinen eigenen Punkt
+    if (path === '/crm/inbox') return (p === '/crm/inbox' && kanal !== 'support') || p.startsWith('/crm/escalations') || p.startsWith('/crm/emails');
     if (path === '/sprint') return p === '/sprint';
     if (path === '/sprint/projekte') return /^\/sprint\/(projekte|katalog|neu|sprints|milestones)/.test(p);
     // Angebote und Deal-Details haben keinen eigenen Punkt — sie gehören zur Pipeline
