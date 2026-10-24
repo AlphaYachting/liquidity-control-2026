@@ -5,9 +5,10 @@ import { RITTLER } from '@/components/sprint/sprintConfig';
 
 // Ein Einstieg „Post" in der Navigation — die einzelnen Postmodule sind Reiter derselben Leiste.
 // Jede Person sieht nur die Reiter, die sie nach ihren Rechten öffnen darf.
+// Support ist seit 24.10.2026 ein eigener Navigationspunkt für alle — kein Reiter mehr, und auf der
+// Support-Seite erscheint die Reiterleiste nicht.
 export const POST_REITER = [
   { key: 'posteingang', label: 'Posteingang', to: '/crm/inbox', recht: 'leitung' },
-  { key: 'support', label: 'Support', to: '/crm/inbox?kanal=support', recht: 'support' },
   { key: 'office', label: 'Office', to: '/crm/inbox?kanal=office', recht: ['leitung', 'support'] },
   { key: 'eskalationen', label: 'Eskalationen', to: '/crm/escalations', recht: 'leitung' },
   { key: 'alle', label: 'Alle E-Mails', to: '/crm/emails', recht: 'leitung' },
@@ -26,6 +27,7 @@ export default function PostReiter() {
   const { pathname, search } = useLocation();
   const zugriff = useZugriff();
   const aktiv = aktiverReiter(pathname, search);
+  if (aktiv === 'support') return null;
   const reiter = POST_REITER.filter((r) => zugriff.darf(r.recht));
   if (reiter.length < 2) return null;
   return (
