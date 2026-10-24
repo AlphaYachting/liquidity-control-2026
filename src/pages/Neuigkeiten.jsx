@@ -66,6 +66,7 @@ export default function Neuigkeiten() {
   const [form, setForm] = useState(LEER);
   const [busy, setBusy] = useState('');
   const [meldung, setMeldung] = useState('');
+  const [fensterVorschau, setFensterVorschau] = useState(false);
 
   const { data: ausgaben = [], isLoading } = useQuery({ queryKey: ALLE_KEY, queryFn: ladeAlle });
   const { data: team = [] } = useQuery({
