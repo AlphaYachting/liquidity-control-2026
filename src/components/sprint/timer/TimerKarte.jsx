@@ -12,6 +12,8 @@ import BereichChips from '@/components/zeit/BereichChips';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
 import { istSupportOhneTicket } from '@/lib/zeit/supportBeschreibung';
+import { Textarea } from '@/components/ui/textarea';
+import MehraufwandSchalter from '@/components/zeit/MehraufwandSchalter';
 
 const jetztMinute = () => {
   const d = new Date();
@@ -25,7 +27,15 @@ export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzoge
   const [korrektur, setKorrektur] = useState('');
   const [pausen, setPausen] = useState([]);
   const [pauseAb, setPauseAb] = useState(null);
+  // Audit 24.10.2026: Mehraufwand und Meeting-Ergebnis werden beim Stoppen erfasst — ohne Zusatzweg
+  const [mehraufwand, setMehraufwand] = useState(false);
+  const [meeting, setMeeting] = useState(false);
+  const [vereinbart, setVereinbart] = useState('');
   const { data: kontext } = useProjektKontext(timer.project_id);
+  const kategorie = kontext?.kategorie || '';
+  // Nur bei Festpreis-Arbeit (Sprint, Paket) ist die Frage „im Auftrag oder Zusatzwunsch?“ sinnvoll
+  const frageMehraufwand = ['sprint', 'paket'].includes(kategorie);
+  const kundenProjekt = !!kategorie && kategorie !== 'intern';
   const qc = useQueryClient();
 
   const pausenMinuten = pausen.reduce((s, p) => s + (p.bis - p.von), 0);
@@ -49,7 +59,11 @@ export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzoge
     if (korrektur && gewuenscht > 0) {
       abzug = Math.max(0, Math.round(elapsedMinutes - gewuenscht * 60));
     }
-    await onStop(notiz, abzug);
+    await onStop(notiz, abzug, {
+      ...(frageMehraufwand ? { mehrleistung: mehraufwand } : {}),
+      ...(meeting ? { taetigkeit: 'meeting' } : {}),
+      ...(meeting && kundenProjekt && vereinbart.trim() ? { vereinbart: vereinbart.trim() } : {}),
+    });
     setBusy(false);
   };
 
@@ -107,6 +121,36 @@ export default function TimerKarte({ timer, label, onStop, onWechseln, ueberzoge
         value={notiz}
         onChange={(e) => setNotiz(e.target.value)}
       />
+
+      <div className="flex flex-wrap gap-1.5 mt-2">
+        {frageMehraufwand && (
+          <MehraufwandSchalter wert={mehraufwand} onWechsel={setMehraufwand} />
+        )}
+        <button
+          type="button"
+          onClick={() => setMeeting((m) => !m)}
+          aria-pressed={meeting}
+          title="Die Zeit war ein Meeting oder Kundentermin"
+          className="text-[11.5px] px-2 py-0.5 rounded border transition-colors"
+          style={{
+            borderColor: meeting ? RITTLER.pink : RITTLER.line,
+            backgroundColor: meeting ? 'hsl(var(--primary) / 0.08)' : 'transparent',
+            color: meeting ? RITTLER.pink : RITTLER.textSecondary,
+            fontWeight: meeting ? 600 : 400,
+          }}
+        >
+          {meeting ? '✓ Meeting' : '+ Meeting'}
+        </button>
+      </div>
+      {meeting && kundenProjekt && (
+        <Textarea
+          className="mt-2 text-[13px]"
+          rows={3}
+          placeholder="Was wurde vereinbart? Kommt in den Projektakt (optional)"
+          value={vereinbart}
+          onChange={(e) => setVereinbart(e.target.value)}
+        />
+      )}
 
       <HauptKnopf
         disabled={busy || notizFehlt}
