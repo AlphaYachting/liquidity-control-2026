@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import ToolCostDialog from '@/components/tools/ToolCostDialog';
 import CsvExportButton from '@/components/shared/CsvExportButton';
+import { useZugriff } from '@/lib/useZugriff';
 
 const DECISION_LABELS = { keep: 'Behalten', cancel: 'Kündigen', review: 'Prüfen', undecided: 'Offen' };
 const EXPORT_COLUMNS = [
@@ -38,6 +39,9 @@ export default function Tools() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTool, setEditingTool] = useState(null);
   const queryClient = useQueryClient();
+  // Das Team sieht die Toolkosten (Wunsch Alfons 24.10.2026). Ändern, Exportieren und die
+  // Kündigungsentscheidungen (Entscheidung, Entfällt ab, Begründung) bleiben bei der Führung.
+  const fuehrung = useZugriff().darf('fuehrung');
 
   const { data: tools = [], isLoading } = useQuery({
     queryKey: ['tools'], queryFn: () => base44.entities.ToolCost.list()
@@ -99,7 +103,7 @@ export default function Tools() {
     { key: 'payment_interval', label: 'Intervall' },
     { key: 'needed', label: 'Benötigt', render: (v) => v ? <Badge className="bg-emerald-100 text-emerald-700">Ja</Badge> : <Badge className="bg-red-100 text-red-700">Nein</Badge> },
     { key: 'customer_recharge', label: 'Weiterverr.', render: (v) => v || '—' },
-    { key: 'decision_status', label: 'Entscheidung', render: (v, row) => (
+    ...(!fuehrung ? [] : [{ key: 'decision_status', label: 'Entscheidung', render: (v, row) => (
       <div className="flex gap-1">
         {['keep', 'cancel', 'review'].map(d => (
           <Button key={d} size="sm" variant="ghost" className={`h-6 text-xs px-2 ${v === d ? DECISION_COLORS[d] : ''}`}
@@ -125,7 +129,7 @@ export default function Tools() {
           <Trash2 className="w-3.5 h-3.5" />
         </Button>
       </div>
-    )},
+    )}]),
   ];
 
   const exportData = filtered.map((t) => ({
@@ -147,7 +151,7 @@ export default function Tools() {
         title="Toolkosten 2026"
         subtitle={`${filtered.length} Tools`}
         icon={CreditCard}
-        actions={
+        actions={fuehrung &&
           <div className="flex gap-2">
             <CsvExportButton data={exportData} columns={EXPORT_COLUMNS} filename="toolkosten-2026.csv" />
             <Button onClick={openNew} size="sm"><Plus className="w-4 h-4 mr-1" />Tool hinzufügen</Button>
@@ -165,7 +169,7 @@ export default function Tools() {
       <FilterBar
         filters={[
           { key: 'department', label: 'Abteilung', options: Object.entries(DEPT_LABELS).map(([v, l]) => ({ value: v, label: l })) },
-          { key: 'decision_status', label: 'Entscheidung', options: ['keep', 'cancel', 'review', 'undecided'].map(v => ({ value: v, label: v })) },
+          ...(fuehrung ? [{ key: 'decision_status', label: 'Entscheidung', options: ['keep', 'cancel', 'review', 'undecided'].map(v => ({ value: v, label: v })) }] : []),
           { key: 'needed', label: 'Benötigt', options: [{ value: 'true', label: 'Ja' }, { value: 'false', label: 'Nein' }] },
         ]}
         values={filters}
