@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertTriangle, Coins } from 'lucide-react';
 import { STATE_LABELS } from '@/components/sprint/sprintConfig';
 import { zustaendigFelder } from '@/lib/sprint/zustaendige';
+import { standardTermin } from '@/lib/sprint/deadlines';
+import { useAuth } from '@/lib/AuthContext';
 
 const ROLES = ['Beratung', 'Konzept', 'Text', 'Grafik', 'Web', 'Media', 'QS'];
 const PHASES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
@@ -20,9 +22,12 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
   const [title, setTitle] = useState('');
   const [role, setRole] = useState('');
   const [phase, setPhase] = useState(milestone.state === 'freigegeben' ? 'produktion' : milestone.state || 'produktion');
-  const [assignee, setAssignee] = useState('');
+  const { user } = useAuth();
+  const ich = (user?.email || '').toLowerCase();
+  // Jede neue Aufgabe hat eine Person und einen Termin (Audit 24.10.2026) — beides vorbelegt, änderbar
+  const [assignee, setAssignee] = useState(() => (members.some((m) => (m.email || '').toLowerCase() === ich) ? ich : ''));
   const [hours, setHours] = useState('');
-  const [faellig, setFaellig] = useState('');
+  const [faellig, setFaellig] = useState(() => standardTermin());
   const [saving, setSaving] = useState(false);
   const [fehler, setFehler] = useState('');
   const zielProjekt = projectId || milestone.project_id || tickets[0]?.project_id || '';
@@ -33,7 +38,7 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
     : null;
 
   const save = async () => {
-    if (!title.trim()) return;
+    if (!title.trim() || !assignee || !faellig) return;
     if (!zielProjekt) {
       setFehler('Das Projekt dieser Aufgabe ist unbekannt — bitte die Seite neu laden.');
       return;
@@ -62,7 +67,7 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
       return;
     }
     setSaving(false);
-    setTitle(''); setRole(''); setAssignee(''); setHours(''); setFaellig('');
+    setTitle(''); setRole(''); setHours(''); setFaellig(standardTermin());
     onOpenChange(false);
     onCreated?.();
   };
@@ -134,10 +139,13 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
         </div>
 
         {fehler && <p className="text-sm text-status-critical">{fehler}</p>}
+        {title.trim() && (!assignee || !faellig) && (
+          <p className="text-xs text-muted-foreground">Jede Aufgabe braucht eine zuständige Person und einen Termin.</p>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-          <Button onClick={save} disabled={!title.trim() || saving}>
+          <Button onClick={save} disabled={!title.trim() || !assignee || !faellig || saving}>
             {saving ? 'Legt an…' : isChangeRequest ? 'Change Request anlegen' : 'Aufgabe anlegen'}
           </Button>
         </DialogFooter>
