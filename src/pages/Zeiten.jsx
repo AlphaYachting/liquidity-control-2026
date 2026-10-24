@@ -39,7 +39,7 @@ export default function Zeiten() {
   const { toast } = useToast();
   const { offeneTage, aeltester, darfBuchen, pflichtAb } = useOffeneTage(email);
   // Nur der laufende Eintrag wird gebraucht — kein Sekundentakt für die ganze Seite.
-  const { timer } = useTimer(email, { ticken: false });
+  const { timer, start } = useTimer(email, { ticken: false });
   const rundungsSettings = useRundungsSettings();
   const gesprungen = useRef(false);
 
@@ -187,6 +187,30 @@ export default function Zeiten() {
     };
   };
 
+  // „Weiter“: dieselbe Buchung noch einmal starten — Projekt, Aufgabe, Leistungsbereich und Notiz
+  // werden übernommen (Wünsche John 05.10. und Johannes 19.10., Audit 24.10.2026).
+  const weiterbuchen = async (e) => {
+    const p = projekteById[e.project_id];
+    if (!p) {
+      toast({ variant: 'destructive', description: 'Das Projekt dieser Buchung ist nicht mehr aktiv — bitte über die Timer-Pille ein Projekt wählen.' });
+      return;
+    }
+    if (!pruefeTag(todayIso())) return;
+    const res = await start(p, projektInfo[p.id]?.kuerzel || '', e.note || '', {
+      force: true,
+      ...(e.ticket_id ? { ticketId: e.ticket_id } : {}),
+      ...(e.module_template_id ? { moduleTemplateId: e.module_template_id } : {}),
+    });
+    if (res?.code === 'beschreibung_fehlt') {
+      toast({ variant: 'destructive', description: 'Nicht umgeschaltet: Der laufende Support-Timer ohne Ticket braucht zuerst eine Beschreibung. Bitte über die Timer-Pille unten rechts stoppen.' });
+    } else if (res?.fehler) {
+      toast({ variant: 'destructive', description: `Nicht gestartet: ${res.fehler}` });
+    } else {
+      toast({ description: `Timer läuft wieder auf ${projektLabel(e).voll}.` });
+      refresh();
+    }
+  };
+
   const loeschen = async (e) => {
     if (!window.confirm('Diese Buchung löschen?')) return;
     await loescheZeit(e.id);
@@ -274,6 +298,7 @@ export default function Zeiten() {
         onAendern={setBearbeiten}
         onLoeschen={loeschen}
         onGeaendert={refresh}
+        onWeiter={weiterbuchen}
       />
 
       <div id="tag-abschluss">
