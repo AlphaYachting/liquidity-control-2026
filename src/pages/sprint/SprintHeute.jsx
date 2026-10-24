@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import MeinTagZeile from '@/components/sprint/heute/MeinTagZeile';
 import MeinTagNeueAufgabe from '@/components/sprint/heute/MeinTagNeueAufgabe';
 import MeinTagUebernahme from '@/components/sprint/heute/MeinTagUebernahme';
+import MeinTagAufraeumen from '@/components/sprint/heute/MeinTagAufraeumen';
 import TicketDetailPanel from '@/components/sprint/ticket/TicketDetailPanel';
 import HeuteFristen from '@/components/sprint/HeuteFristen';
 import HeutePmBlock from '@/components/sprint/HeutePmBlock';
@@ -41,6 +42,7 @@ export default function SprintHeute() {
   // Aufgabe, die in der Ebene rechts geöffnet ist — die Liste bleibt dahinter bedienbar
   const [panelTicketId, setPanelTicketId] = useState(null);
   const [supportTicket, setSupportTicket] = useState(null);
+  const [aufraeumen, setAufraeumen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['sprintHeute', email, today],
@@ -301,6 +303,15 @@ export default function SprintHeute() {
             anzahl={vorrat.length}
             hinweis={`${gruppen.length} ${gruppen.length === 1 ? 'Projekt' : 'Projekte'} — aufklappen und Aufgaben mit „Heute" oder einem Termin einplanen.`}
           >
+            {vorrat.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setAufraeumen(true)}
+                className="mt-1 mb-2 h-9 px-4 bg-white border border-foreground rounded text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                Vorrat aufräumen — Termine vergeben
+              </button>
+            )}
             <div className="mt-1">
               <MeinTagProjektgruppen
                 gruppen={gruppen}
@@ -371,6 +382,19 @@ export default function SprintHeute() {
         onSaved={refresh}
         nichtModal
       />
+      {aufraeumen && (
+        <MeinTagAufraeumen
+          open={aufraeumen}
+          onOpenChange={setAufraeumen}
+          tickets={vorrat}
+          projektName={projektName}
+          projectById={projectById}
+          members={members}
+          email={email}
+          darfArchivieren={zugriff.istAdmin || !!zugriff.rechte?.fuehrung}
+          onFertig={refresh}
+        />
+      )}
       <MeinTagNeueAufgabe
         open={neueAufgabe}
         onOpenChange={setNeueAufgabe}
