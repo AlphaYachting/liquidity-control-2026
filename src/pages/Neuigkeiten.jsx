@@ -8,6 +8,9 @@ import { RITTLER, STATUS_COLORS } from '@/components/sprint/sprintConfig';
 import { istInhaber } from '@/lib/rueckmeldung/rueckmeldung';
 import { unwrapLLM } from '@/components/crm/proposals/jsonFields';
 import NeuigkeitInhalt from '@/components/neuigkeiten/NeuigkeitInhalt';
+import NeuigkeitenBuehne, { BuehneKnopf, BUEHNE_RAHMEN, BUEHNE_RAHMEN_STIL } from '@/components/neuigkeiten/NeuigkeitenBuehne';
+import { FUSS_HINWEIS } from '@/components/neuigkeiten/NeuigkeitenFenster';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   ZIELGRUPPEN, ZIELGRUPPE_LABEL, ALLE_KEY, VEROEFFENTLICHT_KEY, GELESEN_KEY, ladeAlle, tag, punkteAusText, punkteAlsText,
 } from '@/lib/neuigkeiten';
@@ -290,8 +293,28 @@ ${eingabe}`,
           </div>
 
           <div className="bg-background border p-5 self-start" style={{ borderColor: RITTLER.line, borderRadius: 4 }}>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] mb-3" style={{ color: RITTLER.textSecondary }}>Vorschau — so sehen es die Kollegen</p>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: RITTLER.textSecondary }}>Vorschau — so sehen es die Kollegen</p>
+              <Knopf onClick={() => setFensterVorschau(true)} title="Zeigt das Begrüßungsfenster genau so, wie es nach dem Update erscheint — ohne etwas als gelesen zu markieren">
+                <Sparkles className="w-4 h-4" /> Als Fenster ansehen
+              </Knopf>
+            </div>
             <NeuigkeitInhalt ausgabe={veroeffentlicht ? gewaehlt : vorschau} />
+            <Dialog open={fensterVorschau} onOpenChange={setFensterVorschau}>
+              <DialogContent className={`${BUEHNE_RAHMEN} [&>button]:text-white [&>button]:opacity-80 [&>button]:z-10`} style={BUEHNE_RAHMEN_STIL}>
+                <NeuigkeitenBuehne
+                  ausgaben={[veroeffentlicht ? gewaehlt : vorschau]}
+                  Titel={DialogTitle}
+                  Beschreibung={DialogDescription}
+                  fuss={(
+                    <>
+                      {FUSS_HINWEIS}
+                      <BuehneKnopf onClick={() => setFensterVorschau(false)}>Vorschau schließen</BuehneKnopf>
+                    </>
+                  )}
+                />
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>
