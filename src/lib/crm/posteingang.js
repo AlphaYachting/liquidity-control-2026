@@ -75,7 +75,8 @@ export function sichtbarAb(eingangMs, stunden = SCHWELLE_ARBEITSSTUNDEN) {
  *  office  — Office-Eingang: Projektleitung, Führung und alle mit Zugang zum Support-Eingang (Web)
  */
 export const KANAELE = {
-  support: { key: 'support', titel: 'Support-Eingang', adresse: 'support@rittler.co', recht: 'support' },
+  // Support-Eingang für alle sichtbar (Wunsch Alfons 24.10.2026)
+  support: { key: 'support', titel: 'Support-Eingang', adresse: 'support@rittler.co', recht: 'alle' },
   office: { key: 'office', titel: 'Office-Eingang', adresse: 'office@rittler.co', recht: ['leitung', 'support'] },
 };
 
