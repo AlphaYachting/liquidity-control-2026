@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useEskalationsListe } from '@/hooks/useEskalationsListe';
 import { Link } from 'react-router-dom';
 import Seitenkopf from '@/components/shared/Seitenkopf';
+import PostReiter from '@/components/crm/PostReiter';
 import { Box } from '@/components/shared/Box';
 import InboxItemCard from '@/components/crm/InboxItemCard';
 import InboxThreadCard from '@/components/crm/InboxThreadCard';
@@ -189,6 +190,7 @@ export default function CrmInbox() {
 
   return (
     <div className="max-w-[1200px] space-y-4">
+      <PostReiter />
       <Seitenkopf
         bereich="CRM"
         titel={seitenTitel}
