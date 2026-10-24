@@ -1,0 +1,79 @@
+{
+  "description": "Ausgabe des Fensters \u201eWas ist neu\u201c \u2014 erscheint nach dem Ver\u00f6ffentlichen einmal je Person beim n\u00e4chsten \u00d6ffnen der App.",
+  "name": "Neuigkeit",
+  "properties": {
+    "punkte": {
+      "description": "Die Verbesserungen in Alltagssprache",
+      "items": {
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "von": {
+            "description": "Name der Person, deren R\u00fcckmeldung dazu gef\u00fchrt hat (optional)",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "rueckmeldung_ids": {
+      "description": "R\u00fcckmeldungen, aus denen die Punkte entstanden sind",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "status": {
+      "default": "entwurf",
+      "enum": [
+        "entwurf",
+        "veroeffentlicht"
+      ],
+      "type": "string"
+    },
+    "titel": {
+      "description": "\u00dcberschrift, z. B. \u201eNeu seit 27.10.\u201c",
+      "type": "string"
+    },
+    "veroeffentlicht_am": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "zielgruppe": {
+      "default": "alle",
+      "description": "Wer die Ausgabe sieht \u2014 dieselben Rechte wie in der Navigation",
+      "enum": [
+        "alle",
+        "leitung",
+        "fuehrung",
+        "support",
+        "geld"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "titel",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}
