@@ -9,8 +9,23 @@ import { useZugriff } from '@/lib/useZugriff';
 import { RITTLER } from '@/components/sprint/sprintConfig';
 import NeuigkeitInhalt from './NeuigkeitInhalt';
 import {
-  VEROEFFENTLICHT_KEY, GELESEN_KEY, ladeVeroeffentlichte, ladeGelesene, ungelesen, alsGelesenMarkieren,
+  VEROEFFENTLICHT_KEY, GELESEN_KEY, ladeVeroeffentlichte, ladeGelesene, ungelesen, alsGelesenMarkieren, tag,
 } from '@/lib/neuigkeiten';
+
+// Bewegung nur, wenn die Person keine reduzierte Bewegung eingestellt hat
+const ANIMATION = `
+@keyframes neuEin { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes neuGlimmer { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: .9; transform: scale(1.08); } }
+@keyframes neuFunkeln { 0%, 100% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(14deg) scale(1.12); } }
+.neu-einblenden { animation: neuEin .45s cubic-bezier(.2,.7,.2,1) both; }
+.neu-glimmer { animation: neuGlimmer 5s ease-in-out infinite; }
+.neu-funkeln { animation: neuFunkeln 2.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .neu-einblenden, .neu-glimmer, .neu-funkeln { animation: none; } }
+`;
+
+// Wer hat etwas gewünscht? "John, Johannes" → zwei Personen
+const wuenscher = (ausgaben) => [...new Set(ausgaben.flatMap((a) => (a.punkte || [])
+  .flatMap((p) => String(p?.von || '').split(/,| und /).map((s) => s.trim()).filter(Boolean))))];
 
 // „Was ist neu" — erscheint nach einem veröffentlichten Update einmal je Person beim Öffnen der App.
 // Bewusst blockierend: es schließt nur über „Verstanden", damit die Neuerungen gelesen werden.
@@ -50,30 +65,73 @@ export default function NeuigkeitenFenster() {
 
   if (!zeigen) return null;
 
+  const erste = offen[0];
+  const weitere = offen.slice(1);
+  const anzahl = offen.reduce((s, a) => s + (a.punkte || []).filter((p) => p?.text).length, 0);
+  const namen = wuenscher(offen);
+
   return (
     <AlertDialog open>
-      <AlertDialogContent className="max-w-[520px] max-h-[85vh] overflow-y-auto" style={{ borderRadius: 4 }}>
-        <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: RITTLER.textSecondary }}>
-          <Sparkles className="w-4 h-4" />
-          <AlertDialogTitle className="text-[12px] font-semibold">Was ist neu im Agency Manager</AlertDialogTitle>
+      <style>{ANIMATION}</style>
+      <AlertDialogContent
+        className="max-w-[580px] w-[calc(100vw-32px)] p-0 gap-0 overflow-hidden max-h-[88vh] flex flex-col"
+        style={{ borderRadius: 6 }}
+      >
+        {/* Kopf: schwarze Bühne mit pinkem Lichtfleck — die Neuigkeit soll als Ereignis wirken */}
+        <div className="relative overflow-hidden px-7 pt-7 pb-6 shrink-0" style={{ backgroundColor: RITTLER.black, color: RITTLER.white }}>
+          <div
+            aria-hidden="true"
+            className="neu-glimmer pointer-events-none absolute -top-24 -right-20 w-72 h-72"
+            style={{ borderRadius: 999, background: 'radial-gradient(circle, hsl(var(--primary) / 0.75) 0%, hsl(var(--primary) / 0) 70%)' }}
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-28 -left-16 w-60 h-60"
+            style={{ borderRadius: 999, background: 'radial-gradient(circle, hsl(var(--primary) / 0.22) 0%, hsl(var(--primary) / 0) 70%)' }}
+          />
+          <div className="relative">
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em]"
+                style={{ borderRadius: 999, backgroundColor: RITTLER.pink, color: 'hsl(var(--primary-foreground))' }}
+              >
+                <Sparkles className="neu-funkeln w-3.5 h-3.5" />
+                Update
+              </span>
+              {erste?.veroeffentlicht_am && (
+                <span className="text-[12px] opacity-70">{tag(erste.veroeffentlicht_am)}</span>
+              )}
+            </div>
+            <AlertDialogTitle className="mt-4 text-[26px] leading-[30px] font-bold tracking-tight">
+              Was ist neu im Agency&nbsp;Manager
+            </AlertDialogTitle>
+            <AlertDialogDescription className="mt-2 text-[14px] leading-snug" style={{ color: 'hsl(var(--background) / 0.75)' }}>
+              {erste?.titel ? `${erste.titel} · ` : ''}
+              {anzahl} {anzahl === 1 ? 'Verbesserung' : 'Verbesserungen'}
+              {namen.length > 0 && <> · einige davon aus euren Rückmeldungen – danke, {namen.join(', ')}!</>}
+            </AlertDialogDescription>
+          </div>
         </div>
-        <AlertDialogDescription className="sr-only">Neuerungen seit deinem letzten Besuch</AlertDialogDescription>
-        <div className="space-y-6">
-          {offen.map((a) => <NeuigkeitInhalt key={a.id} ausgabe={a} />)}
+
+        {/* Inhalt: scrollt, Kopf und Fuß bleiben stehen */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6" style={{ backgroundColor: RITTLER.surface }}>
+          {erste && <NeuigkeitInhalt ausgabe={erste} variante="fenster" ohneKopf />}
+          {weitere.map((a) => <NeuigkeitInhalt key={a.id} ausgabe={a} variante="fenster" />)}
         </div>
-        <p className="text-[12px]" style={{ color: RITTLER.textSecondary }}>
-          Alle Ausgaben findest du später über das Symbol neben der Suche. Etwas fehlt oder hakt? Gleich daneben: Rückmeldung.
-        </p>
-        <div className="flex justify-end">
+
+        <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t bg-background" style={{ borderColor: RITTLER.line }}>
+          <p className="text-[12px] flex-1 min-w-[220px]" style={{ color: RITTLER.textSecondary }}>
+            Zum Nachlesen: das Funkel-Symbol neben der Suche. Etwas fehlt oder hakt? Gleich daneben: Rückmeldung.
+          </p>
           <button
             type="button"
             onClick={verstanden}
             disabled={speichert}
-            className="h-9 px-5 text-[13px] font-semibold flex items-center gap-2 disabled:opacity-60"
-            style={{ borderRadius: 3, backgroundColor: RITTLER.black, color: RITTLER.white }}
+            className="h-10 px-6 text-[14px] font-semibold flex items-center gap-2 disabled:opacity-60 transition-transform hover:-translate-y-px"
+            style={{ borderRadius: 3, backgroundColor: RITTLER.pink, color: 'hsl(var(--primary-foreground))' }}
           >
             {speichert && <Loader2 className="w-4 h-4 animate-spin" />}
-            Verstanden
+            Los geht’s
           </button>
         </div>
       </AlertDialogContent>
