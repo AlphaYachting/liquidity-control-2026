@@ -8,7 +8,8 @@ import { zustaendigFelder, MAX_ZUSTAENDIGE } from '@/lib/sprint/zustaendige';
 //  - Zuständige nur über zustaendigFelder (höchstens vier)
 //  - nach der Freigabe einer Etappe ist eine neue Aufgabe ein Change Request — das wird hier
 //    nicht still umgedeutet, sondern muss bewusst bestätigt sein (origin 'change_request')
-//    oder als Kundenwunsch zur Prüfung durch die Projektleitung markiert sein (cr_pruefen)
+//    oder als Kundenwunsch zur Prüfung durch die Projektleitung markiert sein (cr_pruefen),
+//    oder die Projektleitung hat bewusst „Pflicht“ gewählt (pflicht_bestaetigt)
 //  - Phase = Phase der Etappe, nach der Freigabe 'produktion'
 //  - Reihenfolge: hinter die letzte Aufgabe der Etappe
 // Bestehende Anlagedialoge nutzen diese Funktion (noch) nicht.
@@ -31,7 +32,7 @@ export function pruefeZeile(zeile, etappe) {
   if (personen.length > MAX_ZUSTAENDIGE) gruende.push('Höchstens vier zuständige Personen');
   if (!istDatum(zeile?.planned_for)) gruende.push('Termin fehlt');
   if (!zeile?.milestone_id || !etappe) gruende.push('Etappe fehlt');
-  else if (etappeFreigegeben(etappe) && zeile.origin !== 'change_request' && !zeile.cr_pruefen) {
+  else if (etappeFreigegeben(etappe) && zeile.origin !== 'change_request' && !zeile.cr_pruefen && !zeile.pflicht_bestaetigt) {
     gruende.push('Etappe freigegeben — Pflicht oder Change Request bestätigen');
   }
   return gruende;
