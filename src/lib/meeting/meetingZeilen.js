@@ -31,12 +31,12 @@ export function crArt(zeile, { leitung, projekttyp, etappe }) {
   return 'pflicht';
 }
 
-export function zeileZuTicket(zeile, { leitung, projekttyp, etappe, meetingDatum, projektaktId }) {
+export function zeileZuTicket(zeile, { leitung, projekttyp, etappe, meetingDatum, projektaktId, herkunftText }) {
   const art = crArt(zeile, { leitung, projekttyp, etappe });
   const datum = new Date(`${meetingDatum}T12:00:00`).toLocaleDateString('de-AT');
   const kunde = zeile.art === 'kunde';
   const beschreibung = [
-    `Aus dem Meeting vom ${datum} (Eintrag im Projektakt).`,
+    herkunftText || `Aus dem Meeting vom ${datum} (Eintrag im Projektakt).`,
     zeile.beleg ? `Im Gespräch: „${zeile.beleg}“` : '',
     zeile.person_genannt ? `Genannt: ${zeile.person_genannt}` : '',
     zeile.neuer_wunsch && zeile.begruendung ? `Neuer Kundenwunsch: ${zeile.begruendung}` : '',
