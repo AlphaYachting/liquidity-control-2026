@@ -46,7 +46,8 @@ export default function EscalationInterventionCard({ zeile, offen, onOeffnen, li
     queryClient.invalidateQueries({ queryKey: ['posteingang'] });
   };
 
-  // Standard-Aktionen wie überall; ein angelegtes Support-Ticket wird mit allen Vorgängen verknüpft
+  // Standard-Aktionen wie überall. Ein angelegtes Support-Ticket schließt die Eskalation zentral
+  // (supportTicket.js, Regel 28.10.2026: E-Mail wird Ticket = verschwindet) — hier nur neu laden.
   const thr = useThreadAktionen({
     thread: {
       id: thread.id,
@@ -57,15 +58,7 @@ export default function EscalationInterventionCard({ zeile, offen, onOeffnen, li
       eskalation: true,
     },
     messages: [{ direction: 'in', from: thread.external_from, from_name: thread.last_from_name }],
-    onChanged: async (ticket) => {
-      if (ticket?.id) {
-        await Promise.all(faelle.filter((c) => c.id).map((c) => base44.entities.CrmEscalation.update(c.id, {
-          linked_ticket_id: ticket.id,
-          state: c.state === 'erledigt' ? c.state : 'in_arbeit',
-        }))).catch(() => {});
-      }
-      neuLaden();
-    },
+    onChanged: () => neuLaden(),
   });
   const vorgang = useVorgangAktionen({
     caseRecord,
