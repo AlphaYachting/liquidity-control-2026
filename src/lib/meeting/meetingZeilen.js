@@ -8,6 +8,14 @@ import { etappeFreigegeben } from '@/lib/sprint/ticketAnlage';
 //  - Change Request ist nur bei Pauschalprojekten (jederzeit) und Sprintprojekten
 //    (nach Freigabe der Etappe) möglich.
 
+// Darf die Person für dieses Projekt über Change Requests entscheiden? (Admin, Führung, Projektleitung)
+export function istLeitung(user, zugriff, projekt) {
+  if (!user) return false;
+  if (user.role === 'admin' || zugriff?.rechte?.fuehrung) return true;
+  const pm = String(projekt?.pm_email || '').trim().toLowerCase();
+  return !!pm && pm === String(user.email || '').trim().toLowerCase();
+}
+
 export function crWaehlbar(projekttyp, etappe) {
   if (projekttyp === 'legacy') return true;
   return projekttyp === 'sprint' && etappeFreigegeben(etappe);
