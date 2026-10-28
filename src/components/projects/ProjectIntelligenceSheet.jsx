@@ -185,6 +185,12 @@ export default function ProjectIntelligenceSheet({
   };
 
   const vorschlagUebernehmen = async () => {
+    // Eine Zusage wird als Aufgabe geführt und braucht Person und Termin — dazu den Erfassungsdialog öffnen
+    if (vorschlag?.follow_up_text) {
+      toast('Die Zusage wird als Aufgabe angelegt — bitte Person und Termin wählen.');
+      vorschlagBearbeiten();
+      return;
+    }
     setSpeichernd(true);
     try {
       await speichereEintrag(aktId, vorschlag);
