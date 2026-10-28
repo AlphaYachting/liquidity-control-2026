@@ -79,7 +79,9 @@ function FixBlock({ person }) {
           <p className="tabular-nums shrink-0 text-right">
             {f.imKontingent
               ? <span className={klein}>im Kontingent</span>
-              : f.std == null ? <span className={klein}>ohne Vorgabe</span> : `${fmtH(f.std)} h`}
+              : f.std == null
+                ? <span className={f.aufgebraucht ? 'text-meta text-status-attention' : klein}>{f.aufgebraucht ? 'Vorgabe aufgebraucht' : 'ohne Vorgabe'}</span>
+                : `${fmtH(f.std)} h`}
           </p>
         </div>
       ))}
