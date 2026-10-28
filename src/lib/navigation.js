@@ -33,7 +33,7 @@ export const NAV_GRUPPEN = [
       // Wochenplanung ausgeblendet (Audit 24.10.2026: keine Fokustage erfasst) — Seite bleibt über /sprint/planung erreichbar
       { path: '/projects', label: 'Projekt-Cockpit', icon: FolderKanban, regel: 'geld' },
       { path: '/sprint/steuerung', label: 'Steuerung', icon: SlidersHorizontal, regel: 'fuehrung' },
-      { path: '/sprint/auslastung', label: 'Auslastungsforecast', icon: BarChart3, regel: 'admin', nurEmail: 'a.rittler@rittler.co' },
+      { path: '/sprint/auslastung', label: 'Monatsplanung', icon: CalendarDays, regel: 'admin', nurEmail: 'a.rittler@rittler.co' },
       { path: '/sprint/arbeitszeit', label: 'Arbeitszeitauswertung', icon: Hourglass, regel: 'admin', nurEmail: 'a.rittler@rittler.co' },
     ],
   },
