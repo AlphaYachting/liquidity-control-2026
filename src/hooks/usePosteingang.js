@@ -31,7 +31,12 @@ async function ladePosteingang() {
       .filter({ thread_id: { $in: fallIds.slice(i, i + 150) } }, '-last_message_at', 500).catch(() => [])));
   }
   const eskalationKeys = [...new Set(fallZeilen.map((z) => z.conversation_key).filter(Boolean))];
-  return { threads, items, regeln, faelle, itemZeilen, zuweisungen, eskalationKeys };
+  // Support-Aufträge: intern an support@ weitergeleitet, letzte Nachricht noch an support@ (28.10.2026)
+  const auftraege = await base44.entities.EmailThreadIndex
+    .filter({ last_direction: 'intern', last_to: { $regex: 'support@rittler\\.co' }, last_message_at: { $gte: grenze } }, '-last_message_at', 100)
+    .then((rows) => rows.filter((r) => !String(r.last_from || '').toLowerCase().startsWith('support@')))
+    .catch(() => []);
+  return { threads, items, regeln, faelle, itemZeilen, zuweisungen, eskalationKeys, auftraege };
 }
 
 // Eine Quelle für Liste, Navigationszähler und Pipeline-Knopf — Zahl und Liste laufen nie auseinander.
