@@ -88,6 +88,7 @@ export async function legeTicketsAn(zeilen, { projectId }) {
             wartet_seit: istDatum(z.wartet_seit) ? z.wartet_seit : heute(),
             ...(z.wartet_worauf ? { wartet_worauf: z.wartet_worauf } : {}),
           } : {}),
+          ...(z.herkunft_projektakt_id ? { herkunft_projektakt_id: z.herkunft_projektakt_id } : {}),
           ...(z.cr_pruefen ? { cr_pruefen: true, cr_pruefen_begruendung: z.cr_pruefen_begruendung || '' } : {}),
           last_status_change: jetzt,
         };
