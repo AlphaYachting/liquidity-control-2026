@@ -140,7 +140,7 @@ export default function Monatsplanung() {
           </div>
           <p className="text-meta text-muted-foreground">
             Gebunden = Retainer-Kontingente plus fix terminierte Stunden. Tickets in Retainern stecken im Kontingent und zählen nicht doppelt.
-            Stunden je Ticket: Rest-Einschätzung, sonst Zeitvorgabe; Tickets ohne Vorgabe werden gezählt, nicht geschätzt.
+            Stunden je Ticket: Rest-Einschätzung, sonst Zeitvorgabe minus bereits geleistet (App und aWork); Tickets ohne Vorgabe oder mit aufgebrauchter Vorgabe werden gezählt, nicht geschätzt.
             Überfällige offene Tickets stehen im Monat mit.
           </p>
 
