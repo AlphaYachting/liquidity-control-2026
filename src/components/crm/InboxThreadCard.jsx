@@ -35,8 +35,10 @@ export default function InboxThreadCard({ eintrag, offen, onOeffnen, onChanged }
       symbol={eintrag.eskalation ? <Siren className="w-4 h-4 text-status-critical" /> : <Mail className="w-4 h-4" />}
       ton={eintrag.eskalation ? 'critical' : eintrag.ueberfaellig ? 'attention' : null}
       titel={eintrag.betreff}
-      unterzeile={[eintrag.absenderName, kunde, `${t.message_count || 1} Nachr.`].filter(Boolean).join(' · ')}
-      einordnung={eintrag.eskalation ? 'Eskalation' : (KLASSE_LABEL[eintrag.klasse] || 'Kundenanfrage')}
+      unterzeile={eintrag.intern
+        ? [`intern von ${eintrag.absenderName || eintrag.absender}`, kunde !== deriveCustomerFromEmail(eintrag.absender) ? kunde : '', `${t.message_count || 1} Nachr.`].filter(Boolean).join(' · ')
+        : [eintrag.absenderName, kunde, `${t.message_count || 1} Nachr.`].filter(Boolean).join(' · ')}
+      einordnung={eintrag.eskalation ? 'Eskalation' : eintrag.intern ? 'Support · intern weitergeleitet' : (KLASSE_LABEL[eintrag.klasse] || 'Kundenanfrage')}
       einordnungTon={eintrag.eskalation ? 'critical' : null}
       einordnungZeile2={t.anliegen_beleg ? `„${t.anliegen_beleg}“` : kategorie?.label}
       datum={postDatum(eintrag.eingang)}
