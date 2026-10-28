@@ -1,0 +1,43 @@
+{
+  "name": "PlanVerfuegbarkeit",
+  "type": "object",
+  "properties": {
+    "monat": {
+      "type": "string",
+      "description": "Planungsmonat im Format YYYY-MM"
+    },
+    "person_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Teammitglied (klein geschrieben)"
+    },
+    "verfuegbar": {
+      "type": "boolean",
+      "default": true,
+      "description": "H\u00e4kchen in der Monatsplanung \u2014 ohne Eintrag gilt die Person als verf\u00fcgbar"
+    }
+  },
+  "required": [
+    "monat",
+    "person_email",
+    "verfuegbar"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": null,
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
