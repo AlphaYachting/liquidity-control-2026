@@ -102,6 +102,8 @@ const aktionVon = (item) => item?.suggested_action || (item?.track === 'support'
  */
 export function klasseVon(e) {
   if (e.verwaltung) return 'verwaltung';
+  // Intern an support@ weitergeleitet = Support-Auftrag (28.10.2026)
+  if (e.intern) return 'support';
   const anliegen = e.thread?.anliegen;
   // Regel 22.10.2026: An support@ (An oder Kopie, irgendwo in der Konversation) ist immer Support —
   // die Adresse entscheidet vor der KI. Ausnahme: von der KI erkannter Spam.
