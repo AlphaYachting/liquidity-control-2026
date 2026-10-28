@@ -178,7 +178,9 @@ function bereinige(res, ctx) {
         milestone_id: etappe?.id || '',
         neuer_wunsch: neuerWunsch,
         begruendung: String(a.begruendung || '').trim(),
-        change_request_vorschlag: neuerWunsch && crMoeglich && etappeFreigegeben(etappe),
+        // Pauschalprojekt: jeder neue Wunsch ist Mehraufwand. Sprint: erst nach Freigabe der Etappe.
+        change_request_vorschlag: neuerWunsch && (ctx.projekttyp === 'legacy'
+          || (ctx.projekttyp === 'sprint' && etappeFreigegeben(etappe))),
         aehnliches_ticket: aehnlich ? { id: aehnlich.id, title: aehnlich.title, milestone_id: aehnlich.milestone_id } : null,
         beleg: String(a.beleg || '').trim(),
       };
