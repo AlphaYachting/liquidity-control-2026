@@ -8,7 +8,8 @@ import { zustaendigeVon, normMail } from '@/lib/sprint/zustaendige';
 // - Retainer (Projekttyp Retainer inkl. Wartungsverträge) zählen bei der Projektleitung, mit Monatskontingent.
 // - Tickets in Retainer-Projekten erscheinen bei der zuständigen Person, ihre Stunden stecken aber im
 //   Kontingent und werden nicht ein zweites Mal gezählt.
-// - Stunden eines Tickets = Rest-Einschätzung, sonst Zeitvorgabe. Ohne Vorgabe (leer oder 0) zählt nur die Anzahl.
+// - Stunden eines Tickets = Rest-Einschätzung, sonst Zeitvorgabe minus bereits geleistet (App + aWork).
+//   Ohne Vorgabe (leer oder 0) oder bei aufgebrauchter Vorgabe zählt nur die Anzahl.
 // - Mehrere Zuständige teilen sich die Stunden gleichmäßig; das Ticket erscheint bei jeder Person.
 // - Ohne Eintrag gilt eine Person als verfügbar.
 
@@ -39,11 +40,13 @@ export function monatsGrenzen(monat) {
   return { von: iso(new Date(j, m - 1, 1)), bis: iso(new Date(j, m, 0)) };
 }
 
-// Rest-Einschätzung vor Zeitvorgabe; null = ohne Vorgabe
-export function stundenVon(t) {
-  if (t.rest_stunden != null) return Math.max(0, Number(t.rest_stunden) || 0);
+// Rest-Einschätzung vor Zeitvorgabe minus geleistet; std null = ohne Stundenwert
+export function stundenVon(t, geleistetH = 0) {
+  if (t.rest_stunden != null) return { std: Math.max(0, Number(t.rest_stunden) || 0), aufgebraucht: false };
   const v = Number(t.target_hours);
-  return v > 0 ? v : null;
+  if (!(v > 0)) return { std: null, aufgebraucht: false };
+  const rest = v - (geleistetH || 0);
+  return rest > 0 ? { std: rest, aufgebraucht: false } : { std: null, aufgebraucht: true };
 }
 
 const leerVorrat = () => ({ tickets: 0, std: 0, ohne: 0 });
@@ -64,7 +67,7 @@ function neuePerson(key, mitglied) {
 }
 
 export function rechnePlan(daten, monat, verfuegbarkeit = [], heute = heuteIso()) {
-  const { tickets, projekte, kunden, team, sprints } = daten;
+  const { tickets, projekte, kunden, team, sprints, geleistet = {} } = daten;
   const { von, bis } = monatsGrenzen(monat);
   const projById = Object.fromEntries(projekte.map((p) => [p.id, p]));
   const kundeById = Object.fromEntries(kunden.map((k) => [k.id, k.name]));
@@ -97,7 +100,7 @@ export function rechnePlan(daten, monat, verfuegbarkeit = [], heute = heuteIso()
   tickets.forEach((t) => {
     const p = projById[t.project_id];
     if (!p) return; // Projekt pausiert oder abgeschlossen
-    const std = stundenVon(t);
+    const { std, aufgebraucht } = stundenVon(t, geleistet[t.id]);
     const imKontingent = projectTypeOf(p) === 'container';
     const termin = t.planned_for || null;
     const lage = !termin ? 'vorrat'
@@ -133,6 +136,7 @@ export function rechnePlan(daten, monat, verfuegbarkeit = [], heute = heuteIso()
         kunde: kundeById[p.client_id] || '—',
         termin,
         std: std == null ? null : std * anteil,
+        aufgebraucht,
         geteilt: zust.length > 1 ? zust.filter((z) => z !== key) : [],
         imKontingent,
         routine: !!t.rhythmus,
