@@ -61,6 +61,15 @@
     "active": {
       "type": "boolean",
       "default": true
+    },
+    "extern": {
+      "type": "boolean",
+      "default": false,
+      "description": "Externe Person (Freelancer) \u2014 in der Monatsplanung gekennzeichnet"
+    },
+    "kapazitaet_monat_stunden": {
+      "type": "number",
+      "description": "Nur Externe: vereinbarte Stunden pro Monat, Vergleichswert in der Monatsplanung"
     }
   },
   "required": [
