@@ -31,7 +31,8 @@ async function ladeEskalationen() {
     base44.entities.CrmEscalation.filter({ state: { $ne: 'erledigt' } }, '-created_at', 1000),
     base44.entities.InboxBlockedSender.list('-created_date', 200).catch(() => []),
   ]);
-  const offen = faelle.filter((c) => isCaseVisible(c));
+  // E-Mail wurde zu einem Ticket → kein Eskalationsfall mehr (Regel 28.10.2026)
+  const offen = faelle.filter((c) => isCaseVisible(c) && !c.linked_ticket_id);
   const ids = [...new Set(offen.map((c) => String(c.thread_id)).filter(Boolean))];
   const zeilen = await inStuecken(ids, (teil) =>
     base44.entities.EmailThreadIndex.filter({ thread_id: { $in: teil } }, '-last_message_at', 500));
@@ -87,8 +88,8 @@ export function useEskalationsListe({ enabled = true } = {}) {
       const relevante = verlaeufe.filter((v) => ['in', 'out'].includes(v?.last_direction));
       const juengste = relevante.reduce((a, b) => (zeitVon(b.last_message_at) > zeitVon(a?.last_message_at) ? b : a), null);
       const kundeZuletzt = juengste?.last_direction === 'in';
-      // Mit Ticket bleibt der Fall bei „Kunde wartet“, bis wirklich geantwortet ist
-      const wartet = offenImPosteingang || (ticket && kundeZuletzt);
+      // Ein Fall mit Ticket erscheint hier nicht mehr (siehe oben) — es zählt, ob die Mail offen ist
+      const wartet = offenImPosteingang;
       const quelle = neuesterFall.idx || neuesteZeile || {};
       const fallBasis = neuesterFall.c;
       return {
