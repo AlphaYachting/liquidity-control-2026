@@ -43,7 +43,7 @@ export default function MeetingImportDialog({ open, onClose, projectId, projectN
   const [zeilen, setZeilen] = useState([]);
   const [fortschritt, setFortschritt] = useState(null);
   const [fehler, setFehler] = useState('');
-  const [bericht, setBericht] = useState(null);
+  const [abschluss, setAbschluss] = useState(null);
   const [zusammenfassungOffen, setZusammenfassungOffen] = useState(true);
   const dateiRef = useRef(null);
   const audioRef = useRef(null);
@@ -53,7 +53,7 @@ export default function MeetingImportDialog({ open, onClose, projectId, projectN
     if (!open) return;
     setPhase('quelle'); setQuelle('datei'); setEingefuegt(''); setTranskript(null);
     setMeetingDatum(heuteIso()); setTeilnehmer(''); setErgebnis(null); setZeilen([]);
-    setFortschritt(null); setFehler(''); setBericht(null); setZusammenfassungOffen(true);
+    setFortschritt(null); setFehler(''); setAbschluss(null); setZusammenfassungOffen(true);
     laeuft.current = false;
     let aktiv = true;
     ladeMeetingKontext(projectId)
@@ -192,11 +192,11 @@ export default function MeetingImportDialog({ open, onClose, projectId, projectN
       ].filter(Boolean).join('\n');
       if (liste) await base44.entities.ProjectFileEntry.update(eintrag.id, { content: `${kopf}\n${liste}` }).catch(() => {});
 
-      setBericht(bericht);
+      setAbschluss(bericht);
       setPhase('fertig');
     } catch (e) {
       bericht.fehler.push(e?.message || 'Anlage fehlgeschlagen');
-      setBericht(bericht);
+      setAbschluss(bericht);
       setPhase('fertig');
     }
     ['projektAufgaben', 'projektZusagen', 'sprintHeute', 'meinTag', 'tickets'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
@@ -346,8 +346,8 @@ export default function MeetingImportDialog({ open, onClose, projectId, projectN
                 const art = crArt(z, { leitung, projekttyp: ctx.projekttyp, etappe });
                 const rot = z.an && z.gruende.length > 0;
                 return (
-                  <div key={z.key} className="rounded border bg-card px-3 py-2.5 space-y-2"
-                    style={{ borderColor: rot ? 'hsl(var(--status-critical, 0 70% 50%))' : undefined, opacity: z.an ? 1 : 0.55 }}>
+                  <div key={z.key} className={`rounded border bg-card px-3 py-2.5 space-y-2 ${rot ? 'border-destructive' : ''}`}
+                    style={{ opacity: z.an ? 1 : 0.55 }}>
                     <div className="flex items-start gap-2.5">
                       <input type="checkbox" className="mt-1.5" checked={z.an} disabled={phase === 'legt_an'}
                         onChange={(e) => aendere(z.key, { an: e.target.checked })} aria-label="übernehmen" />
@@ -481,23 +481,23 @@ export default function MeetingImportDialog({ open, onClose, projectId, projectN
           </div>
         )}
 
-        {phase === 'fertig' && bericht && (
+        {phase === 'fertig' && abschluss && (
           <div className="space-y-3">
             <p className="text-sm flex items-center gap-2">
               <Check className="w-4 h-4 text-status-done" />
               {[
-                bericht.tickets.length ? `${bericht.tickets.length} ${bericht.tickets.length === 1 ? 'Aufgabe' : 'Aufgaben'} angelegt` : null,
-                bericht.kommentare ? `${bericht.kommentare} ${bericht.kommentare === 1 ? 'Kommentar' : 'Kommentare'} angehängt` : null,
-                bericht.projektakt ? 'Eintrag im Projektakt gespeichert' : null,
+                abschluss.tickets.length ? `${abschluss.tickets.length} ${abschluss.tickets.length === 1 ? 'Aufgabe' : 'Aufgaben'} angelegt` : null,
+                abschluss.kommentare ? `${abschluss.kommentare} ${abschluss.kommentare === 1 ? 'Kommentar' : 'Kommentare'} angehängt` : null,
+                abschluss.projektakt ? 'Eintrag im Projektakt gespeichert' : null,
               ].filter(Boolean).join(', ') || 'Nichts gespeichert'}.
             </p>
-            {bericht.tickets.some((t) => t.art === 'pruefen') && (
+            {abschluss.tickets.some((t) => t.art === 'pruefen') && (
               <p className="text-xs text-muted-foreground">Kundenwünsche zur Prüfung sind für die Projektleitung markiert.</p>
             )}
-            {bericht.fehler.length > 0 && (
+            {abschluss.fehler.length > 0 && (
               <div className="rounded border border-destructive/40 px-3 py-2">
                 <p className="text-xs font-medium text-destructive">Nicht alles hat geklappt:</p>
-                <ul className="list-disc pl-5 text-xs">{bericht.fehler.map((f, i) => <li key={i}>{f}</li>)}</ul>
+                <ul className="list-disc pl-5 text-xs">{abschluss.fehler.map((f, i) => <li key={i}>{f}</li>)}</ul>
               </div>
             )}
             <div className="flex justify-end"><Button size="sm" onClick={onClose}>Schließen</Button></div>
