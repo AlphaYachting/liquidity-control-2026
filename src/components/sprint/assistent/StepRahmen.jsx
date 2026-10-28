@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,12 +12,17 @@ import KundenAuswahl from '@/components/kunden/KundenAuswahl';
 
 export const NEW_CLIENT = '__new__';
 
+// Support-Projekt = Dauerbehälter je Kunde (Entscheidung 28.10.2026): Titel fest wie beim
+// automatischen Anlegen aus E-Mails, nicht bearbeitbar; genau eines je Kunde; kein Cockpit.
+export const supportTitel = (kunde) => `Support — ${kunde}`;
+
 // Prüft, ob der Rahmen vollständig ist — Grundlage für „Weiter"
 export function rahmenValid(seed) {
   // Ein neuer Kunde zählt erst, wenn er über den Kunden-Baustein angelegt und mit sevDesk verknüpft ist
   const clientOk = Boolean(seed.client_id) && seed.client_id !== NEW_CLIENT;
   const sprintOk = seed.type !== 'sprint' || seed.sprint_target === 'neu' || Boolean(seed.existing_project_id);
-  return clientOk && Boolean(seed.type) && Boolean(seed.pm_email) && Boolean(seed.title?.trim()) && sprintOk;
+  const supportOk = seed.type !== 'support' || !seed.support_vorhanden_id;
+  return clientOk && Boolean(seed.type) && Boolean(seed.pm_email) && Boolean(seed.title?.trim()) && sprintOk && supportOk;
 }
 
 // Schritt 1 — Rahmen für alle Projekttypen. Füllt den Startkeim, aus dem alle
@@ -43,6 +48,22 @@ export default function StepRahmen({ seed, setSeed, clients: geladeneKunden = []
   const supportId = seed.type === 'support'
     ? clientProjects.find((p) => projectTypeOf(p) === 'support' && p.status !== 'abgeschlossen')?.id
     : null;
+  const kundenName = clients.find((c) => c.id === seed.client_id)?.name || '';
+  const vorhandenSupport = seed.type === 'support'
+    ? clientProjects.find((p) => projectTypeOf(p) === 'support' && p.status !== 'abgeschlossen') || null
+    : null;
+  // Support: Titel automatisch, vorhandenes Support-Projekt merken (sperrt „Weiter“)
+  useEffect(() => {
+    if (seed.type !== 'support') {
+      if (seed.support_vorhanden_id) set({ support_vorhanden_id: '' });
+      return;
+    }
+    const titel = kundenName ? supportTitel(kundenName) : '';
+    const vorhandenId = vorhandenSupport?.id || '';
+    if (seed.title !== titel || (seed.support_vorhanden_id || '') !== vorhandenId || seed.cockpit_id) {
+      set({ title: titel, support_vorhanden_id: vorhandenId, cockpit_id: '' });
+    }
+  }, [seed.type, kundenName, vorhandenSupport?.id]);
   const { data: supportSprints = [] } = useQuery({
     queryKey: ['supportSprint', supportId],
     enabled: !!supportId,
@@ -88,25 +109,32 @@ export default function StepRahmen({ seed, setSeed, clients: geladeneKunden = []
         </Select>
       </div>
 
-      {seed.type === 'support' && (() => {
-        const vorhanden = clientProjects.find((p) => projectTypeOf(p) === 'support' && p.status !== 'abgeschlossen');
-        if (!vorhanden) return null;
-        const kunde = clients.find((c) => c.id === seed.client_id)?.name || 'Der Kunde';
+      {vorhandenSupport && (() => {
         const sprint = supportSprints[0];
         return (
-          <p className="text-xs text-status-attention">
-            {kunde} hat bereits ein Support-Projekt:{' '}
-            <Link className="underline" to={sprint ? `/sprint/sprints/${sprint.id}` : '/sprint/projekte'}>{vorhanden.title}</Link>
-          </p>
+          <div className="rounded border border-status-attention/40 bg-status-attention-surface px-3 py-2 text-sm text-status-attention">
+            {kundenName || 'Der Kunde'} hat bereits ein Support-Projekt — je Kunde gibt es genau eines.
+            Bitte dort über „Aufgabe hinzufügen“ ein Ticket anlegen:{' '}
+            <Link className="underline font-semibold" to={sprint ? `/sprint/sprints/${sprint.id}` : '/sprint/projekte'}>{vorhandenSupport.title}</Link>
+          </div>
         );
       })()}
 
       <div>
         <Label>{seed.type === 'regie' ? 'Auftragstitel *' : 'Projekttitel *'}</Label>
-        <Input value={seed.title || ''} onChange={(e) => set({ title: e.target.value })} />
+        {seed.type === 'support' ? (
+          <>
+            <Input value={seed.title || ''} readOnly disabled placeholder="Wird nach der Kundenwahl vergeben" />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Der Titel wird automatisch vergeben. Was zu tun ist, kommt als Ticket ins Projekt („Aufgabe hinzufügen“).
+            </p>
+          </>
+        ) : (
+          <Input value={seed.title || ''} onChange={(e) => set({ title: e.target.value })} />
+        )}
       </div>
 
-      {seed.type && seed.type !== 'intern' && seed.client_id !== NEW_CLIENT && (
+      {seed.type && seed.type !== 'intern' && seed.type !== 'support' && seed.client_id !== NEW_CLIENT && (
         <CockpitAuswahl
           customer={clients.find((c) => c.id === seed.client_id)?.name}
           value={seed.cockpit_id || ''}
