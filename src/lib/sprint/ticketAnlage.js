@@ -38,7 +38,7 @@ export function pruefeZeile(zeile, etappe) {
 }
 
 // Legt die Zeilen an. Unvollständige Zeilen werden übersprungen und mit Grund zurückgegeben,
-// die übrigen trotzdem angelegt. Rückgabe: { angelegt: Ticket[], fehler: [{ index, grund }] }
+// die übrigen trotzdem angelegt. Rückgabe: { angelegt: [Ticket & { _index }], fehler: [{ index, grund }] }
 export async function legeTicketsAn(zeilen, { projectId }) {
   const ergebnis = { angelegt: [], fehler: [] };
   if (!projectId) throw new Error('Projekt fehlt');
@@ -93,7 +93,8 @@ export async function legeTicketsAn(zeilen, { projectId }) {
         };
       });
       const neu = await base44.entities.Ticket.bulkCreate(daten);
-      ergebnis.angelegt.push(...(Array.isArray(neu) ? neu : []));
+      // _index = Position der Zeile im Aufruf, damit der Aufrufer Zeile und Ticket zuordnen kann
+      (Array.isArray(neu) ? neu : []).forEach((t, i) => ergebnis.angelegt.push({ ...t, _index: gruppe[i]?.index }));
     } catch (e) {
       const grund = e?.response?.data?.message || e?.message || 'Anlage fehlgeschlagen';
       gruppe.forEach(({ index }) => ergebnis.fehler.push({ index, grund }));
