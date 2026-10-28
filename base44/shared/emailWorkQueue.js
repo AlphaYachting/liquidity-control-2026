@@ -121,8 +121,13 @@ export function resolveConversations(rows) {
       const newest = relevant.reduce((a, b) => (toTime(b.last_message_at) > toTime(a.last_message_at) ? b : a));
       if (computeNeedsReply(newest) && toTime(newest.last_message_at) > doneAt) openId = String(newest.thread_id);
     }
-    const kanalSupport = list.some((r) => r.an_support === true
-      || ((r.last_direction || r.direction) === 'in' && nenntSupport(r.last_to)));
+    const kanalSupport = list.some((r) => {
+      const dir = r.last_direction || r.direction;
+      if (r.an_support === true) return true;
+      if (dir === 'in' && nenntSupport(r.last_to)) return true;
+      // Interne Weiterleitung an support@ (28.10.2026): die Konversation gehört damit dem Support
+      return dir === 'intern' && nenntSupport(r.last_to) && !nenntSupport(r.last_from);
+    });
     list.forEach((r) => result.set(String(r.thread_id), {
       needs_reply: String(r.thread_id) === openId,
       conversation_key: key,
