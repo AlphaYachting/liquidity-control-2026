@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { AlertTriangle } from 'lucide-react';
 import SectionLabel from '@/components/sprint/SectionLabel';
 import StepModule, { milestoneAmount } from '@/components/sprint/assistent/StepModule';
-import StepRahmen, { rahmenValid } from '@/components/sprint/assistent/StepRahmen';
+import StepRahmen, { rahmenValid, supportTitel } from '@/components/sprint/assistent/StepRahmen';
 import StepTypDetails, { typDetailsValid } from '@/components/sprint/assistent/StepTypDetails';
 import ModulPaketEditor from '@/components/sprint/paket/ModulPaketEditor';
 import { PROJECT_TYPES, projectTypeOf } from '@/components/sprint/projectTypes';
@@ -145,9 +145,16 @@ export default function SprintAssistent() {
       return projects.find((p) => p.id === seed.existing_project_id);
     }
     const def = PROJECT_TYPES[seed.type];
+    // Support: genau ein Projekt je Kunde — kurz vor dem Anlegen noch einmal prüfen
+    if (seed.type === 'support') {
+      const vorhanden = (await base44.entities.Project.filter({ client_id: seed.client_id }, '-created_date', 200))
+        .find((p) => projectTypeOf(p) === 'support' && p.status !== 'abgeschlossen');
+      if (vorhanden) throw new Error(`${clientName} hat bereits ein Support-Projekt („${vorhanden.title}“) — bitte dort eine Aufgabe hinzufügen.`);
+    }
     return base44.entities.Project.create({
       client_id: seed.client_id,
-      title: seed.title.trim(),
+      // Support: Titel fest wie beim automatischen Anlegen aus E-Mails (28.10.2026)
+      title: seed.type === 'support' ? supportTitel(clientName) : seed.title.trim(),
       pm_email: seed.pm_email,
       status: 'aktiv',
       abrechnungsmodell: def.model,
@@ -166,6 +173,8 @@ export default function SprintAssistent() {
   const sichereCockpit = async (project) => {
     const typ = projectTypeOf(project);
     if (typ === 'intern') return { cockpit: null };
+    // Support wird über die Support-Abrechnung verrechnet — kein Cockpit (28.10.2026)
+    if (typ === 'support' && !handoff) return { cockpit: null };
     try {
       const order = handoff?.confirmed_order_id
         ? await base44.entities.ConfirmedOrder.get(handoff.confirmed_order_id).catch(() => null)
@@ -186,7 +195,14 @@ export default function SprintAssistent() {
   const handleCreateContainer = async () => {
     setCreateError('');
     setCreating(true);
-    const project = await resolveProject();
+    let project;
+    try {
+      project = await resolveProject();
+    } catch (e) {
+      setCreateError(e.message);
+      setCreating(false);
+      return;
+    }
     const { cockpit, fehler } = await sichereCockpit(project);
     if (fehler) return;
     const { sprint } = await ensureContainer(project, { auswahl: containerAuswahl });
