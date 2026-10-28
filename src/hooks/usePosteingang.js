@@ -24,7 +24,7 @@ async function ladePosteingang() {
     ? await base44.entities.EmailThreadIndex.filter({ thread_id: { $in: ids } }, '-last_message_at', 500)
     : [];
   // Konversationen mit offenem Eskalations-Vorgang — der Vorgang hängt oft an einem Parallel-Verlauf
-  const fallIds = [...new Set(faelle.filter((c) => isCaseVisible(c) && (c.severity || 0) >= 1).map((c) => String(c.thread_id)))];
+  const fallIds = [...new Set(faelle.filter((c) => isCaseVisible(c) && !c.linked_ticket_id && (c.severity || 0) >= 1).map((c) => String(c.thread_id)))];
   const fallZeilen = [];
   for (let i = 0; i < fallIds.length; i += 150) {
     fallZeilen.push(...(await base44.entities.EmailThreadIndex
@@ -55,7 +55,7 @@ export function usePosteingang({ enabled = true } = {}) {
     const d = query.data;
     if (!d) return { eintraege: [], meine: [], zahlen: {}, gesamt: 0, ueberfaellig: 0, eskalationen: 0, eskalationenAusgelagert: 0 };
     const eskalationen = new Set(
-      d.faelle.filter((c) => isCaseVisible(c) && (c.severity || 0) >= 1).map((c) => String(c.thread_id)),
+      d.faelle.filter((c) => isCaseVisible(c) && !c.linked_ticket_id && (c.severity || 0) >= 1).map((c) => String(c.thread_id)),
     );
     const ich = (user?.email || '').toLowerCase();
     const alle = baueEintraege({ ...d, eskalationen, eskalationKeys: new Set(d.eskalationKeys || []), jetzt: Date.now(), istAdmin, ich });
