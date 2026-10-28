@@ -122,9 +122,10 @@ export function klasseVon(e) {
  *  itemZeilen — EmailThreadIndex-Zeilen zu den Verläufen dieser Items (für die Konversationszuordnung)
  *  regeln     — InboxBlockedSender (mode ausblenden | verwaltung)
  *  eskalationen — Set offener Eskalations-Verläufe (thread_id)
+ *  auftraege  — interne Weiterleitungen an support@ (letzte Nachricht intern, an support@), siehe unten
  * Ein E-Mail-Item, dessen Konversation beantwortet oder erledigt ist, verlässt den Posteingang.
  */
-export function baueEintraege({ threads = [], items = [], itemZeilen = [], regeln = [], eskalationen = new Set(), eskalationKeys = new Set(), jetzt = Date.now(), istAdmin = false, zuweisungen = [], ich = '' }) {
+export function baueEintraege({ threads = [], items = [], itemZeilen = [], regeln = [], eskalationen = new Set(), eskalationKeys = new Set(), jetzt = Date.now(), istAdmin = false, zuweisungen = [], ich = '', auftraege = [] }) {
   const aktiv = regeln.filter((r) => r.is_active !== false);
   const verwaltung = aktiv.filter((r) => r.mode === 'verwaltung');
 
@@ -192,6 +193,38 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
       kanaele: kanaeleVon(item.recipient),
       sofort: item.source !== 'email',
     });
+  }
+
+  // Support-Aufträge (Regel 28.10.2026): Leitet jemand intern eine Anfrage an support@ weiter
+  // (office@, Geschäftsführung, Projektleitung), erscheint sie im Support-Eingang — sofort.
+  // Offen, bis der Support reagiert: Antwort (dann ist die letzte Nachricht nicht mehr an support@),
+  // Ticket oder „Erledigt“. Ist die Kundenkonversation selbst noch offen, steht sie schon als
+  // Support da (kanal_support) — dann kein zweiter Eintrag.
+  for (const a of auftraege) {
+    if (a.conversation_key && nachKonversation.has(a.conversation_key)) continue;
+    if (nachThread.has(String(a.thread_id))) continue;
+    if (a.crm_status === 'supportticket_angelegt') continue;
+    if (a.done_at && toTime(a.done_at) >= toTime(a.last_message_at)) continue;
+    const absender = a.last_from || '';
+    if (verborgen({ absender, empfaenger: a.last_to, regeln: aktiv, istAdmin })) continue;
+    const e = {
+      vertraulich: false,
+      key: `a-${a.thread_id}`,
+      threadId: String(a.thread_id),
+      thread: a,
+      item: null,
+      eingang: toTime(a.last_message_at),
+      absender,
+      absenderName: a.last_from_name || '',
+      betreff: a.subject || '',
+      verwaltung: false,
+      eskalation: false,
+      kanaele: ['support'],
+      sofort: true,
+      intern: true,
+    };
+    eintraege.push(e);
+    nachThread.set(e.threadId, e);
   }
 
   return eintraege.map((e) => {
