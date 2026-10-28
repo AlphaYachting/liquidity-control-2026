@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Trash2, Loader2, Paperclip } from 'lucide-react';
+import { Trash2, Loader2, Paperclip, CalendarClock } from 'lucide-react';
+import ZusageUebernehmenDialog from '@/components/projects/meeting/ZusageUebernehmenDialog';
 import { Badge } from '@/components/ui/badge';
 import { ENTRY_TYPES, formatEntryDate } from '@/components/projects/kundenakt/kundenaktConfig';
 
@@ -26,6 +27,14 @@ function EintragText({ text }) {
 // Projektakt als Timeline nach unten — je Eintrag Symbol, Titel, Zeitpunkt, Inhalt, Dokument.
 export default function KundenaktTimeline({ entries, onChanged }) {
   const [deletingId, setDeletingId] = useState(null);
+  const [zusageEintrag, setZusageEintrag] = useState(null);
+
+  // Bisherige Zusage ohne Aufgabe: entfällt → nur als erledigt markieren
+  const zusageEntfaellt = async (e) => {
+    if (!window.confirm('Diese Zusage ist nicht mehr nötig und wird ohne Aufgabe abgeschlossen?')) return;
+    await base44.entities.ProjectFileEntry.update(e.id, { follow_up_done: true });
+    onChanged?.();
+  };
 
   const deleteEntry = async (e) => {
     if (!window.confirm('Diesen Eintrag endgültig aus dem Projektakt löschen?')) return;
@@ -85,10 +94,25 @@ export default function KundenaktTimeline({ entries, onChanged }) {
                   <Paperclip className="w-3 h-3" /> {e.file_name || 'Dokument öffnen'}
                 </a>
               )}
+              {e.follow_up_text && !e.follow_up_done && (
+                <div className="mt-2 rounded border px-2.5 py-2 text-xs space-y-1.5">
+                  <p className="flex items-start gap-1.5">
+                    <CalendarClock className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-px" />
+                    <span>Offene Zusage ohne Aufgabe: {e.follow_up_text}{e.follow_up_date ? ` · bis ${new Date(`${e.follow_up_date}T12:00:00`).toLocaleDateString('de-AT')}` : ''}</span>
+                  </p>
+                  <div className="flex gap-3 pl-5">
+                    <button type="button" onClick={() => setZusageEintrag(e)} className="font-semibold hover:underline">Als Aufgabe übernehmen</button>
+                    <button type="button" onClick={() => zusageEntfaellt(e)} className="text-muted-foreground hover:underline">entfällt</button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
       })}
+      {zusageEintrag && (
+        <ZusageUebernehmenDialog eintrag={zusageEintrag} onClose={() => setZusageEintrag(null)} onDone={onChanged} />
+      )}
     </div>
   );
 }
