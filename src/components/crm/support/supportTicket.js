@@ -139,12 +139,37 @@ export async function anTicketAnhaengen({ item, ticket }) {
       back = { ok: false, error: e?.message || 'unbekannter Fehler' };
     }
   }
+  await eskalationenSchliessen(threadId, ticket);
   return { ticket, back, hinweis, angehaengt: true };
 }
 
 // Support-Anfrage in ein Ticket überführen — es entsteht KEINE Rechnung.
 // Zeitfenster, in dem ein zweites Ticket zur selben Konversation als Doppelklick gilt
 const DOPPELT_MINUTEN = 15;
+
+// Regel (28.10.2026): Eine E-Mail, die in ein Ticket umgewandelt wird, verschwindet — auch aus den
+// Kunden-Eskalationen. Alle offenen Eskalations-Vorgänge der Konversation (auch in Parallel-Verläufen)
+// werden mit Verweis auf das Ticket geschlossen. Best-Effort: das Ticket steht in jedem Fall.
+async function eskalationenSchliessen(threadId, ticket) {
+  if (!threadId || !ticket?.id) return;
+  try {
+    const zeile = (await base44.entities.EmailThreadIndex.filter({ thread_id: String(threadId) }, '-indexed_at', 1).catch(() => []))[0];
+    const verlaeufe = zeile?.conversation_key
+      ? (await base44.entities.EmailThreadIndex.filter({ conversation_key: zeile.conversation_key }, '-last_message_at', 50).catch(() => []))
+        .map((z) => String(z.thread_id))
+      : [];
+    const ids = [...new Set([String(threadId), ...verlaeufe])];
+    const faelle = await base44.entities.CrmEscalation
+      .filter({ thread_id: { $in: ids }, state: { $ne: 'erledigt' } }, '-created_at', 50)
+      .catch(() => []);
+    await Promise.all(faelle.map((f) => base44.entities.CrmEscalation.update(f.id, {
+      state: 'erledigt',
+      linked_ticket_id: ticket.id,
+      resolved_at: new Date().toISOString(),
+      resolution_note: `In Support-Ticket umgewandelt: „${ticket.title || ''}“`,
+    })));
+  } catch (_e) { /* Ticket steht — Eskalation notfalls von Hand schließen */ }
+}
 
 // Wartet höchstens `ms` Millisekunden — danach gilt der Wert als nicht geladen (statt endlos zu hängen)
 const mitZeitlimit = (promise, ms, ersatz) => Promise.race([
