@@ -205,7 +205,11 @@ export default function SprintAssistent() {
     }
     const { cockpit, fehler } = await sichereCockpit(project);
     if (fehler) return;
-    const { sprint } = await ensureContainer(project, { auswahl: containerAuswahl });
+    // Support: Behälter gleich benannt wie beim Anlegen aus E-Mails
+    const { sprint } = await ensureContainer(project, {
+      auswahl: containerAuswahl,
+      ...(seed.type === 'support' ? { sprintTitle: 'Laufender Support', milestoneTitle: 'Support-Anfragen' } : {}),
+    });
     if (handoff) await finishHandoff(handoff, project, cockpit);
     navigate(`/sprint/sprints/${sprint.id}`);
   };
