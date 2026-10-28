@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Paperclip, Sparkles, Check } from 'lucide-react';
+import { Loader2, Paperclip, Sparkles, Check, CalendarClock, X } from 'lucide-react';
 import VoiceFeedbackInput from '@/components/crm/emails/VoiceFeedbackInput';
 import { ENTRY_TYPES } from '@/components/projects/kundenakt/kundenaktConfig';
-import KundenaktZusageFelder from '@/components/projects/kundenakt/KundenaktZusageFelder';
+import ZusageAufgabeFelder, { useAufgabenKontext, leereZusage, zusageAlsTicket } from '@/components/projects/meeting/ZusageAufgabeFelder';
+import { legeTicketsAn } from '@/lib/sprint/ticketAnlage';
 
 import { heuteIso, projektstandBlock } from '@/components/projects/kundenakt/kundenaktAusformulierung';
 
@@ -26,9 +27,9 @@ export default function KundenaktEntryDialog({
   const [file, setFile] = useState(null);
   const [gespraechsDatum, setGespraechsDatum] = useState(heuteIso());
   const [participants, setParticipants] = useState('');
-  const [followUpText, setFollowUpText] = useState('');
-  const [followUpDate, setFollowUpDate] = useState('');
-  const [zusageOffen, setZusageOffen] = useState(false);
+  // Zusage = Aufgabe mit Person und Termin (Entscheidung 28.10.2026) — null, solange keine erfasst ist
+  const [zusage, setZusage] = useState(null);
+  const aufgabenKontext = useAufgabenKontext(projectId, open && !!zusage);
   const [summary, setSummary] = useState('');
   const [hinweis, setHinweis] = useState('');
   const [analysing, setAnalysing] = useState(false);
@@ -42,7 +43,7 @@ export default function KundenaktEntryDialog({
     setFile(null);
     setGespraechsDatum(heuteIso());
     setParticipants('');
-    setFollowUpText(''); setFollowUpDate(''); setZusageOffen(false);
+    setZusage(null);
     setSummary(''); setHinweis(''); setError(null);
   };
 
@@ -56,9 +57,7 @@ export default function KundenaktEntryDialog({
     if (initialDate) setGespraechsDatum(initialDate);
     if (initialParticipants !== undefined) setParticipants(initialParticipants || '');
     if (initialFollowUpText || initialFollowUpDate) {
-      setFollowUpText(initialFollowUpText || '');
-      setFollowUpDate(initialFollowUpDate || '');
-      setZusageOffen(true);
+      setZusage(leereZusage(initialFollowUpText || '', initialFollowUpDate || ''));
     }
     if (autoAnalyse && initialContent) analyse(initialContent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -103,15 +102,22 @@ Wenn die Eingabe dem Projektstand widerspricht — etwa eine Aussage zum Budget,
       setHinweis(res?.hinweis || '');
       if (res?.entry_date) setGespraechsDatum(String(res.entry_date).slice(0, 10));
       if (res?.follow_up_text || res?.follow_up_date) {
-        if (res.follow_up_text) setFollowUpText(res.follow_up_text);
-        if (res.follow_up_date) setFollowUpDate(String(res.follow_up_date).slice(0, 10));
-        setZusageOffen(true);
+        setZusage((z) => ({
+          ...(z || leereZusage()),
+          ...(res.follow_up_text ? { titel: res.follow_up_text } : {}),
+          ...(res.follow_up_date ? { termin: String(res.follow_up_date).slice(0, 10) } : {}),
+        }));
       }
     } catch (e) {
       setError('Vorschlag fehlgeschlagen: ' + (e?.message || ''));
     }
     setAnalysing(false);
   };
+
+  // Eine Zusage zählt, sobald sie einen Text hat — dann sind Person, Termin und Etappe Pflicht
+  const zusageAktiv = !!zusage && !!String(zusage.titel || '').trim();
+  const zusageBlockiert = zusageAktiv && (!aufgabenKontext.ctx
+    || zusageAlsTicket(zusage, { ctx: aufgabenKontext.ctx, leitung: aufgabenKontext.leitung }).gruende.length > 0);
 
   const save = async () => {
     if (!projectId) {
@@ -126,7 +132,7 @@ Wenn die Eingabe dem Projektstand widerspricht — etwa eine Aussage zum Budget,
         fileUrl = up.file_url;
       }
       const me = await base44.auth.me().catch(() => null);
-      await base44.entities.ProjectFileEntry.create({
+      const eintrag = await base44.entities.ProjectFileEntry.create({
         project_id: projectId,
         entry_type: entryType,
         title: title || ENTRY_TYPES[entryType].label,
@@ -137,10 +143,25 @@ Wenn die Eingabe dem Projektstand widerspricht — etwa eine Aussage zum Budget,
         entry_date: new Date(`${gespraechsDatum || heuteIso()}T12:00:00`).toISOString(),
         recorded_by: me?.full_name || me?.email || '',
         participants,
-        follow_up_text: followUpText,
-        follow_up_date: followUpDate || undefined,
+        follow_up_text: '',
         follow_up_done: false,
       });
+      // Zusage als Aufgabe anlegen — über die gemeinsame Ticket-Anlage
+      if (zusageAktiv) {
+        const { ticket } = zusageAlsTicket(zusage, {
+          ctx: aufgabenKontext.ctx,
+          leitung: aufgabenKontext.leitung,
+          projektaktId: eintrag.id,
+          herkunftText: `Zusage aus dem Projektakt (${title || ENTRY_TYPES[entryType].label}, ${new Date(`${gespraechsDatum || heuteIso()}T12:00:00`).toLocaleDateString('de-AT')}).`,
+        });
+        const res = await legeTicketsAn([ticket], { projectId });
+        if (res.fehler.length) {
+          setError(`Eintrag gespeichert, Aufgabe nicht angelegt: ${res.fehler[0].grund}`);
+          setSaving(false);
+          onSaved?.();
+          return;
+        }
+      }
       onSaved?.();
       close();
     } catch (e) {
@@ -219,15 +240,27 @@ Wenn die Eingabe dem Projektstand widerspricht — etwa eine Aussage zum Budget,
             </div>
           </div>
 
-          <KundenaktZusageFelder
-            offen={zusageOffen}
-            onToggle={() => setZusageOffen((v) => !v)}
-            text={followUpText}
-            onTextChange={setFollowUpText}
-            datum={followUpDate}
-            onDatumChange={setFollowUpDate}
-            disabled={saving}
-          />
+          {zusage ? (
+            <div className="relative">
+              <button type="button" onClick={() => setZusage(null)} disabled={saving}
+                className="absolute right-2 top-2 text-muted-foreground hover:text-foreground" title="Zusage entfernen">
+                <X className="w-3.5 h-3.5" />
+              </button>
+              <ZusageAufgabeFelder
+                ctx={aufgabenKontext.ctx}
+                leitung={aufgabenKontext.leitung}
+                user={aufgabenKontext.user}
+                wert={zusage}
+                onChange={setZusage}
+                disabled={saving}
+              />
+            </div>
+          ) : (
+            <button type="button" onClick={() => setZusage(leereZusage())} disabled={saving}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded border text-xs font-medium hover:bg-muted transition-colors">
+              <CalendarClock className="w-3.5 h-3.5 text-muted-foreground" /> Zusage als Aufgabe hinzufügen
+            </button>
+          )}
 
           {summary && (
             <p className="text-xs text-muted-foreground flex items-start gap-1.5">
@@ -243,7 +276,7 @@ Wenn die Eingabe dem Projektstand widerspricht — etwa eine Aussage zum Budget,
 
           <div className="flex justify-end gap-2 pt-1">
             <Button size="sm" variant="outline" onClick={close} disabled={saving}>Abbrechen</Button>
-            <Button size="sm" onClick={save} disabled={saving || (!content && !file)} className="gap-2">
+            <Button size="sm" onClick={save} disabled={saving || (!content && !file) || zusageBlockiert} className="gap-2">
               {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               In den Projektakt aufnehmen
             </Button>

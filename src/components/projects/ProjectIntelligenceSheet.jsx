@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { BrainCircuit, Send, RotateCcw, FolderPlus, Mic, Square, PenLine, Loader2 } from 'lucide-react';
+import { BrainCircuit, Send, RotateCcw, FolderPlus, Mic, Square, PenLine, Loader2, FileAudio } from 'lucide-react';
 import ProjektupdateEinstieg from '@/components/projects/kundenakt/ProjektupdateEinstieg';
 import KundenaktVorschlagKarte from '@/components/projects/kundenakt/KundenaktVorschlagKarte';
 import { ausformuliereEintrag, speichereEintrag } from '@/components/projects/kundenakt/kundenaktAusformulierung';
@@ -13,6 +13,8 @@ import { QUICK_FRAGEN } from '@/components/projects/projektIntelligenzFragen';
 import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntryDialog';
 
 import { faktenBlock, lageBlock } from '@/components/projects/intelligenzFakten';
+
+const MeetingImportDialog = React.lazy(() => import('@/components/projects/meeting/MeetingImportDialog'));
 
 const MARKER = '[FESTHALTEN_ANGEBOTEN]';
 const GESPEICHERT_HINWEIS = 'Soeben wurde folgender Eintrag im Projektakt gespeichert:';
@@ -39,6 +41,7 @@ export default function ProjectIntelligenceSheet({
   const [vorschlagFehler, setVorschlagFehler] = useState(false);
   const [formuliert, setFormuliert] = useState(false);
   const [speichernd, setSpeichernd] = useState(false);
+  const [meetingOffen, setMeetingOffen] = useState(false);
   const endRef = useRef(null);
   const meRef = useRef(null);
   const feldRef = useRef(null);
@@ -182,6 +185,12 @@ export default function ProjectIntelligenceSheet({
   };
 
   const vorschlagUebernehmen = async () => {
+    // Eine Zusage wird als Aufgabe geführt und braucht Person und Termin — dazu den Erfassungsdialog öffnen
+    if (vorschlag?.follow_up_text) {
+      toast('Die Zusage wird als Aufgabe angelegt — bitte Person und Termin wählen.');
+      vorschlagBearbeiten();
+      return;
+    }
     setSpeichernd(true);
     try {
       await speichereEintrag(aktId, vorschlag);
@@ -232,10 +241,18 @@ Bestätige den Eintrag in einem Satz und nenne dann höchstens zwei Konsequenzen
                 <BrainCircuit className="w-4 h-4 text-primary shrink-0" />
                 <span className="truncate">Projektintelligenz — {projectLabel}</span>
               </span>
-              <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground shrink-0"
-                onClick={neuesGespraech}>
-                <RotateCcw className="w-3.5 h-3.5 mr-1" /> Neues Gespräch
-              </Button>
+              <span className="flex items-center gap-1 shrink-0">
+                {aktId && (
+                  <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
+                    onClick={() => setMeetingOffen(true)}>
+                    <FileAudio className="w-3.5 h-3.5 mr-1" /> Meeting importieren
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
+                  onClick={neuesGespraech}>
+                  <RotateCcw className="w-3.5 h-3.5 mr-1" /> Neues Gespräch
+                </Button>
+              </span>
             </SheetTitle>
           </SheetHeader>
 
@@ -246,7 +263,12 @@ Bestätige den Eintrag in einem Satz und nenne dann höchstens zwei Konsequenzen
                   Frag zu diesem Projekt oder halte fest, was passiert ist — die Projektintelligenz
                   kennt Auftrag, Aufgaben und Zeiten der App, den aWork-Altstand, Rechnungen, Kommunikation, Kommentare und den Projektakt.
                 </p>
-                {aktId && <ProjektupdateEinstieg onStart={() => { setModus('erfassung'); feldRef.current?.focus(); }} />}
+                {aktId && (
+                  <ProjektupdateEinstieg
+                    onStart={() => { setModus('erfassung'); feldRef.current?.focus(); }}
+                    onMeetingImport={() => setMeetingOffen(true)}
+                  />
+                )}
                 {QUICK_FRAGEN.map((q, i) => (
                   <button key={i} onClick={() => send(q.text)} disabled={sending}
                     className="block w-full text-left text-sm px-3 py-2 rounded-xl border bg-card hover:bg-muted transition-colors disabled:opacity-50">
@@ -378,6 +400,18 @@ Bestätige den Eintrag in einem Satz und nenne dann höchstens zwei Konsequenzen
           </div>
         </SheetContent>
       </Sheet>
+
+      {meetingOffen && aktId && (
+        <React.Suspense fallback={null}>
+          <MeetingImportDialog
+            open={meetingOffen}
+            onClose={() => setMeetingOffen(false)}
+            projectId={aktId}
+            projectName={projectName}
+            customer={customer}
+          />
+        </React.Suspense>
+      )}
 
       {aktEntry && (
         <KundenaktEntryDialog

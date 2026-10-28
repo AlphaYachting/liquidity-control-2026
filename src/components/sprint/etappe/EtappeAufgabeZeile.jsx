@@ -72,6 +72,7 @@ export default function EtappeAufgabeZeile({ ticket, members, currentUserEmail, 
             {ticket.role && <span aria-hidden="true">·</span>}
             <span className="-ml-1"><FaelligkeitKnopf ticket={ticket} disabled={!editable} /></span>
             {ORIGIN_LABEL[ticket.origin] && <><span aria-hidden="true">·</span><span>{ORIGIN_LABEL[ticket.origin]}</span></>}
+            {ticket.cr_pruefen && <><span aria-hidden="true">·</span><span className="font-semibold">Kundenwunsch — Change Request prüfen</span></>}
             {checklist.length > 0 && (
               <>
                 <span aria-hidden="true">·</span>

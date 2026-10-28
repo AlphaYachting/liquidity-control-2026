@@ -116,6 +116,31 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
   const istAdmin = me?.role === 'admin';
   const archiviert = !!ticket.archiviert;
 
+  // Kundenwunsch zur Prüfung (Meeting-Import, Variante A 28.10.2026): nur Projektleitung,
+  // Führung und Admin entscheiden, ob die Aufgabe als Change Request geführt wird.
+  const crEntscheiden = async (alsChangeRequest) => {
+    setFehler('');
+    setLaeuft(true);
+    try {
+      await base44.entities.Ticket.update(ticket.id, {
+        cr_pruefen: false,
+        ...(alsChangeRequest ? { origin: 'change_request' } : {}),
+      });
+      await schreibeSystemEintrag({
+        project_id: ticket.project_id,
+        milestone_id: ticket.milestone_id,
+        ticket_id: ticket.id,
+        text: alsChangeRequest
+          ? `Kundenwunsch geprüft: wird als Change Request geführt (${me?.email || ''}).`
+          : `Kundenwunsch geprüft: im Auftrag enthalten, kein Change Request (${me?.email || ''}).`,
+      });
+      onSaved?.();
+    } catch (e) {
+      setFehler(e?.message || 'Entscheidung konnte nicht gespeichert werden');
+    }
+    setLaeuft(false);
+  };
+
   const waehle = async (neu) => {
     setFehler('');
     setBestaetigt(false);
@@ -296,6 +321,22 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
                 <Button size="sm" variant="outline" className="h-7 shrink-0" disabled={laeuft} onClick={() => ausfuehren('wiederherstellen')}>
                   <RotateCcw className="w-3.5 h-3.5 mr-1" /> Wiederherstellen
                 </Button>
+              )}
+            </div>
+          )}
+          {ticket.cr_pruefen && !archiviert && (
+            <div className="rounded border border-primary/40 bg-primary/5 px-3 py-2.5 text-sm space-y-2">
+              <p>
+                <span className="font-semibold">Neuer Kundenwunsch</span> — als Change Request führen?
+                {ticket.cr_pruefen_begruendung ? <span className="block text-xs text-muted-foreground mt-0.5">{ticket.cr_pruefen_begruendung}</span> : null}
+              </p>
+              {darf ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" className="h-7" disabled={laeuft} onClick={() => crEntscheiden(true)}>Ja, Change Request</Button>
+                  <Button size="sm" variant="outline" className="h-7" disabled={laeuft} onClick={() => crEntscheiden(false)}>Nein, im Auftrag</Button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Wird von der Projektleitung geprüft.</p>
               )}
             </div>
           )}

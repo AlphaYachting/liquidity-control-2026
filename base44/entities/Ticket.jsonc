@@ -316,6 +316,19 @@
     "ohne_zeit_am": {
       "format": "date-time",
       "type": "string"
+    },
+    "cr_pruefen": {
+      "default": false,
+      "description": "Neuer Kundenwunsch (z. B. aus einem Meeting) in einer freigegebenen Etappe \u2014 die Projektleitung entscheidet, ob er als Change Request gef\u00fchrt wird. Bis dahin origin 'pflicht'.",
+      "type": "boolean"
+    },
+    "cr_pruefen_begruendung": {
+      "description": "Warum der Wunsch neu bzw. zus\u00e4tzlich ist (Vorschlag der Projektintelligenz)",
+      "type": "string"
+    },
+    "herkunft_projektakt_id": {
+      "description": "Projektakt-Eintrag (ProjectFileEntry), aus dem das Ticket entstand \u2014 Meeting-Import oder Zusage",
+      "type": "string"
     }
   }
 }
