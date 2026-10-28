@@ -11,9 +11,10 @@ import MessageBubble from '@/components/agent/MessageBubble';
 import { toast } from 'sonner';
 import { QUICK_FRAGEN } from '@/components/projects/projektIntelligenzFragen';
 import KundenaktEntryDialog from '@/components/projects/kundenakt/KundenaktEntryDialog';
-const MeetingImportDialog = React.lazy(() => import('@/components/projects/meeting/MeetingImportDialog'));
 
 import { faktenBlock, lageBlock } from '@/components/projects/intelligenzFakten';
+
+const MeetingImportDialog = React.lazy(() => import('@/components/projects/meeting/MeetingImportDialog'));
 
 const MARKER = '[FESTHALTEN_ANGEBOTEN]';
 const GESPEICHERT_HINWEIS = 'Soeben wurde folgender Eintrag im Projektakt gespeichert:';
