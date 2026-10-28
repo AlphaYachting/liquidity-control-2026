@@ -287,6 +287,8 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
       back = { ok: false, error: e?.message || 'unbekannter Fehler' };
     }
   }
+  // E-Mail ist jetzt Ticket — offene Eskalationen dieser Konversation verschwinden
+  await eskalationenSchliessen(threadId, ticket);
 
   return { ticket, back, hinweis };
 }
