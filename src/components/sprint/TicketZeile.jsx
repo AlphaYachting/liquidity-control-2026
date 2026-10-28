@@ -88,6 +88,15 @@ export default function TicketZeile({ ticket, members, currentUserEmail, editabl
                 {originLabel}
               </span>
             )}
+            {ticket.cr_pruefen && (
+              <span
+                className="inline-block text-[11px] px-1.5 py-0.5 rounded font-semibold"
+                style={{ color: STATUS_COLORS.attention, backgroundColor: RITTLER.surface }}
+                title="Neuer Kundenwunsch aus einem Meeting — die Projektleitung entscheidet, ob Change Request"
+              >
+                Kundenwunsch prüfen
+              </span>
+            )}
             {checklist.length > 0 && (
               <span className="inline-flex items-center gap-1 text-[11px]" style={{ color: RITTLER.textSecondary }}
                 title="Checkliste vorhanden">
