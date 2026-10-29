@@ -202,6 +202,16 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
   const faelligNeu = form.planned_for || '';
   const faelligGeaendert = faelligNeu !== (ticket.planned_for || '') && !(ticket.rhythmus && !faelligNeu);
 
+  // Wiederkehrend (nur Retainer): einstellen und ändern dürfen Projektleitung, Führung und Admins
+  // (Entscheidung 29.10.2026). Alle anderen sehen den Rhythmus nur.
+  const istRetainer = !!projekt && projectTypeOf(projekt) === 'container';
+  const darfRhythmus = istRetainer && darf && !archiviert;
+  const rhythmusNeu = form.rhythmus || null;
+  const rhythmusGeaendert = darfRhythmus && rhythmusNeu !== (ticket.rhythmus || null);
+  const rhythmusOptionen = ticket.rhythmus && !RHYTHMUS_AUSWAHL.some((r) => r.value === ticket.rhythmus)
+    ? [...RHYTHMUS_AUSWAHL, { value: ticket.rhythmus, label: RHYTHMUS_LABEL[ticket.rhythmus] || ticket.rhythmus }]
+    : RHYTHMUS_AUSWAHL;
+
   // Speichern mit sichtbarer Fehlermeldung — vorher blieb der Knopf bei einem Fehler stumm hängen
   const speichern = async ({ zeitGeprueft = false } = {}) => {
     setSaving(true);
@@ -452,6 +462,21 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
                 <p className="mt-1 text-xs text-muted-foreground">Routine · nächster Durchlauf. Leeren ist nicht möglich.</p>
               )}
             </div>
+            {darfRhythmus && (
+              <div className="col-span-2">
+                <Feld>Wiederkehrend</Feld>
+                <Select value={form.rhythmus || 'keiner'} onValueChange={(v) => set({ rhythmus: v === 'keiner' ? null : v })}>
+                  <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="keiner">nicht wiederkehrend</SelectItem>
+                    {rhythmusOptionen.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Nach dem Erledigen entsteht sofort die nächste Runde — der Termin läuft im Rhythmus ab „Fällig am“ weiter.
+                </p>
+              </div>
+            )}
             <div>
               <Feld>Phase</Feld>
               <Select value={form.milestone_state || 'produktion'} onValueChange={(v) => set({ milestone_state: v })}>
