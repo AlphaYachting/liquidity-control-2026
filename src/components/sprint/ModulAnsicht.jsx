@@ -5,7 +5,7 @@ import TicketZeile from '@/components/sprint/TicketZeile';
 import ModulKarte from '@/components/sprint/modul/ModulKarte';
 
 // Container-Etappe: je Modul eine Karte statt Phasengruppen.
-export default function ModulAnsicht({ tickets, matches, members, myEmail, project, onStatus, onAssignee, onRefresh }) {
+export default function ModulAnsicht({ tickets, matches, members, myEmail, project, onStatus, onAssignee, onRefresh, darfRoutine = false }) {
   const ids = [...new Set(tickets.map((t) => t.module_template_id).filter(Boolean))];
   const { data: module = [] } = useQuery({
     queryKey: ['modulAnsichtModule', ids.join(',')],
@@ -35,6 +35,8 @@ export default function ModulAnsicht({ tickets, matches, members, myEmail, proje
             myEmail={myEmail}
             onStatus={onStatus}
             onAssignee={onAssignee}
+            onRefresh={onRefresh}
+            darfRoutine={darfRoutine}
           />
           </div>
         );
