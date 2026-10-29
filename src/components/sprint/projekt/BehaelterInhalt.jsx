@@ -10,7 +10,7 @@ import { istZustaendig, hatZustaendige, zustaendigeAendern, alsAenderung } from 
 
 // Hauptinhalt der Projektseite für Nicht-Sprint-Projekte.
 // aktionen: Knöpfe wie „Aufgabe hinzufügen“ — stehen direkt über der Aufgabenliste.
-export default function BehaelterInhalt({ project, tickets, members, timeEntries, myEmail, onRefresh, aktionen }) {
+export default function BehaelterInhalt({ project, tickets, members, timeEntries, myEmail, onRefresh, aktionen, darfRoutine = false }) {
   const [filter, setFilter] = useState('alle');
   const { setStatus, dialog } = useTicketStatus(onRefresh);
   const istContainer = projectTypeOf(project) === 'container';
@@ -50,6 +50,7 @@ export default function BehaelterInhalt({ project, tickets, members, timeEntries
               onStatus={setStatus}
               onAssignee={onAssignee}
               onRefresh={onRefresh}
+              darfRoutine={darfRoutine}
             />
           </div>
         ) : (
