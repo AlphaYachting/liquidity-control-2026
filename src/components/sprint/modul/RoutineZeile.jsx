@@ -6,6 +6,7 @@ import { RITTLER, STATUS_COLORS, fmtDate, todayIso } from '@/components/sprint/s
 import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
 import { personenVon, namenVon } from '@/lib/sprint/zustaendige';
 import { routineFortsetzen } from '@/lib/sprint/routine';
+import TicketDetailPanel from '@/components/sprint/ticket/TicketDetailPanel';
 
 const RHYTHMUS = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', '2monatlich': 'alle 2 Monate', quartalsweise: 'quartalsweise', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich', manuell: 'manuell' };
 
@@ -14,6 +15,8 @@ const RHYTHMUS = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', mon
 export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssignee, onRefresh, darfRoutine = false }) {
   const [offen, setOffen] = useState(false);
   const [laeuft, setLaeuft] = useState(false);
+  // Klick auf den Titel öffnet die laufende Instanz im Seitenfenster (dort u. a. „Wiederkehrend“)
+  const [detailOpen, setDetailOpen] = useState(false);
   const aktuell = kette.find((t) => t.status !== 'erledigt');
   const erledigt = kette.filter((t) => t.status === 'erledigt')
     .sort((a, b) => (b.last_status_change || '').localeCompare(a.last_status_change || ''));
@@ -43,7 +46,11 @@ export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssi
         )}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate flex items-center gap-1.5" style={{ color: RITTLER.black }}>
-            <span className="truncate">{ref.title}</span>
+            {aktuell ? (
+              <button type="button" onClick={() => setDetailOpen(true)} className="truncate text-left hover:underline">{ref.title}</button>
+            ) : (
+              <span className="truncate">{ref.title}</span>
+            )}
             {ueberfaellig && <span className="shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded bg-status-critical text-primary-foreground">Überfällig</span>}
             {faellig && <span className="shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded bg-status-attention-surface text-status-attention">Fällig</span>}
           </p>
@@ -88,6 +95,15 @@ export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssi
             </li>
           ))}
         </ul>
+      )}
+      {aktuell && (
+        <TicketDetailPanel
+          ticket={aktuell}
+          members={members}
+          open={detailOpen}
+          onOpenChange={setDetailOpen}
+          onSaved={() => onRefresh?.()}
+        />
       )}
     </div>
   );
