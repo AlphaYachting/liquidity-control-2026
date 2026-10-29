@@ -12,7 +12,8 @@ const RHYTHMUS = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', mon
 
 // Eine Zeile je Routine-Kette: offenes Ticket plus aufklappbarer Verlauf.
 // darfRoutine: Projektleitung, Führung, Admins — dürfen eine abgerissene Kette fortsetzen (29.10.2026).
-export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssignee, onRefresh, darfRoutine = false }) {
+// beendet: Kette wurde über „Routine beenden“ bewusst abgeschlossen — kein Fortsetzen-Knopf.
+export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssignee, onRefresh, darfRoutine = false, beendet = false }) {
   const [offen, setOffen] = useState(false);
   const [laeuft, setLaeuft] = useState(false);
   // Klick auf den Titel öffnet die laufende Instanz im Seitenfenster (dort u. a. „Wiederkehrend“)
@@ -61,6 +62,8 @@ export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssi
             <FaelligkeitKnopf ticket={aktuell} />
             <TicketStatusElement value={aktuell.status} onChange={(s) => onStatus(aktuell, s)} />
           </>
+        ) : beendet ? (
+          <span className="text-xs font-medium text-muted-foreground">beendet</span>
         ) : darfRoutine && erledigt.length ? (
           <button
             type="button"
