@@ -432,18 +432,62 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
             <Input value={form.title} onChange={e => set('title', e.target.value)} />
           </div>
           <div>
-            <Label className="text-xs">Beschreibung</Label>
+            {/* Vorrangiger Text im Ticket: die Kurzfassung für den Techniker — der E-Mail-Verlauf kommt darunter */}
+            <div className="flex items-center gap-2">
+              <Label className="text-xs flex-1">Kurzfassung für den Techniker</Label>
+              {ki.status === 'laeuft' ? (
+                <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" /> KI fasst die Anfrage zusammen …
+                </span>
+              ) : (
+                (threadIdOf(item) || item?.body || form.description.trim()) && (
+                  <button
+                    type="button"
+                    className="text-xs underline text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                    onClick={() => kiStarten({ ersetzen: true, text: form.description })}
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    {ki.status === 'fertig' ? 'KI-Kurzfassung neu erstellen' : 'Mit KI zusammenfassen'}
+                  </button>
+                )
+              )}
+            </div>
             <Textarea
               rows={6}
               value={form.description}
-              onChange={e => set('description', e.target.value)}
+              onChange={e => setForm(f => ({ ...f, description: e.target.value, beschreibung_manuell: true }))}
               placeholder={loadingThread ? 'Verlauf wird geladen…' : 'Anliegen des Kunden kurz beschreiben'}
             />
-            {!loadingThread && !form.description.trim() && (
+            {form.ki_vorschlag && (
+              <p className="text-xs mt-1">
+                Die KI-Kurzfassung ist fertig, der Text wurde aber schon geändert.{' '}
+                <button type="button" className="underline" onClick={kiUebernehmen}>KI-Kurzfassung übernehmen</button>
+              </p>
+            )}
+            {ki.status === 'fehler' && (
+              <p className="text-xs text-status-attention mt-1">
+                Die KI-Kurzfassung ist gerade nicht verfügbar — bitte das Anliegen selbst kurz zusammenfassen.
+              </p>
+            )}
+            {ki.status === 'fertig' && !form.ki_vorschlag && !form.beschreibung_manuell && (
+              <p className="text-xs text-muted-foreground mt-1">
+                KI-Vorschlag aus der Kunden-E-Mail — bitte kurz prüfen. Der vollständige E-Mail-Verlauf kommt darunter ins Ticket.
+              </p>
+            )}
+            {!loadingThread && ki.status !== 'laeuft' && !form.description.trim() && (
               <p className="text-xs text-status-attention mt-1">
                 Anliegen des Kunden kurz beschreiben — ein Ticket darf nicht nur den Betreff tragen.
               </p>
             )}
+          </div>
+          <div>
+            <Label className="text-xs">To-dos (Checkliste im Ticket)</Label>
+            <p className="text-xs text-muted-foreground mb-1.5">
+              {form.checklist?.length
+                ? 'Mehrere Anliegen — jedes wird im Ticket ein eigener Punkt zum Abhaken.'
+                : 'Nur nötig, wenn die Anfrage mehrere Probleme enthält.'}
+            </p>
+            <TicketChecklist items={form.checklist || []} onChange={(checklist) => set('checklist', checklist)} />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -489,8 +533,8 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
         <DialogFooter className="px-6 py-3 border-t shrink-0 sm:items-center">
           {error && <p className="text-xs text-destructive sm:mr-auto sm:max-w-[60%]">{error}</p>}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Abbrechen</Button>
-          <Button onClick={submit} disabled={busy || loadingThread || vorhandenOffen || !form.customer || !form.title || !form.description.trim() || !form.assignee_email}>
-            {busy ? (schritt || 'Wird angelegt …') : 'Ticket anlegen'}
+          <Button onClick={submit} disabled={busy || loadingThread || ki.status === 'laeuft' || vorhandenOffen || !form.customer || !form.title || !form.description.trim() || !form.assignee_email}>
+            {busy ? (schritt || 'Wird angelegt …') : ki.status === 'laeuft' ? 'KI fasst zusammen …' : 'Ticket anlegen'}
           </Button>
         </DialogFooter>
       </DialogContent>
