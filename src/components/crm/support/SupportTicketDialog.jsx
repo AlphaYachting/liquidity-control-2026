@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, X } from 'lucide-react';
+import { Search, X, Sparkles, Loader2 } from 'lucide-react';
 import ClientLinkStep from '@/components/crm/handover/ClientLinkStep';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
@@ -12,7 +12,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { resolveSupportProject, createSupportTicket, SUPPORT_MODELS, DEFAULT_SUPPORT_RATE, offeneTicketsZurKonversation, anTicketAnhaengen } from '@/components/crm/support/supportTicket';
 import { TICKET_STATUS_LABELS } from '@/components/sprint/sprintConfig';
-import { descriptionFromThread } from '@/components/crm/support/threadDescription';
+import { descriptionFromThread, threadTranscript } from '@/components/crm/support/threadDescription';
+import { kiKurzfassung, kurzfassungAlsText, kurzfassungAlsCheckliste } from '@/components/crm/support/ticketKurzfassung';
+import { threadIdOf } from '@/components/crm/inboxDecision';
+import TicketChecklist from '@/components/sprint/ticket/TicketChecklist';
 import { kundenSchluessel } from '@/lib/kunden/kundeAnlegen';
 import { dringlichkeit, faelligAm, SUPPORT_FRIST_TAGE } from '@/components/crm/support/faelligkeit';
 import { projectTypeOf, typeStyleOf } from '@/components/sprint/projectTypes';
@@ -20,6 +23,8 @@ import { projectTypeOf, typeStyleOf } from '@/components/sprint/projectTypes';
 const ROLES = ['Beratung', 'Konzept', 'Text', 'Grafik', 'Web', 'Media', 'QS'];
 // Feste leere Liste — solange die Daten laden, darf die Vorbelegung nicht bei jedem Rendern neu laufen
 const KEINE = [];
+// Länger wartet der Dialog nicht auf die KI — danach bleibt der Originaltext stehen
+const KI_ZEITLIMIT_MS = 30000;
 
 export default function SupportTicketDialog({ open, onOpenChange, item, onDone }) {
   const [form, setForm] = useState(null);
@@ -28,6 +33,10 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
   const [schritt, setSchritt] = useState('');
   const [error, setError] = useState(null);
   const [loadingThread, setLoadingThread] = useState(false);
+  // KI-Kurzfassung für den Techniker (29.10.2026): status idle | laeuft | fertig | fehler;
+  // vorschlag hält das Ergebnis, falls die Person die Beschreibung schon selbst geändert hat
+  const [ki, setKi] = useState({ status: 'idle', vorschlag: null });
+  const kiFuer = useRef('');
   const queryClient = useQueryClient();
   const { user: ich } = useAuth();
   // Kundensuche statt langer Auswahlliste; fehlt der Kunde, direkt aus sevDesk übernehmen oder anlegen
@@ -94,6 +103,8 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
         item_key: itemKey,
         title: (item.subject || 'Support-Anfrage').slice(0, 200),
         description: item.body || '',
+        beschreibung_manuell: false,
+        checklist: [],
         role: 'Web',
         target_hours: 1,
         // Zuständig ist Pflicht (Rückmeldung John 06.10.2026) — vorbelegt mit der Person, die anlegt
