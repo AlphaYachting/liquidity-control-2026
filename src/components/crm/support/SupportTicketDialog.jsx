@@ -182,6 +182,55 @@ export default function SupportTicketDialog({ open, onOpenChange, item, onDone }
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  // KI-Kurzfassung für den Techniker: Quelle ist der ganze E-Mail-Verlauf (ohne Zitate),
+  // sonst der Text der Anfrage. Hat die Person die Beschreibung schon selbst geändert,
+  // wird nichts überschrieben — der Vorschlag kann dann per Klick übernommen werden.
+  const kiStarten = useCallback(async ({ ersetzen = false, text = '' } = {}) => {
+    if (!item) return;
+    const schluessel = String(item.id || item.thread_id || '');
+    kiFuer.current = schluessel;
+    setKi({ status: 'laeuft' });
+    try {
+      const threadId = threadIdOf(item);
+      let quelle = threadId
+        ? await threadTranscript(threadId, { ohneZitate: true, maxZeichen: 12000 }).catch(() => '')
+        : '';
+      if (!quelle) quelle = String(item.body || text || '').trim();
+      if (!quelle) { setKi({ status: 'idle' }); return; }
+      const k = await Promise.race([
+        kiKurzfassung({ text: quelle, betreff: item.subject || '', kunde: item.matched_customer_name || item.sender_name || '' }),
+        new Promise((_, reject) => { setTimeout(() => reject(new Error('Zeitlimit')), KI_ZEITLIMIT_MS); }),
+      ]);
+      if (kiFuer.current !== schluessel) return;
+      setForm((f) => {
+        if (!f || f.item_key !== schluessel) return f;
+        if (f.beschreibung_manuell && !ersetzen) return { ...f, ki_vorschlag: k };
+        return { ...f, description: kurzfassungAlsText(k), checklist: kurzfassungAlsCheckliste(k), beschreibung_manuell: false, ki_vorschlag: null };
+      });
+      setKi({ status: 'fertig' });
+    } catch (_e) {
+      if (kiFuer.current === schluessel) setKi({ status: 'fehler' });
+    }
+  }, [item]);
+
+  // Automatisch, sobald eine E-Mail-Anfrage geöffnet wird (ohne E-Mail-Text, z. B. Telefon: nur per Klick)
+  useEffect(() => {
+    if (!open) { kiFuer.current = ''; setKi({ status: 'idle' }); return; }
+    if (!item) return;
+    const schluessel = String(item.id || item.thread_id || '');
+    if (kiFuer.current === schluessel) return;
+    if (!threadIdOf(item) && !String(item.body || '').trim()) return;
+    kiStarten();
+  }, [open, item, kiStarten]);
+
+  const kiUebernehmen = () => setForm((f) => (f?.ki_vorschlag ? {
+    ...f,
+    description: kurzfassungAlsText(f.ki_vorschlag),
+    checklist: kurzfassungAlsCheckliste(f.ki_vorschlag),
+    beschreibung_manuell: false,
+    ki_vorschlag: null,
+  } : f));
+
   const anhaengen = async (ticket) => {
     setBusy(true);
     setError(null);
