@@ -129,7 +129,7 @@ export default function BehaelterKopf({ project, client, tickets, timeEntries, m
           project={project}
           unterzeile={`${client?.name || 'Kunde'} · ${typText}`}
           person={pm}
-          personRolle={typ === 'container' ? 'Betreuer' : 'Projektleitung'}
+          personRolle="Projektleitung"
         />
         {aktionen}
       </div>
