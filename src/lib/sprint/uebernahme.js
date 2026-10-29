@@ -2,6 +2,7 @@ import { base44 } from '@/api/base44Client';
 import { ohneArchiv, PROJEKT_LAUFEND } from '@/lib/sprint/aktivFilter';
 import { ticketBereinigen } from '@/lib/sprint/ticketBereinigen';
 import { zustaendigeAendern, zustaendigeVon, zugewiesenAnFilter } from '@/lib/sprint/zustaendige';
+import { ticketStatusSetzen, naechsterTermin } from '@/lib/sprint/routine';
 
 // Einmalige Übernahme der Alttickets: jede Person bestätigt, was wirklich bei ihr liegt.
 // Zur Übernahme gehört alles, was vor dem Live-Gang angelegt wurde (Montag 05.10.2026, 00:00 Wien).
@@ -99,11 +100,23 @@ export async function antworte(ticket, wert, { email, darfArchivieren = false } 
   const patch = { uebernahme_antwort: wert, uebernahme_am: jetzt, uebernahme_von: email };
 
   if (['offen', 'in_arbeit', 'wartet', 'erledigt'].includes(wert)) {
-    if (ticket.status !== wert) { patch.status = wert; patch.last_status_change = jetzt; }
+    // Routinen: Status über ticketStatusSetzen, damit die Folgeinstanz entsteht (29.10.2026)
+    const routineStatus = !!ticket.rhythmus && ticket.status !== wert;
+    if (ticket.status !== wert && !routineStatus) { patch.status = wert; patch.last_status_change = jetzt; }
     if (wert === 'wartet' && !ticket.wartet_auf) patch.wartet_auf = 'kunde';
     // Wer antwortet, wird zuständig — hinzugefügt, nicht an Stelle der anderen
     const mit = await zustaendigeAendern(ticket.id, { dazu: email });
     await base44.entities.Ticket.update(ticket.id, patch);
+    if (routineStatus) {
+      const heute = jetzt.slice(0, 10);
+      await ticketStatusSetzen(
+        { ...ticket, assignee_email: mit.assignee_email, assignee_emails: mit.assignee_emails },
+        wert,
+        { folgetermin: wert === 'erledigt' ? naechsterTermin(ticket, heute) : undefined },
+      );
+      patch.status = wert;
+      patch.last_status_change = jetzt;
+    }
     return { ...ticket, ...patch, assignee_email: mit.assignee_email, assignee_emails: mit.assignee_emails };
   }
 
