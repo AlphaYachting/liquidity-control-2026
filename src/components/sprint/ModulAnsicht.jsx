@@ -17,6 +17,16 @@ export default function ModulAnsicht({ tickets, matches, members, myEmail, proje
     const hash = window.location.hash.slice(1);
     if (hash && module.length) document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [module.length]);
+  // Über „Routine beenden“ archivierte Instanzen: deren Vorgänger markieren die Kette als beendet
+  const { data: beendetIds } = useQuery({
+    queryKey: ['modulAnsichtBeendet', project?.id],
+    enabled: !!project?.id,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const rows = await base44.entities.Ticket.filter({ project_id: project.id, archiviert: true, archiv_grund: 'routine_beendet' }, 'order', 200).catch(() => []);
+      return new Set(rows.map((t) => t.vorgaenger_id).filter(Boolean));
+    },
+  });
   const weitere = tickets.filter((t) => !t.module_template_id || !module.some((m) => m.id === t.module_template_id));
   const weitereSichtbar = weitere.filter(matches);
 
@@ -30,6 +40,8 @@ export default function ModulAnsicht({ tickets, matches, members, myEmail, proje
           <ModulKarte
             name={m.name}
             tickets={eigene}
+            alleTickets={tickets}
+            beendetIds={beendetIds}
             matches={matches}
             members={members}
             myEmail={myEmail}
