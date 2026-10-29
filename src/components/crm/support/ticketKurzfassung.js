@@ -1,4 +1,5 @@
 import { base44 } from '@/api/base44Client';
+import { unwrapLLM } from '@/components/crm/proposals/jsonFields';
 
 // KI-Kurzfassung einer Kunden-E-Mail für den Techniker (29.10.2026):
 // Wer das Ticket öffnet, sieht zuerst, WAS zu tun ist — der E-Mail-Verlauf steht darunter.
@@ -37,8 +38,8 @@ Regeln:
       required: ['anliegen', 'aufgaben'],
     },
   });
-  const r = res && typeof res === 'object' ? (res.response && typeof res.response === 'object' ? res.response : res) : null;
-  if (!r || !String(r.anliegen || '').trim()) throw new Error('kein Vorschlag');
+  const r = unwrapLLM(res);
+  if (!r || typeof r !== 'object' || !String(r.anliegen || '').trim()) throw new Error('kein Vorschlag');
   const sauber = (s) => String(s || '').replace(/\s+/g, ' ').trim();
   const aufgaben = [...new Set((Array.isArray(r.aufgaben) ? r.aufgaben : []).map(sauber).filter(Boolean))].slice(0, 15);
   return {
