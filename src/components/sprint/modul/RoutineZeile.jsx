@@ -5,12 +5,15 @@ import PersonenChip from '@/components/sprint/PersonenChip';
 import { RITTLER, STATUS_COLORS, fmtDate, todayIso } from '@/components/sprint/sprintConfig';
 import { istUeberfaellig } from '@/lib/sprint/faelligkeit';
 import { personenVon, namenVon } from '@/lib/sprint/zustaendige';
+import { routineFortsetzen } from '@/lib/sprint/routine';
 
 const RHYTHMUS = { woechentlich: 'wöchentlich', '14taegig': 'alle 14 Tage', monatlich: 'monatlich', '2monatlich': 'alle 2 Monate', quartalsweise: 'quartalsweise', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich', manuell: 'manuell' };
 
 // Eine Zeile je Routine-Kette: offenes Ticket plus aufklappbarer Verlauf.
-export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssignee }) {
+// darfRoutine: Projektleitung, Führung, Admins — dürfen eine abgerissene Kette fortsetzen (29.10.2026).
+export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssignee, onRefresh, darfRoutine = false }) {
   const [offen, setOffen] = useState(false);
+  const [laeuft, setLaeuft] = useState(false);
   const aktuell = kette.find((t) => t.status !== 'erledigt');
   const erledigt = kette.filter((t) => t.status === 'erledigt')
     .sort((a, b) => (b.last_status_change || '').localeCompare(a.last_status_change || ''));
@@ -51,6 +54,20 @@ export default function RoutineZeile({ kette, members, myEmail, onStatus, onAssi
             <FaelligkeitKnopf ticket={aktuell} />
             <TicketStatusElement value={aktuell.status} onChange={(s) => onStatus(aktuell, s)} />
           </>
+        ) : darfRoutine && erledigt.length ? (
+          <button
+            type="button"
+            disabled={laeuft}
+            onClick={async () => {
+              setLaeuft(true);
+              try { await routineFortsetzen(erledigt[0]); } finally { setLaeuft(false); }
+              onRefresh?.();
+            }}
+            className="text-xs font-semibold px-2.5 py-1 rounded border border-border hover:bg-muted disabled:opacity-60"
+            title="Nächste Runde anlegen — Termin automatisch nach Rhythmus"
+          >
+            {laeuft ? 'Legt an…' : 'Routine fortsetzen'}
+          </button>
         ) : (
           <span className="text-xs font-medium" style={{ color: STATUS_COLORS.attention }}>keine Fälligkeit</span>
         )}
