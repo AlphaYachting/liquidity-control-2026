@@ -17,7 +17,6 @@ export default function ModulAnsicht({ tickets, matches, members, myEmail, proje
     const hash = window.location.hash.slice(1);
     if (hash && module.length) document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [module.length]);
-  const istPm = !!myEmail && myEmail === project?.pm_email;
   const weitere = tickets.filter((t) => !t.module_template_id || !module.some((m) => m.id === t.module_template_id));
   const weitereSichtbar = weitere.filter(matches);
 
@@ -34,10 +33,8 @@ export default function ModulAnsicht({ tickets, matches, members, myEmail, proje
             matches={matches}
             members={members}
             myEmail={myEmail}
-            istPm={istPm}
             onStatus={onStatus}
             onAssignee={onAssignee}
-            onRefresh={onRefresh}
           />
           </div>
         );
