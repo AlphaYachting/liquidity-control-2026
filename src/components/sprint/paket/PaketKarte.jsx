@@ -26,7 +26,7 @@ export default function PaketKarte({ modul, templates, istContainer, eintrag, me
       <div className="flex items-center justify-between gap-2 mb-1">
         <p className="text-sm font-semibold text-foreground">{modul.name}</p>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Betreuer</span>
+          <span className="text-xs text-muted-foreground">Zuständig für Routinen</span>
           <PersonenChip
             member={members.find((m) => m.email === betreuer)}
             members={members}
