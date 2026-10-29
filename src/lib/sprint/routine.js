@@ -42,6 +42,46 @@ export function naechsterTermin(ticket, heuteIso) {
   return null;
 }
 
+// Einstellbare Rhythmen (Retainer) — Reihenfolge für Auswahlfelder
+export const RHYTHMUS_AUSWAHL = [
+  { value: 'woechentlich', label: 'wöchentlich' },
+  { value: '14taegig', label: 'alle 14 Tage' },
+  { value: 'monatlich', label: 'monatlich' },
+  { value: '2monatlich', label: 'alle 2 Monate' },
+  { value: 'quartalsweise', label: 'quartalsweise' },
+  { value: 'halbjaehrlich', label: 'halbjährlich' },
+  { value: 'jaehrlich', label: 'jährlich' },
+];
+
+// Folgeinstanz einer Routine anlegen — Termin automatisch nach Rhythmus ab dem eingestellten Anker
+// (Entscheidung 29.10.2026: sofort in die nächste Runde, ohne Rückfrage). Legt nichts doppelt an.
+async function folgeAnlegen(ticket, folgetermin) {
+  const vorhanden = await base44.entities.Ticket.filter({ vorgaenger_id: ticket.id }, 'order', 1);
+  if (vorhanden.length) return null;
+  const felder = ['milestone_id', 'project_id', 'order', 'title', 'description', 'role',
+    'milestone_state', 'target_hours', 'origin', 'module_template_id', 'ticket_template_id',
+    'rhythmus', 'fenster_tage', 'rhythmus_anker'];
+  const neu = {};
+  felder.forEach((f) => { if (ticket[f] !== undefined && ticket[f] !== null) neu[f] = ticket[f]; });
+  const termin = folgetermin || naechsterTermin(ticket, iso(new Date()));
+  return base44.entities.Ticket.create({
+    ...neu,
+    // Das Folgeticket übernimmt alle Zuständigen
+    ...zustaendigFelder(zustaendigeVon(ticket)),
+    checklist: (ticket.checklist || []).map((c) => ({ ...c, done: false })),
+    status: 'offen',
+    vorgaenger_id: ticket.id,
+    ...(termin ? { planned_for: termin } : {}),
+    last_status_change: new Date().toISOString(),
+  });
+}
+
+// Abgerissene Kette fortsetzen: aus der zuletzt erledigten Instanz die nächste Runde anlegen.
+export async function routineFortsetzen(letzte) {
+  if (!letzte?.rhythmus || letzte.status !== 'erledigt' || letzte.archiviert) return null;
+  return folgeAnlegen(letzte);
+}
+
 export async function ticketStatusSetzen(ticket, status, { folgetermin } = {}) {
   await base44.entities.Ticket.update(ticket.id, { status, last_status_change: new Date().toISOString() });
   if (!ticket.rhythmus) return;
@@ -54,21 +94,5 @@ export async function ticketStatusSetzen(ticket, status, { folgetermin } = {}) {
   // Routinen laufen nur in aktiven Container-Projekten weiter (pausiert/abgeschlossen = Routinen ruhen)
   const project = await base44.entities.Project.get(ticket.project_id).catch(() => null);
   if (projectTypeOf(project) !== 'container' || !istAktiv(project)) return;
-  const vorhanden = await base44.entities.Ticket.filter({ vorgaenger_id: ticket.id }, 'order', 1);
-  if (vorhanden.length) return;
-  const felder = ['milestone_id', 'project_id', 'order', 'title', 'description', 'role',
-    'milestone_state', 'target_hours', 'origin', 'module_template_id', 'ticket_template_id',
-    'rhythmus', 'fenster_tage', 'rhythmus_anker'];
-  const neu = {};
-  felder.forEach((f) => { if (ticket[f] !== undefined && ticket[f] !== null) neu[f] = ticket[f]; });
-  await base44.entities.Ticket.create({
-    ...neu,
-    // Das Folgeticket übernimmt alle Zuständigen
-    ...zustaendigFelder(zustaendigeVon(ticket)),
-    checklist: (ticket.checklist || []).map((c) => ({ ...c, done: false })),
-    status: 'offen',
-    vorgaenger_id: ticket.id,
-    planned_for: folgetermin,
-    last_status_change: new Date().toISOString(),
-  });
+  await folgeAnlegen(ticket, folgetermin);
 }
