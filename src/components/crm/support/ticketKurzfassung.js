@@ -57,7 +57,7 @@ export function kurzfassungAlsText(k) {
   const zeilen = [`Anliegen: ${k.anliegen}`];
   if (k.betroffen) zeilen.push(`Betroffen: ${k.betroffen}`);
   if (k.aufgaben.length === 1) zeilen.push(`Zu tun: ${k.aufgaben[0]}`);
-  if (k.aufgaben.length > 1) zeilen.push(`Zu tun: ${k.aufgaben.length} Punkte — siehe Checkliste`);
+  if (k.aufgaben.length > 1) zeilen.push('Zu tun: mehrere Punkte — siehe Checkliste');
   if (k.hinweise) zeilen.push(`Hinweise: ${k.hinweise}`);
   return zeilen.join('\n');
 }
