@@ -23,8 +23,7 @@ import { ticketBereinigen, darfBereinigen } from '@/lib/sprint/ticketBereinigen'
 import { useZugriff } from '@/lib/useZugriff';
 import { zustaendigeVon, zustaendigeAendern, zustaendigFelder, normMail, personVon, MAX_ZUSTAENDIGE } from '@/lib/sprint/zustaendige';
 import SupportOhneZeitDialog from '@/components/sprint/SupportOhneZeitDialog';
-import RoutineErledigtDialog from '@/components/sprint/RoutineErledigtDialog';
-import { ticketStatusSetzen } from '@/lib/sprint/routine';
+import { ticketStatusSetzen, RHYTHMUS_AUSWAHL } from '@/lib/sprint/routine';
 import { supportOhneZeit } from '@/lib/sprint/supportErledigt';
 
 const STATES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
@@ -53,8 +52,6 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
   const [speicherFehler, setSpeicherFehler] = useState('');
   // Support-Ticket ohne Zeit auf „erledigt“: erst Zeit oder Grund (21.10.2026)
   const [ohneZeit, setOhneZeit] = useState(null);
-  // Routine auf „erledigt“: erst nächsten Termin bestätigen, dann Folgeinstanz anlegen (29.10.2026)
-  const [routineOffen, setRoutineOffen] = useState(null);
 
   useEffect(() => {
     const z = zustaendigeVon(ticket);
@@ -206,7 +203,7 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
   const faelligGeaendert = faelligNeu !== (ticket.planned_for || '') && !(ticket.rhythmus && !faelligNeu);
 
   // Speichern mit sichtbarer Fehlermeldung — vorher blieb der Knopf bei einem Fehler stumm hängen
-  const speichern = async ({ zeitGeprueft = false, folgetermin } = {}) => {
+  const speichern = async ({ zeitGeprueft = false } = {}) => {
     setSaving(true);
     setSpeicherFehler('');
     try {
@@ -218,13 +215,13 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
           return;
         }
       }
-      // Routinen: nächsten Termin abfragen wie in der Projektansicht — sonst reißt die Kette ab
-      if (ticket.rhythmus && ticket.rhythmus !== 'manuell' && form.status === 'erledigt' && ticket.status !== 'erledigt' && folgetermin === undefined) {
-        setRoutineOffen(ticket);
+      // Wiederkehrend braucht einen Termin — von ihm aus läuft der Rhythmus
+      if (rhythmusGeaendert && rhythmusNeu && !(form.planned_for || ticket.planned_for)) {
+        setSpeicherFehler('Für eine wiederkehrende Aufgabe bitte „Fällig am“ setzen — von diesem Termin aus läuft der Rhythmus.');
         setSaving(false);
         return;
       }
-      await speichernAusfuehren({ folgetermin });
+      await speichernAusfuehren();
       onSaved?.();
       onOpenChange(false);
     } catch (e) {
@@ -234,8 +231,13 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
     }
   };
 
-  const speichernAusfuehren = async ({ folgetermin } = {}) => {
+  const speichernAusfuehren = async () => {
     const statusGeaendert = form.status !== ticket.status;
+    // Rhythmus neu gesetzt oder geändert: der Fälligkeitstermin wird zum Anker der Routine
+    const anker = form.planned_for || ticket.planned_for || null;
+    const rhythmusFelder = rhythmusGeaendert
+      ? (rhythmusNeu ? { rhythmus: rhythmusNeu, rhythmus_anker: anker } : { rhythmus: null, rhythmus_anker: null })
+      : {};
     // Status läuft nicht mehr über das direkte Update, sondern über ticketStatusSetzen —
     // nur dort entsteht bei Routinen die Folgeinstanz (29.10.2026).
     await base44.entities.Ticket.update(ticket.id, {
@@ -248,6 +250,7 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
       target_hours: plan || undefined,
       // Fälligkeit: bei Routinen bleibt der nächste Termin stehen, wenn das Feld geleert wird
       ...(faelligGeaendert ? { planned_for: form.planned_for || null } : {}),
+      ...rhythmusFelder,
     });
     if (zustaendigeGeaendert) await zustaendigeAendern(ticket.id, { setzen: zustaendigeNeu });
     if (statusGeaendert) {
@@ -260,8 +263,9 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
         milestone_state: form.milestone_state,
         target_hours: plan || ticket.target_hours,
         ...(faelligGeaendert ? { planned_for: form.planned_for || null } : {}),
+        ...rhythmusFelder,
         ...zustaendigFelder(zustaendigeNeu),
-      }, form.status, { folgetermin });
+      }, form.status);
     }
     if (statusGeaendert) {
       await schreibeSystemEintrag({
@@ -607,14 +611,6 @@ export default function TicketDetailPanel({ ticket, members = [], open, onOpenCh
           onConfirm={async () => {
             setOhneZeit(null);
             await speichern({ zeitGeprueft: true });
-          }}
-        />
-        <RoutineErledigtDialog
-          ticket={routineOffen}
-          onCancel={() => setRoutineOffen(null)}
-          onConfirm={async (termin) => {
-            setRoutineOffen(null);
-            await speichern({ zeitGeprueft: true, folgetermin: termin });
           }}
         />
       </SheetContent>
