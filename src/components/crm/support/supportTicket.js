@@ -214,16 +214,23 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
         VERLAUF_ZEITLIMIT_MS,
         '',
       );
-      if (!verlauf && item.source === 'email' && item.body) verlauf = String(item.body).trim().slice(0, maxVerlauf);
+      // Der Dialog-Text ist meist die KI-Kurzfassung — die Original-Mail muss trotzdem ins Ticket
+      if (!verlauf && item.body) verlauf = String(item.body).trim().slice(0, maxVerlauf);
       // Lädt der Verlauf nicht rechtzeitig, reicht der Text aus dem Dialog — mit Hinweis und Link
       if (!verlauf && String(values.description || '').trim()) gekuerzt = true;
       if (!verlauf && !gekuerzt && (item.source === 'email' || !item.id)) {
         throw new Error('Der E-Mail-Verlauf konnte nicht geladen werden — das Ticket wurde nicht angelegt. Bitte noch einmal versuchen.');
       }
     }
+    // Ohne Konversation (z. B. Posteingang ohne Thread): Originaltext der Anfrage unter die Kurzfassung
+    const kurz = String(values.description || '').trim();
+    const original = !threadId && item.body && String(item.body).trim() !== kurz
+      ? String(item.body).trim().slice(0, maxVerlauf)
+      : '';
     return [
-      String(values.description || '').trim().slice(0, 8000),
+      kurz.slice(0, 8000),
       verlauf ? `— E-Mail-Verlauf —\n\n${verlauf}` : '',
+      original ? `— Ursprüngliche Anfrage —\n\n${original}` : '',
       gekuerzt ? '[Der vollständige E-Mail-Verlauf konnte beim Anlegen nicht geladen werden — siehe Konversation.]' : '',
       threadLink ? `Konversation: ${threadLink}` : '',
     ].filter(Boolean).join('\n\n');
@@ -243,6 +250,10 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
     planned_for: values.planned_for || faelligAm(false),
     source_thread_id: threadId ? String(threadId) : '',
     customer_name: values.customer || '',
+    // Mehrere Anliegen aus der E-Mail → To-dos zum Abhaken (KI-Vorschlag, im Dialog geprüft)
+    checklist: (values.checklist || [])
+      .map((c) => ({ text: String(c?.text || '').trim().slice(0, 300), done: !!c?.done }))
+      .filter((c) => c.text),
   });
 
   let ticket;
