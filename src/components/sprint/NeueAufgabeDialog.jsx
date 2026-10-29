@@ -10,6 +10,7 @@ import { STATE_LABELS } from '@/components/sprint/sprintConfig';
 import { zustaendigFelder } from '@/lib/sprint/zustaendige';
 import { standardTermin } from '@/lib/sprint/deadlines';
 import { useAuth } from '@/lib/AuthContext';
+import { RHYTHMUS_AUSWAHL } from '@/lib/sprint/routine';
 
 const ROLES = ['Beratung', 'Konzept', 'Text', 'Grafik', 'Web', 'Media', 'QS'];
 const PHASES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
@@ -18,7 +19,8 @@ const PHASES = ['input', 'produktion', 'pruefung', 'kundenfeedback'];
 // ein Change Request und damit Zusatzumsatz — sie zählt nicht gegen den Festpreis.
 // projectId kommt vom Aufrufer — eine Etappe trägt kein project_id, und ohne bestehende
 // Aufgabe ließe sich das Projekt sonst nicht ermitteln (erste Aufgabe eines Projekts).
-export default function NeueAufgabeDialog({ open, onOpenChange, milestone, tickets, members, previousMilestone, onCreated, projectId }) {
+// darfRhythmus (nur Retainer; Projektleitung, Führung, Admins — 29.10.2026): Aufgabe gleich als wiederkehrend anlegen.
+export default function NeueAufgabeDialog({ open, onOpenChange, milestone, tickets, members, previousMilestone, onCreated, projectId, darfRhythmus = false }) {
   const [title, setTitle] = useState('');
   const [role, setRole] = useState('');
   const [phase, setPhase] = useState(milestone.state === 'freigegeben' ? 'produktion' : milestone.state || 'produktion');
@@ -28,6 +30,7 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
   const [assignee, setAssignee] = useState(() => members.find((m) => (m.email || '').toLowerCase() === ich)?.email || '');
   const [hours, setHours] = useState('');
   const [faellig, setFaellig] = useState(() => standardTermin());
+  const [rhythmus, setRhythmus] = useState('keiner');
   const [saving, setSaving] = useState(false);
   const [fehler, setFehler] = useState('');
   const zielProjekt = projectId || milestone.project_id || tickets[0]?.project_id || '';
@@ -58,6 +61,8 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
       origin: isChangeRequest ? 'change_request' : 'pflicht',
       target_hours: Number(hours) || 0,
       ...(faellig ? { planned_for: faellig } : {}),
+      // Wiederkehrend: der erste Fälligkeitstermin ist der Anker des Rhythmus
+      ...(darfRhythmus && rhythmus !== 'keiner' ? { rhythmus, rhythmus_anker: faellig } : {}),
       last_status_change: new Date().toISOString(),
     });
     } catch (e) {
@@ -67,7 +72,7 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
       return;
     }
     setSaving(false);
-    setTitle(''); setRole(''); setHours(''); setFaellig(standardTermin());
+    setTitle(''); setRole(''); setHours(''); setFaellig(standardTermin()); setRhythmus('keiner');
     onOpenChange(false);
     onCreated?.();
   };
@@ -135,6 +140,18 @@ export default function NeueAufgabeDialog({ open, onOpenChange, milestone, ticke
               <Label htmlFor="neue-aufgabe-faellig">Fällig am</Label>
               <Input id="neue-aufgabe-faellig" type="date" value={faellig} onChange={(e) => setFaellig(e.target.value)} />
             </div>
+            {darfRhythmus && (
+              <div>
+                <Label>Wiederkehrend</Label>
+                <Select value={rhythmus} onValueChange={setRhythmus}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="keiner">nicht wiederkehrend</SelectItem>
+                    {RHYTHMUS_AUSWAHL.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </div>
 
