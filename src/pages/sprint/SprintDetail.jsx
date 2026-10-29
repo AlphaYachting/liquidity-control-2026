@@ -208,6 +208,7 @@ export default function SprintDetail() {
               myEmail={me?.email}
               onRefresh={refetch}
               aktionen={aufgabenAktionen}
+              darfRoutine={typ === 'container' && darfTermine}
             />
           ) : (
             <EtappenListe
@@ -265,6 +266,7 @@ export default function SprintDetail() {
           members={members}
           previousMilestone={null}
           onCreated={refetch}
+          darfRhythmus={typ === 'container' && darfTermine}
         />
       )}
 
