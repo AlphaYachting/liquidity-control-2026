@@ -18,12 +18,12 @@ const kurz = (d) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.` : '—');
 function useErledigt(woche) {
   const key = `liq-erledigt-${woche}`;
   const [set, setSet] = useState(() => {
-    try { return new Set(JSON.parse(window.localStorage.getItem(key) || '[]')); } catch (e) { return new Set(); }
+    try { return new Set(JSON.parse(window.localStorage.getItem(key) || '[]')); } catch { return new Set(); }
   });
   const umschalten = (id) => setSet((alt) => {
     const neu = new Set(alt);
     if (neu.has(id)) neu.delete(id); else neu.add(id);
-    try { window.localStorage.setItem(key, JSON.stringify([...neu])); } catch (e) { /* ohne Speicher nur für diese Sitzung */ }
+    try { window.localStorage.setItem(key, JSON.stringify([...neu])); } catch { /* ohne Speicher nur für diese Sitzung */ }
     return neu;
   });
   return [set, umschalten];
@@ -209,7 +209,7 @@ export function ZieleDialog({ open, monate, einstellungZeilen, onClose, onGespei
   }, [open, monate]);
   const speichern = async () => {
     setSpeichert(true);
-    const bisher = (() => { try { return JSON.parse((einstellungZeilen || []).find((s) => s.key === 'liquiditaet_ziele')?.value || '{}'); } catch (e) { return {}; } })();
+    const bisher = (() => { try { return JSON.parse((einstellungZeilen || []).find((s) => s.key === 'liquiditaet_ziele')?.value || '{}'); } catch { return {}; } })();
     const neu = { ...bisher };
     Object.entries(werte).forEach(([mk, v]) => {
       const zahl = Number(String(v).replace(/\./g, '').replace(',', '.')) || 0;
