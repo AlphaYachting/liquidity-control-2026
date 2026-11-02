@@ -25,7 +25,37 @@ async function laden() {
   const projekte = projektIds.length ? await base44.entities.Project.filter({ id: { $in: projektIds } }, 'title', 200) : [];
   const kundenIds = [...new Set(projekte.map((p) => p.client_id).filter(Boolean))];
   const kunden = kundenIds.length ? await base44.entities.Client.filter({ id: { $in: kundenIds } }, 'name', 200) : [];
-  return { snapshots, kosten, rechnungen, vertraege, etappen, sprints, projekte, kunden, anweisungen, zeiten };
+
+  // Lieferfähigkeit, Monatsblick und Wochenliste — alles nur lesend
+  const etappenIds = etappen.filter((m) => !m.invoiced_at).map((m) => m.id);
+  const [personen, tickets, einstellungZeilen, mahnungen, deals] = await Promise.all([
+    base44.entities.TeamMember.list('name', 200),
+    etappenIds.length ? base44.entities.Ticket.filter({ milestone_id: { $in: etappenIds } }, 'order', 2000) : [],
+    base44.entities.Setting.filter({ group: 'liquiditaet' }, 'key', 20).catch(() => []),
+    base44.entities.DunningRecord.list('-created_date', 500).catch(() => []),
+    base44.entities.CrmDeal.list('-updated_date', 500).catch(() => []),
+  ]);
+  const ticketIds = tickets.map((t) => t.id);
+  const ticketZeiten = ticketIds.length
+    ? await base44.entities.TimeEntry.filter({ ticket_id: { $in: ticketIds } }, '-entry_date', 5000)
+    : [];
+  const einstellungen = {};
+  einstellungZeilen.forEach((s) => {
+    try { einstellungen[String(s.key).replace('liquiditaet_', '')] = JSON.parse(s.value || '{}'); } catch (e) { /* ungültiger Wert wird ignoriert */ }
+  });
+  return {
+    snapshots, kosten, rechnungen, vertraege, etappen, sprints, projekte, kunden, anweisungen, zeiten,
+    personen, tickets, ticketZeiten, einstellungen, einstellungZeilen, mahnungen, deals,
+  };
+}
+
+// Speichert einen Liquiditäts-Einstellungswert (eigene Gruppe, berührt keine anderen Einstellungen).
+export async function speichereEinstellung(zeilen, schluessel, wert, label) {
+  const key = `liquiditaet_${schluessel}`;
+  const vorhanden = (zeilen || []).find((s) => s.key === key);
+  const value = JSON.stringify(wert || {});
+  if (vorhanden) await base44.entities.Setting.update(vorhanden.id, { value });
+  else await base44.entities.Setting.create({ key, value, group: 'liquiditaet', label });
 }
 
 export function useBetriebsLiquiditaetDaten() {
