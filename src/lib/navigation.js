@@ -5,7 +5,7 @@ import {
   Zap, Map, BrainCircuit, PieChart, CalendarDays, Users, BarChart2, Clock, DatabaseZap,
   RefreshCw, Trash2, RotateCcw, Scale, KanbanSquare, Inbox, History, Presentation,
   Sun, Gauge, Layers, LifeBuoy, Sparkles, SlidersHorizontal, Timer,
-  Receipt, ServerCog, MessageSquarePlus, Hourglass,
+  Receipt, ServerCog, MessageSquarePlus, Hourglass, Landmark,
 } from 'lucide-react';
 
 // Die EINE Liste aller Navigationspunkte. Die Sidebar rendert ausschließlich hieraus.
@@ -79,9 +79,9 @@ export const NAV_GRUPPEN = [
     titel: 'Finanzen & Auswertung',
     einklappbar: true,
     items: [
-      { path: '/dashboard', label: 'Finanz-Dashboard', icon: LayoutDashboard, regel: 'fuehrung' },
-      { path: '/weekly-cashflow', label: 'Wöchentl. Cashflow', icon: CalendarDays, regel: 'fuehrung' },
-      { path: '/forecast', label: 'Forecast & Szenarien', icon: TrendingUp, regel: 'fuehrung' },
+      // Liquidität des laufenden Betriebs (02.11.2026) ersetzt Finanz-Dashboard, Wöchentl. Cashflow und
+      // Forecast & Szenarien — diese Seiten bleiben über /dashboard, /weekly-cashflow, /forecast erreichbar.
+      { path: '/liquiditaet', label: 'Liquidität', icon: Landmark, regel: 'admin' },
       { path: '/variance-analysis', label: 'Abweichungsanalyse', icon: BarChart2, regel: 'fuehrung' },
       { path: '/revenue-analysis', label: 'Umsatzbewertung', icon: PieChart, regel: 'fuehrung' },
       { path: '/customer-risk', label: 'Kundenrisiko', icon: Users, regel: 'fuehrung' },
