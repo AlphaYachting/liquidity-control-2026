@@ -21,6 +21,7 @@ const Tools = lazy(() => import('@/pages/Tools'));
 const Receivables = lazy(() => import('@/pages/Receivables'));
 const Payables = lazy(() => import('@/pages/Payables'));
 const Forecast = lazy(() => import('@/pages/Forecast'));
+const Liquiditaet = lazy(() => import('@/pages/Liquiditaet'));
 const SefTest = lazy(() => import('@/pages/SefTest'));
 const ImportCenter = lazy(() => import('@/pages/ImportCenter'));
 const Settings = lazy(() => import('@/pages/Settings'));
@@ -175,6 +176,7 @@ const AuthenticatedApp = () => {
         <Route path="/receivables" element={<Receivables />} />
         <Route path="/payables" element={<Payables />} />
         <Route path="/forecast" element={<Forecast />} />
+        <Route path="/liquiditaet" element={<AdminRoute><Liquiditaet /></AdminRoute>} />
         <Route path="/seftest" element={<SefTest />} />
         <Route path="/import" element={<AdminRoute><ImportCenter /></AdminRoute>} />
         <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
