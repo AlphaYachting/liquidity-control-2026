@@ -9,9 +9,10 @@ const uhrzeit = (ms) => {
 };
 
 export function wartezeitText(eintrag, jetzt = Date.now()) {
-  if (!eintrag.sichtbar) return { text: `zählt ab ${uhrzeit(eintrag.sichtbarAb)}`, ton: 'neutral' };
+  if (!eintrag.sichtbar) return { text: `in Frist · fällig ab ${uhrzeit(eintrag.sichtbarAb)}`, ton: 'neutral' };
   const stunden = (jetzt - eintrag.eingang) / 3600000;
-  if (stunden >= 48) return { text: `${Math.floor(stunden / 24)} Tage unbeantwortet`, ton: 'critical' };
+  if (stunden >= 96) return { text: `${Math.floor(stunden / 24)} Tage unbeantwortet`, ton: 'critical' };
+  if (stunden >= 48) return { text: `seit ${Math.floor(stunden / 24)} Tagen`, ton: 'neutral' };
   if (stunden >= 24) return { text: 'seit 1 Tag', ton: 'neutral' };
   return { text: `seit ${Math.max(1, Math.floor(stunden))} Std.`, ton: 'neutral' };
 }
