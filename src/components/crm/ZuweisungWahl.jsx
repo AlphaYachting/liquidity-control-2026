@@ -31,7 +31,7 @@ export function ZustaendigHinweis({ eintrag }) {
   if (!eintrag?.zustaendig) return <span className="text-meta text-muted-foreground">nicht zugewiesen</span>;
   return (
     <span className="text-meta font-semibold text-foreground" title={eintrag.zuweisung?.quelle === 'automatisch' ? 'automatisch zugewiesen (ein Arbeitstag ohne Reaktion)' : undefined}>
-      → {nameVon(eintrag.zustaendig, team)}{eintrag.zuweisung?.quelle === 'automatisch' ? ' (auto)' : ''}
+      → {nameVon(eintrag.zustaendig, team)}{eintrag.zuweisung?.quelle === 'automatisch' ? ' (auto)' : eintrag.zuweisung?.quelle === 'empfaenger' ? ' (Empfänger)' : ''}
     </span>
   );
 }
@@ -55,7 +55,8 @@ export default function ZuweisungWahl({ eintrag, onChanged }) {
   const setzen = async (an) => {
     setBusy(true);
     try {
-      await zuweisen({ eintrag, an, vorhandene: eintrag.zuweisung || null });
+      // Abgeleitete Zuständigkeit (Empfänger) hat keinen Datensatz — dann wird eine Zuweisung angelegt
+      await zuweisen({ eintrag, an, vorhandene: eintrag.zuweisung?.id ? eintrag.zuweisung : null });
       toast({ title: an ? `Zugewiesen an ${nameVon(an, team)} — erscheint in „Mein Tag“` : 'Zuweisung aufgehoben' });
       queryClient.invalidateQueries({ queryKey: ['posteingang'] });
       queryClient.invalidateQueries({ queryKey: ['crm-escalations'] });
