@@ -150,7 +150,7 @@ export function KontostandDialog({ open, snapshots = [], onClose, onGespeichert 
   });
   const [form, setForm] = useState(leer);
   const [speichert, setSpeichert] = useState(false);
-  useEffect(() => { if (open) setForm(leer()); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) setForm(leer()); }, [open]);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const bearbeiten = (s) => setForm({
