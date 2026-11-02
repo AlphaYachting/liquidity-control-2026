@@ -3,7 +3,7 @@ import { ArrowUpDown, Clock, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { FILTER, SCHWELLE_ARBEITSSTUNDEN } from '@/lib/crm/posteingang';
+import { FILTER } from '@/lib/crm/posteingang';
 
 // Reiter über der EINEN Liste — sie filtern, sie zerlegen die Liste nicht in Spalten.
 // Darunter: Suche (grenzt die gewählte Sicht ein), jüngere Nachrichten, Sortierung.
@@ -81,9 +81,9 @@ export default function InboxFilterZeile({
             size="sm"
             variant={zeigeJung ? 'default' : 'outline'}
             onClick={onZeigeJung}
-            title={`Nachrichten, die noch keine ${SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden (Mo–Fr 8–17 Uhr) unbeantwortet sind`}
+            title="Kundenmails, die noch in der 2-Tage-Frist liegen — eingegangen, aber noch nicht fällig. So bleibt nachvollziehbar, was gerade hereinkommt."
           >
-            <Clock /> Jünger als {SCHWELLE_ARBEITSSTUNDEN} h ({jungAnzahl})
+            <Clock /> Noch in Frist ({jungAnzahl})
           </Button>
         )}
         <Button size="sm" variant="outline" onClick={onSortierung}>
