@@ -245,7 +245,9 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
     const klasse = klasseVon(e);
     // Support erscheint sofort, ohne die 4-Arbeitsstunden-Wartezeit (Entscheidung 23.10.2026):
     // Mails an support@ UND alles, was die KI als „Support (Web)“ einordnet.
-    const ab = e.sofort || e.eskalation || e.kanaele.includes('support') || klasse === 'support'
+    // Sofort sichtbar, ohne Frist: Support (23.10.2026), Eskalationen und NEUE ANFRAGEN / Leads
+    // (02.11.2026 — eine Angebotsanfrage darf nicht zwei Tage warten). Alles andere nach 2 Arbeitstagen.
+    const ab = e.sofort || e.eskalation || e.kanaele.includes('support') || klasse === 'support' || klasse === 'neu'
       ? e.eingang
       : sichtbarAb(e.eingang);
     // Zuständig: ausdrücklich zugewiesen — sonst die Person, an die der Kunde persönlich geschrieben hat
