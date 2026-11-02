@@ -1,24 +1,52 @@
 {
   "name": "BankBalanceSnapshot",
-  "type": "object",
   "properties": {
-    "balance_date": {
-      "type": "string",
-      "format": "date",
-      "description": "Stichtag des Bankbestands (Wochenanfang)"
+    "account": {
+      "description": "Konto. Leer gilt als Fortbetriebskonto (Altdaten). Nur das Fortbetriebskonto z\u00e4hlt zur Betriebsliquidit\u00e4t.",
+      "enum": [
+        "fortbetrieb",
+        "masse",
+        "altkonto"
+      ],
+      "type": "string"
     },
     "amount": {
-      "type": "number",
       "default": 0,
-      "description": "Bankanfangsbestand zu diesem Datum (EUR)"
+      "description": "Kontostand zu diesem Datum (EUR)",
+      "type": "number"
+    },
+    "balance_date": {
+      "description": "Stichtag des Bankbestands",
+      "format": "date",
+      "type": "string"
+    },
+    "belegstufe": {
+      "default": "auszug",
+      "description": "auszug = laut Kontoauszug; abgeleitet = aus letztem Auszug plus bekannten Buchungen; schaetzung",
+      "enum": [
+        "auszug",
+        "abgeleitet",
+        "schaetzung"
+      ],
+      "type": "string"
+    },
+    "locked_amount": {
+      "default": 0,
+      "description": "Davon gesperrt, nicht verf\u00fcgbar (z. B. Stammeinlage 17.500 \u20ac)",
+      "type": "number"
     },
     "notes": {
+      "type": "string"
+    },
+    "source_ref": {
+      "description": "Fundstelle, z. B. Auszug 49",
       "type": "string"
     }
   },
   "required": [
     "balance_date"
   ],
+  "type": "object",
   "rls": {
     "create": null,
     "read": null,
