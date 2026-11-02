@@ -15,7 +15,7 @@ import { Box } from '@/components/shared/Box';
 import InboxItemCard from '@/components/crm/InboxItemCard';
 import InboxThreadCard from '@/components/crm/InboxThreadCard';
 import { usePosteingang } from '@/hooks/usePosteingang';
-import { FILTER, SCHWELLE_ARBEITSSTUNDEN, KANAELE, imKanal, passtReiter, zaehleSicht } from '@/lib/crm/posteingang';
+import { FILTER, SCHWELLE_TEXT, KANAELE, imKanal, passtReiter, zaehleSicht } from '@/lib/crm/posteingang';
 import InboxFilterZeile from '@/components/crm/InboxFilterZeile';
 import SupportOhneZustaendig from '@/components/crm/support/SupportOhneZustaendig';
 import SupportTicketDialog from '@/components/crm/support/SupportTicketDialog';
@@ -197,8 +197,8 @@ export default function CrmInbox() {
         bereich="CRM"
         titel={seitenTitel}
         kontext={kanal === 'support'
-          ? `${kopfAnzahl} unbeantwortet an ${KANAELE.support.adresse} · erscheint sofort${kopfUeberfaellig > 0 ? ` · ${kopfUeberfaellig} davon länger als 2 Tage` : ''}`
-          : `${kopfAnzahl} unbeantwortet${kanal ? ` an ${KANAELE[kanal].adresse}` : ''} seit mindestens ${SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden · Support sofort${kopfUeberfaellig > 0 ? ` · ${kopfUeberfaellig} davon länger als 2 Tage` : ''}`}
+          ? `${kopfAnzahl} unbeantwortet an ${KANAELE.support.adresse} · erscheint sofort${kopfUeberfaellig > 0 ? ` · ${kopfUeberfaellig} davon länger als 4 Tage` : ''}`
+          : `${kopfAnzahl} unbeantwortet${kanal ? ` an ${KANAELE[kanal].adresse}` : ''} seit mindestens ${SCHWELLE_TEXT} · Support sofort${kopfUeberfaellig > 0 ? ` · ${kopfUeberfaellig} davon länger als 4 Tage` : ''}`}
         aktionen={
           <>
             <Button variant="outline" asChild>
@@ -284,7 +284,7 @@ export default function CrmInbox() {
                   <p className="text-meta text-muted-foreground mt-1 max-w-sm mx-auto">
                     {kanal === 'support'
                       ? <>Hier erscheint jede unbeantwortete Mail an {KANAELE.support.adresse}, sofort nach dem Eingang.</>
-                      : <>Hier erscheint jede Kundennachricht, auf die seit {SCHWELLE_ARBEITSSTUNDEN} Arbeitsstunden niemand geantwortet hat,
+                      : <>Hier erscheint jede Kundennachricht, auf die seit {SCHWELLE_TEXT} niemand geantwortet hat,
                         Eskalationen sofort.</>}{' '}
                     Beantwortetes findest du in der E-Mail-Zentrale.
                   </p>
