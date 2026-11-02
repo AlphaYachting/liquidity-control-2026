@@ -11,6 +11,20 @@ import { domainOf, isFreemailDomain, isInternalDomain } from './senderLists.js';
 
 export const ARBEITSTAG_STUNDEN = 9;
 export const STICHTAG = '2026-10-12 00:00:00';
+
+// Sammeladressen sind keine Person — an sie gerichtete Post wird über Projekt bzw. GF zugewiesen
+const SAMMELADRESSEN = /^(office|support|info|invoice|adwords|rechnung|buchhaltung|kontakt|hallo|team|no-?reply)@/;
+
+/**
+ * Ging die Kundenmail persönlich an GENAU eine Person von uns (im „An“)? Dann ist sie zuständig
+ * (02.11.2026). Sammeladressen zählen nicht; bei mehreren Personen gibt es keine eindeutige Zuständigkeit.
+ */
+export function persoenlicherEmpfaenger(lastTo, aktive = null) {
+  const adressen = [...new Set((String(lastTo || '').toLowerCase().match(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/g) || [])
+    .filter((a) => a.endsWith('@rittler.co') && !SAMMELADRESSEN.test(a)))];
+  if (adressen.length !== 1) return '';
+  return !aktive || aktive.has(adressen[0]) ? adressen[0] : '';
+}
 const MAX_JE_LAUF = 25;
 const SCHRITT = 15 * 60 * 1000;
 
