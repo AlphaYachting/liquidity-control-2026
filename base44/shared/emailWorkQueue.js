@@ -11,7 +11,7 @@ const CALENDAR_RESPONSE = /^\s*(angenommen|abgelehnt|zugesagt|abgesagt|mit vorbe
 const NOREPLY = /(^|[^a-z0-9])(no-?reply|do-?not-?reply|mailer-daemon|postmaster|mailrobot)@/i;
 
 // Präfixe, die eine Konversation nicht verändern (Antwort, Weiterleitung, Kalender, Autoreply)
-const PREFIX = /^\s*(re|aw|fw|fwd|wg|antw|antwort|angenommen|abgelehnt|zugesagt|abgesagt|mit vorbehalt angenommen|vorläufig angenommen|accepted|declined|tentative|tentatively accepted|einladung|aktualisierte einladung|invitation|updated invitation|automatische antwort|unzustellbar)\s*(\[\d+\])?\s*:\s*/i;
+const PREFIX = /^\s*(re|aw|fw|fwd|wg|antw|antwort|ext|extern|external|angenommen|abgelehnt|zugesagt|abgesagt|mit vorbehalt angenommen|vorläufig angenommen|accepted|declined|tentative|tentatively accepted|einladung|aktualisierte einladung|invitation|updated invitation|automatische antwort|unzustellbar)\s*(\[\d+\])?\s*:\s*/i;
 
 // "2026-10-01 08:23:22" (UTC aus der E-Mail-DB) oder ISO -> Millisekunden
 export function toTime(s) {
@@ -37,6 +37,27 @@ export function normalizeSubject(s) {
 }
 
 const emailOf = (s) => (String(s || '').toLowerCase().match(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/) || [])[0] || '';
+const alleAdressen = (s) => String(s || '').toLowerCase().match(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/g) || [];
+
+/**
+ * Antworten unter beliebigem Betreff (02.11.2026): Zu jeder externen Adresse der jüngste Zeitpunkt,
+ * an dem jemand von uns ihr geschrieben hat (letzte Nachricht eines Verlaufs, ausgehend).
+ * Eine Kundenmail gilt als beantwortet, wenn danach an GENAU diese Absenderadresse geschrieben wurde —
+ * egal unter welchem Betreff. Bewusst die Adresse, nicht die Firma.
+ */
+export function antwortenNachAdresse(rows) {
+  const karte = new Map();
+  for (const r of rows || []) {
+    if ((r.last_direction || r.direction) !== 'out') continue;
+    const t = toTime(r.last_message_at);
+    for (const a of alleAdressen(r.last_to)) {
+      const d = domainOf(a);
+      if (!d || isInternalDomain(d)) continue;
+      if (t > (karte.get(a) || 0)) karte.set(a, t);
+    }
+  }
+  return karte;
+}
 
 // Gegenstelle der Konversation: Firmen-Domain, bei Freemail die ganze Adresse
 export function counterpartOf(t) {
@@ -102,7 +123,8 @@ export function computeNeedsReply(t) {
  * kanal_support: irgendeine Kundennachricht der Konversation ging an support@ (An oder Kopie) —
  * die Konversation ist dann Support, auch wenn der Kunde später direkt einem Kollegen antwortet.
  */
-export function resolveConversations(rows) {
+export function resolveConversations(rows, { antworten = null } = {}) {
+  const antwortKarte = antworten || antwortenNachAdresse(rows);
   const groups = new Map();
   for (const r of rows || []) {
     const key = conversationKeyOf(r);
@@ -119,7 +141,11 @@ export function resolveConversations(rows) {
     let openId = null;
     if (relevant.length) {
       const newest = relevant.reduce((a, b) => (toTime(b.last_message_at) > toTime(a.last_message_at) ? b : a));
-      if (computeNeedsReply(newest) && toTime(newest.last_message_at) > doneAt) openId = String(newest.thread_id);
+      const eingang = toTime(newest.last_message_at);
+      // Unter anderem Betreff beantwortet? Danach an genau diese Absenderadresse geschrieben
+      const kundenAdresse = emailOf(newest.last_from || newest.last_inbound_from);
+      const anderswoBeantwortet = !!kundenAdresse && (antwortKarte.get(kundenAdresse) || 0) > eingang;
+      if (computeNeedsReply(newest) && eingang > doneAt && !anderswoBeantwortet) openId = String(newest.thread_id);
     }
     const kanalSupport = list.some((r) => {
       const dir = r.last_direction || r.direction;
