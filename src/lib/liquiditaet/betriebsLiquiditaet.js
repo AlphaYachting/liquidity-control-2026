@@ -105,10 +105,14 @@ export function baueBetriebsLiquiditaet(daten = {}, optionen = {}) {
   const {
     snapshots = [], kosten = [], rechnungen = [], vertraege = [], etappen = [], sprints = [],
     projekte = [], kunden = [], anweisungen = [], zeiten = [],
+    personen = [], tickets = [], ticketZeiten = [], einstellungen = {}, mahnungen = [], deals = [],
   } = daten;
   const heute = optionen.heute || iso(new Date());
   const wochen = optionen.wochen || 13;
   const mitSzenario = !!optionen.mitSzenario;
+  const gfEmail = (optionen.gfEmail || '').toLowerCase();
+  // Alles, was fakturiert werden soll (auch mit Zahlung nach dem Horizont) — Grundlage für Monatsblick und Wochenliste
+  const faktura = [];
 
   const konto = aktuellerKontostand(snapshots, heute);
   const kontostand = konto ? num(konto.amount) : 0;
@@ -212,7 +216,9 @@ export function baueBetriebsLiquiditaet(daten = {}, optionen = {}) {
           betrag: brutto(v.monthly_fixed_price), datum: zahlung, belegstufe: 'vertrag',
           hinweis: `Monatsrechnung ${mk} noch nicht gestellt – Rechnung ${rdat}, Zahlung + ${ZAHLUNGSZIEL_TAGE} Tage`,
           quelle: { typ: 'vertrag', id: v.id },
+          rechnungsdatum: rdat, netto: num(v.monthly_fixed_price), vertragsart: v.contract_type,
         };
+        faktura.push(e);
         if (wocheVon(e.datum) >= 0) vertragsZeilen.push(e);
         ein(e);
       });
@@ -224,7 +230,9 @@ export function baueBetriebsLiquiditaet(daten = {}, optionen = {}) {
         betrag: brutto(v.annual_amount), datum: addDays(v.due_date, ZAHLUNGSZIEL_TAGE + verzugVon(v.customer)), belegstufe: 'vertrag',
         hinweis: `Jahresverrechnung zur Fälligkeit ${v.due_date} (laut Vertrag), Zahlung + ${ZAHLUNGSZIEL_TAGE} Tage`,
         quelle: { typ: 'vertrag', id: v.id },
+        rechnungsdatum: v.due_date, netto: num(v.annual_amount), vertragsart: v.contract_type,
       };
+      faktura.push(e);
       if (wocheVon(e.datum) >= 0) vertragsZeilen.push(e);
       ein(e);
     }
@@ -235,27 +243,123 @@ export function baueBetriebsLiquiditaet(daten = {}, optionen = {}) {
   const projektById = new Map(projekte.map((p) => [p.id, p]));
   const kundeById = new Map(kunden.map((k) => [k.id, k]));
   const etappenZeilen = [];
+
+  // Lieferfähigkeit: wer arbeitet an der Etappe, ist die Person bis zum Rechnungstermin da, wie viel ist noch offen
+  const personByEmail = new Map(personen.map((p) => [(p.email || '').toLowerCase(), p]));
+  const verfuegbarBis = einstellungen.personal || {};
+  const personName = (email) => personByEmail.get(email)?.name || email || '—';
+  const istVerfuegbar = (email, datum) => {
+    const p = personByEmail.get(email);
+    if (!p || p.active === false) return false;
+    const bis = verfuegbarBis[email];
+    return !bis || bis >= datum;
+  };
+  const gebuchtJeTicket = new Map();
+  ticketZeiten.forEach((t) => { if (t.ticket_id) gebuchtJeTicket.set(t.ticket_id, (gebuchtJeTicket.get(t.ticket_id) || 0) + num(t.duration_minutes)); });
+  const ticketsJeEtappe = new Map();
+  tickets.forEach((t) => {
+    if (t.archiviert) return;
+    const arr = ticketsJeEtappe.get(t.milestone_id) || [];
+    arr.push(t);
+    ticketsJeEtappe.set(t.milestone_id, arr);
+  });
+  const zustaendigeVon = (t) => {
+    const liste = Array.isArray(t.assignee_emails) && t.assignee_emails.length ? t.assignee_emails : (t.assignee_email ? [t.assignee_email] : []);
+    return liste.map((e) => String(e).toLowerCase());
+  };
+  const restStunden = (t) => (t.rest_stunden !== null && t.rest_stunden !== undefined && t.rest_stunden !== ''
+    ? num(t.rest_stunden)
+    : Math.max(0, num(t.target_hours) - (gebuchtJeTicket.get(t.id) || 0) / 60));
+
+  const LIEFER_LABEL = {
+    freigegeben: 'freigegeben',
+    freigabe_fehlt: 'Aufgaben erledigt – Freigabe fehlt',
+    in_arbeit: 'besetzt',
+    wartet: 'wartet auf Kunde',
+    unbesetzt: 'nicht besetzt',
+    keine_aufgaben: 'keine Aufgaben angelegt',
+  };
+
   etappen.forEach((m) => {
     if (num(m.milestone_amount) <= 0 || m.invoiced_at) return;
     const sprint = sprintById.get(m.sprint_id);
     const projekt = sprint ? projektById.get(sprint.project_id) : null;
     const kunde = projekt ? (kundeById.get(projekt.client_id)?.name || projekt.title) : '—';
+    const plEmail = (projekt?.pm_email || '').toLowerCase();
     const geplant = m.planned_freeze || m.planned_handover || null;
+
+    const alle = ticketsJeEtappe.get(m.id) || [];
+    const offen = alle.filter((t) => t.status !== 'erledigt');
+    const jePerson = new Map();
+    let ohneZustaendige = 0;
+    offen.forEach((t) => {
+      const z = zustaendigeVon(t);
+      const h = restStunden(t);
+      if (!z.length) { ohneZustaendige += h; return; }
+      z.forEach((em) => jePerson.set(em, (jePerson.get(em) || 0) + h / z.length));
+    });
+    const restGesamt = offen.reduce((s, t) => s + restStunden(t), 0);
+
     let rdat; let hinweis; let verzoegert = false;
     if (m.released) { rdat = heute; hinweis = 'freigegeben, noch nicht verrechnet – Rechnung sofort'; }
+    else if (alle.length && !offen.length) { rdat = heute; hinweis = 'alle Aufgaben erledigt – Freigabe einholen, dann sofort verrechnen'; }
     else if (geplant && geplant >= heute) { rdat = geplant; hinweis = `Rechnung zum geplanten Freeze ${geplant}`; }
     else if (geplant) { rdat = addDays(heute, 7); verzoegert = true; hinweis = `verzögert – geplanter Freeze war ${geplant}, Rechnung frühestens in einer Woche angenommen`; }
     else { nichtEingeplant.push({ id: m.id, art: 'etappe', kunde, label: m.title, betrag: brutto(m.milestone_amount), grund: 'Etappe ohne Termin' }); return; }
+
+    // Besetzung zum Rechnungstermin prüfen
+    let status;
+    const nichtVerfuegbar = [...jePerson.keys()].filter((em) => !istVerfuegbar(em, rdat));
+    if (m.released) status = 'freigegeben';
+    else if (!alle.length) status = 'keine_aufgaben';
+    else if (!offen.length) status = 'freigabe_fehlt';
+    else if (ohneZustaendige > 0 || nichtVerfuegbar.length) status = 'unbesetzt';
+    else if (offen.every((t) => t.status === 'wartet')) status = 'wartet';
+    else status = 'in_arbeit';
+
+    const risiken = [];
+    if (verzoegert) risiken.push('Etappe verzögert');
+    if (status === 'unbesetzt' || status === 'keine_aufgaben') {
+      rdat = addDays(rdat, 28);
+      const grund = status === 'keine_aufgaben'
+        ? 'keine Aufgaben angelegt'
+        : [ohneZustaendige > 0 ? `${ohneZustaendige.toFixed(1).replace('.', ',')} h ohne Zuständige` : null,
+          nichtVerfuegbar.length ? `nicht verfügbar: ${nichtVerfuegbar.map(personName).join(', ')}` : null].filter(Boolean).join(', ');
+      risiken.push(`${LIEFER_LABEL[status]} (${grund}) – Rechnung um 4 Wochen verschoben`);
+      hinweis = `${hinweis}; ${grund} – daher 4 Wochen später angesetzt`;
+    }
+    if (status === 'wartet') risiken.push('wartet auf Kunde');
+    const beiDir = gfEmail ? (jePerson.get(gfEmail) || 0) : 0;
+    if (beiDir > 0 && restGesamt > 0 && beiDir / restGesamt >= 0.5) risiken.push(`${beiDir.toFixed(0)} von ${restGesamt.toFixed(0)} h liegen bei dir`);
+
     const e = {
       id: m.id, art: 'etappe', kunde, label: `${sprint?.title ? `${sprint.title} · ` : ''}${m.title}`,
-      betrag: brutto(m.milestone_amount), netto: num(m.milestone_amount),
+      betrag: brutto(m.milestone_amount), netto: num(m.milestone_amount), rechnungsdatum: rdat,
       datum: addDays(rdat, ZAHLUNGSZIEL_TAGE), belegstufe: 'plan', hinweis, verzoegert,
-      risiko: verzoegert ? 'Etappe verzögert' : null,
+      risiko: risiken.length ? risiken.join(' · ') : null,
       quelle: { typ: 'etappe', id: m.id, sprintId: m.sprint_id }, status: m.state,
+      lieferung: {
+        status, label: LIEFER_LABEL[status], pl: plEmail ? personName(plEmail) : '—', plEmail,
+        aufgabenOffen: offen.length, aufgabenGesamt: alle.length, restStunden: round2(restGesamt),
+        ohneZustaendige: round2(ohneZustaendige), beiDir: round2(beiDir),
+        jePerson: [...jePerson.entries()].map(([em, h]) => ({ email: em, name: personName(em), stunden: round2(h), verfuegbar: istVerfuegbar(em, rdat), bis: verfuegbarBis[em] || null }))
+          .sort((a, b) => b.stunden - a.stunden),
+      },
     };
     etappenZeilen.push(e);
+    faktura.push(e);
     ein(e);
   });
+
+  // Offene Etappenstunden je Person (nur nicht freigegebene Etappen)
+  const lastJePerson = new Map();
+  etappenZeilen.forEach((e) => (e.lieferung?.jePerson || []).forEach((p) => {
+    const cur = lastJePerson.get(p.email) || { email: p.email, name: p.name, stunden: 0, etappen: 0, bis: p.bis };
+    cur.stunden += p.stunden; cur.etappen += 1;
+    lastJePerson.set(p.email, cur);
+  }));
+  const personenLast = [...lastJePerson.values()].map((p) => ({ ...p, stunden: round2(p.stunden), istDu: p.email === gfEmail }))
+    .sort((a, b) => b.stunden - a.stunden);
 
   // ── 4. Offene Abrechnungsanweisungen ─────────────────────────────────────
   const anweisungsZeilen = [];
