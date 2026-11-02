@@ -383,8 +383,12 @@ export function baueBetriebsLiquiditaet(daten = {}, optionen = {}) {
       nichtEingeplant.push({ ...basis, grund: a.planned_invoice_date ? `Rechnungsdatum ${a.planned_invoice_date} liegt über 30 Tage zurück` : `ohne Rechnungsdatum, angelegt ${erstellt || '—'}` });
       return;
     }
-    const e = { ...basis, datum: addDays(rdat, ZAHLUNGSZIEL_TAGE), hinweis };
+    const e = {
+      ...basis, datum: addDays(rdat, ZAHLUNGSZIEL_TAGE), hinweis, rechnungsdatum: rdat,
+      netto: num(a.instruction_amount_net) > 0 ? num(a.instruction_amount_net) : round2(betrag / (1 + UST_STANDARD / 100)),
+    };
     anweisungsZeilen.push(e);
+    faktura.push(e);
     ein(e);
   });
 
@@ -409,9 +413,10 @@ export function baueBetriebsLiquiditaet(daten = {}, optionen = {}) {
       id: `regie:${mk}`, art: 'regie', kunde: 'mehrere Kunden', label: `Regie & Support ${mk} · ${(v.minuten / 60).toFixed(1).replace('.', ',')} h`,
       betrag: brutto(v.netto), netto: round2(v.netto), datum: addDays(rdat, ZAHLUNGSZIEL_TAGE), belegstufe: 'schaetzung',
       hinweis: `${v.buchungen} verrechenbare Buchungen ohne Abrechnung; Sammelrechnung ${rdat}, Zahlung + ${ZAHLUNGSZIEL_TAGE} Tage (ohne Aufrundung)`,
-      quelle: { typ: 'zeit', monat: mk },
+      quelle: { typ: 'zeit', monat: mk }, rechnungsdatum: rdat,
     };
     regieZeilen.push(e);
+    faktura.push(e);
     ein(e);
   });
 
@@ -463,6 +468,104 @@ export function baueBetriebsLiquiditaet(daten = {}, optionen = {}) {
     g.summe = round2(g.summe + num(e.betrag)); g.zeilen.push(e); gruppen[e.grund] = g;
   });
 
+  // ── Monatsblick: Fakturierungsbedarf gegen das, was schon gesichert ist (netto) ──
+  // Näherung: Mindest-Fakturierung = Auszahlungen des Monats ohne Umsatzsteuer (die USt läuft durch).
+  const ziele = einstellungen.ziele || {};
+  const monatsblick = monate.map((mk) => {
+    const kostenOhneUst = round2(ereignisse.filter((e) => e.richtung === 'aus' && e.art !== 'umsatzsteuer' && monatVon(e.datum) === mk)
+      .reduce((s, e) => s + e.betrag, 0));
+    const fakturiert = round2(rechnungen.filter((r) => r.invoice_date && monatVon(r.invoice_date) === mk
+      && r.payment_status !== 'cancelled' && r.payment_status !== 'draft' && r.invoice_date >= STICHTAG_FORTBETRIEB)
+      .reduce((s, r) => s + (r.is_credit_note && num(r.net_amount) > 0 ? -1 : 1) * num(r.net_amount), 0));
+    const geplanteZeilen = faktura.filter((f) => f.rechnungsdatum && monatVon(f.rechnungsdatum) === mk);
+    const geplant = round2(geplanteZeilen.reduce((s, f) => s + num(f.netto), 0));
+    const geplantNachArt = {};
+    geplanteZeilen.forEach((f) => { geplantNachArt[f.art] = round2((geplantNachArt[f.art] || 0) + num(f.netto)); });
+    const gesichert = round2(fakturiert + geplant);
+    const offeneDeals = deals.filter((d) => !['won', 'lost', 'declined', 'ordered'].includes(d.stage)
+      && d.expected_close_date && monatVon(d.expected_close_date) === mk && num(d.value_net) > 0);
+    const pipeline = round2(offeneDeals.reduce((s, d) => s + num(d.value_net) * num(d.probability_percent ?? 50) / 100, 0));
+    return {
+      monat: mk, kostenOhneUst, fakturiert, geplant, geplantNachArt, gesichert,
+      luecke: round2(Math.max(0, kostenOhneUst - gesichert)),
+      deckung: kostenOhneUst > 0 ? Math.round((gesichert / kostenOhneUst) * 100) : null,
+      ziel: num(ziele[mk]), pipeline, pipelineAnzahl: offeneDeals.length,
+      pipelineDeals: offeneDeals.map((d) => ({ id: d.id, titel: d.title, kunde: d.company_name, netto: num(d.value_net), wahrscheinlichkeit: num(d.probability_percent ?? 50) }))
+        .sort((a, b) => b.netto - a.netto),
+    };
+  });
+
+  // ── Arbeitsliste „Diese Woche" ──
+  const wocheEnde = addDays(start, 6);
+  const GF = 'Geschäftsführung';
+  const linkFuer = (f) => {
+    if (f.art === 'anweisung') return '/invoice-ready';
+    if (f.art === 'regie') return '/support-billing';
+    if (f.art === 'etappe') return '/sprint/rechnungsuebergabe';
+    if (f.vertragsart === 'online_marketing') return '/online-marketing';
+    if (f.vertragsart === 'maintenance') return '/maintenance';
+    if (f.vertragsart === 'support') return '/support-billing';
+    return '/hosting';
+  };
+  const fakturieren = faktura
+    .filter((f) => f.rechnungsdatum && f.rechnungsdatum <= wocheEnde && (f.art !== 'etappe' || f.lieferung?.status === 'freigegeben'))
+    .map((f) => ({
+      id: `fak:${f.id}`, art: f.art, label: f.label, kunde: f.kunde, netto: round2(f.netto), datum: f.rechnungsdatum,
+      link: linkFuer(f), zustaendig: GF,
+      hinweis: f.art === 'vertrag' ? 'Rechnung für diesen Monat fehlt – wiederkehrende Rechnung in sevDesk prüfen' : f.hinweis,
+    }))
+    .sort((a, b) => b.netto - a.netto);
+
+  const mahnStand = new Map();
+  mahnungen.forEach((d) => {
+    if (!d.invoice_number || ['closed_paid', 'rejected'].includes(d.status)) return;
+    const cur = mahnStand.get(d.invoice_number);
+    if (!cur || num(d.dunning_level) > num(cur.dunning_level)) mahnStand.set(d.invoice_number, d);
+  });
+  const mahnen = forderungen
+    .filter((f) => f.erwartet && f.faellig && f.faellig < heute && f.liqStatus === 'normal')
+    .map((f) => {
+      const d = mahnStand.get(f.quelle.nummer);
+      return {
+        id: `mahn:${f.id}`, label: `Rechnung ${f.quelle.nummer}`, kunde: f.kunde, betrag: f.betrag, faellig: f.faellig,
+        tageUeber: diffDays(heute, f.faellig), mahnstufe: d ? (d.level_label || `Stufe ${d.dunning_level}`) : null,
+        link: '/receivables', zustaendig: GF,
+      };
+    })
+    .sort((a, b) => b.tageUeber - a.tageUeber || b.betrag - a.betrag);
+
+  const klaeren = forderungen
+    .filter((f) => ['ungeklaert', 'bezahlt_wahrscheinlich'].includes(f.liqStatus)
+      || (f.liqStatus === 'normal' && (f.notiz || String(f.kunde).startsWith('—'))))
+    .map((f) => ({
+      id: `kl:${f.id}`, rechnungId: f.id, label: `Rechnung ${f.quelle.nummer}`, kunde: f.kunde, betrag: f.betrag,
+      liqStatus: f.liqStatus, notiz: f.notiz || (String(f.kunde).startsWith('—') ? 'Rechnung ohne Kundennamen' : ''), zustaendig: GF,
+    }));
+
+  const sprintGruppen = new Map();
+  etappenZeilen
+    .filter((e) => e.lieferung?.status !== 'freigegeben'
+      && (e.verzoegert || e.rechnungsdatum <= addDays(wocheEnde, 7) || ['unbesetzt', 'keine_aufgaben', 'freigabe_fehlt'].includes(e.lieferung?.status)))
+    .forEach((e) => {
+      const key = e.quelle.sprintId || e.id;
+      const g = sprintGruppen.get(key) || {
+        id: `et:${key}`, sprintId: e.quelle.sprintId, kunde: e.kunde, titel: e.label.split(' · ')[0], positionen: 0, netto: 0,
+        status: new Set(), verzoegert: 0, pl: e.lieferung?.pl || '—', restStunden: 0, beiDir: 0, link: e.quelle.sprintId ? `/sprint/sprints/${e.quelle.sprintId}` : '/sprint/projekte',
+      };
+      g.positionen += 1; g.netto = round2(g.netto + e.netto); g.status.add(e.lieferung?.label);
+      if (e.verzoegert) g.verzoegert += 1;
+      g.restStunden = round2(g.restStunden + num(e.lieferung?.restStunden)); g.beiDir = round2(g.beiDir + num(e.lieferung?.beiDir));
+      sprintGruppen.set(key, g);
+    });
+  const etappenListe = [...sprintGruppen.values()].map((g) => ({ ...g, status: [...g.status].filter(Boolean), zustaendig: g.pl }))
+    .sort((a, b) => b.netto - a.netto);
+
+  const arbeitsliste = {
+    von: start, bis: wocheEnde, kw: kwVon(start),
+    fakturieren, mahnen, klaeren, etappen: etappenListe,
+    kontostand: konto && diffDays(heute, kontoDatum) <= 7 ? null : { datum: konto?.balance_date || null, alterTage: konto ? diffDays(heute, kontoDatum) : null },
+  };
+
   return {
     heute, start, ende: addDays(ende, -1), wochen: zeilen, ereignisse,
     konto: { stand: kontostand, gesperrt, verfuegbar: round2(kontostand - gesperrt), datum: kontoDatum, snapshot: konto, alterTage: konto ? diffDays(heute, kontoDatum) : null },
@@ -477,5 +580,6 @@ export function baueBetriebsLiquiditaet(daten = {}, optionen = {}) {
     forderungen: forderungen.sort((a, b) => (a.faellig || '').localeCompare(b.faellig || '')),
     ausgebucht, vertragsZeilen, etappenZeilen, anweisungsZeilen, regieZeilen,
     nichtEingeplant: Object.values(gruppen).sort((a, b) => b.summe - a.summe),
+    monatsblick, arbeitsliste, personenLast,
   };
 }
