@@ -1,7 +1,7 @@
 // Schreibt das Ergebnis der Konversationsregel in den Verlaufs-Index (EmailThreadIndex).
 // Genutzt vom 15-Minuten-Lauf (syncEmailThreadIndex) und sofort nach jeder
 // Erledigt-/Antwort-Aktion aus der App (emailDbApi, Aktion enrich).
-import { resolveConversations } from './emailWorkQueue.js';
+import { resolveConversations, antwortenNachAdresse } from './emailWorkQueue.js';
 
 const PAGE = 500;
 const MAX_PAGES = 12;
@@ -88,9 +88,21 @@ export async function recomputeWindow(svc, days = 45) {
 }
 
 // Nur die Konversation eines Verlaufs neu auflösen (sofort nach einer Aktion in der App).
+// Antworten unter anderem Betreff an dieselbe Absenderadresse werden mitgeladen (02.11.2026).
 export async function recomputeConversationOf(svc, row) {
   if (!row?.conversation_key) return 0;
   const rows = await loadAll(svc, { conversation_key: row.conversation_key });
   const merged = rows.map((r) => (r.id === row.id ? { ...r, ...row } : r));
-  return (await writeChanges(svc, merged, resolveConversations(merged), 50)).geschrieben;
+  const adressen = [...new Set(merged
+    .map((r) => (String(r.last_from || r.last_inbound_from || '').toLowerCase().match(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/) || [])[0])
+    .filter(Boolean))].slice(0, 5);
+  const antwortZeilen = [];
+  for (const a of adressen) {
+    const muster = a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    antwortZeilen.push(...(await svc.entities.EmailThreadIndex
+      .filter({ last_direction: 'out', last_to: { $regex: muster } }, '-last_message_at', 50)
+      .catch(() => [])));
+  }
+  const antworten = antwortenNachAdresse([...merged, ...antwortZeilen]);
+  return (await writeChanges(svc, merged, resolveConversations(merged, { antworten }), 50)).geschrieben;
 }
