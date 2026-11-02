@@ -65,7 +65,10 @@ export function usePosteingang({ enabled = true } = {}) {
     const ich = (user?.email || '').toLowerCase();
     const alle = baueEintraege({ ...d, eskalationen, eskalationKeys: new Set(d.eskalationKeys || []), jetzt: Date.now(), istAdmin, ich });
     // Zugewiesene Post der angemeldeten Person — auch Eskalationen, sofort, ohne Wartezeit
-    const meine = alle.filter((e) => ich && (e.zustaendig || '').toLowerCase() === ich);
+    // Zugewiesene Post der angemeldeten Person: fällige (2-Tage-Frist, Support/Eskalation sofort) —
+    // ausdrücklich von einer Person zugewiesene sofort (02.11.2026)
+    const meine = alle.filter((e) => ich && (e.zustaendig || '').toLowerCase() === ich
+      && (e.sichtbar || e.zuweisung?.quelle === 'manuell'));
     const eintraege = siehtEskalationsseite ? alle.filter((e) => !e.eskalation) : alle;
     const eskalationenAusgelagert = siehtEskalationsseite ? alle.filter((e) => e.eskalation).length : 0;
     return { eintraege, meine, eskalationenAusgelagert, ...zaehle(eintraege) };
