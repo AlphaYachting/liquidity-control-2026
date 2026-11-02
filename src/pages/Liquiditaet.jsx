@@ -17,6 +17,10 @@ import {
 } from '@/lib/liquiditaet/betriebsLiquiditaet';
 import { useBetriebsLiquiditaetDaten, LIQ_KEY } from '@/lib/liquiditaet/useBetriebsLiquiditaet';
 import { KostenpostenDialog, KontostandDialog } from '@/components/liquiditaet/LiquiditaetDialoge';
+import {
+  DieseWoche, Monatsblick, ZieleDialog, Lieferung, PersonenLast, VerfuegbarkeitDialog,
+} from '@/components/liquiditaet/LiquiditaetBloecke';
+import { useAuth } from '@/lib/AuthContext';
 
 const kurzDatum = (d) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.` : '—');
 const BELEG_TEXT = { beleg: 'Rechnung', vertrag: 'Vertrag', plan: 'Plan', schaetzung: 'Schätzung', ist: 'Ist' };
@@ -124,9 +128,13 @@ export default function Liquiditaet() {
   const [detail, setDetail] = useState(null);
   const [postenDialog, setPostenDialog] = useState({ offen: false, posten: null });
   const [kontoDialog, setKontoDialog] = useState(false);
+  const [zieleDialog, setZieleDialog] = useState(false);
+  const [verfDialog, setVerfDialog] = useState(false);
+  const { user } = useAuth();
+  const gfEmail = (user?.email || '').toLowerCase();
   const neuLaden = () => qc.invalidateQueries({ queryKey: LIQ_KEY });
 
-  const plan = useMemo(() => (data ? baueBetriebsLiquiditaet(data, { mitSzenario }) : null), [data, mitSzenario]);
+  const plan = useMemo(() => (data ? baueBetriebsLiquiditaet(data, { mitSzenario, gfEmail }) : null), [data, mitSzenario, gfEmail]);
 
   if (error) return <p className="text-sm text-red-600">Die Liquiditätsdaten konnten nicht geladen werden: {error.message}</p>;
   if (isLoading || !plan) {
@@ -149,6 +157,7 @@ export default function Liquiditaet() {
     await base44.entities.InvoiceRecord.update(rechnung.id, { liquiditaet_status: status });
     neuLaden();
   };
+  const statusSetzenId = (id, status) => statusSetzen({ id }, status);
   const vertragUmschalten = async (vertragId, an) => {
     await base44.entities.RecurringContract.update(vertragId, { in_liquiditaet: an });
     neuLaden();
@@ -204,8 +213,12 @@ export default function Liquiditaet() {
         </div>
       )}
 
+      <DieseWoche liste={plan.arbeitsliste} onStatus={statusSetzenId} onKontostand={() => setKontoDialog(true)} />
+
       <Wochentabelle plan={plan} onZelle={oeffneZelle} />
       <p className="text-[11px] text-muted-foreground -mt-3">Alle Beträge brutto. Ein Klick auf einen Betrag zeigt die einzelnen Posten mit Herkunft.</p>
+
+      <Monatsblick monate={plan.monatsblick} onZiele={() => setZieleDialog(true)} />
 
       <Tabs defaultValue="kosten">
         <TabsList>
@@ -296,8 +309,32 @@ export default function Liquiditaet() {
         </TabsContent>
 
         <TabsContent value="projekte" className="space-y-3">
+          <PersonenLast personen={plan.personenLast} onVerfuegbarkeit={() => setVerfDialog(true)} />
+          <Card className="p-3">
+            <div className="flex items-baseline justify-between">
+              <p className="text-sm font-semibold">Projektetappen (Sprint)</p>
+              <p className="text-xs tabular-nums font-semibold">{fmtEUR(plan.etappenZeilen.reduce((s, e) => s + e.betrag, 0))}</p>
+            </div>
+            <p className="text-[11px] text-muted-foreground mb-1">Etappenbetrag netto + 20 % USt; Rechnung zum geplanten Freeze, Zahlung + 14 Tage. Nicht besetzte Etappen oder solche ohne Aufgaben rutschen um vier Wochen.</p>
+            <div className="divide-y">
+              {plan.etappenZeilen.map((e) => (
+                <div key={e.id} className="py-2 text-xs">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{e.label}</p>
+                      <p className="text-muted-foreground truncate">{e.kunde}</p>
+                    </div>
+                    <p className="tabular-nums font-semibold whitespace-nowrap">{fmtEUR(e.betrag)}</p>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Rechnung {fmtDate(e.rechnungsdatum)} · Eingang {fmtDate(e.datum)} · {e.hinweis}</p>
+                  {e.risiko && <p className="text-[11px] font-semibold text-amber-700">{e.risiko}</p>}
+                  <Lieferung l={e.lieferung} />
+                </div>
+              ))}
+              {!plan.etappenZeilen.length && <p className="text-xs text-muted-foreground py-4">Keine Einträge.</p>}
+            </div>
+          </Card>
           {[
-            ['Projektetappen (Sprint)', plan.etappenZeilen, 'Etappenbetrag netto + 20 % USt; Rechnung zum geplanten Freeze, Zahlung + 14 Tage.'],
             ['Abrechnungsanweisungen', plan.anweisungsZeilen, 'Offene Anweisungen mit aktuellem Rechnungsdatum oder in den letzten 30 Tagen angelegt.'],
             ['Regie & Support', plan.regieZeilen, 'Verrechenbare, noch nicht abgerechnete Zeit seit 24.07.2026 als Sammelrechnung.'],
           ].map(([titel, zeilen, erklaerung]) => (
@@ -385,6 +422,8 @@ export default function Liquiditaet() {
 
       <KostenpostenDialog open={postenDialog.offen} posten={postenDialog.posten} onClose={() => setPostenDialog({ offen: false, posten: null })} onGespeichert={neuLaden} />
       <KontostandDialog open={kontoDialog} snapshots={snapshotsSortiert} onClose={() => setKontoDialog(false)} onGespeichert={neuLaden} />
+      <ZieleDialog open={zieleDialog} monate={plan.monatsblick} einstellungZeilen={data.einstellungZeilen} onClose={() => setZieleDialog(false)} onGespeichert={neuLaden} />
+      <VerfuegbarkeitDialog open={verfDialog} personen={data.personen} einstellungen={data.einstellungen} einstellungZeilen={data.einstellungZeilen} onClose={() => setVerfDialog(false)} onGespeichert={neuLaden} />
     </div>
   );
 }
