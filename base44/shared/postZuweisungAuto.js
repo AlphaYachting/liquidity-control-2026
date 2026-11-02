@@ -84,6 +84,19 @@ export async function autoZuweisen(svc, { jetzt = Date.now() } = {}) {
   }
   const aktiveMails = new Set(team.map((m) => String(m.email || '').toLowerCase()));
 
+  // Korrektur (02.11.2026): Frühere automatische Zuweisungen, die eine persönlich adressierte Mail
+  // jemand anderem gegeben haben, gehen an den tatsächlichen Empfänger. Manuelle bleiben unberührt.
+  const offenNachThread = new Map(offen.map((t) => [String(t.thread_id), t]));
+  for (const z of zuweisungen) {
+    if (z.quelle !== 'automatisch') continue;
+    const t = offenNachThread.get(String(z.thread_id));
+    const empf = t ? persoenlicherEmpfaenger(t.last_to, aktiveMails) : '';
+    if (empf && empf !== String(z.zugewiesen_an || '').toLowerCase()) {
+      await svc.entities.PostZuweisung.update(z.id, { zugewiesen_an: empf, zugewiesen_am: new Date().toISOString() });
+      stats.korrigiert = (stats.korrigiert || 0) + 1;
+    }
+  }
+
   for (const t of offen) {
     if (stats.zugewiesen >= MAX_JE_LAUF) break;
     const schluessel = t.conversation_key || `#${t.thread_id}`;
@@ -98,7 +111,11 @@ export async function autoZuweisen(svc, { jetzt = Date.now() } = {}) {
     if (grund === 'masseverwalter') continue;
 
     let an = INHABER_EMAIL;
-    if (!grund) {
+    // Ging die Mail persönlich an genau eine Person, ist diese zuständig (02.11.2026)
+    const empfaenger = persoenlicherEmpfaenger(t.last_to, aktiveMails);
+    if (empfaenger && (!grund || empfaenger === INHABER_EMAIL)) {
+      an = empfaenger;
+    } else if (!grund) {
       const kunde = kundeFinden(t, clients);
       const projekt = kunde
         ? projekte.filter((p) => p.client_id === kunde.id && !p.is_legacy)[0]
