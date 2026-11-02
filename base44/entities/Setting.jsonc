@@ -1,24 +1,24 @@
 {
   "name": "Setting",
-  "type": "object",
   "properties": {
-    "key": {
-      "type": "string"
-    },
-    "value": {
-      "type": "string"
-    },
     "group": {
-      "type": "string",
       "enum": [
         "fristen",
         "kapazitaet",
         "versand",
         "abrechnung",
-        "angebot"
-      ]
+        "angebot",
+        "liquiditaet"
+      ],
+      "type": "string"
+    },
+    "key": {
+      "type": "string"
     },
     "label": {
+      "type": "string"
+    },
+    "value": {
       "type": "string"
     }
   },
@@ -27,6 +27,7 @@
     "value",
     "group"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "user_condition": {
