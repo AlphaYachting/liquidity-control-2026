@@ -1,31 +1,34 @@
 {
   "name": "InvoiceRecord",
-  "type": "object",
   "properties": {
-    "invoice_number": {
+    "billing_block_id": {
+      "description": "Linked ProjectBillingBlock ID",
       "type": "string"
     },
-    "invoice_date": {
-      "type": "string",
-      "format": "date"
+    "confirmed_order_id": {
+      "description": "Linked ConfirmedOrder ID",
+      "type": "string"
     },
     "customer_name": {
       "type": "string"
     },
-    "confirmed_order_id": {
-      "type": "string",
-      "description": "Linked ConfirmedOrder ID"
+    "due_date": {
+      "format": "date",
+      "type": "string"
     },
-    "project_id": {
-      "type": "string",
-      "description": "Linked LiquidityProject ID"
+    "gross_amount": {
+      "default": 0,
+      "type": "number"
     },
-    "billing_block_id": {
-      "type": "string",
-      "description": "Linked ProjectBillingBlock ID"
+    "invoice_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "invoice_number": {
+      "type": "string"
     },
     "invoice_type": {
-      "type": "string",
+      "default": "partial_invoice",
       "enum": [
         "final_invoice",
         "partial_invoice",
@@ -33,38 +36,77 @@
         "correction",
         "credit_note"
       ],
-      "default": "partial_invoice"
+      "type": "string"
     },
     "is_credit_note": {
-      "type": "boolean",
-      "default": false
+      "default": false,
+      "type": "boolean"
     },
-    "original_invoice_id": {
-      "type": "string",
-      "description": "For corrections/credit notes: points to original InvoiceRecord ID"
+    "is_sent": {
+      "default": false,
+      "description": "true = Rechnung wurde in sevDesk versendet/festgeschrieben (nicht mehr Entwurf). Nur versendete, nicht stornierte Rechnungen fliessen in die Liquiditaetsuebersicht.",
+      "type": "boolean"
+    },
+    "liquiditaet_notiz": {
+      "description": "Begr\u00fcndung / Fundstelle zum Liquidit\u00e4tsstatus",
+      "type": "string"
+    },
+    "liquiditaet_status": {
+      "default": "normal",
+      "description": "F\u00fchrung in der Betriebsliquidit\u00e4t, unabh\u00e4ngig von sevDesk: bezahlt_* = bereits im Kontostand, nicht mehr als Eingang planen; ungeklaert = planen, aber als Risiko Doppelz\u00e4hlung zeigen; nicht_einplanen = bewusst drau\u00dfen",
+      "enum": [
+        "normal",
+        "bezahlt_belegt",
+        "bezahlt_wahrscheinlich",
+        "ungeklaert",
+        "nicht_einplanen"
+      ],
+      "type": "string"
+    },
+    "match_confidence": {
+      "default": 0,
+      "description": "0-100 confidence score",
+      "type": "number"
+    },
+    "match_notes": {
+      "type": "string"
+    },
+    "match_status": {
+      "default": "unmatched",
+      "enum": [
+        "auto_matched",
+        "manually_matched",
+        "unmatched",
+        "disputed"
+      ],
+      "type": "string"
     },
     "net_amount": {
-      "type": "number",
-      "default": 0
+      "default": 0,
+      "type": "number"
     },
-    "gross_amount": {
-      "type": "number",
-      "default": 0
+    "notes": {
+      "type": "string"
     },
-    "vat_amount": {
-      "type": "number",
-      "default": 0
+    "open_amount": {
+      "default": 0,
+      "type": "number"
     },
-    "vat_rate": {
-      "type": "number",
-      "default": 20
+    "original_invoice_id": {
+      "description": "For corrections/credit notes: points to original InvoiceRecord ID",
+      "type": "string"
     },
-    "due_date": {
-      "type": "string",
-      "format": "date"
+    "paid_amount": {
+      "default": 0,
+      "type": "number"
+    },
+    "payment_date": {
+      "format": "date",
+      "type": "string"
     },
     "payment_status": {
-      "type": "string",
+      "default": "open",
+      "description": "draft = Entwurf in sevDesk (noch nicht versendet)",
       "enum": [
         "draft",
         "open",
@@ -74,28 +116,21 @@
         "cancelled",
         "unclear"
       ],
-      "default": "open",
-      "description": "draft = Entwurf in sevDesk (noch nicht versendet)"
+      "type": "string"
     },
-    "paid_amount": {
-      "type": "number",
-      "default": 0
+    "project_id": {
+      "description": "Linked LiquidityProject ID",
+      "type": "string"
     },
-    "open_amount": {
-      "type": "number",
-      "default": 0
+    "sevdesk_id": {
+      "description": "sevDesk Rechnungs-ID",
+      "type": "string"
     },
-    "payment_date": {
-      "type": "string",
-      "format": "date"
-    },
-    "is_sent": {
-      "type": "boolean",
-      "default": false,
-      "description": "true = Rechnung wurde in sevDesk versendet/festgeschrieben (nicht mehr Entwurf). Nur versendete, nicht stornierte Rechnungen fliessen in die Liquiditaetsuebersicht."
+    "source_file": {
+      "type": "string"
     },
     "source_type": {
-      "type": "string",
+      "default": "manual",
       "enum": [
         "manual",
         "excel",
@@ -104,40 +139,21 @@
         "pdf",
         "other"
       ],
-      "default": "manual"
-    },
-    "source_file": {
       "type": "string"
     },
-    "sevdesk_id": {
-      "type": "string",
-      "description": "sevDesk Rechnungs-ID"
-    },
-    "match_status": {
-      "type": "string",
-      "enum": [
-        "auto_matched",
-        "manually_matched",
-        "unmatched",
-        "disputed"
-      ],
-      "default": "unmatched"
-    },
-    "match_confidence": {
-      "type": "number",
+    "vat_amount": {
       "default": 0,
-      "description": "0-100 confidence score"
+      "type": "number"
     },
-    "match_notes": {
-      "type": "string"
-    },
-    "notes": {
-      "type": "string"
+    "vat_rate": {
+      "default": 20,
+      "type": "number"
     }
   },
   "required": [
     "customer_name"
   ],
+  "type": "object",
   "rls": {
     "create": null,
     "read": null,
