@@ -38,7 +38,7 @@ export function persoenlicherEmpfaenger(lastTo) {
 }
 export const ARBEITSZEIT = { von: 8, bis: 17 }; // Mo–Fr, Ortszeit Wien
 export const POSTEINGANG_TAGE = 30;
-export const UEBERFAELLIG_STUNDEN = 48;
+export const UEBERFAELLIG_STUNDEN = 96; // rot ab 4 Tagen unbeantwortet (Frist ist 2 Arbeitstage)
 
 const SCHRITT = 15 * 60 * 1000;
 
