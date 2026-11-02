@@ -64,7 +64,6 @@ export function usePosteingang({ enabled = true } = {}) {
     );
     const ich = (user?.email || '').toLowerCase();
     const alle = baueEintraege({ ...d, eskalationen, eskalationKeys: new Set(d.eskalationKeys || []), jetzt: Date.now(), istAdmin, ich });
-    // Zugewiesene Post der angemeldeten Person — auch Eskalationen, sofort, ohne Wartezeit
     // Zugewiesene Post der angemeldeten Person: fällige (2-Tage-Frist, Support/Eskalation sofort) —
     // ausdrücklich von einer Person zugewiesene sofort (02.11.2026)
     const meine = alle.filter((e) => ich && (e.zustaendig || '').toLowerCase() === ich
