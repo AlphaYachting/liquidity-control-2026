@@ -30,8 +30,8 @@ function Belegmarke({ stufe }) {
 function Wochentabelle({ plan, onZelle }) {
   const eingangsArten = Object.keys(EINGANG_ARTEN).filter((a) => plan.wochen.some((w) => w.eingang[a]));
   const ausgangsArten = Object.keys(AUSGANG_ARTEN).filter((a) => plan.wochen.some((w) => w.ausgang[a]));
-  const zelle = (wert, onClick, cls = '') => (
-    <td className={`px-2 py-1.5 text-right tabular-nums whitespace-nowrap ${cls}`}>
+  const zelle = (key, wert, onClick, cls = '') => (
+    <td key={key} className={`px-2 py-1.5 text-right tabular-nums whitespace-nowrap ${cls}`}>
       {wert ? (onClick ? <button type="button" className="hover:underline" onClick={onClick}>{fmtEUR(wert)}</button> : fmtEUR(wert)) : <span className="text-muted-foreground/50">–</span>}
     </td>
   );
@@ -52,31 +52,31 @@ function Wochentabelle({ plan, onZelle }) {
         <tbody>
           <tr className="border-b">
             <td className={kopfZelle}>Anfangsbestand</td>
-            {plan.wochen.map((w) => zelle(w.anfang, null))}
+            {plan.wochen.map((w) => zelle(w.index, w.anfang, null))}
           </tr>
           <tr className="border-b bg-emerald-50/40 font-semibold">
             <td className={`${kopfZelle} bg-emerald-50`}>Eingänge</td>
-            {plan.wochen.map((w) => zelle(w.ein, () => onZelle(w, 'ein', null), 'text-emerald-700'))}
+            {plan.wochen.map((w) => zelle(w.index, w.ein, () => onZelle(w, 'ein', null), 'text-emerald-700'))}
           </tr>
           {eingangsArten.map((a) => (
             <tr key={a} className="border-b border-border/40">
               <td className={`${kopfZelle} pl-6 text-muted-foreground`}>{EINGANG_ARTEN[a]}</td>
-              {plan.wochen.map((w) => zelle(w.eingang[a], () => onZelle(w, 'ein', a)))}
+              {plan.wochen.map((w) => zelle(w.index, w.eingang[a], () => onZelle(w, 'ein', a)))}
             </tr>
           ))}
           <tr className="border-b bg-red-50/40 font-semibold">
             <td className={`${kopfZelle} bg-red-50`}>Ausgänge</td>
-            {plan.wochen.map((w) => zelle(w.aus, () => onZelle(w, 'aus', null), 'text-red-700'))}
+            {plan.wochen.map((w) => zelle(w.index, w.aus, () => onZelle(w, 'aus', null), 'text-red-700'))}
           </tr>
           {ausgangsArten.map((a) => (
             <tr key={a} className="border-b border-border/40">
               <td className={`${kopfZelle} pl-6 text-muted-foreground`}>{AUSGANG_ARTEN[a]}</td>
-              {plan.wochen.map((w) => zelle(w.ausgang[a], () => onZelle(w, 'aus', a)))}
+              {plan.wochen.map((w) => zelle(w.index, w.ausgang[a], () => onZelle(w, 'aus', a)))}
             </tr>
           ))}
           <tr className="border-b font-semibold">
             <td className={kopfZelle}>Endbestand</td>
-            {plan.wochen.map((w) => zelle(w.ende, null, w.ende < 0 ? 'text-red-600' : ''))}
+            {plan.wochen.map((w) => zelle(w.index, w.ende, null, w.ende < 0 ? 'text-red-600' : ''))}
           </tr>
           <tr className="font-bold">
             <td className={kopfZelle}>davon verfügbar</td>
