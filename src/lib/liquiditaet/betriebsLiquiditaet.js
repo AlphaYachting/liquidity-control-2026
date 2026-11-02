@@ -213,7 +213,7 @@ export function baueBetriebsLiquiditaet(daten = {}, optionen = {}) {
           hinweis: `Monatsrechnung ${mk} noch nicht gestellt – Rechnung ${rdat}, Zahlung + ${ZAHLUNGSZIEL_TAGE} Tage`,
           quelle: { typ: 'vertrag', id: v.id },
         };
-        vertragsZeilen.push(e);
+        if (wocheVon(e.datum) >= 0) vertragsZeilen.push(e);
         ein(e);
       });
     } else if (jaehrlich) {
@@ -225,7 +225,7 @@ export function baueBetriebsLiquiditaet(daten = {}, optionen = {}) {
         hinweis: `Jahresverrechnung zur Fälligkeit ${v.due_date} (laut Vertrag), Zahlung + ${ZAHLUNGSZIEL_TAGE} Tage`,
         quelle: { typ: 'vertrag', id: v.id },
       };
-      vertragsZeilen.push(e);
+      if (wocheVon(e.datum) >= 0) vertragsZeilen.push(e);
       ein(e);
     }
   });
