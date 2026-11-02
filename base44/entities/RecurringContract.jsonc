@@ -1,45 +1,19 @@
 {
   "name": "RecurringContract",
-  "type": "object",
   "properties": {
-    "contract_type": {
-      "type": "string",
-      "enum": [
-        "online_marketing",
-        "maintenance",
-        "support",
-        "hosting",
-        "domain",
-        "other"
-      ]
-    },
-    "customer": {
-      "type": "string"
-    },
-    "project_name": {
-      "type": "string"
-    },
-    "domain": {
-      "type": "string",
-      "description": "Domain-Name z.B. example.com"
-    },
-    "project_manager": {
-      "type": "string"
-    },
-    "monthly_fixed_price": {
-      "type": "number",
-      "default": 0
-    },
     "annual_amount": {
-      "type": "number",
-      "default": 0
+      "default": 0,
+      "type": "number"
     },
-    "one_time_payment": {
-      "type": "number",
-      "default": 0
+    "awork_company_id": {
+      "description": "Verkn\u00fcpftes Unternehmen in awork \u2014 alle seine Projekte geh\u00f6ren zu diesem Kunden",
+      "type": "string"
+    },
+    "awork_company_name": {
+      "type": "string"
     },
     "billing_interval": {
-      "type": "string",
+      "default": "monthly",
       "enum": [
         "monthly",
         "quarterly",
@@ -47,18 +21,70 @@
         "once",
         "by_effort"
       ],
-      "default": "monthly"
+      "type": "string"
     },
-    "start_date": {
-      "type": "string",
-      "format": "date"
+    "contract_type": {
+      "enum": [
+        "online_marketing",
+        "maintenance",
+        "support",
+        "hosting",
+        "domain",
+        "other"
+      ],
+      "type": "string"
+    },
+    "customer": {
+      "type": "string"
+    },
+    "domain": {
+      "description": "Domain-Name z.B. example.com",
+      "type": "string"
     },
     "due_date": {
-      "type": "string",
-      "format": "date"
+      "format": "date",
+      "type": "string"
+    },
+    "import_batch_id": {
+      "type": "string"
+    },
+    "in_liquiditaet": {
+      "default": true,
+      "description": "false = Vertrag wird in der Liquidit\u00e4tsplanung nicht als k\u00fcnftiger Eingang angesetzt (z. B. Dublette oder anders verrechnet)",
+      "type": "boolean"
+    },
+    "monthly_fixed_price": {
+      "default": 0,
+      "type": "number"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "one_time_payment": {
+      "default": 0,
+      "type": "number"
+    },
+    "order_number": {
+      "type": "string"
+    },
+    "project_manager": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "source_row": {
+      "type": "number"
+    },
+    "source_sheet": {
+      "type": "string"
+    },
+    "start_date": {
+      "format": "date",
+      "type": "string"
     },
     "status": {
-      "type": "string",
+      "default": "active",
       "enum": [
         "active",
         "paused",
@@ -66,34 +92,13 @@
         "pending",
         "unclear"
       ],
-      "default": "active"
-    },
-    "notes": {
-      "type": "string"
-    },
-    "order_number": {
-      "type": "string"
-    },
-    "source_sheet": {
-      "type": "string"
-    },
-    "import_batch_id": {
-      "type": "string"
-    },
-    "source_row": {
-      "type": "number"
-    },
-    "awork_company_id": {
-      "type": "string",
-      "description": "Verkn\u00fcpftes Unternehmen in awork \u2014 alle seine Projekte geh\u00f6ren zu diesem Kunden"
-    },
-    "awork_company_name": {
       "type": "string"
     }
   },
   "required": [
     "customer"
   ],
+  "type": "object",
   "rls": {
     "create": null,
     "read": null,
