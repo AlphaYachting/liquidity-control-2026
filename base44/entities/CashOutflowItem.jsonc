@@ -1,9 +1,23 @@
 {
   "name": "CashOutflowItem",
-  "type": "object",
   "properties": {
+    "amount": {
+      "default": 0,
+      "description": "Betrag je F\u00e4lligkeit (EUR)",
+      "type": "number"
+    },
+    "belegstufe": {
+      "default": "ist",
+      "description": "ist = aus Kontoauszug/Abrechnung belegt; schaetzung = durch die genannte Quelle zu ersetzen",
+      "enum": [
+        "ist",
+        "schaetzung"
+      ],
+      "type": "string"
+    },
     "category": {
-      "type": "string",
+      "default": "sonstige_auszahlung",
+      "description": "Auszahlungskategorie \u2014 Trennung folgt dem F\u00e4lligkeitsrhythmus, nicht der betriebswirtschaftlichen Art",
       "enum": [
         "nettoloehne",
         "lohnabgaben",
@@ -17,65 +31,63 @@
         "gf_bezug",
         "sonstige_auszahlung"
       ],
-      "default": "sonstige_auszahlung",
-      "description": "Auszahlungskategorie \u2014 Trennung folgt dem F\u00e4lligkeitsrhythmus, nicht der betriebswirtschaftlichen Art"
+      "type": "string"
     },
-    "label": {
-      "type": "string",
-      "description": "Bezeichnung des Postens"
-    },
-    "amount": {
-      "type": "number",
-      "default": 0,
-      "description": "Betrag je F\u00e4lligkeit (EUR)"
+    "derivation": {
+      "description": "Herleitung bzw. Quelle des Betrags im Klartext",
+      "type": "string"
     },
     "due_day_of_month": {
-      "type": "number",
       "default": 1,
-      "description": "F\u00e4lligkeitstag im Monat (1\u201328) f\u00fcr die Wochenverteilung"
+      "description": "F\u00e4lligkeitstag im Monat (1\u201328) f\u00fcr die Wochenverteilung",
+      "type": "number"
+    },
+    "end_month": {
+      "description": "YYYY-MM bis wann der Posten l\u00e4uft (leer = unbefristet)",
+      "type": "string"
+    },
+    "ersetzen_durch": {
+      "description": "Bei Sch\u00e4tzung: welche Quelle den Wert ersetzt (z. B. Lohnabrechnung Steinkellner)",
+      "type": "string"
+    },
+    "first_due_month": {
+      "description": "YYYY-MM \u2014 erster F\u00e4lligkeitsmonat, nur relevant bei quarterly/yearly/once",
+      "type": "string"
     },
     "interval": {
-      "type": "string",
+      "default": "monthly",
+      "description": "F\u00e4lligkeitsrhythmus; bei quarterly/yearly gibt due_day_of_month den Tag und first_due_month den ersten F\u00e4lligkeitsmonat an",
       "enum": [
         "monthly",
         "quarterly",
         "yearly",
         "once"
       ],
-      "default": "monthly",
-      "description": "F\u00e4lligkeitsrhythmus; bei quarterly/yearly gibt due_day_of_month den Tag und first_due_month den ersten F\u00e4lligkeitsmonat an"
-    },
-    "first_due_month": {
-      "type": "string",
-      "description": "YYYY-MM \u2014 erster F\u00e4lligkeitsmonat, nur relevant bei quarterly/yearly/once"
-    },
-    "is_masseverbindlichkeit": {
-      "type": "boolean",
-      "default": true,
-      "description": "Ob die Auszahlung eine Masseverbindlichkeit des laufenden Betriebs ist"
-    },
-    "scenario_only": {
-      "type": "boolean",
-      "default": false,
-      "description": "Posten, deren H\u00f6he nicht vom Unternehmen bestimmt wird (Verwalterentlohnung, Verfahrenskosten, GF-Bezug) \u2014 erscheinen nicht im Basisplan, nur im Szenarioblock"
-    },
-    "derivation": {
-      "type": "string",
-      "description": "Herleitung bzw. Quelle des Betrags im Klartext"
-    },
-    "start_month": {
-      "type": "string",
-      "description": "YYYY-MM ab wann der Posten l\u00e4uft (leer = ab sofort)"
-    },
-    "end_month": {
-      "type": "string",
-      "description": "YYYY-MM bis wann der Posten l\u00e4uft (leer = unbefristet)"
+      "type": "string"
     },
     "is_active": {
-      "type": "boolean",
-      "default": true
+      "default": true,
+      "type": "boolean"
+    },
+    "is_masseverbindlichkeit": {
+      "default": true,
+      "description": "Ob die Auszahlung eine Masseverbindlichkeit des laufenden Betriebs ist",
+      "type": "boolean"
+    },
+    "label": {
+      "description": "Bezeichnung des Postens",
+      "type": "string"
     },
     "notes": {
+      "type": "string"
+    },
+    "scenario_only": {
+      "default": false,
+      "description": "Posten, die noch nicht feststehen oder nicht freigegeben sind \u2014 erscheinen nicht im Basisplan, nur im Szenario",
+      "type": "boolean"
+    },
+    "start_month": {
+      "description": "YYYY-MM ab wann der Posten l\u00e4uft (leer = ab sofort)",
       "type": "string"
     }
   },
@@ -84,6 +96,7 @@
     "label",
     "amount"
   ],
+  "type": "object",
   "rls": {
     "create": null,
     "read": null,
