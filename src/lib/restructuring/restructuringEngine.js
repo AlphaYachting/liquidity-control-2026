@@ -456,7 +456,10 @@ export function build13Week({ invoices = [], contracts = [], orders = [], projec
   const hearingDate = setting.reporting_hearing_date ? new Date(setting.reporting_hearing_date + 'T00:00:00') : null;
 
   // Anfangsbestand: jüngster Snapshot <= heute, sonst 0
-  const sortedSnaps = [...bankSnapshots].sort((a, b) => new Date(b.balance_date) - new Date(a.balance_date));
+  // Nur Fortbetriebskonto (leer = Altdaten) — Massekonto und Altkonto sind keine Betriebsliquidität.
+  const sortedSnaps = [...bankSnapshots]
+    .filter((s) => !s.account || s.account === 'fortbetrieb')
+    .sort((a, b) => new Date(b.balance_date) - new Date(a.balance_date));
   const openingSnap = sortedSnaps.find((s) => new Date(s.balance_date) <= now) || sortedSnaps[sortedSnaps.length - 1];
   const openingBalance = openingSnap ? num(openingSnap.amount) : 0;
 
