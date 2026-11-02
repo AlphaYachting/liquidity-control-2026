@@ -23,7 +23,19 @@ function verborgen({ absender, empfaenger, regeln, istAdmin }) {
   return !!vertraulichGrund({ absender, empfaenger, regeln, istAdmin });
 }
 
-export const SCHWELLE_ARBEITSSTUNDEN = 4;
+// Frist (Entscheidung 02.11.2026): Eine Kundenmail gilt erst als unerledigt, wenn 2 Arbeitstage
+// (Mo–Fr 8–17 Uhr) niemand geantwortet hat. Support und Eskalationen erscheinen weiter sofort.
+export const SCHWELLE_ARBEITSSTUNDEN = 18;
+export const SCHWELLE_TEXT = '2 Arbeitstagen';
+
+// Sammeladressen sind keine Person (gleiche Regel wie im Backend, postZuweisungAuto.js)
+const SAMMELADRESSEN = /^(office|support|info|invoice|adwords|rechnung|buchhaltung|kontakt|hallo|team|no-?reply)@/;
+// Ging die Kundenmail persönlich an GENAU eine Person von uns? Dann ist sie zuständig (02.11.2026).
+export function persoenlicherEmpfaenger(lastTo) {
+  const adressen = [...new Set((String(lastTo || '').toLowerCase().match(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/g) || [])
+    .filter((a) => a.endsWith('@rittler.co') && !SAMMELADRESSEN.test(a)))];
+  return adressen.length === 1 ? adressen[0] : '';
+}
 export const ARBEITSZEIT = { von: 8, bis: 17 }; // Mo–Fr, Ortszeit Wien
 export const POSTEINGANG_TAGE = 30;
 export const UEBERFAELLIG_STUNDEN = 48;
@@ -236,7 +248,10 @@ export function baueEintraege({ threads = [], items = [], itemZeilen = [], regel
     const ab = e.sofort || e.eskalation || e.kanaele.includes('support') || klasse === 'support'
       ? e.eingang
       : sichtbarAb(e.eingang);
-    const zuweisung = zuweisungFuer(e, zuweisungen);
+    // Zuständig: ausdrücklich zugewiesen — sonst die Person, an die der Kunde persönlich geschrieben hat
+    const zugewiesen = zuweisungFuer(e, zuweisungen);
+    const empfaenger = !zugewiesen && !e.intern ? persoenlicherEmpfaenger(e.thread?.last_to || e.item?.recipient) : '';
+    const zuweisung = zugewiesen || (empfaenger ? { zugewiesen_an: empfaenger, quelle: 'empfaenger' } : null);
     return {
       ...e,
       klasse,
