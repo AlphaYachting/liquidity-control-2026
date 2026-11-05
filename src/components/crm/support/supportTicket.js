@@ -282,24 +282,20 @@ export async function createSupportTicket({ item, projectId, milestoneId, values
   }
 
   // Rückkanal in die E-Mail-Datenbank — der Thread verlässt „braucht Entscheidung"
+  // Parallel dazu: offene Eskalationen dieser Konversation schließen (E-Mail ist jetzt Ticket).
   let back = { ok: true };
-  if (threadId) {
-    schritt('Posteingang wird aktualisiert …');
-    try {
-      await emailApi('enrich', {
-        thread_id: threadId,
-        fields: {
-          crm_status: 'supportticket_angelegt',
-          crm_ticket_id: ticket.id,
-          status: 'beantwortet',
-        },
-      });
-    } catch (e) {
-      back = { ok: false, error: e?.message || 'unbekannter Fehler' };
-    }
-  }
-  // E-Mail ist jetzt Ticket — offene Eskalationen dieser Konversation verschwinden
-  await eskalationenSchliessen(threadId, ticket);
+  if (threadId) schritt('Posteingang wird aktualisiert …');
+  const rueckkanal = threadId
+    ? emailApi('enrich', {
+      thread_id: threadId,
+      fields: {
+        crm_status: 'supportticket_angelegt',
+        crm_ticket_id: ticket.id,
+        status: 'beantwortet',
+      },
+    }).catch((e) => { back = { ok: false, error: e?.message || 'unbekannter Fehler' }; })
+    : Promise.resolve();
+  await Promise.all([rueckkanal, eskalationenSchliessen(threadId, ticket)]);
 
   return { ticket, back, hinweis };
 }
