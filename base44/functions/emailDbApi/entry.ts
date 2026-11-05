@@ -82,7 +82,11 @@ Deno.serve(async (req) => {
 
     if (action === 'enrich') {
       if (!thread_id || !fields) return Response.json({ error: 'thread_id und fields erforderlich' }, { status: 400 });
+      const t0 = Date.now();
       const result = await emailDbEnrich(thread_id, fields);
+      const tDb = Date.now() - t0;
+      let tIndex = 0;
+      let tKonv = 0;
       // Verlaufs-Index sofort nachziehen: Jede Erledigt-, Antwort-, Lead- oder
       // Ticket-Aktion aus der App setzt done_at. Das gilt bis zur nächsten
       // Kundennachricht — danach kehrt die Konversation in den Posteingang zurück.
@@ -103,11 +107,17 @@ Deno.serve(async (req) => {
           const merged = { ...rows[0], ...patch };
           if (!merged.conversation_key) patch.conversation_key = conversationKeyOf(merged);
           patch.needs_reply = computeNeedsReply(merged);
+          const t1 = Date.now();
           await svc.entities.EmailThreadIndex.update(rows[0].id, patch);
+          tIndex = Date.now() - t1;
           // Geschwister-Verläufe derselben Konversation sofort mitziehen
+          const t2 = Date.now();
           await recomputeConversationOf(svc, { ...merged, ...patch });
+          tKonv = Date.now() - t2;
         }
       } catch (_e) { /* Index-Nachzug ist Best-Effort */ }
+      // Messpunkte (05.11.2026) — zeigen, welcher Teil Zeit kostet
+      console.log(`enrich ${thread_id}: E-Mail-DB ${tDb} ms · Index ${tIndex} ms · Konversation ${tKonv} ms · gesamt ${Date.now() - t0} ms`);
       return Response.json(result);
     }
 
