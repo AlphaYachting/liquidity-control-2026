@@ -93,15 +93,24 @@ export async function recomputeConversationOf(svc, row) {
   if (!row?.conversation_key) return 0;
   const rows = await loadAll(svc, { conversation_key: row.conversation_key });
   const merged = rows.map((r) => (r.id === row.id ? { ...r, ...row } : r));
-  const adressen = [...new Set(merged
-    .map((r) => (String(r.last_from || r.last_inbound_from || '').toLowerCase().match(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/) || [])[0])
-    .filter(Boolean))].slice(0, 5);
+  // Schnellweg (05.11.2026): Wurde die Konversation gerade erledigt (Ticket, Erledigt, Lead) und ist
+  // seither nichts Neues gekommen, ist sie ohnehin zu — die Suche nach Antworten unter anderem
+  // Betreff ist dann überflüssig und war der Grund für lange Wartezeiten beim Ticket-Anlegen.
+  const zeit = (s) => { const t = new Date(String(s || '').includes('T') ? s : `${String(s || '').replace(' ', 'T')}Z`).getTime(); return Number.isNaN(t) ? 0 : t; };
+  const juengste = Math.max(0, ...merged.map((r) => zeit(r.last_message_at)));
+  const geradeErledigt = zeit(row.done_at) >= juengste && juengste > 0;
   const antwortZeilen = [];
-  for (const a of adressen) {
-    const muster = a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    antwortZeilen.push(...(await svc.entities.EmailThreadIndex
-      .filter({ last_direction: 'out', last_to: { $regex: muster } }, '-last_message_at', 50)
-      .catch(() => [])));
+  if (!geradeErledigt) {
+    // Nur EXTERNE Absenderadressen — an interne (office@ …) wird nie „geantwortet“
+    const adressen = [...new Set(merged
+      .map((r) => (String(r.last_from || r.last_inbound_from || '').toLowerCase().match(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/) || [])[0])
+      .filter((a) => a && !/@(rittler\.co|rico-office\.at)$/.test(a)))].slice(0, 2);
+    for (const a of adressen) {
+      const muster = a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      antwortZeilen.push(...(await svc.entities.EmailThreadIndex
+        .filter({ last_direction: 'out', last_to: { $regex: muster } }, '-last_message_at', 50)
+        .catch(() => [])));
+    }
   }
   const antworten = antwortenNachAdresse([...merged, ...antwortZeilen]);
   return (await writeChanges(svc, merged, resolveConversations(merged, { antworten }), 50)).geschrieben;
