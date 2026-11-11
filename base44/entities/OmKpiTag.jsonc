@@ -1,0 +1,145 @@
+{
+  "description": "T\u00e4gliche Kennzahlen je Online-Marketing-Kunde. Ein Datensatz je Kunde und Stichtag (= Vortag des Abrufs). Wird vom Fr\u00fchlauf geschrieben, die Seite OM-Kennzahlen liest nur hier.",
+  "name": "OmKpiTag",
+  "properties": {
+    "abgerufen_am": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "ads": {
+      "description": "Google Ads am Stichtag, Vergleich = Schnitt der 7 Tage davor",
+      "properties": {
+        "conversions": {
+          "type": "number"
+        },
+        "conversions_7t_schnitt": {
+          "type": "number"
+        },
+        "conversions_monat": {
+          "type": "number"
+        },
+        "cpa": {
+          "type": "number"
+        },
+        "ctr": {
+          "description": "in Prozent",
+          "type": "number"
+        },
+        "impressionen": {
+          "type": "number"
+        },
+        "klicks": {
+          "type": "number"
+        },
+        "klicks_7t_schnitt": {
+          "type": "number"
+        },
+        "kosten": {
+          "type": "number"
+        },
+        "kosten_7t_schnitt": {
+          "type": "number"
+        },
+        "kosten_monat": {
+          "description": "Monat bis einschlie\u00dflich Stichtag",
+          "type": "number"
+        },
+        "tage_ohne_conversion": {
+          "description": "aufeinanderfolgende Tage bis zum Stichtag ohne Conversion",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "ga4": {
+      "properties": {
+        "key_events": {
+          "type": "number"
+        },
+        "key_events_7t_schnitt": {
+          "type": "number"
+        },
+        "sitzungen": {
+          "type": "number"
+        },
+        "sitzungen_7t_schnitt": {
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "gsc": {
+      "description": "Search Console am letzten verf\u00fcgbaren Tag (ca. 2-3 Tage Verzug)",
+      "properties": {
+        "datum": {
+          "format": "date",
+          "type": "string"
+        },
+        "impressionen": {
+          "type": "number"
+        },
+        "impressionen_7t_schnitt": {
+          "type": "number"
+        },
+        "klicks": {
+          "type": "number"
+        },
+        "klicks_7t_schnitt": {
+          "type": "number"
+        },
+        "position": {
+          "type": "number"
+        },
+        "position_7t_schnitt": {
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "konto_id": {
+      "description": "OmKundenKonto",
+      "type": "string"
+    },
+    "kunde": {
+      "type": "string"
+    },
+    "quellen_fehler": {
+      "description": "Quellen, die beim Abruf nicht geantwortet haben",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "recurring_contract_id": {
+      "type": "string"
+    },
+    "stichtag": {
+      "description": "Tag, auf den sich Ads und GA4 beziehen (gestern)",
+      "format": "date",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kunde",
+    "stichtag"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": null,
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}
