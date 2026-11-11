@@ -1,0 +1,31 @@
+{
+  "auth": "oauth",
+  "tools": {
+    "entity_overrides": {"AddOnBlock": {"operations": []}, "AddOnTicketTemplate": {"operations": []}, "AdvisorRecommendation": {"operations": []}, "Approval": {"operations": []}, "Arbeitstag": {"operations": []}, "AuditLog": {"operations": []}, "AworkIntegrationSetting": {"operations": []}, "AworkProjectSnapshot": {"operations": []}, "AworkSyncLog": {"operations": []}, "AworkTaskSnapshot": {"operations": []}, "AworkTimeEntry": {"operations": []}, "BankBalanceSnapshot": {"operations": []}, "BillingInstruction": {"operations": []}, "CashOutflowItem": {"operations": []}, "CashScenario": {"operations": []}, "CashflowPlan": {"operations": []}, "CashflowPlanItem": {"operations": []}, "ChangeRequest": {"operations": []}, "Client": {"operations": []}, "Comment": {"operations": []}, "ConfirmedOrder": {"operations": []}, "ConfirmedOrderItem": {"operations": []}, "CrmActivity": {"operations": []}, "CrmAppointment": {"operations": []}, "CrmDeal": {"operations": []}, "CrmEscalation": {"operations": []}, "CrmInboxItem": {"operations": []}, "CrmProposal": {"operations": []}, "CrmQuote": {"operations": []}, "DunningRecord": {"operations": []}, "EmailIndexState": {"operations": []}, "EmailScanLedger": {"operations": []}, "EmailThreadIndex": {"operations": []}, "Feedback": {"operations": []}, "FocusDay": {"operations": []}, "InboxBlockedSender": {"operations": []}, "InboxScanRun": {"operations": []}, "IntelligenceSignal": {"operations": []}, "InvoiceRecord": {"operations": []}, "LaufendeZeitbuchung": {"operations": []}, "LiquidityPlanLine": {"operations": []}, "LiquidityProject": {"operations": []}, "MailTemplate": {"operations": []}, "MasterImportRow": {"operations": []}, "MasterImportSession": {"operations": []}, "Milestone": {"operations": []}, "ModuleTemplate": {"operations": []}, "MonthlyBillingPlan": {"operations": []}, "Neuigkeit": {"operations": []}, "NeuigkeitGelesen": {"operations": []}, "NotificationLog": {"operations": []}, "OmKpiTag": {"operations": []}, "OmKundenKonto": {"operations": []}, "Payable": {"operations": []}, "PaymentPattern": {"operations": []}, "PostZuweisung": {"operations": []}, "Project": {"operations": []}, "ProjectBillingBlock": {"operations": []}, "ProjectFileEntry": {"operations": []}, "ProjectInquiry": {"operations": []}, "ProjektIntelligenzGespraech": {"operations": []}, "ProposalSkillDoc": {"operations": []}, "Receivable": {"operations": []}, "RecurringContract": {"operations": []}, "RestructuringSetting": {"operations": []}, "Rueckmeldung": {"operations": []}, "SearchIndexEntry": {"operations": []}, "SefIntegrationSetting": {"operations": []}, "Setting": {"operations": []}, "Sprint": {"operations": []}, "SprintDailyRun": {"operations": []}, "Stempel": {"operations": []}, "SupportTicketCustomer": {"operations": []}, "Tagesabschluss": {"operations": []}, "Tagesnachweis": {"operations": []}, "TeamMember": {"operations": []}, "TeamMemberProfile": {"operations": []}, "Ticket": {"operations": []}, "TicketTemplate": {"operations": []}, "TimeEntry": {"operations": []}, "ToolCost": {"operations": []}, "UebernahmeHinweis": {"operations": []}, "User": {"operations": []}, "WeeklyActual": {"operations": []}, "WeeklyIntelligenceReport": {"operations": []}, "Zeitantrag": {"operations": []}, "Zeitvorschlag": {"operations": []}},
+    "excluded_agents": ["cashflow_advisor"],
+    "functions": [
+      {
+        "name": "read_email_db",
+        "title": "Read email database",
+        "description": "Lesender Zugriff auf die zentrale E-Mail-Datenbank. action: health (Status), search (Volltextsuche, params.q, params.limit), threads (Verlaufsliste, z. B. params.limit, params.status, params.with_reply_state), thread (ein Verlauf mit Nachrichten, params.id, optional params.msgs, params.full). Vertrauliche Verläufe werden nicht ausgeliefert.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": ["health", "search", "threads", "thread"],
+              "description": "Lesende Aktion. Nur health, search, threads oder thread."
+            },
+            "params": {
+              "type": "object",
+              "description": "Parameter der Aktion, z. B. {\"q\": \"Angebot\", \"limit\": 20} für search oder {\"id\": \"<thread_id>\", \"msgs\": 15} für thread."
+            }
+          },
+          "required": ["action"]
+        },
+        "handler": "emailDbMcp",
+        "annotations": { "read_only_hint": true, "destructive_hint": false, "idempotent_hint": true }
+      }
+    ]
+  }
+}

@@ -89,6 +89,7 @@ const SprintPlanung = lazy(() => import('@/pages/sprint/SprintPlanung'));
 const SprintSteuerung = lazy(() => import('@/pages/sprint/SprintSteuerung'));
 const SprintRechnungsuebergabe = lazy(() => import('@/pages/sprint/SprintRechnungsuebergabe'));
 import MasseverwalterReport from '@/pages/MasseverwalterReport';
+import OAuthConsent from '@/pages/OAuthConsent';
 const SystemMaintenance = lazy(() => import('@/pages/SystemMaintenance'));
 
 const AuthenticatedApp = () => {
@@ -99,6 +100,16 @@ const AuthenticatedApp = () => {
     return (
       <Routes>
         <Route path="/masseverwalter/:accessKey" element={<MasseverwalterReport />} />
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+    );
+  }
+
+  // MCP-Zustimmungsseite — prüft die Anmeldung selbst, darum vor jeder Auth-Prüfung
+  if (window.location.pathname.startsWith('/oauth/consent')) {
+    return (
+      <Routes>
+        <Route path="/oauth/consent" element={<OAuthConsent />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
     );

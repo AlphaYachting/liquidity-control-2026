@@ -1,0 +1,78 @@
+{
+  "description": "Zuordnung eines Online-Marketing-Kunden zu seinen Datenquellen (Google Ads, GA4, Search Console). Grundlage des t\u00e4glichen KPI-Abrufs.",
+  "name": "OmKundenKonto",
+  "properties": {
+    "aktiv": {
+      "default": true,
+      "type": "boolean"
+    },
+    "ga4_property_id": {
+      "type": "string"
+    },
+    "google_ads_customer_id": {
+      "description": "Google-Ads-Kunden-ID ohne Bindestriche",
+      "type": "string"
+    },
+    "google_ads_login_customer_id": {
+      "description": "Verwaltungskonto (MCC), \u00fcber das das Konto erreichbar ist",
+      "type": "string"
+    },
+    "gsc_site_url": {
+      "description": "Search-Console-Property genau wie in der Search Console",
+      "type": "string"
+    },
+    "kunde": {
+      "description": "Kundenname wie im OM-Vertrag",
+      "type": "string"
+    },
+    "meta_ad_account_id": {
+      "type": "string"
+    },
+    "monatsbudget_ads": {
+      "description": "Geplantes Google-Ads-Budget je Monat in EUR \u2014 Grundlage der Budgetauslastung",
+      "type": "number"
+    },
+    "notiz": {
+      "type": "string"
+    },
+    "recurring_contract_id": {
+      "description": "Verkn\u00fcpfter OM-Vertrag (RecurringContract)",
+      "type": "string"
+    },
+    "ziel_cpa": {
+      "description": "Ziel-Kosten je Conversion in EUR",
+      "type": "number"
+    },
+    "zuordnung_pruefen": {
+      "default": false,
+      "description": "Zuordnung noch nicht best\u00e4tigt",
+      "type": "boolean"
+    },
+    "zustaendig_email": {
+      "format": "email",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kunde"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": null,
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}
