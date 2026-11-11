@@ -5,7 +5,7 @@ import {
   Zap, Map, BrainCircuit, PieChart, CalendarDays, Users, BarChart2, Clock, DatabaseZap,
   RefreshCw, Trash2, RotateCcw, Scale, KanbanSquare, Inbox, History, Presentation,
   Sun, Gauge, Layers, LifeBuoy, Sparkles, SlidersHorizontal, Timer,
-  Receipt, ServerCog, MessageSquarePlus, Hourglass, Landmark,
+  Receipt, ServerCog, MessageSquarePlus, Hourglass, Landmark, Activity,
 } from 'lucide-react';
 
 // Die EINE Liste aller Navigationspunkte. Die Sidebar rendert ausschließlich hieraus.
@@ -46,6 +46,8 @@ export const NAV_GRUPPEN = [
       { path: '/crm/inbox', label: 'Post', icon: Inbox, regel: 'leitung', zaehler: 'post' },
       // Support bleibt ein eigener Punkt und ist für alle sichtbar (Wunsch Alfons 24.10.2026)
       { path: '/crm/inbox?kanal=support', label: 'Support', icon: LifeBuoy, regel: 'alle', zaehler: 'support' },
+      // OM-Kennzahlen (Prototyp 11.11.2026): täglicher KPI-Blick je Online-Marketing-Kunde
+      { path: '/online-marketing/kennzahlen', label: 'OM-Kennzahlen', icon: Activity, regel: 'leitung' },
       { path: '/crm', label: 'Pipeline', icon: KanbanSquare, regel: 'sales' },
       { path: '/crm/proposals', label: 'Angebots-Studio', icon: Presentation, regel: 'sales' },
     ],
