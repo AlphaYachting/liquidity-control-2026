@@ -62,7 +62,7 @@ function ga4Signale(ga4, ads) {
   if (ga4.key_events === 0 && ga4.key_events_7t_schnitt === 0 && ga4.sitzungen > 0 && ads?.conversions_monat > 0) {
     s.push({ ton: 'attention', text: 'GA4 zählt keine Key Events, Google Ads schon — Conversion-Tracking prüfen' });
   } else if (ga4.key_events === 0 && ga4.key_events_7t_schnitt >= 1) {
-    s.push({ ton: 'attention', text: `Keine Key Events gestern (sonst Ø ${ga4.key_events_7t_schnitt})` });
+    s.push({ ton: 'attention', text: `Keine Key Events gestern (sonst Ø ${ga4.key_events_7t_schnitt.toLocaleString('de-AT')})` });
   }
   if (ga4.sitzungen_7t_schnitt >= 20 && ga4.sitzungen < ga4.sitzungen_7t_schnitt * 0.6) {
     s.push({ ton: 'attention', text: `Sitzungen ${prozent(ga4.sitzungen, ga4.sitzungen_7t_schnitt)} % gegenüber dem 7-Tage-Schnitt` });
