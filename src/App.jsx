@@ -15,6 +15,7 @@ const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const MyDay = lazy(() => import('@/pages/MyDay'));
 const Projects = lazy(() => import('@/pages/Projects'));
 const OnlineMarketing = lazy(() => import('@/pages/OnlineMarketing'));
+const OmKennzahlen = lazy(() => import('@/pages/OmKennzahlen'));
 const Maintenance = lazy(() => import('@/pages/Maintenance'));
 const Production = lazy(() => import('@/pages/Production'));
 const Tools = lazy(() => import('@/pages/Tools'));
@@ -160,6 +161,7 @@ const AuthenticatedApp = () => {
         <Route path="/invoice-ready" element={<InvoiceReady />} />
         <Route path="/support-billing" element={<SupportBilling />} />
         <Route path="/online-marketing" element={<OnlineMarketing />} />
+        <Route path="/online-marketing/kennzahlen" element={<OmKennzahlen />} />
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/hosting" element={<Hosting />} />
         <Route path="/crm" element={<CrmBoard />} />
