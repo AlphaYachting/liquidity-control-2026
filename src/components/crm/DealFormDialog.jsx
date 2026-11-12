@@ -79,7 +79,8 @@ export default function DealFormDialog({ open, onOpenChange, initialData, onSave
     queryKey: ['dealFormClients'],
     enabled: !!open,
     staleTime: 5 * 60 * 1000,
-    queryFn: () => base44.entities.Client.list('name', 2000),
+    // Als Duplikat markierte Kunden nicht zur Auswahl anbieten
+    queryFn: async () => (await base44.entities.Client.list('name', 2000)).filter((c) => !/\(duplikat\)/i.test(c.name || '')),
   });
   // Bei gleichnamigen Kunden entscheidet die sevDesk-Nummer
   const gewaehlterKunde = form.linked_customer_name
