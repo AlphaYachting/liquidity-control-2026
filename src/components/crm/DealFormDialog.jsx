@@ -49,10 +49,10 @@ function FirmaSuchfeld({ value, gewaehlt, clients, onText, onWaehlen }) {
           {treffer.map((c) => (
             <button key={c.id} type="button" onMouseDown={(e) => e.preventDefault()}
               onClick={() => { onWaehlen(c); setOffen(false); }}
-              className="w-full text-left text-sm px-3 py-2 hover:bg-muted flex items-center justify-between gap-2">
-              <span className="truncate">{c.name}</span>
-              <span className="text-xs text-muted-foreground shrink-0">
-                {c.sevdesk_contact_id ? `sevDesk ${c.sevdesk_contact_id}` : 'ohne sevDesk'}
+              className="w-full text-left text-sm px-3 py-2 hover:bg-muted">
+              <span className="block break-words">{c.name}</span>
+              <span className="block text-xs text-muted-foreground">
+                {[c.contact_person, c.sevdesk_contact_id ? `sevDesk ${c.sevdesk_contact_id}` : 'ohne sevDesk'].filter(Boolean).join(' · ')}
               </span>
             </button>
           ))}
@@ -81,8 +81,10 @@ export default function DealFormDialog({ open, onOpenChange, initialData, onSave
     staleTime: 5 * 60 * 1000,
     queryFn: () => base44.entities.Client.list('name', 2000),
   });
+  // Bei gleichnamigen Kunden entscheidet die sevDesk-Nummer
   const gewaehlterKunde = form.linked_customer_name
-    ? clients.find((c) => norm(c.name) === norm(form.linked_customer_name)) || null
+    ? (form.sevdesk_contact_id && clients.find((c) => c.sevdesk_contact_id === form.sevdesk_contact_id))
+      || clients.find((c) => norm(c.name) === norm(form.linked_customer_name)) || null
     : null;
 
   const firmaTippen = (text) => setForm((f) => {
