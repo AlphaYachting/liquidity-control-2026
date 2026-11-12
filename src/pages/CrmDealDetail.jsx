@@ -13,19 +13,6 @@ import DealFormDialog from '@/components/crm/DealFormDialog';
 import WonLostDialog from '@/components/crm/WonLostDialog';
 import UebergabeblattSection from '@/components/crm/handover/UebergabeblattSection';
 import BestehenderAuftrag from '@/components/crm/handover/BestehenderAuftrag';
-import { useQuery as useAuftragQuery } from '@tanstack/react-query';
-
-// Beauftragter Deal: Auftrag bleibt sichtbar — mit Projekt-Link oder „Projekt anlegen“
-// und, falls die sevDesk-Belege fehlen, dem Nachholen von Angebot und AB.
-function AuftragZumDeal({ deal }) {
-  const { data: order } = useAuftragQuery({
-    queryKey: ['uebergabe-kontext', deal.id, 'auftrag'],
-    queryFn: async () => (await base44.entities.ConfirmedOrder.filter({ deal_id: deal.id }, '-created_date', 20))
-      .find((o) => o.status !== 'cancelled') || null,
-  });
-  if (!order) return null;
-  return <BestehenderAuftrag order={order} deal={deal} />;
-}
 import ExternesAngebotLeser from '@/components/crm/handover/ExternesAngebotLeser';
 import CustomerContextCard from '@/components/crm/CustomerContextCard';
 import CompanyMasterDataCard from '@/components/crm/CompanyMasterDataCard';
@@ -40,6 +27,18 @@ import Abschnittstitel from '@/components/shared/Abschnittstitel';
 import { Box, BoxKopf, BoxInhalt } from '@/components/shared/Box';
 import { Presentation } from 'lucide-react';
 import { PIPELINES, STAGE_LABELS, eur, isClosedStage } from '@/components/crm/stages';
+
+// Beauftragter Deal: Auftrag bleibt sichtbar — mit Projekt-Link oder „Projekt anlegen“
+// und, falls die sevDesk-Belege fehlen, dem Nachholen von Angebot und AB.
+function AuftragZumDeal({ deal }) {
+  const { data: order } = useQuery({
+    queryKey: ['uebergabe-kontext', deal.id, 'auftrag'],
+    queryFn: async () => (await base44.entities.ConfirmedOrder.filter({ deal_id: deal.id }, '-created_date', 20))
+      .find((o) => o.status !== 'cancelled') || null,
+  });
+  if (!order) return null;
+  return <BestehenderAuftrag order={order} deal={deal} />;
+}
 
 export default function CrmDealDetail() {
   const { dealId } = useParams();
