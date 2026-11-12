@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { X, Plus } from 'lucide-react';
@@ -13,6 +13,8 @@ export const milestoneAmount = (m, addOns) =>
 
 export default function StepModule({ modules, addOns, selected, setSelected, discount = 0 }) {
   const sum = selected.reduce((s, m) => s + milestoneAmount(m, addOns), 0);
+  // Zusatzbausteine nur auf Wunsch aufklappen — sonst wirken sie wie ein Teil jeder Etappe
+  const [bausteineOffen, setBausteineOffen] = useState([]);
 
   const { bundles, singles } = splitModules(modules);
 
@@ -95,8 +97,17 @@ export default function StepModule({ modules, addOns, selected, setSelected, dis
                 </Button>
               </div>
               {addOns.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2 pl-6">
-                  {addOns.map((a) => {
+                <div className="flex flex-wrap items-center gap-1.5 mt-2 pl-6">
+                  {!bausteineOffen.includes(m.key) && (
+                    <button
+                      type="button"
+                      onClick={() => setBausteineOffen([...bausteineOffen, m.key])}
+                      className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+                    >
+                      + Zusatzbaustein
+                    </button>
+                  )}
+                  {addOns.filter((a) => bausteineOffen.includes(m.key) || m.addon_ids.includes(a.id)).map((a) => {
                     const active = m.addon_ids.includes(a.id);
                     return (
                       <button
