@@ -228,9 +228,16 @@ export default function SprintAssistent() {
     if (fehler) return;
     const projectId = project.id;
     const now = new Date().toISOString();
+    // Folgesprint: als nächste Phase benennen, damit die Sprints im Projekt unterscheidbar bleiben
+    const istFolge = seed.sprint_target === 'folge';
+    const bisherigeSprints = istFolge
+      ? await base44.entities.Sprint.filter({ project_id: projectId }, 'start_date', 100).catch(() => [])
+      : [];
     const sprint = await base44.entities.Sprint.create({
       project_id: projectId,
-      title: `${project.title || 'Sprint'} — Sprint ${size}`,
+      title: istFolge
+        ? `Phase ${bisherigeSprints.length + 1} — Sprint ${size}`
+        : `${project.title || 'Sprint'} — Sprint ${size}`,
       size,
       start_date: startDate,
       end_date: addWeeks(startDate, SPRINT_SIZES[size].weeks),
