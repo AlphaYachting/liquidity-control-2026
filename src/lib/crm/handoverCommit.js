@@ -7,6 +7,65 @@ import { abTermine, sprintGroesseAus } from '@/lib/crm/abTermine';
 
 const norm = (s) => (s || '').toLowerCase().replace(/[^a-zäöüß0-9]/g, '');
 
+// sevDesk-Fehler verständlich machen: ein gelöschter oder zusammengeführter Kontakt
+// liefert „No Model_Contact with the id …“ — dann muss der Kunde neu verknüpft werden.
+export function sevdeskFehlerText(fehler, contactId) {
+  const t = String(fehler || '');
+  if (/No Model_Contact/i.test(t)) {
+    return `Der sevDesk-Kontakt ${contactId || ''} existiert in sevDesk nicht mehr (gelöscht oder zusammengeführt). `
+      + 'Bitte den Kunden im Kundenverzeichnis mit dem richtigen sevDesk-Kontakt verknüpfen und die Belege danach nachholen';
+  }
+  return t;
+}
+
+// Angebot und Auftragsbestätigung in sevDesk nachholen, wenn sie beim Freigeben nicht
+// entstanden sind. Liest Positionen und Umfang aus dem gespeicherten Auftrag und nimmt den
+// sevDesk-Kontakt aus dem Kundenverzeichnis (dort wird er gepflegt), nicht den alten Stand am Auftrag.
+export async function sevdeskBelegNachholen(order) {
+  if (!order?.id) throw new Error('Kein Auftrag übergeben');
+  if (order.sevdesk_order_id) return { success: true, schonVorhanden: true };
+  const [items, kunden] = await Promise.all([
+    base44.entities.ConfirmedOrderItem.filter({ confirmed_order_id: order.id }, 'position', 200),
+    order.customer ? base44.entities.Client.filter({ name: order.customer }, '-created_date', 20) : Promise.resolve([]),
+  ]);
+  const client = kunden.find((c) => c.sevdesk_contact_id && !/\(duplikat\)/i.test(c.name || '')) || null;
+  const contactId = client?.sevdesk_contact_id || order.sevdesk_contact_id || '';
+  if (!contactId) throw new Error('Der Kunde ist mit keinem sevDesk-Kontakt verknüpft');
+  const positions = items.length > 0
+    ? items.filter((it) => !it.is_discount).map((it) => ({
+      name: it.abrechnung === 'monatlich' ? `${it.title} (monatlich)` : it.title,
+      amount: Number(it.total_price) || 0,
+      quantity: 1,
+      text: positionsText({ description: it.description, lieferumfang: it.lieferumfang, korrekturschleifen: it.korrekturschleifen, leistungszeitraum: it.leistungszeitraum }, order),
+    }))
+    : [{ name: order.project_name || 'Leistung', amount: Number(order.total_net_amount) || 0, quantity: 1 }];
+
+  const res = await base44.functions.invoke('createSevdeskAngebotUndAb', {
+    head_text: abKopfText(order),
+    address: kundenAdresse(client || { name: order.customer }),
+    ...(order.sevdesk_quote_id ? { quote_id: order.sevdesk_quote_id, quote_number: order.sevdesk_quote_number || '' } : {}),
+    sevdesk_contact_id: contactId,
+    header: `Angebot ${order.project_name || ''}`.trim(),
+    positions,
+  }).catch((e) => ({ data: { success: false, error: e?.message || 'sevDesk nicht erreichbar' } }));
+  const beleg = res?.data || {};
+  if (beleg.success) {
+    await base44.entities.ConfirmedOrder.update(order.id, {
+      sevdesk_contact_id: contactId,
+      sevdesk_quote_id: beleg.quote_id || '',
+      sevdesk_quote_number: beleg.quote_number || '',
+      sevdesk_order_id: beleg.order_id || '',
+      sevdesk_order_url: beleg.order_url || '',
+      order_number: beleg.order_number || '',
+    });
+    return { success: true, order_number: beleg.order_number || '' };
+  }
+  if (beleg.quote_id) {
+    await base44.entities.ConfirmedOrder.update(order.id, { sevdesk_quote_id: beleg.quote_id, sevdesk_quote_number: beleg.quote_number || '' });
+  }
+  return { success: false, error: sevdeskFehlerText(beleg.error || 'Belege konnten nicht angelegt werden', contactId) };
+}
+
 // Namensvorschlag für die Modulwahl im Übergabeblatt — nur Vorschlag, keine Entscheidung
 export function suggestModuleId(name, modules) {
   const key = norm(name);
@@ -99,7 +158,7 @@ export async function commitHandover({ deal, kunde, clientId, sevdeskContactId, 
       order_number: beleg.order_number || '',
     });
   } else {
-    sevdeskFehler = beleg.error || 'Angebot/Auftragsbestätigung konnte in sevDesk nicht angelegt werden';
+    sevdeskFehler = sevdeskFehlerText(beleg.error || 'Angebot/Auftragsbestätigung konnte in sevDesk nicht angelegt werden', sevdeskContactId);
     if (beleg.quote_id) {
       await base44.entities.ConfirmedOrder.update(order.id, {
         sevdesk_quote_id: beleg.quote_id,
