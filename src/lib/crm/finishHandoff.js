@@ -13,16 +13,25 @@ export async function finishHandoff(handoff, project, cockpit) {
   await base44.entities.ConfirmedOrder.update(handoff.confirmed_order_id, { project_id: finanzId });
   const order = await base44.entities.ConfirmedOrder.get(handoff.confirmed_order_id).catch(() => null);
 
-  if (!Number(project.total_budget) && Number(handoff.total_net)) {
+  // Auftragswert = Summe aller gültigen ABs am Cockpit. Beim ersten Auftrag ist das genau
+  // dieser eine; bei einer Folgephase wird der neue Auftrag dazugerechnet statt ignoriert.
+  const alleAuftraege = await base44.entities.ConfirmedOrder.filter({ project_id: finanzId }, '-created_date', 200).catch(() => []);
+  const gueltig = alleAuftraege.filter((o) => o.status !== 'cancelled');
+  if (order && !gueltig.some((o) => o.id === order.id) && order.status !== 'cancelled') gueltig.push(order);
+  const auftragsSumme = gueltig.reduce((s, o) => s + (Number(o.total_net_amount) || 0), 0);
+
+  if (auftragsSumme > 0 && Number(project.total_budget) !== auftragsSumme) {
+    await base44.entities.Project.update(project.id, { total_budget: auftragsSumme });
+  } else if (!auftragsSumme && !Number(project.total_budget) && Number(handoff.total_net)) {
     await base44.entities.Project.update(project.id, { total_budget: Number(handoff.total_net) });
   }
 
   if (cockpit) {
     const patch = {};
     if (!cockpit.order_number && order?.order_number) patch.order_number = order.order_number;
-    if (!Number(cockpit.total_net_amount) && Number(order?.total_net_amount)) {
-      patch.total_net_amount = Number(order.total_net_amount);
-      patch.open_amount = Number(order.total_net_amount) - (Number(cockpit.already_invoiced_amount) || 0);
+    if (auftragsSumme > 0 && Number(cockpit.total_net_amount) !== auftragsSumme) {
+      patch.total_net_amount = auftragsSumme;
+      patch.open_amount = auftragsSumme - (Number(cockpit.already_invoiced_amount) || 0);
     }
     if (Object.keys(patch).length) await base44.entities.LiquidityProject.update(cockpit.id, patch);
   }
