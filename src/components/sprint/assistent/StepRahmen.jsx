@@ -45,6 +45,10 @@ export default function StepRahmen({ seed, setSeed, clients: geladeneKunden = []
     }
   };
   const clientProjects = projects.filter((p) => p.client_id === seed.client_id);
+  // Folgesprint nur an laufende Sprintprojekte desselben Kunden
+  const sprintProjekte = clientProjects.filter((p) => projectTypeOf(p) === 'sprint' && p.status !== 'abgeschlossen');
+  const istFolge = seed.type === 'sprint' && seed.sprint_target === 'folge';
+  const folgeWaehlen = (p) => set({ sprint_target: 'folge', existing_project_id: p.id, title: p.title, cockpit_id: '' });
   const supportId = seed.type === 'support'
     ? clientProjects.find((p) => projectTypeOf(p) === 'support' && p.status !== 'abgeschlossen')?.id
     : null;
@@ -134,7 +138,7 @@ export default function StepRahmen({ seed, setSeed, clients: geladeneKunden = []
         )}
       </div>
 
-      {seed.type && seed.type !== 'intern' && seed.type !== 'support' && seed.client_id !== NEW_CLIENT && (
+      {seed.type && seed.type !== 'intern' && seed.type !== 'support' && seed.client_id !== NEW_CLIENT && !istFolge && (
         <CockpitAuswahl
           customer={clients.find((c) => c.id === seed.client_id)?.name}
           value={seed.cockpit_id || ''}
@@ -153,23 +157,45 @@ export default function StepRahmen({ seed, setSeed, clients: geladeneKunden = []
                 <input
                   type="radio" name="sprint_target" value={o.value}
                   checked={(seed.sprint_target || 'neu') === o.value}
-                  onChange={() => set({ sprint_target: o.value })}
+                  onChange={() => set(o.value === 'folge'
+                    ? { sprint_target: 'folge', existing_project_id: '', cockpit_id: '' }
+                    : { sprint_target: 'neu', existing_project_id: '' })}
                 />
                 {o.label}
               </label>
             ))}
           </div>
+          {(seed.sprint_target || 'neu') === 'neu' && sprintProjekte.length > 0 && (
+            <div className="rounded border border-status-attention/40 bg-status-attention-surface px-3 py-2 text-sm text-status-attention space-y-1.5">
+              <p>{kundenName || 'Der Kunde'} hat bereits ein laufendes Projekt. Ist das eine weitere Phase davon?</p>
+              <div className="flex flex-wrap gap-2">
+                {sprintProjekte.map((p) => (
+                  <button key={p.id} type="button" onClick={() => folgeWaehlen(p)}
+                    className="rounded border border-current px-2 py-0.5 text-xs font-semibold hover:bg-white/60">
+                    Als Folgephase an „{p.title}“ anhängen
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {seed.sprint_target === 'folge' && (
             <div>
               <Label>Bestehendes Projekt *</Label>
-              <Select value={seed.existing_project_id || ''} onValueChange={(v) => set({ existing_project_id: v })}>
+              <Select
+                value={seed.existing_project_id || ''}
+                onValueChange={(v) => { const p = sprintProjekte.find((x) => x.id === v); if (p) folgeWaehlen(p); }}
+              >
                 <SelectTrigger><SelectValue placeholder="Projekt des Kunden wählen" /></SelectTrigger>
                 <SelectContent>
-                  {clientProjects.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
+                  {sprintProjekte.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {clientProjects.length === 0 && (
-                <p className="mt-1 text-xs text-muted-foreground">Für diesen Kunden gibt es noch kein Projekt.</p>
+              {sprintProjekte.length === 0 ? (
+                <p className="mt-1 text-xs text-muted-foreground">Für diesen Kunden gibt es kein laufendes Sprintprojekt.</p>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Die neue Phase kommt als eigener Sprint ins Projekt. Projekt-Cockpit und Projektakt bleiben dieselben, der Auftragswert wird dazugerechnet.
+                </p>
               )}
             </div>
           )}
