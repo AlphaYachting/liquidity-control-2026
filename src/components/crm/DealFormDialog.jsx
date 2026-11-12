@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -16,11 +18,99 @@ const EMPTY = {
   next_step: '', next_step_date: '', description: '',
 };
 
+const norm = (s) => String(s || '').toLowerCase().trim();
+
+// Firma: Tippsuche im Kundenverzeichnis. Ein Treffer übernimmt Name, sevDesk-Verknüpfung
+// und (falls leer) Ansprechperson/E-Mail. Ohne Treffer bleibt der getippte Name stehen (Neukunde).
+function FirmaSuchfeld({ value, gewaehlt, clients, onText, onWaehlen }) {
+  const [offen, setOffen] = useState(false);
+  const zu = useRef(null);
+  const treffer = useMemo(() => {
+    const q = norm(value);
+    if (!q) return clients.slice(0, 20);
+    return clients.filter((c) => [c.name, c.contact_person, c.sevdesk_contact_id].some((f) => norm(f).includes(q))).slice(0, 20);
+  }, [clients, value]);
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <Search className="w-3.5 h-3.5 absolute left-2.5 top-3 text-muted-foreground" />
+        <Input
+          className="pl-8"
+          value={value}
+          placeholder="Kunde suchen oder neue Firma eintippen"
+          onChange={(e) => { onText(e.target.value); setOffen(true); }}
+          onFocus={() => { clearTimeout(zu.current); setOffen(true); }}
+          onBlur={() => { zu.current = setTimeout(() => setOffen(false), 150); }}
+        />
+      </div>
+      {offen && (
+        <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-border rounded shadow-sm max-h-64 overflow-y-auto">
+          {treffer.map((c) => (
+            <button key={c.id} type="button" onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { onWaehlen(c); setOffen(false); }}
+              className="w-full text-left text-sm px-3 py-2 hover:bg-muted flex items-center justify-between gap-2">
+              <span className="truncate">{c.name}</span>
+              <span className="text-xs text-muted-foreground shrink-0">
+                {c.sevdesk_contact_id ? `sevDesk ${c.sevdesk_contact_id}` : 'ohne sevDesk'}
+              </span>
+            </button>
+          ))}
+          {treffer.length === 0 && (
+            <p className="px-3 py-2 text-xs text-muted-foreground">Kein Kunde gefunden — der Name wird als neue Firma übernommen.</p>
+          )}
+        </div>
+      )}
+      {gewaehlt && (
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Bestandskunde aus dem Kundenverzeichnis{gewaehlt.sevdesk_contact_id ? ` · sevDesk ${gewaehlt.sevdesk_contact_id}` : ''}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function DealFormDialog({ open, onOpenChange, initialData, onSaved }) {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [duplicate, setDuplicate] = useState(null);
   const isEdit = Boolean(initialData?.id);
+  const { data: clients = [] } = useQuery({
+    queryKey: ['dealFormClients'],
+    enabled: !!open,
+    staleTime: 5 * 60 * 1000,
+    queryFn: () => base44.entities.Client.list('name', 2000),
+  });
+  const gewaehlterKunde = form.linked_customer_name
+    ? clients.find((c) => norm(c.name) === norm(form.linked_customer_name)) || null
+    : null;
+
+  const firmaTippen = (text) => setForm((f) => {
+    const next = { ...f, company_name: text };
+    // Name weicht vom gewählten Kunden ab → Verknüpfung lösen
+    if (f.linked_customer_name && norm(text) !== norm(f.linked_customer_name)) {
+      next.linked_customer_name = '';
+      next.sevdesk_contact_id = '';
+    }
+    return next;
+  });
+
+  const kundeWaehlen = (c) => setForm((f) => {
+    const next = {
+      ...f,
+      company_name: c.name,
+      linked_customer_name: c.name,
+      sevdesk_contact_id: c.sevdesk_contact_id || '',
+      contact_name: f.contact_name || c.contact_person || '',
+      contact_email: f.contact_email || c.contact_email || '',
+    };
+    // Neuer Deal zu einem bestehenden Kunden gehört in die Bestandskunden-Pipeline
+    if (!isEdit && f.pipeline === 'new_business') {
+      next.pipeline = 'existing_customer';
+      next.stage = PIPELINES.existing_customer.stages[0].key;
+    }
+    return next;
+  });
 
   useEffect(() => {
     if (open) {
@@ -105,7 +195,13 @@ export default function DealFormDialog({ open, onOpenChange, initialData, onSave
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Firma</Label>
-              <Input value={form.company_name} onChange={e => set('company_name', e.target.value)} />
+              <FirmaSuchfeld
+                value={form.company_name || ''}
+                gewaehlt={gewaehlterKunde}
+                clients={clients}
+                onText={firmaTippen}
+                onWaehlen={kundeWaehlen}
+              />
             </div>
             <div>
               <Label className="text-xs">Ansprechperson</Label>
