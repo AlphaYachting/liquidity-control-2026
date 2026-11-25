@@ -20,6 +20,38 @@
     },
     "assigned_by": {
       "type": "string"
+    },
+    "verrechnung_status": {
+      "default": "offen",
+      "description": "nicht_verrechnen = aWork-Anfrage in der Support-Abrechnung ohne Rechnung abgeschlossen",
+      "enum": [
+        "offen",
+        "nicht_verrechnen"
+      ],
+      "type": "string"
+    },
+    "verrechnung_grund": {
+      "enum": [
+        "wartungsvertrag",
+        "anderer_auftrag",
+        "bereits_verrechnet",
+        "kulanz",
+        "doppelt_fehlbuchung",
+        "keine_gesonderte_abrechnung",
+        "sonstiges"
+      ],
+      "type": "string"
+    },
+    "verrechnung_notiz": {
+      "type": "string"
+    },
+    "verrechnung_von": {
+      "format": "email",
+      "type": "string"
+    },
+    "verrechnung_am": {
+      "format": "date-time",
+      "type": "string"
     }
   },
   "required": [
