@@ -274,7 +274,9 @@
       "enum": [
         "wartungsvertrag",
         "anderer_auftrag",
+        "bereits_verrechnet",
         "kulanz",
+        "doppelt_fehlbuchung",
         "keine_gesonderte_abrechnung",
         "sonstiges"
       ],
