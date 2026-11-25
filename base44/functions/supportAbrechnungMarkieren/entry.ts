@@ -29,7 +29,8 @@ export default async function (req) {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { aktion, billing_instruction_id } = await req.json();
+    // nur_ohne_rechnung: Aufräumen nach gescheitertem sevDesk-Entwurf — nur verwerfen, wenn wirklich kein Entwurf existiert
+    const { aktion, billing_instruction_id, nur_ohne_rechnung } = await req.json();
     const sr = base44.asServiceRole;
     const instr = (await sr.entities.BillingInstruction.filter({ id: billing_instruction_id }))[0];
     if (!instr) return Response.json({ error: 'Abrechnungsanweisung nicht gefunden' }, { status: 404 });
@@ -73,6 +74,9 @@ export default async function (req) {
       // Ohne sevDesk-Rechnung wurde nie etwas markiert (markieren verlangt den Entwurf) —
       // die Anweisung wird nur verworfen. Tickets und Vorleistungen gehören dann womöglich
       // schon einer späteren, erfolgreichen Abrechnung und dürfen NICHT zurückgesetzt werden (25.11.2026).
+      if (nur_ohne_rechnung && instr.sevdesk_invoice_id) {
+        return Response.json({ error: 'In sevDesk wurde doch ein Entwurf angelegt — die Anweisung bleibt bestehen. Bitte „Neu prüfen“.' }, { status: 409 });
+      }
       if (!instr.sevdesk_invoice_id) {
         await sr.entities.BillingInstruction.delete(instr.id);
         return Response.json({ success: true, geoeffnet: 0, verworfen: true });
