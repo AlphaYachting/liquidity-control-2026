@@ -173,6 +173,10 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
   const anlegen = async () => {
     setBusy(true);
     setFehler('');
+    // Scheitert der sevDesk-Entwurf, wird die eben angelegte Anweisung wieder verworfen — sonst bliebe sie
+    // als „Anweisung ohne sevDesk-Rechnung“ liegen (25.11.2026). Nach dem Entwurf wird nie etwas verworfen.
+    let instr = null;
+    let entwurfDa = false;
     try {
       const header = nurRegie
         ? `Verrechnung Regieleistungen: ${projekteGewaehlt.join(', ')}`
@@ -191,7 +195,7 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
       // Quelle der Anweisung: im Kundenblock immer 'kunde', sonst wie bisher
       const quelle = row.art === 'kunde' ? 'kunde' : (row.art === 'regie' ? 'regie' : 'app');
       const regieProjekte = [...new Set(regiePos.map((t) => t.project_id).filter(Boolean))];
-      const instr = await base44.entities.BillingInstruction.create({
+      instr = await base44.entities.BillingInstruction.create({
         project_id: row.liquidity_project_id || '',
         customer_name: row.customer_name,
         project_name: projekteGewaehlt.join(' · ') || row.project_name,
@@ -237,12 +241,27 @@ export default function SupportAppInvoiceDialog({ row, open, onOpenChange, onDon
         set_status_invoice_created: true,
       });
       if (res.data?.error) throw new Error(res.data.error);
+      if (!res.data?.sevdesk_invoice_id) throw new Error('sevDesk hat keinen Entwurf zurückgemeldet');
+      entwurfDa = true;
       const mark = await base44.functions.invoke('supportAbrechnungMarkieren', { aktion: 'markieren', billing_instruction_id: instr.id });
       if (mark.data?.error) throw new Error(mark.data.error);
       onDone();
       onOpenChange(false);
     } catch (e) {
-      setFehler(e?.response?.data?.error || e.message);
+      const meldung = e?.response?.data?.error || e.message;
+      if (instr && !entwurfDa) {
+        const weg = await base44.functions.invoke('supportAbrechnungMarkieren', { aktion: 'zuruecknehmen', billing_instruction_id: instr.id, nur_ohne_rechnung: true })
+          .then((r) => !r.data?.error).catch(() => false);
+        setFehler(weg
+          ? `Kein Entwurf in sevDesk angelegt: ${meldung}`
+          : `Kein Entwurf in sevDesk bestätigt: ${meldung} — bitte „Neu prüfen“ und die Anweisung im Kundenblock ansehen.`);
+        onDone();
+      } else if (entwurfDa) {
+        setFehler(`Entwurf in sevDesk angelegt, Markieren fehlgeschlagen: ${meldung} — bitte „Neu prüfen“.`);
+        onDone();
+      } else {
+        setFehler(meldung);
+      }
     } finally {
       setBusy(false);
     }
