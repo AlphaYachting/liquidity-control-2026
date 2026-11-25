@@ -23,7 +23,12 @@ export default function SupportBilling() {
   // Kundenblock (22.10.2026): Support und Regie eines Kunden in EINEM Block — eine Rechnung je Kunde
   const kundenRows = data?.kunden_rows || [...(data?.app_rows || []), ...(data?.regie_rows || [])];
   const kundenOffen = kundenRows.filter(r => r.tasks.length > 0);
-  const kundenRuhend = kundenRows.filter(r => r.tasks.length === 0);
+  // In der Arbeitsliste bleibt, wer offene Positionen hat oder eine Rechnung, die noch zu tun gibt:
+  // sevDesk-Entwurf (noch nicht versendet) oder Anweisung ohne sevDesk-Rechnung
+  const brauchtAktion = (r) => r.tasks.length > 0
+    || (r.instructions || []).some(i => !i.sevdesk_invoice_id || i.live_status?.status_code === '100');
+  const kundenAktiv = kundenRows.filter(brauchtAktion);
+  const kundenRuhend = kundenRows.filter(r => !brauchtAktion(r));
 
   const stunden = ((data?.total_billable_minutes || 0) + (data?.app_billable_minutes || 0) + (data?.regie_billable_minutes || 0)) / 60;
   const ohneRechnung = rows.filter(r => r.customer_name && r.instructions.length === 0).length + kundenOffen.length;
@@ -72,10 +77,10 @@ export default function SupportBilling() {
               Je Kunde ein Block, darin je Projekt die Positionen. Regie-Aufgaben bleiben offen; als verrechnet gelten nur die enthaltenen Zeitbuchungen.
               Was nicht verrechnet wird, schließt „Ohne Rechnung“ ab — an der Position oder für mehrere im Kundenkopf.
             </p>
-            {kundenOffen.length === 0 ? (
+            {kundenAktiv.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nichts zu verrechnen.</p>
             ) : (
-              kundenOffen.map(r => <SupportAppRow key={r.group_key} row={r} onDone={refetch} />)
+              kundenAktiv.map(r => <SupportAppRow key={r.group_key} row={r} onDone={refetch} />)
             )}
           </div>
 
