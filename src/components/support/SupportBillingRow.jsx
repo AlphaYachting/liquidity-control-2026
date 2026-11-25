@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, FilePlus2, UserPlus } from 'lucide-react';
+import { Ban, ChevronDown, ChevronRight, FilePlus2, UserPlus } from 'lucide-react';
+import { useZugriff } from '@/lib/useZugriff';
+import SupportAbschliessenDialog from '@/components/support/SupportAbschliessenDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import SupportInvoiceDialog from '@/components/support/SupportInvoiceDialog';
@@ -17,6 +19,14 @@ export default function SupportBillingRow({ row, onDone }) {
   const [einzelTask, setEinzelTask] = useState(null);
   // Kundenzuweisung — entweder für die ganze Gruppe oder für eine Anfrage
   const [zuweisung, setZuweisung] = useState(null);
+  // Ohne Rechnung abschließen (25.11.2026) — nur Führung, wie in den Kundenblöcken
+  const { darf } = useZugriff();
+  const darfAendern = darf('fuehrung');
+  const [abschluss, setAbschluss] = useState(null);
+  const alsPosition = (t) => ({
+    key: t.awork_task_id, awork_task_id: t.awork_task_id, task_title: t.task_title, art: 'awork',
+    projekt_name: row.project_name, billable_minutes: supportVerrechnungsMinuten(t.open_minutes), stundensatz: row.stundensatz || 130,
+  });
 
   const zugewiesen = Boolean(row.customer_name);
   const stunden = row.tasks.reduce((s, t) => s + halb(t.open_minutes), 0);
@@ -48,6 +58,11 @@ export default function SupportBillingRow({ row, onDone }) {
           <Button size="sm" variant={zugewiesen ? 'ghost' : 'default'} onClick={() => setZuweisung(row.tasks)}>
             <UserPlus className="w-3.5 h-3.5" /> {zugewiesen ? 'Kunde ändern' : 'Kunde zuweisen'}
           </Button>
+          {darfAendern && row.tasks.length > 0 && (
+            <Button size="sm" variant="ghost" onClick={() => setAbschluss({ positionen: row.tasks.map(alsPosition), vorausgewaehlt: [] })} title="Anfragen ohne Rechnung abschließen">
+              <Ban className="w-3.5 h-3.5" /> Ohne Rechnung …
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={() => setDialog(true)} disabled={!zugewiesen}>
             <FilePlus2 className="w-3.5 h-3.5" /> Eine Rechnung
           </Button>
@@ -63,6 +78,7 @@ export default function SupportBillingRow({ row, onDone }) {
               kundeZugewiesen={zugewiesen}
               onInvoice={setEinzelTask}
               onAssign={(task) => setZuweisung([task])}
+              onNichtVerrechnen={darfAendern ? (task) => setAbschluss({ positionen: [alsPosition(task)], vorausgewaehlt: [task.awork_task_id] }) : null}
             />
           ))}
         </div>
@@ -77,6 +93,17 @@ export default function SupportBillingRow({ row, onDone }) {
           row={{ ...row, tasks: [einzelTask] }}
           open={true}
           onOpenChange={(o) => { if (!o) setEinzelTask(null); }}
+          onDone={onDone}
+        />
+      )}
+
+      {abschluss && (
+        <SupportAbschliessenDialog
+          kunde={row.customer_name}
+          positionen={abschluss.positionen}
+          vorausgewaehlt={abschluss.vorausgewaehlt}
+          open={true}
+          onOpenChange={(o) => { if (!o) setAbschluss(null); }}
           onDone={onDone}
         />
       )}
