@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, FilePlus2, Link2 } from 'lucide-react';
+import { Ban, ChevronDown, ChevronRight, FilePlus2, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useZugriff } from '@/lib/useZugriff';
 import SupportAppInvoiceDialog from '@/components/support/SupportAppInvoiceDialog';
 import SupportAppLine from '@/components/support/SupportAppLine';
 import SupportNichtVerrechnet from '@/components/support/SupportNichtVerrechnet';
-import SupportNichtVerrechnenDialog from '@/components/support/SupportNichtVerrechnenDialog';
+import SupportAbschliessenDialog from '@/components/support/SupportAbschliessenDialog';
 import SupportAworkZeitDialog from '@/components/support/SupportAworkZeitDialog';
 import SevdeskVerknuepfenDialog from '@/components/support/SevdeskVerknuepfenDialog';
 import SupportInstructionBadge from '@/components/support/SupportInstructionBadge';
@@ -18,7 +18,8 @@ export default function SupportAppRow({ row, onDone }) {
   const darfAendern = darf('fuehrung');
   const [offen, setOffen] = useState(true);
   const [dialogTasks, setDialogTasks] = useState(null);
-  const [nichtTask, setNichtTask] = useState(null);
+  // Ohne Rechnung abschließen (25.11.2026): { positionen, vorausgewaehlt } — eine Position oder Auswahl im Block
+  const [abschluss, setAbschluss] = useState(null);
   const [aworkTask, setAworkTask] = useState(null);
   const [sevdesk, setSevdesk] = useState(false);
   const [zuordnenTask, setZuordnenTask] = useState(null);
@@ -26,6 +27,12 @@ export default function SupportAppRow({ row, onDone }) {
   const regie = row.art === 'regie';
   // Kundenblock (22.10.2026): Support und Regie gemischt — Art und Projekt stehen an der Position
   const istRegieTask = (t) => (t.art ? t.art === 'regie' : regie);
+  const alsPosition = (t) => ({
+    ...t,
+    art: istRegieTask(t) ? 'regie' : 'support',
+    projekt_name: t.projekt_name || row.project_name,
+    stundensatz: t.stundensatz || row.stundensatz,
+  });
   const gruppen = [];
   for (const t of row.tasks) {
     const name = t.projekt_name || row.project_name || '';
@@ -68,9 +75,16 @@ export default function SupportAppRow({ row, onDone }) {
             {row.instructions.map((i) => <SupportInstructionBadge key={i.id} instruction={i} onDone={onDone} />)}
           </div>
         </div>
-        <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => setDialogTasks(row.tasks)} disabled={!verknuepft || row.tasks.length === 0}>
-          <FilePlus2 className="w-3.5 h-3.5" /> Eine Rechnung
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+          {darfAendern && row.tasks.length > 0 && (
+            <Button size="sm" variant="ghost" onClick={() => setAbschluss({ positionen: row.tasks.map(alsPosition), vorausgewaehlt: [] })} title="Mehrere Positionen dieses Kunden ohne Rechnung abschließen">
+              <Ban className="w-3.5 h-3.5" /> Ohne Rechnung …
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => setDialogTasks(row.tasks)} disabled={!verknuepft || row.tasks.length === 0}>
+            <FilePlus2 className="w-3.5 h-3.5" /> Eine Rechnung
+          </Button>
+        </div>
       </div>
 
       {offen && (
@@ -89,7 +103,7 @@ export default function SupportAppRow({ row, onDone }) {
                   abrechenbar={verknuepft}
                   darfAendern={darfAendern}
                   onInvoice={(task) => setDialogTasks([task])}
-                  onNichtVerrechnen={setNichtTask}
+                  onNichtVerrechnen={(t) => setAbschluss({ positionen: [alsPosition(t)], vorausgewaehlt: [t.key] })}
                   onAworkZeit={setAworkTask}
                   onZuordnen={setZuordnenTask}
                   regie={istRegieTask(t)}
@@ -109,8 +123,15 @@ export default function SupportAppRow({ row, onDone }) {
           onDone={onDone}
         />
       )}
-      {nichtTask && (
-        <SupportNichtVerrechnenDialog task={nichtTask} open={true} onOpenChange={(o) => { if (!o) setNichtTask(null); }} onDone={onDone} />
+      {abschluss && (
+        <SupportAbschliessenDialog
+          kunde={row.customer_name}
+          positionen={abschluss.positionen}
+          vorausgewaehlt={abschluss.vorausgewaehlt}
+          open={true}
+          onOpenChange={(o) => { if (!o) setAbschluss(null); }}
+          onDone={onDone}
+        />
       )}
       {aworkTask && (
         <SupportAworkZeitDialog task={aworkTask} open={true} onOpenChange={(o) => { if (!o) setAworkTask(null); }} onDone={onDone} />
