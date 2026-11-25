@@ -14,10 +14,113 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 //   sevdesk_verknuepfen { client_id, kontakt }            → Kunde der App mit sevDesk-Kontakt verknüpfen (Führung)
 //   zeit_zuordnen     { time_entry_ids, ticket_id }       → ohne Ticket gebuchte, offene Support-Zeit einem Ticket
 //                                                          desselben Projekts zuordnen (Führung, 21.10.2026)
+//   abschliessen      { positionen: [{ ticket_id?, time_entry_ids?, awork_task_id?, kunde? }], grund, notiz }
+//                                                        → Positionen ohne Rechnung abschließen (Führung, 25.11.2026):
+//                                                          Ticket wie „nicht verrechnen“, enthaltene offene Zeitbuchungen
+//                                                          auf abrechnungsstatus 'nicht_verrechnet' (bleiben Arbeitszeit),
+//                                                          aWork-Altbestand über SupportTicketCustomer.verrechnung_status
+//   abschluss_rueckgaengig { ticket_id? | time_entry_ids? | awork_task_id? } → 30 Tage zurückholen (Führung)
 // Zeitbuchungen werden hier sonst nie verändert — ein „nicht verrechnet"-Ticket fällt nur aus der Abrechnungsliste.
 // zeit_zuordnen setzt ausschließlich ticket_id an offenen Buchungen ohne Ticket; Dauer, Status und Betrag bleiben.
 
-const GRUENDE = ['wartungsvertrag', 'anderer_auftrag', 'kulanz', 'keine_gesonderte_abrechnung', 'sonstiges'];
+const GRUENDE = ['wartungsvertrag', 'anderer_auftrag', 'bereits_verrechnet', 'kulanz', 'doppelt_fehlbuchung', 'keine_gesonderte_abrechnung', 'sonstiges'];
+// Kundenzuweisung, die nur für den Abschluss einer aWork-Anfrage ohne Kunde angelegt wurde — beim Zurückholen wieder weg
+const ABSCHLUSS_PLATZHALTER = '— ohne Rechnung abgeschlossen —';
+// Nur Buchungen von Projekten, die nach Aufwand verrechnet werden (Support, Regie) — sonst nichts anfassen
+const AUFWAND_MODELLE = ['aufwand', 'support'];
+const offenFuerRechnung = (e) => (e.abrechnungsstatus || 'offen') === 'offen' && e.verrechenbar !== false && !e.billing_instruction_id;
+const vonAbschluss = (e) => e.abrechnungsstatus === 'nicht_verrechnet' && Boolean(e.nicht_verrechnet_am);
+
+async function inStuecken(liste, fn, groesse = 10) {
+  for (let i = 0; i < liste.length; i += groesse) await Promise.all(liste.slice(i, i + groesse).map(fn));
+}
+
+async function buchungenNachIds(db, ids) {
+  const out = [];
+  for (let i = 0; i < ids.length; i += 200) {
+    out.push(...await db.TimeEntry.filter({ id: { $in: ids.slice(i, i + 200) } }, null, 500));
+  }
+  return out;
+}
+
+// Positionen ohne Rechnung abschließen. Prüft zuerst alles und schreibt erst danach.
+async function abschliessen(db, user, body) {
+  const grund = body.grund;
+  const notiz = String(body.notiz || '').trim();
+  if (!GRUENDE.includes(grund)) return { status: 400, error: 'Bitte einen Grund wählen' };
+  if (grund === 'sonstiges' && !notiz) return { status: 400, error: 'Bei „Sonstiges“ bitte eine Notiz angeben' };
+  const positionen = (body.positionen || []).filter(Boolean).slice(0, 200);
+  if (!positionen.length) return { status: 400, error: 'Keine Position gewählt' };
+  const jetzt = new Date().toISOString();
+
+  const ticketIds = [...new Set(positionen.map((p) => p.ticket_id).filter(Boolean))];
+  const tickets = ticketIds.length ? await db.Ticket.filter({ id: { $in: ticketIds } }, null, 500) : [];
+  if (tickets.length !== ticketIds.length) return { status: 404, error: 'Ticket nicht gefunden — bitte „Neu prüfen“' };
+  const schonVerrechnet = tickets.find((t) => t.verrechnung_status === 'verrechnet');
+  if (schonVerrechnet) return { status: 409, error: `„${schonVerrechnet.title}“ ist bereits verrechnet — erst die Abrechnung zurücknehmen` };
+
+  // Buchungen: alle des Tickets plus ausdrücklich genannte (Zeit ohne Ticket, Regie-Tage, zugeordnete Zeit)
+  const explizit = [...new Set(positionen.flatMap((p) => p.time_entry_ids || []).filter(Boolean))];
+  const ausTickets = ticketIds.length ? await db.TimeEntry.filter({ ticket_id: { $in: ticketIds } }, null, 5000) : [];
+  const alle = Object.values(Object.fromEntries([...ausTickets, ...await buchungenNachIds(db, explizit)].map((e) => [e.id, e])));
+  const projektIds = [...new Set(alle.map((e) => e.project_id).filter(Boolean))];
+  const projekte = projektIds.length ? await db.Project.filter({ id: { $in: projektIds } }, null, 500) : [];
+  const nachAufwand = new Set(projekte.filter((p) => AUFWAND_MODELLE.includes(p.abrechnungsmodell)).map((p) => p.id));
+  const zuSchliessen = alle.filter((e) => offenFuerRechnung(e) && nachAufwand.has(e.project_id));
+  const uebersprungen = alle.length - zuSchliessen.length;
+
+  const felder = { nicht_verrechnet_grund: grund, nicht_verrechnet_notiz: notiz || null, nicht_verrechnet_von: user.email, nicht_verrechnet_am: jetzt };
+  await inStuecken(tickets, (t) => db.Ticket.update(t.id, {
+    verrechnung_status: 'nicht_verrechnen', verrechnung_grund: grund, verrechnung_notiz: notiz || null,
+    verrechnung_von: user.email, verrechnung_am: jetzt,
+  }));
+  await inStuecken(zuSchliessen, (e) => db.TimeEntry.update(e.id, { abrechnungsstatus: 'nicht_verrechnet', ...felder }));
+
+  // aWork-Altbestand: Kennzeichen an der Kundenzuweisung der Anfrage, aWork-Daten bleiben unberührt
+  const awork = positionen.filter((p) => p.awork_task_id);
+  for (const p of awork) {
+    const zeilen = await db.SupportTicketCustomer.filter({ awork_task_id: p.awork_task_id }, '-updated_date', 20);
+    const daten = { verrechnung_status: 'nicht_verrechnen', verrechnung_grund: grund, verrechnung_notiz: notiz || null, verrechnung_von: user.email, verrechnung_am: jetzt };
+    if (zeilen.length) await inStuecken(zeilen, (z) => db.SupportTicketCustomer.update(z.id, daten));
+    else await db.SupportTicketCustomer.create({ awork_task_id: p.awork_task_id, customer_name: ABSCHLUSS_PLATZHALTER, assigned_by: user.email, ...daten });
+  }
+  return { status: 200, ergebnis: { success: true, tickets: tickets.length, buchungen: zuSchliessen.length, awork: awork.length, uebersprungen } };
+}
+
+// Abschluss zurücknehmen — nur, was über den Abschluss gesetzt wurde
+async function abschlussZurueck(db, body) {
+  let tickets = 0;
+  let buchungen = 0;
+  let awork = 0;
+  const zurueck = async (eintraege) => {
+    const treffer = eintraege.filter(vonAbschluss);
+    await inStuecken(treffer, (e) => db.TimeEntry.update(e.id, {
+      abrechnungsstatus: 'offen', nicht_verrechnet_grund: null, nicht_verrechnet_notiz: null, nicht_verrechnet_von: null, nicht_verrechnet_am: null,
+    }));
+    buchungen += treffer.length;
+  };
+  if (body.ticket_id) {
+    const t = (await db.Ticket.filter({ id: body.ticket_id }))[0];
+    if (!t) return { status: 404, error: 'Ticket nicht gefunden' };
+    if (t.verrechnung_status === 'nicht_verrechnen') {
+      await db.Ticket.update(t.id, { verrechnung_status: 'offen', verrechnung_grund: null, verrechnung_notiz: null, verrechnung_von: null, verrechnung_am: null });
+      tickets = 1;
+    }
+    await zurueck(await db.TimeEntry.filter({ ticket_id: t.id }, null, 2000));
+  }
+  const ids = [...new Set((body.time_entry_ids || []).filter(Boolean))].slice(0, 500);
+  if (ids.length) await zurueck(await buchungenNachIds(db, ids));
+  if (body.awork_task_id) {
+    const zeilen = await db.SupportTicketCustomer.filter({ awork_task_id: body.awork_task_id }, '-updated_date', 20);
+    for (const z of zeilen) {
+      if (z.verrechnung_status !== 'nicht_verrechnen') continue;
+      if (z.customer_name === ABSCHLUSS_PLATZHALTER) await db.SupportTicketCustomer.delete(z.id);
+      else await db.SupportTicketCustomer.update(z.id, { verrechnung_status: 'offen', verrechnung_grund: null, verrechnung_notiz: null, verrechnung_von: null, verrechnung_am: null });
+      awork++;
+    }
+  }
+  return { status: 200, ergebnis: { success: true, tickets, buchungen, awork } };
+}
 const AWORK_SUPPORT_PROJEKT = 'RITTLER - Supportanfragen';
 const STICHTAG = '2026-07-24';
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
@@ -78,36 +181,28 @@ export default async function (req) {
     const { aktion } = body;
     const db = base44.asServiceRole.entities;
     const jetzt = new Date().toISOString();
-    const schreibend = ['nicht_verrechnen', 'rueckgaengig', 'awork_zuordnen', 'awork_loesen', 'sevdesk_verknuepfen', 'zeit_zuordnen'];
+    const schreibend = ['nicht_verrechnen', 'rueckgaengig', 'awork_zuordnen', 'awork_loesen', 'sevdesk_verknuepfen', 'zeit_zuordnen', 'abschliessen', 'abschluss_rueckgaengig'];
     if (schreibend.includes(aktion) && !(await istFuehrung(db, user))) {
       return Response.json({ error: 'Nur Führungskräfte oder Admins dürfen das ändern' }, { status: 403 });
     }
 
     const ladeTicket = async (id) => (await db.Ticket.filter({ id }))[0] || null;
 
-    if (aktion === 'nicht_verrechnen') {
-      const { ticket_id, grund } = body;
-      const notiz = String(body.notiz || '').trim();
-      if (!GRUENDE.includes(grund)) return Response.json({ error: 'Bitte einen Grund wählen' }, { status: 400 });
-      if (grund === 'sonstiges' && !notiz) return Response.json({ error: 'Bei „Sonstiges" bitte eine Notiz angeben' }, { status: 400 });
-      const t = await ladeTicket(ticket_id);
-      if (!t) return Response.json({ error: 'Ticket nicht gefunden' }, { status: 404 });
-      if (t.verrechnung_status === 'verrechnet') return Response.json({ error: 'Ticket ist bereits verrechnet — erst die Abrechnung zurücknehmen' }, { status: 409 });
-      await db.Ticket.update(t.id, {
-        verrechnung_status: 'nicht_verrechnen', verrechnung_grund: grund, verrechnung_notiz: notiz || null,
-        verrechnung_von: user.email, verrechnung_am: jetzt,
-      });
-      return Response.json({ success: true });
+    // „Nicht verrechnen“ eines Tickets = Abschluss ohne Rechnung dieses Tickets samt seiner offenen Zeitbuchungen (25.11.2026)
+    if (aktion === 'nicht_verrechnen' || aktion === 'abschliessen') {
+      const eingabe = aktion === 'nicht_verrechnen' ? { ...body, positionen: [{ ticket_id: body.ticket_id }] } : body;
+      const r = await abschliessen(db, user, eingabe);
+      return r.error ? Response.json({ error: r.error }, { status: r.status }) : Response.json(r.ergebnis);
     }
 
-    if (aktion === 'rueckgaengig') {
-      const t = await ladeTicket(body.ticket_id);
-      if (!t) return Response.json({ error: 'Ticket nicht gefunden' }, { status: 404 });
-      if (t.verrechnung_status !== 'nicht_verrechnen') return Response.json({ error: 'Ticket ist nicht als „nicht verrechnen" gekennzeichnet' }, { status: 409 });
-      await db.Ticket.update(t.id, {
-        verrechnung_status: 'offen', verrechnung_grund: null, verrechnung_notiz: null, verrechnung_von: null, verrechnung_am: null,
-      });
-      return Response.json({ success: true });
+    if (aktion === 'rueckgaengig' || aktion === 'abschluss_rueckgaengig') {
+      if (aktion === 'rueckgaengig') {
+        const t = await ladeTicket(body.ticket_id);
+        if (!t) return Response.json({ error: 'Ticket nicht gefunden' }, { status: 404 });
+        if (t.verrechnung_status !== 'nicht_verrechnen') return Response.json({ error: 'Ticket ist nicht als „nicht verrechnen" gekennzeichnet' }, { status: 409 });
+      }
+      const r = await abschlussZurueck(db, aktion === 'rueckgaengig' ? { ticket_id: body.ticket_id } : body);
+      return r.error ? Response.json({ error: r.error }, { status: r.status }) : Response.json(r.ergebnis);
     }
 
     if (aktion === 'awork_vorschlag') {
