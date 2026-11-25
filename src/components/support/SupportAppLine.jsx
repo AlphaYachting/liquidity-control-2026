@@ -70,14 +70,15 @@ export default function SupportAppLine({ task, abrechenbar, darfAendern, onInvoi
         </Button>
       )}
       {darfAendern && task.ticket_id && !regie && (
-        <>
-          <Button size="sm" variant="ghost" className="flex-shrink-0" onClick={() => onAworkZeit(task)} title="Zeit aus aWork übernehmen">
-            <Clock className="w-3.5 h-3.5" /> {task.awork_task_id ? 'aWork-Zeit' : 'aWork-Zeit zuordnen'}
-          </Button>
-          <Button size="sm" variant="ghost" className="flex-shrink-0" onClick={() => onNichtVerrechnen(task)}>
-            <Ban className="w-3.5 h-3.5" /> Nicht verrechnen
-          </Button>
-        </>
+        <Button size="sm" variant="ghost" className="flex-shrink-0" onClick={() => onAworkZeit(task)} title="Zeit aus aWork übernehmen">
+          <Clock className="w-3.5 h-3.5" /> {task.awork_task_id ? 'aWork-Zeit' : 'aWork-Zeit zuordnen'}
+        </Button>
+      )}
+      {/* Jede Position — Ticket, Regie-Tag, Zeit ohne Ticket, vor der Umstellung — lässt sich ohne Rechnung abschließen (25.11.2026) */}
+      {darfAendern && onNichtVerrechnen && (
+        <Button size="sm" variant="ghost" className="flex-shrink-0" onClick={() => onNichtVerrechnen(task)} title="Ohne Rechnung abschließen">
+          <Ban className="w-3.5 h-3.5" /> Ohne Rechnung
+        </Button>
       )}
       <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => onInvoice(task)} disabled={!abrechenbar}>
         <FilePlus2 className="w-3.5 h-3.5" /> Einzelrechnung
