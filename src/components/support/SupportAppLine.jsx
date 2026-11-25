@@ -16,8 +16,9 @@ export default function SupportAppLine({ task, abrechenbar, darfAendern, onInvoi
   // Verrechnete Stunden kommen vom Server (Support: Minimum 0,5 h je Ticket; Regie: Projektregel)
   const verrechnetMin = task.billable_minutes ?? supportVerrechnungsMinuten(task.open_minutes);
   return (
-    <div className="flex items-center gap-3 border rounded-lg px-3 py-2 bg-background">
-      <div className="flex-1 min-w-0">
+    // Reicht die Breite nicht, rutschen die Knöpfe in eine zweite Zeile statt den Titel abzuschneiden (25.11.2026)
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border rounded-lg px-3 py-2 bg-background">
+      <div className="flex-1 min-w-[16rem]">
         <div className="flex items-center gap-2 min-w-0">
           <p className="text-xs font-medium truncate">{task.task_title}</p>
           {ohneZeit && !nurNichtVerrechenbar && <Badge className="bg-amber-100 text-amber-800 flex-shrink-0">keine Zeit gebucht</Badge>}
@@ -59,8 +60,9 @@ export default function SupportAppLine({ task, abrechenbar, darfAendern, onInvoi
           <p className="mt-1 text-xs">{task.notizen.join(' · ')}</p>
         ) : null}
       </div>
+      <div className="flex items-center gap-1 flex-shrink-0 ml-auto">
       {task.link && (
-        <Link to={task.link} title="Ticket öffnen" className="flex-shrink-0 text-muted-foreground hover:text-foreground">
+        <Link to={task.link} title="Ticket öffnen" className="flex-shrink-0 text-muted-foreground hover:text-foreground px-1">
           <ExternalLink className="w-3.5 h-3.5" />
         </Link>
       )}
@@ -83,6 +85,7 @@ export default function SupportAppLine({ task, abrechenbar, darfAendern, onInvoi
       <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => onInvoice(task)} disabled={!abrechenbar}>
         <FilePlus2 className="w-3.5 h-3.5" /> Einzelrechnung
       </Button>
+      </div>
     </div>
   );
 }
