@@ -4,9 +4,12 @@ import { base44 } from '@/api/base44Client';
 import { Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SupportBillingRow from '@/components/support/SupportBillingRow';
+import SupportNichtVerrechnet from '@/components/support/SupportNichtVerrechnet';
+import { useZugriff } from '@/lib/useZugriff';
 
 // Altbestand aus aWork (Status „In Verrechnung") — läuft aus, sobald alles abgerechnet ist
-export default function SupportAltbestand({ rows, onDone }) {
+export default function SupportAltbestand({ rows, abgeschlossen = [], onDone }) {
+  const { darf } = useZugriff();
 
   const offeneTasks = rows
     .filter(r => !r.customer_name)
@@ -45,6 +48,9 @@ export default function SupportAltbestand({ rows, onDone }) {
       ) : (
         rows.map(r => <SupportBillingRow key={r.group_key} row={r} onDone={onDone} />)
       )}
+
+      {/* Ohne Rechnung abgeschlossene aWork-Anfragen — 30 Tage zurückholbar (25.11.2026) */}
+      <SupportNichtVerrechnet tickets={abgeschlossen} darfAendern={darf('fuehrung')} onDone={onDone} />
 
     </div>
   );
