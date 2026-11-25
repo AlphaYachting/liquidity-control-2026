@@ -19,8 +19,8 @@ export default function SupportAppLine({ task, abrechenbar, darfAendern, onInvoi
     // Reicht die Breite nicht, rutschen die Knöpfe in eine zweite Zeile statt den Titel abzuschneiden (25.11.2026)
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border rounded-lg px-3 py-2 bg-background">
       <div className="flex-1 min-w-[16rem]">
-        <div className="flex items-center gap-2 min-w-0">
-          <p className="text-xs font-medium truncate">{task.task_title}</p>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
+          <p className="text-xs font-medium truncate max-w-full">{task.task_title}</p>
           {ohneZeit && !nurNichtVerrechenbar && <Badge className="bg-amber-100 text-amber-800 flex-shrink-0">keine Zeit gebucht</Badge>}
           {nurNichtVerrechenbar && (
             <Badge className="bg-slate-100 text-slate-700 flex-shrink-0">
