@@ -1,4 +1,18 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { secrets } from 'base44:runtime';
+
+const SEVDESK_BASE = 'https://my.sevdesk.de/api/v1';
+
+// Status der Rechnung in sevDesk: '100' = Entwurf. null = Rechnung in sevDesk nicht (mehr) vorhanden.
+async function sevdeskStatus(invoiceId) {
+  const apiKey = secrets.get('SEVDESK_API_KEY');
+  if (!apiKey) throw new Error('sevDesk ist nicht verbunden — Status der Rechnung nicht prüfbar');
+  const res = await fetch(`${SEVDESK_BASE}/Invoice/${invoiceId}`, { headers: { Authorization: apiKey, 'Content-Type': 'application/json' } });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`sevDesk nicht erreichbar (${res.status}) — bitte später noch einmal`);
+  const inv = ((await res.json()).objects || [])[0];
+  return inv ? String(inv.status || '') : null;
+}
 
 // Support-Abrechnung: enthaltene Zeitbuchungen und aWork-Vorleistungen als abgerechnet markieren
 // bzw. beim Zurücknehmen wieder öffnen. Läuft mit Service-Rolle, weil TimeEntry-RLS
@@ -56,6 +70,30 @@ export default async function (req) {
       if (user.role !== 'admin' && instr.created_by_id !== user.id) {
         return Response.json({ error: 'Nur wer die Abrechnung angelegt hat oder ein Admin darf sie zurücknehmen' }, { status: 403 });
       }
+      // Ohne sevDesk-Rechnung wurde nie etwas markiert (markieren verlangt den Entwurf) —
+      // die Anweisung wird nur verworfen. Tickets und Vorleistungen gehören dann womöglich
+      // schon einer späteren, erfolgreichen Abrechnung und dürfen NICHT zurückgesetzt werden (25.11.2026).
+      if (!instr.sevdesk_invoice_id) {
+        await sr.entities.BillingInstruction.delete(instr.id);
+        return Response.json({ success: true, geoeffnet: 0, verworfen: true });
+      }
+      // Zurücknehmen nur, solange die Rechnung in sevDesk Entwurf ist — eine versendete Rechnung
+      // bleibt beim Kunden, die Stunden würden sonst doppelt verrechnet (25.11.2026).
+      const status = await sevdeskStatus(instr.sevdesk_invoice_id);
+      if (status !== null && status !== '100') {
+        return Response.json({ error: 'Die Rechnung ist in sevDesk nicht mehr Entwurf — bitte dort stornieren. Zurücknehmen ist nur bei Entwürfen möglich.' }, { status: 409 });
+      }
+      // Tickets und Vorleistungen nur zurücksetzen, wenn keine andere Abrechnung mit sevDesk-Rechnung sie enthält
+      const andere = (await sr.entities.BillingInstruction.list('-created_date', 2000))
+        .filter((a) => a.id !== instr.id && a.status !== 'cancelled' && a.sevdesk_invoice_id);
+      const belegtTickets = new Set();
+      const belegtVorleistung = new Set();
+      for (const a of andere) {
+        let s = null;
+        try { s = a.source_snapshot_json ? JSON.parse(a.source_snapshot_json) : null; } catch (_e) { s = null; }
+        (s?.support_ticket_ids || []).forEach((id) => belegtTickets.add(id));
+        (s?.vorleistung_ticket_ids || []).forEach((id) => belegtVorleistung.add(id));
+      }
       let geoeffnet = 0;
       await inStuecken(entryIds, async (id) => {
         const e = (await sr.entities.TimeEntry.filter({ id }))[0];
@@ -63,8 +101,8 @@ export default async function (req) {
         await sr.entities.TimeEntry.update(id, { abrechnungsstatus: 'offen', billing_instruction_id: null, abgerechnet_am: null });
         geoeffnet++;
       });
-      await inStuecken(vorleistungIds, (id) => sr.entities.Ticket.update(id, { awork_vorleistung_abgerechnet: false }));
-      await inStuecken(ticketIds, async (id) => {
+      await inStuecken(vorleistungIds.filter((id) => !belegtVorleistung.has(id)), (id) => sr.entities.Ticket.update(id, { awork_vorleistung_abgerechnet: false }));
+      await inStuecken(ticketIds.filter((id) => !belegtTickets.has(id)), async (id) => {
         const t = (await sr.entities.Ticket.filter({ id }))[0];
         if (!t || t.verrechnung_status !== 'verrechnet') return;
         await sr.entities.Ticket.update(id, { verrechnung_status: 'offen', verrechnung_text: null, verrechnung_von: null, verrechnung_am: null });
