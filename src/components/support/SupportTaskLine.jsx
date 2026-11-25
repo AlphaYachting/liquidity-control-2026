@@ -1,5 +1,5 @@
 import React from 'react';
-import { FilePlus2, UserPlus } from 'lucide-react';
+import { Ban, FilePlus2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supportVerrechnungsMinuten } from '@/lib/zeit/rundung';
 
@@ -7,7 +7,7 @@ const std = (min) => Math.round((min / 60) * 100) / 100;
 const halb = (min) => supportVerrechnungsMinuten(min) / 60;
 
 // Ein Support-Ticket als eigener Vorgang — einzeln abrechenbar oder Teil der Kundenrechnung
-export default function SupportTaskLine({ task, kundeZugewiesen, onInvoice, onAssign }) {
+export default function SupportTaskLine({ task, kundeZugewiesen, onInvoice, onAssign, onNichtVerrechnen }) {
   return (
     <div className="flex items-center gap-3 border rounded-lg px-3 py-2 bg-background">
       <div className="flex-1 min-w-0">
@@ -19,6 +19,11 @@ export default function SupportTaskLine({ task, kundeZugewiesen, onInvoice, onAs
       <Button size="sm" variant="ghost" className="flex-shrink-0" onClick={() => onAssign(task)}>
         <UserPlus className="w-3.5 h-3.5" /> Kunde
       </Button>
+      {onNichtVerrechnen && (
+        <Button size="sm" variant="ghost" className="flex-shrink-0" onClick={() => onNichtVerrechnen(task)} title="Ohne Rechnung abschließen">
+          <Ban className="w-3.5 h-3.5" /> Ohne Rechnung
+        </Button>
+      )}
       <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => onInvoice(task)} disabled={!kundeZugewiesen}>
         <FilePlus2 className="w-3.5 h-3.5" /> Einzelrechnung
       </Button>
