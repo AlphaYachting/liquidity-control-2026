@@ -32,6 +32,9 @@ export default function SupportInvoiceDialog({ row, open, onOpenChange, onDone }
   const anlegen = async () => {
     setBusy(true);
     setFehler('');
+    // Scheitert der sevDesk-Entwurf, wird die eben angelegte Anweisung wieder verworfen (25.11.2026)
+    let instr = null;
+    let entwurfDa = false;
     try {
       const header = positionen.length === 1
         ? `Verrechnung Supportauftrag: ${positionen[0].name}`
@@ -46,7 +49,7 @@ export default function SupportInvoiceDialog({ row, open, onOpenChange, onDone }
             vorleistung_ticket_ids: gewaehlt.filter(t => t.vorleistung_minutes > 0).map(t => t.ticket_id),
           }
         : { support_task_ids: gewaehlt.map(t => t.awork_task_id) };
-      const instr = await base44.entities.BillingInstruction.create({
+      instr = await base44.entities.BillingInstruction.create({
         project_id: row.liquidity_project_id || '',
         customer_name: row.customer_name,
         project_name: row.project_name,
@@ -74,6 +77,8 @@ export default function SupportInvoiceDialog({ row, open, onOpenChange, onDone }
         set_status_invoice_created: true,
       });
       if (res.data?.error) throw new Error(res.data.error);
+      if (!res.data?.sevdesk_invoice_id) throw new Error('sevDesk hat keinen Entwurf zurückgemeldet');
+      entwurfDa = true;
       if (istApp) {
         const mark = await base44.functions.invoke('supportAbrechnungMarkieren', { aktion: 'markieren', billing_instruction_id: instr.id });
         if (mark.data?.error) throw new Error(mark.data.error);
@@ -81,7 +86,20 @@ export default function SupportInvoiceDialog({ row, open, onOpenChange, onDone }
       onDone();
       onOpenChange(false);
     } catch (e) {
-      setFehler(e?.response?.data?.error || e.message);
+      const meldung = e?.response?.data?.error || e.message;
+      if (instr && !entwurfDa) {
+        const weg = await base44.functions.invoke('supportAbrechnungMarkieren', { aktion: 'zuruecknehmen', billing_instruction_id: instr.id, nur_ohne_rechnung: true })
+          .then((r) => !r.data?.error).catch(() => false);
+        setFehler(weg
+          ? `Kein Entwurf in sevDesk angelegt: ${meldung}`
+          : `Kein Entwurf in sevDesk bestätigt: ${meldung} — bitte „Neu prüfen“.`);
+        onDone();
+      } else if (entwurfDa) {
+        setFehler(`Entwurf in sevDesk angelegt, Markieren fehlgeschlagen: ${meldung} — bitte „Neu prüfen“.`);
+        onDone();
+      } else {
+        setFehler(meldung);
+      }
     } finally {
       setBusy(false);
     }
