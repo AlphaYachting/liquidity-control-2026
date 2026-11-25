@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { secrets } from 'base44:runtime';
-import { appZeilen, regieZeilen, supportVerrechnungsMinuten } from './appTickets.js';
+import { appZeilen, regieZeilen, supportVerrechnungsMinuten, inGruppen } from './appTickets.js';
 
 const SEVDESK_BASE = 'https://my.sevdesk.de/api/v1';
 
@@ -45,36 +45,24 @@ export default async function (req) {
     const body = await req.json().catch(() => ({}));
     const since = body?.since === null ? null : (body?.since || '2026-07-24');
 
-    // 1. awork Support-/Wartungsprojekte
-    const projekte = await alleSeiten((l, o) =>
-      base44.asServiceRole.entities.AworkProjectSnapshot.list('-last_synced_at', l, o)
-    );
-    const supportProjekte = projekte.filter(istSupportProjekt);
-    const projektById = {};
-    projekte.forEach(p => { projektById[p.awork_project_id] = p; });
+    const db = base44.asServiceRole.entities;
 
-    // 2. Aufgaben, die der Mitarbeiter in awork auf „In Verrechnung" gestellt hat
-    //    = Übergabe an die Rechnungslegung. Der Status entscheidet, nicht die
-    //    Projektart — auch Aufgaben in Umsetzungsprojekten gehören her.
-    // Direkt nach Status abfragen — das Durchblättern aller Aufgaben ließ einzelne aus
-    const erledigt = await alleSeiten((l, o) =>
-      base44.asServiceRole.entities.AworkTaskSnapshot.filter({ task_status_name: 'In Verrechnung' }, '-last_activity_at', l, o)
-    );
+    // Gemeinsame Daten einmal und parallel laden (25.11.2026, Ladezeit) — Sortierungen wie bisher.
+    // Aufgaben, die der Mitarbeiter in awork auf „In Verrechnung" gestellt hat = Übergabe an die
+    // Rechnungslegung; direkt nach Status abfragen — das Durchblättern aller Aufgaben ließ einzelne aus.
+    const [erledigt, anweisungen, zuweisungen, projekteAlle, clientsAlle, teamAlle] = await Promise.all([
+      alleSeiten((l, o) => db.AworkTaskSnapshot.filter({ task_status_name: 'In Verrechnung' }, '-last_activity_at', l, o)),
+      alleSeiten((l, o) => db.BillingInstruction.list('-created_date', l, o)),
+      alleSeiten((l, o) => db.SupportTicketCustomer.list('-updated_date', l, o)),
+      alleSeiten((l, o) => db.Project.list('-created_date', l, o)),
+      alleSeiten((l, o) => db.Client.list('-created_date', l, o)),
+      alleSeiten((l, o) => db.TeamMember.list('name', l, o)),
+    ]);
+    const stamm = { projekte: projekteAlle, clients: clientsAlle, team: teamAlle };
     const aufgabeById = {};
     erledigt.forEach(t => { aufgabeById[t.awork_task_id] = t; });
 
-    // 3. Offene (noch nicht abgerechnete) Zeitbuchungen auf diese Aufgaben
-    const buchungen = await alleSeiten((l, o) =>
-      base44.asServiceRole.entities.AworkTimeEntry.filter({ is_billed: false, is_billable: true }, '-entry_date', l, o)
-    );
-    const offeneBuchungen = buchungen.filter(b =>
-      b.task_id && aufgabeById[b.task_id] && (!since || (b.entry_date || '') >= since)
-    );
-
-    // 4. Bereits über dieses Modul abgerechnete Aufgaben ausschließen
-    const anweisungen = await alleSeiten((l, o) =>
-      base44.asServiceRole.entities.BillingInstruction.list('-created_date', l, o)
-    );
+    // Bereits über dieses Modul abgerechnete Aufgaben ausschließen
     const abgerechneteTasks = new Set();
     const anweisungProProjekt = {};
     const anweisungProKunde = {};
@@ -92,10 +80,38 @@ export default async function (req) {
       }
     });
 
-    // 5. LiquidityProjects zur Verknüpfung (Kunde, project_id)
-    const liquidity = await alleSeiten((l, o) =>
-      base44.asServiceRole.entities.LiquidityProject.list('-updated_date', l, o)
+    // Kundenzuweisung je Anfrage (Support-Anfragen haben oft kein Projekt im Cockpit).
+    // Ohne Rechnung abgeschlossene Anfragen fallen heraus (25.11.2026).
+    const zuweisungByTask = {};
+    zuweisungen.forEach(z => { if (!zuweisungByTask[z.awork_task_id]) zuweisungByTask[z.awork_task_id] = z; });
+    const abgeschlosseneAufgaben = new Set(zuweisungen.filter(z => z.verrechnung_status === 'nicht_verrechnen').map(z => z.awork_task_id));
+    const offeneAufgaben = erledigt.filter(t => !abgerechneteTasks.has(t.awork_task_id) && !abgeschlosseneAufgaben.has(t.awork_task_id));
+
+    // aWork-Projekte, offene aWork-Zeiten und Cockpit-Projekte nur für diese Anfragen laden
+    // (bisher bei jedem Aufruf alle: > 1.000 Projektstände, > 2.500 Zeiten). Ohne offene Anfrage entfällt alles.
+    let projekte = [];
+    let buchungen = [];
+    let liquidity = [];
+    if (offeneAufgaben.length) {
+      const taskIds = [...new Set(offeneAufgaben.map(t => t.awork_task_id).filter(Boolean))];
+      const projektIds = [...new Set(offeneAufgaben.map(t => t.awork_project_id).filter(Boolean))];
+      const stuecke = [];
+      for (let i = 0; i < taskIds.length; i += 100) stuecke.push(taskIds.slice(i, i + 100));
+      [buchungen, projekte, liquidity] = await Promise.all([
+        inGruppen(stuecke, (ids) => alleSeiten((l, o) =>
+          db.AworkTimeEntry.filter({ is_billed: false, is_billable: true, task_id: { $in: ids } }, '-entry_date', l, o)), 4).then((x) => x.flat()),
+        projektIds.length ? alleSeiten((l, o) => db.AworkProjectSnapshot.filter({ awork_project_id: { $in: projektIds } }, '-last_synced_at', l, o)) : [],
+        projektIds.length ? alleSeiten((l, o) => db.LiquidityProject.filter({ awork_project_id: { $in: projektIds } }, '-updated_date', l, o)) : [],
+      ]);
+    }
+    const supportProjekte = projekte.filter(istSupportProjekt);
+    const projektById = {};
+    projekte.forEach(p => { projektById[p.awork_project_id] = p; });
+    // Offene (noch nicht abgerechnete) Zeitbuchungen auf diese Aufgaben
+    const offeneBuchungen = buchungen.filter(b =>
+      b.task_id && aufgabeById[b.task_id] && (!since || (b.entry_date || '') >= since)
     );
+
     const liqByAwork = {};
     liquidity.forEach(lp => { if (lp.awork_project_id) liqByAwork[lp.awork_project_id] = lp; });
 
@@ -103,7 +119,7 @@ export default async function (req) {
     // Jede Aufgabe „In Verrechnung" erscheint — auch ohne offene Zeit
     const perTask = {};
     erledigt.forEach(t => {
-      if (abgerechneteTasks.has(t.awork_task_id)) return;
+      if (abgerechneteTasks.has(t.awork_task_id) || abgeschlosseneAufgaben.has(t.awork_task_id)) return;
       perTask[t.awork_task_id] = {
         awork_task_id: t.awork_task_id,
         task_title: t.task_title || '',
@@ -117,7 +133,7 @@ export default async function (req) {
       };
     });
     offeneBuchungen.forEach(b => {
-      if (abgerechneteTasks.has(b.task_id)) return;
+      if (abgerechneteTasks.has(b.task_id) || abgeschlosseneAufgaben.has(b.task_id)) return;
       const t = aufgabeById[b.task_id];
       const eintrag = perTask[b.task_id] || {
         awork_task_id: b.task_id,
@@ -139,12 +155,19 @@ export default async function (req) {
     // 7. Verrechnung je Aufgabe: Minimum 0,5 h, danach in 15-Minuten-Schritten aufgerundet
     Object.values(perTask).forEach(t => { t.key = t.awork_task_id; t.billable_minutes = supportVerrechnungsMinuten(t.open_minutes); });
 
-    // 8. Kundenzuweisung je Anfrage (Support-Anfragen haben oft kein Projekt im Cockpit)
-    const zuweisungen = await alleSeiten((l, o) =>
-      base44.asServiceRole.entities.SupportTicketCustomer.list('-updated_date', l, o)
-    );
-    const zuweisungByTask = {};
-    zuweisungen.forEach(z => { if (!zuweisungByTask[z.awork_task_id]) zuweisungByTask[z.awork_task_id] = z; });
+    // Ohne Rechnung abgeschlossene aWork-Anfragen der letzten 30 Tage — zum Zurückholen (25.11.2026)
+    const vor30Tagen = new Date(Date.now() - 30 * 864e5).toISOString();
+    const gesehen = new Set();
+    const altbestandAbgeschlossen = [];
+    for (const z of zuweisungen) {
+      if (z.verrechnung_status !== 'nicht_verrechnen' || (z.verrechnung_am || '') < vor30Tagen || gesehen.has(z.awork_task_id)) continue;
+      gesehen.add(z.awork_task_id);
+      altbestandAbgeschlossen.push({
+        key: `awork:${z.awork_task_id}`, awork_task_id: z.awork_task_id, ticket_id: null, link: null,
+        task_title: aufgabeById[z.awork_task_id]?.task_title || 'aWork-Anfrage',
+        grund: z.verrechnung_grund || '', notiz: z.verrechnung_notiz || '', von: z.verrechnung_von || '', am: z.verrechnung_am || null,
+      });
+    }
 
     // Vorschlag aus dem Aufgabentitel: "SCHWERTNER - Probleme Onlineshop" -> SCHWERTNER
     function kundeAusTitel(titel) {
@@ -218,6 +241,23 @@ export default async function (req) {
       return ergebnis;
     }
 
+    // sevDesk-Status aller angezeigten Rechnungen vorab parallel holen (je 5) — die Schleifen lesen
+    // danach aus dem Cache statt ~25 Aufrufe nacheinander (25.11.2026, Ladezeit)
+    const zuPruefen = new Set();
+    for (const g of Object.values(gruppen)) {
+      const liste = g.customer_name
+        ? (anweisungProKunde[g.customer_name.toLowerCase()] || [])
+        : (anweisungProProjekt[g.liquidity_project_id] || []);
+      liste.forEach((a) => { if (a.sevdesk_invoice_id) zuPruefen.add(a.sevdesk_invoice_id); });
+    }
+    for (const a of anweisungen) {
+      if (a.status === 'cancelled' || a.status === 'paid' || !a.sevdesk_invoice_id) continue;
+      let s = null;
+      try { s = a.source_snapshot_json ? JSON.parse(a.source_snapshot_json) : null; } catch (_e) { s = null; }
+      if (['app', 'regie', 'kunde'].includes(s?.quelle)) zuPruefen.add(a.sevdesk_invoice_id);
+    }
+    await inGruppen([...zuPruefen], liveStatus, 5);
+
     for (const g of Object.values(gruppen)) {
       const liste = g.customer_name
         ? (anweisungProKunde[g.customer_name.toLowerCase()] || [])
@@ -237,17 +277,15 @@ export default async function (req) {
 
     const rows = Object.values(gruppen).sort((a, b) => b.open_minutes - a.open_minutes);
 
-    // Hauptteil: erledigte Support-Tickets der App
-    const app = await appZeilen(base44.asServiceRole, alleSeiten, liveStatus, anweisungen);
-
-    // Regie nach Aufwand — eigener Bereich, eigene Regeln (kein Ticket-Minimum).
-    // Ein Fehler hier darf die Support-Abrechnung nicht verhindern.
-    let regie = { rows: [], regie_projects: 0, fehler: null };
-    try {
-      regie = { ...(await regieZeilen(base44.asServiceRole, alleSeiten, liveStatus, anweisungen)), fehler: null };
-    } catch (e) {
-      regie = { rows: [], regie_projects: 0, fehler: e.message };
-    }
+    // Hauptteil: erledigte Support-Tickets der App — und parallel dazu Regie nach Aufwand
+    // (eigener Bereich, eigene Regeln, kein Ticket-Minimum). Ein Fehler in Regie darf die
+    // Support-Abrechnung nicht verhindern.
+    const [app, regie] = await Promise.all([
+      appZeilen(base44.asServiceRole, alleSeiten, liveStatus, anweisungen, stamm),
+      regieZeilen(base44.asServiceRole, alleSeiten, liveStatus, anweisungen, stamm)
+        .then((r) => ({ ...r, fehler: null }))
+        .catch((e) => ({ rows: [], regie_projects: 0, fehler: e.message })),
+    ]);
 
     // Kundenblock (Entscheidung Alfons 22.10.2026): Support und Regie eines Kunden in EINEM Block,
     // damit der Kunde eine Rechnung bekommt. Je Position bleiben Art, Projekt, Satz und Rundung erhalten.
@@ -326,10 +364,12 @@ export default async function (req) {
       rows,
       total_open_minutes: rows.reduce((s, r) => s + r.open_minutes, 0),
       total_billable_minutes: rows.reduce((s, r) => s + r.billable_minutes, 0),
+      altbestand_nicht_verrechnet: altbestandAbgeschlossen,
       sevdesk_live: Boolean(apiKey),
       checked_at: new Date().toISOString(),
     });
   } catch (error) {
+    console.error('supportBillingCheck fehlgeschlagen:', error?.message, error?.stack);
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
