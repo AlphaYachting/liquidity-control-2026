@@ -16,6 +16,20 @@ export async function inGruppen(liste, fn, groesse = 8) {
   return out;
 }
 
+// Zeitbuchungen mehrerer Projekte gebündelt statt einer Abfrage je Projekt (25.11.2026): Base44 erlaubt
+// 210 Listenabfragen pro Minute und Person — mit je einer Abfrage für 51 Support- und 23 Regie-Projekte
+// scheiterte schon der zweite Aufruf innerhalb einer Minute („Rate limit exceeded“).
+// Ergebnis je Projekt in derselben Sortierung (-entry_date) wie bisher.
+async function buchungenJeProjekt(sr, alleSeiten, projektIds) {
+  const jeProjekt = Object.fromEntries(projektIds.map((id) => [id, []]));
+  for (let i = 0; i < projektIds.length; i += 100) {
+    const ids = projektIds.slice(i, i + 100);
+    const seite = await alleSeiten((l, o) => sr.entities.TimeEntry.filter({ project_id: { $in: ids } }, '-entry_date', l, o));
+    for (const e of seite) jeProjekt[e.project_id]?.push(e);
+  }
+  return jeProjekt;
+}
+
 // Ohne Rechnung abgeschlossene Zeit (supportVerrechnung 'abschliessen', 25.11.2026) — 30 Tage zum Zurückholen sichtbar
 const abgeschlossenSeit = (e, seit) => e.abrechnungsstatus === 'nicht_verrechnet' && Boolean(e.nicht_verrechnet_am) && e.nicht_verrechnet_am >= seit;
 const tagKurz = (iso) => (/^\d{4}-\d{2}-\d{2}/.test(String(iso || '')) ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '');
@@ -49,14 +63,17 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen, stamm =
   const team = stamm.team || await alleSeiten((l, o) => sr.entities.TeamMember.list('name', l, o));
   const nameByEmail = Object.fromEntries(team.map(t => [String(t.email || '').toLowerCase(), t.name]));
 
-  // Tickets und Zeitbuchungen parallel; Buchungen je Projekt in derselben Reihenfolge wie bisher
-  const [ticketsRoh, buchungenJeProjekt] = await Promise.all([
-    alleSeiten((l, o) => sr.entities.Ticket.filter({ status: 'erledigt' }, '-updated_date', l, o)),
-    inGruppen(projekte, (p) => alleSeiten((l, o) => sr.entities.TimeEntry.filter({ project_id: p.id }, '-entry_date', l, o))),
+  // Tickets und Zeitbuchungen parallel und gebündelt; Buchungen je Projekt in derselben Reihenfolge wie bisher
+  const projektIds = projekte.map(p => p.id);
+  const [ticketsRoh, jeProjekt] = await Promise.all([
+    projektIds.length
+      ? alleSeiten((l, o) => sr.entities.Ticket.filter({ status: 'erledigt', project_id: { $in: projektIds } }, '-updated_date', l, o))
+      : [],
+    buchungenJeProjekt(sr, alleSeiten, projektIds),
   ]);
   const tickets = ticketsRoh.filter(t => projektById[t.project_id] && t.archiviert !== true);
   const ticketById = Object.fromEntries(tickets.map(t => [t.id, t]));
-  const buchungen = buchungenJeProjekt.flat();
+  const buchungen = projekte.flatMap(p => jeProjekt[p.id] || []);
 
   const gruppen = {};
   const gruppe = (p) => {
@@ -341,18 +358,22 @@ export async function regieZeilen(sr, alleSeiten, liveStatus, anweisungen, stamm
   const nameByEmail = Object.fromEntries(team.map(t => [String(t.email || '').toLowerCase(), t.name]));
   const vor30Tagen = new Date(Date.now() - 30 * 864e5).toISOString();
 
-  // Buchungen und Aufgabentitel je Projekt parallel laden (25.11.2026, Ladezeit) — gerechnet wird danach wie bisher
-  const daten = await inGruppen(projekte, async (p) => {
-    const alleBuchungen = await alleSeiten((l, o) => sr.entities.TimeEntry.filter({ project_id: p.id }, '-entry_date', l, o));
-    const offen = alleBuchungen.filter(istOffen).filter(e => (Number(e.duration_minutes) || 0) !== 0);
-    const ids = [...new Set(offen.map(e => e.ticket_id).filter(Boolean))];
-    const tks = ids.length ? await sr.entities.Ticket.filter({ id: { $in: ids } }, 'order', 500).catch(() => []) : [];
-    return { alleBuchungen, offen, tks };
-  });
+  // Buchungen und Aufgabentitel gebündelt laden (25.11.2026, Abfragegrenze) — gerechnet wird danach wie bisher
+  const jeProjekt = await buchungenJeProjekt(sr, alleSeiten, projekte.map(p => p.id));
+  const offenJeProjekt = Object.fromEntries(projekte.map(p => [p.id,
+    (jeProjekt[p.id] || []).filter(istOffen).filter(e => (Number(e.duration_minutes) || 0) !== 0)]));
+  const titelIds = [...new Set(Object.values(offenJeProjekt).flat().map(e => e.ticket_id).filter(Boolean))];
+  const alleTitel = [];
+  for (let i = 0; i < titelIds.length; i += 200) {
+    alleTitel.push(...await sr.entities.Ticket.filter({ id: { $in: titelIds.slice(i, i + 200) } }, 'order', 500).catch(() => []));
+  }
 
   const rows = [];
-  for (const [pi, p] of projekte.entries()) {
-    const { alleBuchungen, offen: buchungen, tks: tickets } = daten[pi];
+  for (const p of projekte) {
+    const alleBuchungen = jeProjekt[p.id] || [];
+    const buchungen = offenJeProjekt[p.id];
+    const eigeneIds = new Set(buchungen.map(e => e.ticket_id).filter(Boolean));
+    const tickets = alleTitel.filter(t => eigeneIds.has(t.id));
 
     // Ohne Rechnung abgeschlossene Regiezeit — 30 Tage zum Zurückholen, je Abschluss eine Zeile
     const abgeschlossenMap = {};
