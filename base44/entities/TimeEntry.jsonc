@@ -15,8 +15,34 @@
       "enum": [
         "offen",
         "abgerechnet",
-        "verworfen"
+        "verworfen",
+        "nicht_verrechnet"
       ],
+      "type": "string"
+    },
+    "nicht_verrechnet_grund": {
+      "description": "In der Support-Abrechnung ohne Rechnung abgeschlossen: warum (Zeit bleibt Arbeitszeit)",
+      "enum": [
+        "wartungsvertrag",
+        "anderer_auftrag",
+        "bereits_verrechnet",
+        "kulanz",
+        "doppelt_fehlbuchung",
+        "keine_gesonderte_abrechnung",
+        "sonstiges"
+      ],
+      "type": "string"
+    },
+    "nicht_verrechnet_notiz": {
+      "type": "string"
+    },
+    "nicht_verrechnet_von": {
+      "format": "email",
+      "type": "string"
+    },
+    "nicht_verrechnet_am": {
+      "description": "Zeitpunkt des Abschlusses ohne Rechnung \u2014 nur gesetzt, wenn die Support-Abrechnung den Status gesetzt hat",
+      "format": "date-time",
       "type": "string"
     },
     "billing_instruction_id": {
