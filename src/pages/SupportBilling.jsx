@@ -85,15 +85,17 @@ export default function SupportBilling() {
           </div>
 
           {kundenRuhend.length > 0 && (
-            <div className="space-y-3">
-              <button
-                onClick={() => setRuhendOffen((o) => !o)}
-                className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
-              >
-                {ruhendOffen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                Ohne offene Positionen ({kundenRuhend.length})
-                <span className="font-normal text-xs">— Rechnungen, die auf Zahlung warten, und ohne Rechnung Abgeschlossenes (30 Tage zurückholbar)</span>
-              </button>
+            <div className="space-y-3 pt-2 border-t">
+              <div>
+                <button
+                  onClick={() => setRuhendOffen((o) => !o)}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
+                >
+                  {ruhendOffen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  Ohne offene Positionen ({kundenRuhend.length})
+                </button>
+                <p className="text-xs text-muted-foreground ml-5">Rechnungen, die auf Zahlung warten, und ohne Rechnung Abgeschlossenes (30 Tage zurückholbar)</p>
+              </div>
               {ruhendOffen && kundenRuhend.map(r => <SupportAppRow key={r.group_key} row={r} onDone={refetch} />)}
             </div>
           )}
