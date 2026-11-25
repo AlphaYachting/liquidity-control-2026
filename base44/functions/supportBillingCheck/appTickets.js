@@ -9,6 +9,17 @@ export function supportVerrechnungsMinuten(minuten) {
   return Math.max(30, Math.ceil(m / 15) * 15);
 }
 
+// Parallel in Gruppen — Ergebnis in der Reihenfolge der Eingabe (25.11.2026, Ladezeit)
+export async function inGruppen(liste, fn, groesse = 8) {
+  const out = [];
+  for (let i = 0; i < liste.length; i += groesse) out.push(...await Promise.all(liste.slice(i, i + groesse).map(fn)));
+  return out;
+}
+
+// Ohne Rechnung abgeschlossene Zeit (supportVerrechnung 'abschliessen', 25.11.2026) — 30 Tage zum Zurückholen sichtbar
+const abgeschlossenSeit = (e, seit) => e.abrechnungsstatus === 'nicht_verrechnet' && Boolean(e.nicht_verrechnet_am) && e.nicht_verrechnet_am >= seit;
+const tagKurz = (iso) => (/^\d{4}-\d{2}-\d{2}/.test(String(iso || '')) ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '');
+
 const SUPPORT_MODELS = ['aufwand', 'support'];
 const SATZ = 130;
 const istSupportProjekt = (p) => SUPPORT_MODELS.includes(p.abrechnungsmodell) && p.aufwand_art !== 'regie';
@@ -28,22 +39,24 @@ const OHNE_ZEIT_GRUND = {
   sonstiges: 'Sonstiges',
 };
 
-export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
-  const projekte = (await alleSeiten((l, o) => sr.entities.Project.list('-created_date', l, o))).filter(istSupportProjekt);
+// stamm (optional): { projekte, clients, team } — einmal in entry.ts geladen statt hier erneut (25.11.2026)
+export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen, stamm = {}) {
+  const alleProjekte = stamm.projekte || await alleSeiten((l, o) => sr.entities.Project.list('-created_date', l, o));
+  const projekte = alleProjekte.filter(istSupportProjekt);
   const projektById = Object.fromEntries(projekte.map(p => [p.id, p]));
-  const clients = await alleSeiten((l, o) => sr.entities.Client.list('-created_date', l, o));
+  const clients = stamm.clients || await alleSeiten((l, o) => sr.entities.Client.list('-created_date', l, o));
   const clientById = Object.fromEntries(clients.map(c => [c.id, c]));
-  const team = await alleSeiten((l, o) => sr.entities.TeamMember.list('name', l, o));
+  const team = stamm.team || await alleSeiten((l, o) => sr.entities.TeamMember.list('name', l, o));
   const nameByEmail = Object.fromEntries(team.map(t => [String(t.email || '').toLowerCase(), t.name]));
 
-  const tickets = (await alleSeiten((l, o) => sr.entities.Ticket.filter({ status: 'erledigt' }, '-updated_date', l, o)))
-    .filter(t => projektById[t.project_id] && t.archiviert !== true);
+  // Tickets und Zeitbuchungen parallel; Buchungen je Projekt in derselben Reihenfolge wie bisher
+  const [ticketsRoh, buchungenJeProjekt] = await Promise.all([
+    alleSeiten((l, o) => sr.entities.Ticket.filter({ status: 'erledigt' }, '-updated_date', l, o)),
+    inGruppen(projekte, (p) => alleSeiten((l, o) => sr.entities.TimeEntry.filter({ project_id: p.id }, '-entry_date', l, o))),
+  ]);
+  const tickets = ticketsRoh.filter(t => projektById[t.project_id] && t.archiviert !== true);
   const ticketById = Object.fromEntries(tickets.map(t => [t.id, t]));
-
-  const buchungen = [];
-  for (const p of projekte) {
-    buchungen.push(...await alleSeiten((l, o) => sr.entities.TimeEntry.filter({ project_id: p.id }, '-entry_date', l, o)));
-  }
+  const buchungen = buchungenJeProjekt.flat();
 
   const gruppen = {};
   const gruppe = (p) => {
@@ -143,7 +156,7 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
     if (vstatus === 'nicht_verrechnen') {
       if ((t.verrechnung_am || '') >= vor30Tagen) {
         g.nicht_verrechnet.push({
-          ticket_id: t.id, task_title: t.title, link, grund: t.verrechnung_grund || '',
+          key: `ticket:${t.id}`, ticket_id: t.id, task_title: t.title, link, grund: t.verrechnung_grund || '',
           notiz: t.verrechnung_notiz || '', von: t.verrechnung_von || '', am: t.verrechnung_am || null,
         });
       }
@@ -174,6 +187,7 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
       nicht_verrechenbar_minutes: nichtVerrechenbar[t.id]?.minuten || 0,
       nicht_verrechenbar_gruende: [...(nichtVerrechenbar[t.id]?.gruende || [])],
       ohne_zeit_grund: t.ohne_zeit_grund ? (OHNE_ZEIT_GRUND[t.ohne_zeit_grund] || t.ohne_zeit_grund) : null,
+      ohne_zeit_code: t.ohne_zeit_grund || null,
       ohne_zeit_notiz: t.ohne_zeit_notiz || null,
       ohne_zeit_von: t.ohne_zeit_von ? (nameByEmail[String(t.ohne_zeit_von).toLowerCase()] || t.ohne_zeit_von) : null,
     };
@@ -199,6 +213,24 @@ export async function appZeilen(sr, alleSeiten, liveStatus, anweisungen) {
     g.tasks.push(posten);
     g.open_minutes += z.minuten;
     g.billable_minutes += posten.billable_minutes;
+  }
+
+  // Ohne Rechnung abgeschlossene Zeit, die nicht schon über ihr Ticket in der Liste steht (25.11.2026)
+  const abgeschlossen = {};
+  for (const e of buchungen) {
+    if (!abgeschlossenSeit(e, vor30Tagen)) continue;
+    const t = e.ticket_id ? ticketById[e.ticket_id] : null;
+    if (t && t.verrechnung_status === 'nicht_verrechnen') continue;
+    const key = `zeit:${e.project_id}|${e.ticket_id || ''}|${e.nicht_verrechnet_am}`;
+    const a = abgeschlossen[key] = abgeschlossen[key] || {
+      key, project_id: e.project_id, ticket_id: null, time_entry_ids: [], task_title: t ? t.title : 'Zeit ohne Ticket', link: null,
+      grund: e.nicht_verrechnet_grund || '', notiz: e.nicht_verrechnet_notiz || '', von: e.nicht_verrechnet_von || '', am: e.nicht_verrechnet_am, minuten: 0,
+    };
+    a.time_entry_ids.push(e.id);
+    a.minuten += Number(e.duration_minutes) || 0;
+  }
+  for (const a of Object.values(abgeschlossen)) {
+    if (projektById[a.project_id]) gruppe(projektById[a.project_id]).nicht_verrechnet.push(a);
   }
 
   // App-Anweisungen je Kunde — bleiben sichtbar (zum Zurücknehmen), bis sie bezahlt sind
@@ -293,8 +325,8 @@ function verrechnetJePosition(positionen, regeln) {
   return ergebnis;
 }
 
-export async function regieZeilen(sr, alleSeiten, liveStatus, anweisungen) {
-  const alle = await alleSeiten((l, o) => sr.entities.Project.list('-created_date', l, o));
+export async function regieZeilen(sr, alleSeiten, liveStatus, anweisungen, stamm = {}) {
+  const alle = stamm.projekte || await alleSeiten((l, o) => sr.entities.Project.list('-created_date', l, o));
   const projekte = alle.filter(p => p.abrechnungsmodell === 'aufwand' && p.aufwand_art === 'regie');
   if (!projekte.length) return { rows: [], regie_projects: 0 };
 
@@ -303,16 +335,43 @@ export async function regieZeilen(sr, alleSeiten, liveStatus, anweisungen) {
   const standardSatz = Number(settings.standard_stundensatz) || 120;
   const umstellung = String(settings.awork_umstellung_stichtag || '2026-10-04').slice(0, 10);
 
-  const clients = await alleSeiten((l, o) => sr.entities.Client.list('-created_date', l, o));
+  const clients = stamm.clients || await alleSeiten((l, o) => sr.entities.Client.list('-created_date', l, o));
   const clientById = Object.fromEntries(clients.map(c => [c.id, c]));
-  const team = await alleSeiten((l, o) => sr.entities.TeamMember.list('name', l, o));
+  const team = stamm.team || await alleSeiten((l, o) => sr.entities.TeamMember.list('name', l, o));
   const nameByEmail = Object.fromEntries(team.map(t => [String(t.email || '').toLowerCase(), t.name]));
+  const vor30Tagen = new Date(Date.now() - 30 * 864e5).toISOString();
+
+  // Buchungen und Aufgabentitel je Projekt parallel laden (25.11.2026, Ladezeit) — gerechnet wird danach wie bisher
+  const daten = await inGruppen(projekte, async (p) => {
+    const alleBuchungen = await alleSeiten((l, o) => sr.entities.TimeEntry.filter({ project_id: p.id }, '-entry_date', l, o));
+    const offen = alleBuchungen.filter(istOffen).filter(e => (Number(e.duration_minutes) || 0) !== 0);
+    const ids = [...new Set(offen.map(e => e.ticket_id).filter(Boolean))];
+    const tks = ids.length ? await sr.entities.Ticket.filter({ id: { $in: ids } }, 'order', 500).catch(() => []) : [];
+    return { alleBuchungen, offen, tks };
+  });
 
   const rows = [];
-  for (const p of projekte) {
-    const buchungen = (await alleSeiten((l, o) => sr.entities.TimeEntry.filter({ project_id: p.id }, '-entry_date', l, o)))
-      .filter(istOffen)
-      .filter(e => (Number(e.duration_minutes) || 0) !== 0);
+  for (const [pi, p] of projekte.entries()) {
+    const { alleBuchungen, offen: buchungen, tks: tickets } = daten[pi];
+
+    // Ohne Rechnung abgeschlossene Regiezeit — 30 Tage zum Zurückholen, je Abschluss eine Zeile
+    const abgeschlossenMap = {};
+    for (const e of alleBuchungen) {
+      if (!abgeschlossenSeit(e, vor30Tagen)) continue;
+      const key = `regie:${p.id}|${e.nicht_verrechnet_am}`;
+      const a = abgeschlossenMap[key] = abgeschlossenMap[key] || {
+        key, project_id: p.id, ticket_id: null, time_entry_ids: [], tage: new Set(), link: null,
+        grund: e.nicht_verrechnet_grund || '', notiz: e.nicht_verrechnet_notiz || '', von: e.nicht_verrechnet_von || '', am: e.nicht_verrechnet_am, minuten: 0,
+      };
+      a.time_entry_ids.push(e.id);
+      a.minuten += Number(e.duration_minutes) || 0;
+      if (e.entry_date) a.tage.add(String(e.entry_date).slice(0, 10));
+    }
+    const abgeschlossen = Object.values(abgeschlossenMap).map(({ tage, ...a }) => {
+      const t = [...tage].sort();
+      const titel = t.length <= 1 ? `Regieleistungen ${tagKurz(t[0]) || ''}`.trim() : `Regieleistungen ${tagKurz(t[0])} bis ${tagKurz(t[t.length - 1])}`;
+      return { ...a, task_title: titel };
+    });
 
     const offeneAnweisungen = [];
     for (const a of anweisungen) {
@@ -327,15 +386,13 @@ export async function regieZeilen(sr, alleSeiten, liveStatus, anweisungen) {
         live_status: live,
       });
     }
-    if (!buchungen.length && !offeneAnweisungen.length) continue;
+    if (!buchungen.length && !offeneAnweisungen.length && !abgeschlossen.length) continue;
 
     const regeln = regelnFuer(p, settings);
     const satz = Number(p.stundensatz) || Number(buchungen.find(e => Number(e.stundensatz) > 0)?.stundensatz) || standardSatz;
     const c = clientById[p.client_id] || null;
 
-    // Titel der Aufgaben (auch offene — Regie wird nicht erst bei „erledigt" verrechnet)
-    const ticketIds = [...new Set(buchungen.map(e => e.ticket_id).filter(Boolean))];
-    const tickets = ticketIds.length ? await sr.entities.Ticket.filter({ id: { $in: ticketIds } }, 'order', 500).catch(() => []) : [];
+    // Titel der Aufgaben (auch offene — Regie wird nicht erst bei „erledigt" verrechnet) — oben parallel geladen
     const ticketById = Object.fromEntries(tickets.map(t => [t.id, t]));
 
     const positionen = {};
@@ -408,7 +465,7 @@ export async function regieZeilen(sr, alleSeiten, liveStatus, anweisungen) {
       tasks,
       ohne_zeit: [],
       instructions: offeneAnweisungen,
-      nicht_verrechnet: [],
+      nicht_verrechnet: abgeschlossen,
     });
   }
 
